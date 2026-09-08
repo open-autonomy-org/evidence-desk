@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Evidence Desk: a document in an open folder">
+  <rect width="1024" height="1024" rx="224" fill="#132D36"/>
+  <path d="M210 322a42 42 0 0 1 42-42h172l64 70h284a42 42 0 0 1 42 42v328a42 42 0 0 1-42 42H252a42 42 0 0 1-42-42Z" fill="#42B8A5"/>
+  <path d="M348 214h234l108 108v342H348Z" fill="#F8F4E9"/>
+  <path d="M582 214v108h108Z" fill="#D8DED2"/>
+  <path d="M412 394h210M412 462h210M412 530h132" fill="none" stroke="#132D36" stroke-width="28" stroke-linecap="round"/>
+  <path d="M178 578h668l-58 180a42 42 0 0 1-40 29H276a42 42 0 0 1-40-29Z" fill="#79D9BF"/>
+  <rect x="436" y="648" width="152" height="30" rx="15" fill="#132D36"/>
+</svg>

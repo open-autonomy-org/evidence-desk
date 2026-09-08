@@ -1,0 +1,12 @@
+{
+  "tasks": [
+    {
+      "key": "hello",
+      "title": "The project says hello",
+      "acceptance": [
+        "`bun run check` passes on a fresh clone.",
+        "README.md describes what this project is for in one paragraph."
+      ]
+    }
+  ]
+}

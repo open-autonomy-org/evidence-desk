@@ -1,0 +1,20 @@
+{
+  "jobs": [
+    {
+      "name": "pm",
+      "prompt": "Run the pm skill: reconcile the sourced ROADMAP.md with developments, coordinate people and human release review, and queue ready fleet work.",
+      "schedule": "every 60m",
+      "skills": [
+        "pm"
+      ]
+    },
+    {
+      "name": "community",
+      "prompt": "Run the community skill: answer people and preserve sourced input for roadmap scrum.",
+      "schedule": "every 15m",
+      "skills": [
+        "community"
+      ]
+    }
+  ]
+}
