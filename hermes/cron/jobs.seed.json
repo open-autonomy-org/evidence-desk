@@ -6,7 +6,13 @@
       "schedule": "every 60m",
       "skills": [
         "pm"
-      ]
+      ],
+      "enabled_toolsets": [
+        "hermes-cron",
+        "discord",
+        "discord_admin"
+      ],
+      "deliver": "discord:1546981849979682916"
     },
     {
       "name": "community",
@@ -14,7 +20,13 @@
       "schedule": "every 15m",
       "skills": [
         "community"
-      ]
+      ],
+      "enabled_toolsets": [
+        "hermes-cron",
+        "discord",
+        "discord_admin"
+      ],
+      "deliver": "discord:1546981849979682916"
     }
   ]
 }

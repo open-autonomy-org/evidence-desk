@@ -12,6 +12,10 @@ Use synthetic evidence for development. Do not submit real customer records in i
 
 ## Project and development
 
+Evidence Desk belongs to the [Open Autonomy organization](https://github.com/open-autonomy-org).
+Its public coordination channel is [#evidence-desk in the shared organization Discord](https://discord.com/channels/1544906154868744202/1546981849979682916).
+The project has its own bot identity, credentials, budget and planning; bot activation is still pending.
+
 - [Constitution](CONSTITUTION.md): the product agreement and its sources.
 - [Roadmap](ROADMAP.md): notable plans and outstanding outcomes, maintained by Hermes PM.
 - [Changelog](CHANGELOG.md): notable changes consolidated into main.
