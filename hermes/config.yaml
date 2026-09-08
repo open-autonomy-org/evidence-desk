@@ -30,3 +30,15 @@ agent:
 kanban:
   dispatch_interval_seconds: 15
   review_dispatch: true
+
+# Shared organization server; this project's own bot and contact channel.
+platform_toolsets:
+  discord: [hermes-discord]
+
+discord:
+  server_actions: [list_guilds, server_info, list_channels, channel_info, list_roles, member_info, search_members, fetch_messages, create_thread]
+  group_allow_admin_from: ["605505624226136074"]
+  group_user_allowed_commands: []
+  channel_skill_bindings:
+    - id: "1546981849979682916" # evidence-desk; threads inherit this binding
+      skills: [project-communications]

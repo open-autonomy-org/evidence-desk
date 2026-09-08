@@ -14,12 +14,16 @@ team: {
           "id": "2255943",
           "login": "yueranyuan"
         },
+        "discord": {
+          "id": "605505624226136074",
+          "name": "miamiviceroy"
+        },
         "scopes": [
           "owner",
           "direction",
           "release-review"
         ],
-        "source": "Owner-led Evidence Desk setup, 2026-09-08: owner accepted the project name and public open-autonomy-org/evidence-desk repository. GitHub GET /user verified yueranyuan (2255943); active organization admin membership verified. Prior owner identity confirmation: https://github.com/open-autonomy-org/open-autonomy/pull/460. Human release review was required by the owner in the founding conversation."
+        "source": "Owner-led Evidence Desk setup, 2026-09-08: owner accepted project and organization, then shared Discord with a separate project bot/channel. GitHub GET /user verified yueranyuan (2255943). Owner previously said \"yes those are me\", linking that GitHub ID to Discord miamiviceroy (605505624226136074): https://github.com/open-autonomy-org/open-autonomy/pull/460. Owner direction and human release-review authority carry forward from the founding conversation."
       }
     ]
   }

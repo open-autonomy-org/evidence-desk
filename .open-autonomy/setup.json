@@ -1,9 +1,14 @@
 {
   "version": 1,
   "steps": {},
-  "doors": {},
+  "doors": {
+    "discord": "yes"
+  },
   "notes": {
     "github-repository": "Created public open-autonomy-org/evidence-desk (repository ID 1361852174); main is the default branch. GitHub user yueranyuan (2255943) and administrative access verified on 2026-09-08. Scoped fleet push access remains unconfigured.",
-    "activation": "Setup incomplete: runtime host and communication destination await owner choice; model arrangement, credentials and funding remain unverified. Hermes has not started."
+    "activation": "Setup incomplete: runtime host awaits owner choice; model arrangement, project credentials and required funding remain unverified. Discord contact destination is agreed and created. Hermes has not started.",
+    "github-organization": "GitHub GET /orgs/open-autonomy-org verified organization 324310069 (Open Autonomy), 2026-09-08. Evidence Desk is repository 1361852174 in that organization. Source: https://github.com/open-autonomy-org.",
+    "discord-organization-space": "Reusing Open Autonomy server 1544906154868744202. Organization profile source: https://github.com/open-autonomy-org/.github/blob/main/profile/README.md (Discord invite AcKMuMv2HC). Existing project policy: https://github.com/open-autonomy-org/open-autonomy/blob/main/hermes/skills/project-communications/SKILL.md. Server and existing project channels verified in normal signed-in Chrome on 2026-09-08.",
+    "discord-project-channel": "Created public #evidence-desk, channel 1546981849979682916, in the existing server; verified its URL and channel list in Chrome. Contact agreement: owner-directed organization reuse with a separate project bot and channel, 2026-09-08. https://discord.com/channels/1544906154868744202/1546981849979682916. Bot registration, installation, token capture and effective access remain incomplete; no live test messages sent."
   }
 }
