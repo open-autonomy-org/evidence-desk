@@ -1,0 +1,9 @@
+{
+  "kit": "hermes",
+  "version": "2.8.2",
+  "params": {
+    "project": "evidence-desk",
+    "account": "open-autonomy-org/evidence-desk"
+  },
+  "divergences": []
+}
