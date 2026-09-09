@@ -659,6 +659,12 @@ For Open Autonomy models, use the existing managed Compose service and start scr
    container with persistent home/checkout volumes and a loopback executor port. Put the ordinary Docker
    start/stop commands in that lifecycle; no local Compose configuration or container-manager script is
    needed. Initialize the canonical Git origin and native valve mappings above as `hermes`.
+   Make these commands safe to repeat after partial startup: reuse an existing project-owned network,
+   and let teardown handle an already-absent executor. Preserve the persistent volumes. Verify recovery
+   with the network present and the executor absent before handing off unattended operation.
+   Declare the complete peak requirements. Memory reservations are machine-wide; disk reservations
+   must be checked against the filesystem they occupy. Diagnose a false capacity refusal in World
+   accounting rather than reducing the requirement or stopping unrelated projects.
 3. Run the installed entrypoint directly:
 
    ```bash
