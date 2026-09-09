@@ -86,3 +86,19 @@ finally:
     if os.path.exists(temp): os.unlink(temp)
 `, options);
 }
+
+/** Hermes's native provider uses the host valve; no subscription credential enters the executor. */
+export async function prepareContainerSubscription(options: { container: string; home: string; baseUrl: string }): Promise<void> {
+  await python(options.container, String.raw`
+import json,os,pathlib,sys
+s=json.load(sys.stdin);home=pathlib.Path(s['home']);assert home.is_absolute() and home != pathlib.Path('/')
+(home/'codex-home-none').mkdir(exist_ok=True)
+for profile in [home,home/'profiles/treasurer']:
+    path=profile/'auth.json';assert not path.is_symlink()
+    store=json.loads(path.read_text()) if path.exists() else {}
+    store.setdefault('providers',{}).pop('openai-codex',None)
+    store.setdefault('credential_pool',{})['openai-codex']=[{'id':'valve','label':'the forwarded subscription','source':'manual:valve','priority':0,'access_token':'valve','refresh_token':'valve','base_url':s['baseUrl'],'inference_base_url':s['baseUrl']}]
+    fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600)
+    with os.fdopen(fd,'w') as stream:json.dump(store,stream)
+`, options);
+}
