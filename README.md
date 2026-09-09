@@ -5,7 +5,8 @@ Local-first SOC2 readiness for CPA firms and clients, with evidence in portable 
 Evidence Desk is being built as an open-source workbench around a local folder of JSON, CSV, Markdown
 and evidence files. Either the firm or the client can own the folder. People and their own AI coding
 tools should be able to inspect and edit it directly, with optional Git or cloud-drive synchronization.
-There is no usable readiness application yet; this repository currently contains the development starter.
+The first local CLI creates, inspects and validates workspaces. Author readiness items directly in the
+[version 1 folder format](docs/workspace-format.md); application item editing remains future work.
 
 Customer workspaces are separate from this public code repository and its public development sessions.
 Use synthetic evidence for development. Do not submit real customer records in issues, PRs or fleet chats.
@@ -35,11 +36,10 @@ platform model or hosting funds have not been used.
 
 ## Local verification
 
-The starter uses TypeScript and Bun 1.3.10 or newer. Its `src/index.ts` is a placeholder. Follow
-[AGENTS.md](AGENTS.md) to attach commands to the local World environment, install dependencies with
-`bun install`, then use the generated lockfile with `bun install --frozen-lockfile` on subsequent runs.
-Run `bun run check` in that same environment before each push. This initially checks the starter's types;
-it does not demonstrate a SOC2 readiness workflow.
+The CLI uses TypeScript and Bun 1.3.10 or newer. Follow [AGENTS.md](AGENTS.md) to attach commands
+to the local World environment. Install pinned dependencies with `bun install --frozen-lockfile` and
+run `bun run check` in that environment before each push. The check typechecks the source; behavior
+is verified by operating the CLI against disposable synthetic folders.
 
 The fleet executor has a prepared World named `evidence-desk`, with its configuration and synthetic
 workspace outside the checkout. Start it when needed, then attach checks from the current worktree:
@@ -54,8 +54,21 @@ volter-world attach evidence-desk --root /opt/data -- bun run check
 This initial World has no external product services. Add vendor twins when product dependencies emerge.
 Other developer machines establish their own World using their machine's World instructions.
 
-Application behavior will be verified with disposable synthetic workspace folders. PM will establish
-an application entry point and document its actual run command here as implementation lands.
+From the repository root, create a disposable synthetic folder and run the CLI:
+
+```bash
+scratch=$(mktemp -d)
+volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace create "$scratch/example"
+volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace open "$scratch/example"
+volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace validate "$scratch/example"
+```
+
+`workspace inspect` is an alias for `workspace open`. Create accepts only a new or empty folder;
+its parent must exist. Use an editor to add the synthetic item, Markdown context and evidence shown
+in the [folder format](docs/workspace-format.md), then repeat open and validate to see the edits.
+Open prints incomplete items as well as complete ones; missing evidence produces actionable errors.
+Open/validate are read-only and return exit code 1 on invalid input. No hosted service, customer
+credentials or AI provider is needed. This slice has no item-write command, sync, packaging or release.
 
 For fleet administration, follow the [agent-led setup guide](.open-autonomy/SETUP.md). The project uses
 the Open Autonomy Hermes kit; `create-open-autonomy check .` checks kit-owned files. The container
