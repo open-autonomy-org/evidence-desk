@@ -42,6 +42,7 @@ The fleet executor has a prepared World named `evidence-desk`, with its configur
 workspace outside the checkout. Start it when needed, then attach checks from the current worktree:
 
 ```bash
+export PATH=/opt/agent/.open-autonomy/node_modules/.bin:$PATH
 volter-world up /opt/data/evidence-desk-pilot/world.config.json --root /opt/data --env-file /opt/data/evidence-desk-pilot/app.env
 volter-world attach evidence-desk --root /opt/data -- bun install --frozen-lockfile
 volter-world attach evidence-desk --root /opt/data -- bun run check
