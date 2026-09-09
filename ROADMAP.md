@@ -6,32 +6,37 @@ See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliati
 
 ## development-ready: Complete the development installation
 
-Status: awaiting setup acceptance.
+Status: persistent runtime and supervised PM accepted; full development-loop acceptance pending.
 Dispatch: hold
 
-The [latest setup adoption](https://github.com/open-autonomy-org/evidence-desk/pull/31)
-provides executor World tooling and the native running-kit record; the application World now starts
-and installs locked dependencies from the planning worktree. [Native publication was repaired](https://github.com/open-autonomy-org/evidence-desk/pull/30),
-and the [first PM report reached the public channel](https://discord.com/channels/1544906154868744202/1546981849979682916/1547163535589642331).
-Persistent activation and the complete PM/kanban/worker/review loop remain outstanding; the
-committed setup record keeps both schedules paused pending acceptance. Completing that installation
-belongs to the setup agent. A bounded PM invocation alone does not establish its acceptance.
+The [landed operational evidence](https://github.com/open-autonomy-org/evidence-desk/pull/33)
+records healthy World admission, persistent native launchd supervision, running kit 2.8.2, and a
+completed gateway-owned PM run whose 90 turns and final report reached the public stream and whose
+planning changes landed in [PR #32](https://github.com/open-autonomy-org/evidence-desk/pull/32).
+The earlier interrupted run recovered under supervision; its original termination cause is unverified.
+The [current setup agreement](https://github.com/open-autonomy-org/evidence-desk/blob/8de5088d33e8515a125ac16b7b7b82127c8d6fda/.open-autonomy/setup.json)
+authorizes one ready product slice to demonstrate the remaining native development loop under the
+owner's standing direction. That first task does not depend on an already-completed worker cycle.
+The setup operator observes acceptance; recurring PM/community schedules stay paused during this
+bounded exercise. Runtime startup and a completed PM run alone do not establish full-loop acceptance.
 
 Completion:
-- Setup records the persistent project runtime and a successful native development/review loop.
+- Preserve the evidenced persistent runtime and supervised PM acceptance.
+- Demonstrate the queued product slice through worker verification, native reviewer acceptance,
+  landing on main and subsequent PM reconciliation; retain the task, handoff, PR and check sources.
 - Application commands and the required check can run through the machine's World from planning
   and worker workspaces, using disposable synthetic folders.
 - The agreed public channel supports original-author history reads and verified scheduled delivery;
   native restart/version reporting is established without losing work or source checkpoints.
 
-Dependencies: the existing [setup agreement](https://github.com/open-autonomy-org/evidence-desk/blob/3f5637aff7235992c54d6185e674cc39cbc05a58/.open-autonomy/setup.json)
+Dependencies: the current [setup agreement](https://github.com/open-autonomy-org/evidence-desk/blob/8de5088d33e8515a125ac16b7b7b82127c8d6fda/.open-autonomy/setup.json)
 and [communication policy](hermes/skills/project-communications/SKILL.md). No human implementation
 commitment or new infrastructure assignment is implied.
 
 ## workspace-first: Demonstrate readiness work in a portable local folder
 
-Status: PM implementation proposal; release the hold after development-ready is evidenced.
-Dispatch: hold
+Status: first bounded create/open/validate slice ready for the development-loop exercise.
+Dispatch: fleet
 
 Build the first usable slice of the [constitutional product](https://github.com/open-autonomy-org/evidence-desk/blob/417f7f9334c460b03c95eaa4e51ca5d9cb66a5dd/CONSTITUTION.md):
 create a workspace, record a readiness item, associate evidence, and inspect what remains incomplete.
@@ -52,8 +57,16 @@ Completion:
 - Run the workflow on disposable synthetic folders through the World, recording the exact command
   and results in the implementation PR; `bun run check` passes in under thirty seconds.
 
-Dependencies: development-ready. Start with one bounded fleet task for the folder contract and runnable
-create/open/validate slice, then reconcile its evidence before queueing item editing and conflict handling.
+Dependencies: runtime startup and supervised PM acceptance are evidenced in
+[PR #33](https://github.com/open-autonomy-org/evidence-desk/pull/33). Dispatch at most one fleet task
+for the versioned folder contract and runnable create/open/validate slice under that setup agreement.
+It must document the actual application command, safely initialize a new workspace, reopen an
+externally authored synthetic item with relative evidence references, and validate unsupported formats,
+malformed records and unsafe or missing paths without modifying existing files. Read-only operations
+must preserve unknown data and unrelated evidence; initialization must refuse an occupied destination.
+Worker operation through the World and native review provide evidence for development-ready.
+Reconcile that task's verification and landing before queueing item editing and conflict handling;
+the full workspace-first outcome remains incomplete until all completion criteria above are met.
 Optional cloud synchronization and customer AI integrations remain future product choices; core use
 requires no hosted account or customer credentials.
 
@@ -67,7 +80,7 @@ Review by: 2026-09-15, America/New_York; proposed review target, subject to revi
 Candidate: not selected
 Scope: workspace-first and a documented, reproducible local preview artifact
 Readiness: pending
-Readiness evidence: The starter remains a placeholder; https://github.com/open-autonomy-org/evidence-desk/pull/31 establishes World tooling while retaining the activation hold.
+Readiness evidence: The starter remains a placeholder; https://github.com/open-autonomy-org/evidence-desk/pull/33 accepts runtime startup and supervised PM operation while retaining full-loop acceptance and human release review.
 Rationale: Accumulate a complete portable-folder workflow before proposing publication; allow roughly one week for the first slice and at least a day for human review.
 Version rationale: A first prerelease communicates an experimental file contract; no tags or GitHub releases were returned by the project API during this initial reconciliation, and package.json has no product version.
 
