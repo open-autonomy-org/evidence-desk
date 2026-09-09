@@ -5,5 +5,9 @@
     "project": "evidence-desk",
     "account": "open-autonomy-org/evidence-desk"
   },
-  "divergences": []
+  "divergences": [
+    ".open-autonomy/reporter.ts",
+    ".open-autonomy/sdk/container-home.ts",
+    ".open-autonomy/sdk/container-process.ts"
+  ]
 }

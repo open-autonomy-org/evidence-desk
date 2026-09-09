@@ -1,18 +1,15 @@
 // Host-owned supervision for a prepared local container. Setup still owns image,
 // checkout, native configuration and connections; this module does not provision them.
 // Keep this installed host code outside the agent-writable container checkout.
-import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs, parseEnv } from 'node:util';
 import { resolve } from 'node:path';
-import { startCodexHost } from './sdk/codex-host.ts';
 import { startContainerProcess, checkContainerGit } from './sdk/container-process.ts';
-import { prepareContainerHome, writeContainerEnvironment, writeContainerKitRecord } from './sdk/container-home.ts';
+import { prepareContainerHome, writeContainerEnvironment, writeContainerKitRecord, prepareContainerSubscription } from './sdk/container-home.ts';
 import { checkCredentialDirectory } from './sdk/credentials.ts';
-import { checkLocalCodexConfig } from './sdk/local-codex.ts';
 
 export async function startLocalRuntime(options: {
-  container: string; executorUrl: string; stateDir: string; secrets: string;
+  container: string; stateDir: string; secrets: string;
   config: string; workspace?: string; hermesHome?: string; valvePort?: number;
 }) {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(options.container)) throw new Error('A container name or ID is required.');
@@ -29,14 +26,12 @@ export async function startLocalRuntime(options: {
   mkdirSync(state, { recursive: true, mode: 0o700 });
   const keys = ['agent.env', 'treasurer.env'].map(name => resolve(options.secrets, name));
   if (keys.some(path => !existsSync(path))) throw new Error('Restore both project credentials before starting the local runtime.');
-  let bridge: Awaited<ReturnType<typeof startCodexHost>> | undefined;
   const services: ReturnType<typeof Bun.spawn>[] = [];
   let gateway: ReturnType<typeof startContainerProcess> | undefined;
   let ending: Promise<void> | undefined;
   let finish!: (code: number) => void;
   const exited = new Promise<number>(resolve => { finish = resolve; });
   const stop = (code: number) => ending ??= (async () => {
-    bridge?.close();
     await gateway?.close();
     for (const proc of services) if (proc.exitCode === null) proc.kill();
     const force = setTimeout(() => { for (const proc of services) if (proc.exitCode === null) proc.kill('SIGKILL'); }, 5000);
@@ -66,10 +61,12 @@ export async function startLocalRuntime(options: {
     const world = Bun.spawnSync({ cmd: ['docker', 'exec', '--user', 'hermes', options.container, 'volter-world', '--help'], stdout: 'pipe', stderr: 'pipe', timeout: 10_000 });
     if (world.exitCode !== 0) throw new Error('The executor is missing usable World tooling. Rebuild the local image from the installed kit before starting Hermes.');
     const valveArgs = keys.flatMap((file, i) => ['--key', `${file}:${port + i}`]);
-    valveArgs.push('--github-app', `${githubApp}:${port + 3}`);
+    const subscription = resolve(options.secrets, 'codex.json');
+    if (!existsSync(subscription)) throw new Error('Restore the protected Codex subscription credential before starting Hermes.');
+    valveArgs.push('--github-app', `${githubApp}:${port + 3}`, '--codex', `${subscription}:${port + 2}`);
     own('valve', ['bun', resolve(import.meta.dir, 'sdk/valve.ts'), '--loopback', ...valveArgs]);
     await ready(async () => {
-      try { return (await Promise.all([port, port + 1, port + 3].map(async p => (await fetch(`http://127.0.0.1:${p}/healthz`, { signal: AbortSignal.timeout(1000) })).text()))).every(s => s.startsWith('ok')); }
+      try { return (await Promise.all([port, port + 1, port + 2, port + 3].map(async p => (await fetch(`http://127.0.0.1:${p}/healthz`, { signal: AbortSignal.timeout(1000) })).text()))).every(s => s.startsWith('ok')); }
       catch { return false; }
     }, 'the project valves');
     // A saved setup marker or a successful API read cannot establish Git push access.
@@ -87,15 +84,11 @@ export async function startLocalRuntime(options: {
       stdout: 'pipe', stderr: 'pipe', timeout: 10_000 });
     if (read.exitCode !== 0) throw new Error('The prepared container profiles could not be read.');
     const configs = JSON.parse(read.stdout.toString());
-    for (const config of configs) checkLocalCodexConfig(config);
+    for (const config of configs) if (config?.model?.provider !== 'openai-codex') throw new Error('Both profiles must use the native openai-codex provider.');
     const model = configs[0].model.default;
     if (configs[1].model.default !== model) throw new Error('Both native profiles must use the agreed local Codex model.');
-    const version = Bun.spawnSync({ cmd: ['codex', '--version'], stdout: 'pipe', stderr: 'pipe', timeout: 10_000 });
-    const label = version.stdout.toString().trim();
-    if (version.exitCode !== 0 || !/^codex-cli \d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$/.test(label)) throw new Error('The installed host Codex version could not be verified.');
-    const token = randomBytes(32).toString('base64url');
-    bridge = await startCodexHost({ model, workspace, hermesHome: home,
-      executorUrl: options.executorUrl, stateDir: resolve(state, 'codex'), token });
+    const codexBase = `http://host.docker.internal:${port + 2}/backend-api/codex`;
+    await prepareContainerSubscription({ container: options.container, home, baseUrl: codexBase });
     if (ending) throw new Error('A host service ended during home preparation.');
     // Match the managed runtime's native channels.env contract. Only this explicit
     // setup file is forwarded; model, App and platform credentials stay on the host.
@@ -104,7 +97,8 @@ export async function startLocalRuntime(options: {
     const runtimeEnv = {
       ...channels,
       HOME: home, HERMES_HOME: home, TERMINAL_CWD: workspace, HERMES_GATEWAY_EXTERNAL_SUPERVISOR: '1',
-      OPEN_AUTONOMY_CODEX_VERSION: label, OPEN_AUTONOMY_CODEX_URL: bridge.url.replace('127.0.0.1', 'host.docker.internal'), OPEN_AUTONOMY_CODEX_TOKEN: token,
+      HERMES_CODEX_BASE_URL: codexBase, CODEX_HOME: `${home}/codex-home-none`,
+      OPEN_AUTONOMY_CODEX_VERSION: '', OPEN_AUTONOMY_CODEX_URL: '', OPEN_AUTONOMY_CODEX_TOKEN: '',
       OPEN_AUTONOMY_BASE_URL: `http://host.docker.internal:${port}/v1`, OPEN_AUTONOMY_PAY_URL: `http://host.docker.internal:${port + 1}/v1`, OPEN_AUTONOMY_KEY: 'valve',
       GITHUB_API_URL: `http://host.docker.internal:${port + 3}`, GITHUB_TOKEN: 'valve',
     };
@@ -129,13 +123,13 @@ export async function startLocalRuntime(options: {
 // not need another host wrapper, health server or restart loop around the runtime.
 if (import.meta.main) {
   const { values } = parseArgs({ options: Object.fromEntries(
-    ['container', 'executor-url', 'state-dir', 'secrets', 'config', 'workspace', 'home', 'valve'].map(name => [name, { type: 'string' as const }]),
+    ['container', 'state-dir', 'secrets', 'config', 'workspace', 'home', 'valve'].map(name => [name, { type: 'string' as const }]),
   ) });
-  for (const name of ['container', 'executor-url', 'state-dir', 'secrets', 'config']) {
+  for (const name of ['container', 'state-dir', 'secrets', 'config']) {
     if (!values[name]) throw new Error(`Missing --${name}. See .open-autonomy/SETUP.md.`);
   }
   const runtime = await startLocalRuntime({
-    container: values.container!, executorUrl: values['executor-url']!, stateDir: values['state-dir']!,
+    container: values.container!, stateDir: values['state-dir']!,
     secrets: values.secrets!, config: values.config!, workspace: values.workspace,
     hermesHome: values.home, valvePort: values.valve ? Number(values.valve) : undefined,
   });

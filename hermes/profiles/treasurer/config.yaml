@@ -3,18 +3,12 @@
 # the kit, never checked by it). Secrets live in hermes/.env (git-ignored):
 #   OPEN_AUTONOMY_BASE_URL / OPEN_AUTONOMY_KEY  — inside the stack, the key valve's address and a dummy
 #   DISCORD_BOT_TOKEN / DISCORD_HOME_CHANNEL    — optional Discord delivery
-# Owner selected the installed local Codex; this is its configured model.
-# Account/model turn and isolated runtime acceptance remain setup gates.
+# Owner selected the local Codex subscription; Hermes owns the native agent loop.
 model:
   default: gpt-6-astra
-  provider: local-codex
-custom_providers:
-  - name: local-codex
-    base_url: http://127.0.0.1:1/v1
-    api_key: local-codex
-    api_mode: codex_app_server
+  provider: openai-codex
 
-# Optional reflection uses HTTP in the pinned Hermes runtime; keep local subscription calls on stdio.
+# Optional reflection remains disabled by project policy.
 auxiliary:
   background_review:
     enabled: false

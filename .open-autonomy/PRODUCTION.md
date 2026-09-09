@@ -132,3 +132,18 @@ git tag -a deploy-v<date> <sha> -m "<what ships>" && git push origin deploy-v<da
 The run waits for the reviewer; approving it is the second human act. Rolling back is tagging an earlier commit.
 Secrets the service itself needs (webhook secrets, keys) are environment secrets the deploy workflow installs, so
 they too are set by a human through the gate and never by the agent.
+
+## This installation's development fleet
+
+Evidence Desk runs one local World-managed executor and a host sidecar under launchd.
+The sidecar entrypoint is `.open-autonomy/local-runtime.ts`; it runs the credential valves
+and the SDK reporter on the host, prepares the committed Hermes home, and supervises
+the native gateway inside the executor. Both profiles use `openai-codex` with the selected
+`gpt-6-astra` model. The Codex subscription login stays in protected host storage; only
+a forwarding address and stand-in credential enter Hermes.
+
+The kit record preserves the host reporter and its two container helpers as deliberate
+project-owned files. The Codex app-server bridge is retired. The operator's World config
+and launchd service live beside the checkout; stop through that service, wait for World
+teardown, then restart. Preserve the native state and checkout volumes. Product tests
+continue through their separate World, and release authorization follows the gates above.
