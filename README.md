@@ -38,6 +38,18 @@ The starter uses TypeScript and Bun 1.3.10 or newer. Its `src/index.ts` is a pla
 Run `bun run check` in that same environment before each push. This initially checks the starter's types;
 it does not demonstrate a SOC2 readiness workflow.
 
+The fleet executor has a prepared World named `evidence-desk`, with its configuration and synthetic
+workspace outside the checkout. Start it when needed, then attach checks from the current worktree:
+
+```bash
+volter-world up /opt/data/evidence-desk-pilot/world.config.json --root /opt/data --env-file /opt/data/evidence-desk-pilot/app.env
+volter-world attach evidence-desk --root /opt/data -- bun install --frozen-lockfile
+volter-world attach evidence-desk --root /opt/data -- bun run check
+```
+
+This initial World has no external product services. Add vendor twins when product dependencies emerge.
+Other developer machines establish their own World using their machine's World instructions.
+
 Application behavior will be verified with disposable synthetic workspace folders. PM will establish
 an application entry point and document its actual run command here as implementation lands.
 
