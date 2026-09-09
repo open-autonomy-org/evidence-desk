@@ -14,7 +14,7 @@ Use synthetic evidence for development. Do not submit real customer records in i
 
 Evidence Desk belongs to the [Open Autonomy organization](https://github.com/open-autonomy-org).
 Its public coordination channel is [#evidence-desk in the shared organization Discord](https://discord.com/channels/1544906154868744202/1546981849979682916).
-The project has its own bot identity, credentials, budget and planning; bot activation is still pending.
+The project has its own bot identity, credentials, budget and planning.
 
 - [Constitution](CONSTITUTION.md): the product agreement and its sources.
 - [Roadmap](ROADMAP.md): notable plans and outstanding outcomes, maintained by Hermes PM.
@@ -22,13 +22,14 @@ The project has its own bot identity, credentials, budget and planning; bot acti
 - [Contributing](CONTRIBUTING.md) and [agent instructions](AGENTS.md): how work is built and verified.
 - [Project branding](branding/README.md): the shared identity for this project's integrations.
 
-Hermes is the planned development coordinator. PM reconciles contributions, queues work and contacts
-the owner for decisions and release review. Setup must finish before the fleet starts. Initial model
-and budget values from the starter are provisional until the owner selects the arrangement.
+Hermes coordinates development. PM reconciles contributions, queues work and contacts the owner for
+decisions and release review. The local runtime uses the operator’s installed Codex subscription, with
+an isolated executor container and a host sidecar supervised by native launchd. The first supervised PM
+cycle has landed its planning reconciliation; a complete worker and review cycle remains to be verified.
 
-The [Open Autonomy project page](https://open-autonomy.org/p/open-autonomy-org%2Fevidence-desk) will carry
-the funded development stream after its platform connection is established. A link to that page is
-not evidence of funding or an active fleet.
+The [Open Autonomy project page](https://open-autonomy.org/p/open-autonomy-org%2Fevidence-desk) carries
+the public development stream. This installation uses local compute and the operator’s subscription;
+platform model or hosting funds have not been used.
 
 ## Local verification
 
