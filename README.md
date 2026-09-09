@@ -25,7 +25,9 @@ The project has its own bot identity, credentials, budget and planning.
 Hermes coordinates development. PM reconciles contributions, queues work and contacts the owner for
 decisions and release review. The local runtime uses the operator’s installed Codex subscription, with
 an isolated executor container and a host sidecar supervised by native launchd. The first supervised PM
-cycle has landed its planning reconciliation; a complete worker and review cycle remains to be verified.
+cycle has landed its planning reconciliation. The first worker exercise is blocked by the pinned Hermes
+transport’s post-tool silence watchdog; recurring schedules remain paused until that native failure is
+resolved and the worker/review/landing cycle is verified. The existing setup record retains the evidence.
 
 The [Open Autonomy project page](https://open-autonomy.org/p/open-autonomy-org%2Fevidence-desk) carries
 the public development stream. This installation uses local compute and the operator’s subscription;
