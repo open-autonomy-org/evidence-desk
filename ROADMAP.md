@@ -9,10 +9,13 @@ See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliati
 Status: awaiting setup acceptance.
 Dispatch: hold
 
-The [latest setup adoption](https://github.com/open-autonomy-org/evidence-desk/pull/26)
-records native Git, Discord and a bounded model turn, but leaves persistent host startup and the
-complete PM/kanban/worker/reporting loop outstanding. Completing that installation belongs to the
-setup agent. A scheduled PM invocation alone does not establish its acceptance.
+The [latest setup adoption](https://github.com/open-autonomy-org/evidence-desk/pull/31)
+provides executor World tooling and the native running-kit record; the application World now starts
+and installs locked dependencies from the planning worktree. [Native publication was repaired](https://github.com/open-autonomy-org/evidence-desk/pull/30),
+and the [first PM report reached the public channel](https://discord.com/channels/1544906154868744202/1546981849979682916/1547163535589642331).
+Persistent activation and the complete PM/kanban/worker/review loop remain outstanding; the
+committed setup record keeps both schedules paused pending acceptance. Completing that installation
+belongs to the setup agent. A bounded PM invocation alone does not establish its acceptance.
 
 Completion:
 - Setup records the persistent project runtime and a successful native development/review loop.
@@ -21,7 +24,7 @@ Completion:
 - The agreed public channel supports original-author history reads and verified scheduled delivery;
   native restart/version reporting is established without losing work or source checkpoints.
 
-Dependencies: the existing [setup agreement](https://github.com/open-autonomy-org/evidence-desk/blob/3ddb5574e695cb497d1c56c1c006e3347f67f589/.open-autonomy/setup.json)
+Dependencies: the existing [setup agreement](https://github.com/open-autonomy-org/evidence-desk/blob/3f5637aff7235992c54d6185e674cc39cbc05a58/.open-autonomy/setup.json)
 and [communication policy](hermes/skills/project-communications/SKILL.md). No human implementation
 commitment or new infrastructure assignment is implied.
 
@@ -64,7 +67,7 @@ Review by: 2026-09-15, America/New_York; proposed review target, subject to revi
 Candidate: not selected
 Scope: workspace-first and a documented, reproducible local preview artifact
 Readiness: pending
-Readiness evidence: The starter remains a placeholder; https://github.com/open-autonomy-org/evidence-desk/pull/26 records setup acceptance still outstanding.
+Readiness evidence: The starter remains a placeholder; https://github.com/open-autonomy-org/evidence-desk/pull/31 establishes World tooling while retaining the activation hold.
 Rationale: Accumulate a complete portable-folder workflow before proposing publication; allow roughly one week for the first slice and at least a day for human review.
 Version rationale: A first prerelease communicates an experimental file contract; no tags or GitHub releases were returned by the project API during this initial reconciliation, and package.json has no product version.
 

@@ -16,3 +16,9 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
   ([PR #22](https://github.com/open-autonomy-org/evidence-desk/pull/22),
   [PR #23](https://github.com/open-autonomy-org/evidence-desk/pull/23),
   [PR #26](https://github.com/open-autonomy-org/evidence-desk/pull/26))
+- Simplified local fleet startup to one executor and the existing host entry point, and made
+  public reporting follow native completion with acknowledged publication and resumable checkpoints.
+  ([PR #29](https://github.com/open-autonomy-org/evidence-desk/pull/29),
+  [PR #30](https://github.com/open-autonomy-org/evidence-desk/pull/30))
+- Supplied pinned World tooling, documented isolated starter verification, and recorded the running
+  host kit version for native maintenance. ([PR #31](https://github.com/open-autonomy-org/evidence-desk/pull/31))
