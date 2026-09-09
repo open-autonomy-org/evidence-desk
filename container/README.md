@@ -3,9 +3,9 @@
 The agent is four processes: an ssh-agent holding the deploy key, the valve holding the project's keys (the
 developer's on :8787, the treasurer's on :8788 — `--valve <port>` moves both — each re-read when its file changes), the keyless reporter, and
 the Hermes gateway. For normal fleet operation, `.open-autonomy/start.ts` manages the complete stack.
-This is the current container stack; it does not yet implement a host sidecar. Local Codex activation
-is blocked until that integration is verified. See [setup](../.open-autonomy/SETUP.md); starting the whole
-fleet as the host operator is not a supported local Codex substitute.
+This is the managed stack. Local Codex uses the explicit `local` image target and a trusted host
+service running `local-runtime.ts`, prepared by the setup agent as described in
+[setup](../.open-autonomy/SETUP.md). Starting the whole fleet as the host operator is unsupported.
 Before activation, the setup agent can run the SDK valve alone in a one-off container with its entrypoint
 overridden to verify the configured connections; see [setup](../.open-autonomy/SETUP.md). Keep those ports
 unpublished and stop that process before starting the fleet through the normal entrypoint.
@@ -75,19 +75,16 @@ expose the native executor or an unauthenticated valve on a public interface. A 
 installation choice only when a required network boundary prevents the ordinary path.
 
 The host reporter reads container state through the existing Supercode stdio connection over
-`docker exec`. The complete host/gateway supervision still needs integration and verification as
-described in [setup](../.open-autonomy/SETUP.md); local fleet activation remains guarded.
+`docker exec`. Install and verify host/gateway supervision as described in
+[setup](../.open-autonomy/SETUP.md) before reporting the project activated.
 
-The Dockerfile’s `local` target includes the pinned native Codex executor and the Hermes stdio adapter.
-Its entrypoint runs only the executor as `hermes`; the ordinary default and Compose target remain
-`managed`. The host-owned `.open-autonomy/local-runtime.ts` supervises a prepared container’s gateway,
-Codex bridge, loopback valves and reporter. Keep that host installation outside the agent-writable
-checkout. For Git, follow the native URL mappings in `.open-autonomy/SETUP.md`: the host GitHub valve serves
-HTTPS Git for the project App, whose Contents permission must allow writes. Setup must verify that
-connection and finish communication before installing the persistent service; local activation remains guarded.
+The Dockerfile's `local` target runs the native executor and Hermes stdio adapter in one container.
+Use the machine's existing World lifecycle for its Docker start/stop commands, retaining the persistent
+home and checkout volumes. The sidecar runs outside that container. The Compose file above belongs to
+the managed deployment; local Codex does not need a Compose service or another container manager.
 
-Local startup fetches `origin/main` before syncing the native home. Unfinished checkout changes and
-runtime state are preserved; configuration and reporter policy come from the fetched commit. The
-setup-selected `channels.env` is loaded into the native home for gateway and cron delivery, matching
-the managed runtime. Messaging bot credentials are available to Hermes; App, platform and Codex
-authentication remain with the host sidecar.
+Run the installed `.open-autonomy/local-runtime.ts` entrypoint on the host, following
+[setup](../.open-autonomy/SETUP.md#prepare-the-host-and-applications-world). It starts the bridge, valves,
+reporter and gateway and returns Hermes's exit status to the host service manager. No per-project
+container manager, health server or restart wrapper is needed. Host code stays outside the agent's
+checkout. Git mappings, committed home refresh and native messaging use the setup contract above.

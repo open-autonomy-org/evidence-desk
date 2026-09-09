@@ -28,6 +28,7 @@ services:
       - ${AGENT_SECRETS:-~/.config/open-autonomy}:/secrets:rw
       - home:/opt/data
       - repo:/work/project
+
 volumes:
   home:
     name: ${STACK:-oa}-home

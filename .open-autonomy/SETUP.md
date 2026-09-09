@@ -354,37 +354,20 @@ budget; the platform is not itself a hosting service. Product hosting is a later
 Verify a nonempty server version from the selected local Docker context before attempting a container
 build. Reuse an existing working local context; CLI availability alone does not verify the connection.
 
-Local Codex activation is currently unavailable. The required arrangement keeps Hermes, its workspace
-and every agent tool inside the container. A host sidecar connects the installed Codex, external
-services and reporting, with model, GitHub App and platform authentication retained by the host.
-Native messaging uses the same explicit `channels.env` settings as the managed runtime; its
-project bot credential is available to Hermes for delivery, as described in the container guide. A successful isolated executor test
-does not complete this integration. The vendored
-`.open-autonomy/sdk/codex-bridge.ts` provides a restricted native stdio bridge with pinned model
-and environment checks. The vendored `.open-autonomy/sdk/codex-host.ts` starts one installed Codex process per
-Hermes session, with native container MCP configuration and separate worker context.
-`.open-autonomy/local-runtime.ts` supervises the host bridge, loopback valves and reporter alongside
-a prepared container gateway. Before starting Hermes, it checks the container's resolved origin fetch
-and push URLs against the project valve and requires authenticated Git read and write advertisements.
-This check changes no refs and rejects a missing mapping or read-only installation. It then fetches
-`main`, preserves a dirty checkout and native runtime state, and loads Hermes configuration and the
-reporter policy from the fetched commit. A clean checkout advances to that commit. The host reads only
-the explicitly prepared `channels.env` for messaging settings and writes those settings and current host
-routes into the native home environment so cron workers see them too. It waits for
-the reader, forwards native restart
-requests and stops the gateway when its host connection ends. The container image has an explicit
-`local` target with the native executor and Hermes stdio adapter; the default remains the managed stack.
-Before replacing the activation guard, verify the project App Git connection below and finish the selected
-communication connection and host service installation. Then verify the complete fleet loop. Use ordinary Docker networking as described in
-[the container guide](../container/README.md#local-host-connection): the container reaches the existing
-authenticated host bridge, and the native executor is published only on host loopback. Setup verifies
-that path in the selected Docker context before Hermes starts.
-Run the existing reporter on the host with `--container <id> --project <container checkout>
---state-file <host cursor file>` and `HERMES_HOME=<container home>`. Its Supercode reader executes inside
-the container over Docker stdio; filtering, publishing and the cursor stay on the host. Verify public
-transcripts, privacy exclusions and restart continuity against the platform before activation.
-Do not run the fleet as the operator,
-offer bare execution as a substitute, or silently switch an agreed local choice to project-funded models.
+Local Codex keeps Hermes and every agent tool in the container. The host sidecar uses the installed
+Codex subscription and holds model, GitHub App and platform authentication. Native messaging uses the
+same setup-selected `channels.env` as the managed runtime. The existing reporter runs on the host and
+reads container sessions through Supercode over Docker stdio.
+
+Run one container from the Dockerfile's `local` target and `.open-autonomy/local-runtime.ts` on the host, as described
+under [host preparation](#prepare-the-host-and-applications-world). The runtime verifies project Git,
+loads committed configuration while preserving unfinished work, starts the existing services and
+forwards Hermes's native shutdown/restart result. The service manager owns restart policy. Setup does
+not need to write a container manager, host health server or another restart loop.
+
+Verify the ordinary loopback connection in [the container guide](../container/README.md#local-host-connection).
+Keep host files and authentication out of the executor; do not run the fleet as the operator or switch
+an agreed local subscription to project-funded models to work around a failed setup check.
 
 An agreed local choice can be prepared using Hermes's existing `codex_app_server` transport. The setup
 agent edits both `hermes/config.yaml` and `hermes/profiles/treasurer/config.yaml` before applying the helper;
@@ -450,15 +433,14 @@ SQLite state under the operator's Open Autonomy state directory.
 The probe sends no model
 turn or tool request, returns only the account type and agreed model, and never rewrites global choices
 or exports authentication. An explicit Codex environments.toml configuration must be reconciled before this probe;
-setup does not replace it. Setup reports activation as blocked, and the
-start script rejects `--local-codex` or a local Codex profile until the isolated integration is available.
-Before enabling that path, prove container execution, denial of host files and credentials, and failure
+setup does not replace it. The ordinary start script rejects `--local-codex` or a local Codex profile;
+that entrypoint is not the isolated host service. Before activating the host service, prove container execution, denial of host files and credentials, and failure
 without host fallback when the executor disconnects. Then prove `initialize`, `account/read` and one
 bounded turn through native Hermes with the operator's actual Codex, followed by PM and worker tools
 and host-side reporting. A successful CLI login status or a synthetic-provider test with a clean Codex
 home is not that proof; a timeout leaves activation incomplete and needs local diagnosis.
 Existing `codex-valve` fleets are legacy installations, not evidence of local Codex readiness: migrate
-only after the isolated runtime is implemented and verified. Old secret files are never imported or
+only after the isolated runtime is verified for the project. Old secret files are never imported or
 deleted by this selection.
 
 Read `GET /v1/catalog` through an authorized standalone platform valve as described below; `GET /v1/models`
@@ -664,12 +646,35 @@ authorized SSH tunnel; never expose it as a public secret endpoint.
 
 ## Prepare the host and application's world
 
-For Open Autonomy models, use the kit's container deployment and its existing start script and
-supervisor. For local Codex, keep activation blocked until the host sidecar and container runtime above
-are implemented and verified; the current container entrypoint does not implement that split. Bare mode
-is for debugging, not a local Codex activation path. Verify Bun 1.3.10 or newer in the actual service and native
-Hermes terminal. Install the project's locked dependencies and run its own check in its verification
-environment. A fresh template includes its compiler; an existing project keeps its own working tooling.
+For Open Autonomy models, use the existing managed Compose service and start script. For local Codex:
+
+1. Install committed `.open-autonomy/` code and its dependencies in operator-owned host storage outside
+   the agent-writable checkout. Record the installed revision. Reuse the protected project credentials.
+2. Build the Dockerfile's `local` target. Use the machine's existing World lifecycle to start that one
+   container with persistent home/checkout volumes and a loopback executor port. Put the ordinary Docker
+   start/stop commands in that lifecycle; no local Compose configuration or container-manager script is
+   needed. Initialize the canonical Git origin and native valve mappings above as `hermes`.
+3. Run the installed entrypoint directly:
+
+   ```bash
+   bun /path/to/installed/.open-autonomy/local-runtime.ts \
+     --container <project-executor> --executor-url ws://127.0.0.1:<port> \
+     --state-dir <host-state> --secrets <protected-project-credentials> \
+     --config /path/to/installed/.open-autonomy/config.yaml --valve <port>
+   ```
+
+   Use the selected host's existing service manager for unattended operation. The process exits when
+   the stack stops; exit 75 is Hermes's restart request. SIGTERM and SIGINT close the stack. If a World
+   owns the container, its `run` command can own this foreground entrypoint. Do not also start a second
+   copy as a World service, or add a project-specific supervisor around it.
+4. Verify the real PM/worker flow, Git, selected messaging and published transcripts, then record the
+   results and service location in the existing setup record. Keep human release review in place.
+
+Verify Bun 1.3.10 or newer and the application's verification tools inside the actual executor before
+starting PM. Install locked project dependencies and run the project's check in that environment.
+The kit image includes `volter-world` on PATH; local startup verifies it before starting Hermes and
+writes the running-kit.json version record from the installed host kit. Rebuild an older image if this preflight fails.
+A fresh template includes its compiler; an existing project keeps its own working tooling.
 
 Establish the application's local world using this machine's World instructions. Seed vendor state
 through the vendor APIs and script judgments/faults with world handlers. Add twins as product
