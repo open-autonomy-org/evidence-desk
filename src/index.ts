@@ -3,9 +3,10 @@ import { resolve } from "node:path";
 import { createWorkspace, inspectWorkspace } from "./workspace";
 import { writeItem } from "./item-write";
 import { failedSummary, parseSummaryOptions, printSummary, summarizeWorkspace, type Selection } from "./summary";
+import { renderMarkdown } from "./summary-markdown";
 
 const [group, operation, destination, ...extra] = process.argv.slice(2);
-const usage = "Usage: bun run src/index.ts workspace <create|open|inspect|validate> <folder> OR workspace summary <folder> [--owner <exact-string>] [--status <todo|in-progress|blocked|complete>] [--needs-follow-up] [--json] OR workspace item-create <folder> --stdin OR workspace item-update <folder> <existing-id> --stdin";
+const usage = "Usage: bun run src/index.ts workspace <create|open|inspect|validate> <folder> OR workspace summary <folder> [--owner <exact-string>] [--status <todo|in-progress|blocked|complete>] [--needs-follow-up] [--json|--markdown] OR workspace item-create <folder> --stdin OR workspace item-update <folder> <existing-id> --stdin";
 const jsonSummary = group === "workspace" && operation === "summary" && process.argv.slice(4).includes("--json");
 let selection: Selection | undefined;
 
@@ -21,7 +22,9 @@ try {
     if (destination.startsWith("--")) throw new Error(`Missing folder; ${usage}`);
     const options = parseSummaryOptions(extra);
     if (Object.keys(options.selection).length) selection = options.selection;
-    printSummary(summarizeWorkspace(destination, selection), options.json);
+    const report = summarizeWorkspace(destination, selection);
+    if (options.markdown && report.ok) console.log(renderMarkdown(report));
+    else printSummary(report, options.json);
   } else if (operation === "item-create" || operation === "item-update") {
     writeItem(destination, operation, updatingItem ? extra[0] : undefined);
   } else if (operation === "create") {

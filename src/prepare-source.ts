@@ -7,7 +7,7 @@ import { join, resolve } from "node:path";
 const files = [
   "CONSTITUTION.md", "CONTRIBUTING.md", "LICENSE", "README.md", "bun.lock",
   "docs/workspace-format.md", "package.json", "src/index.ts", "src/item-write.ts",
-  "src/prepare-source.ts", "src/summary.ts", "src/workspace.ts", "src/write-json.ts", "tsconfig.json",
+  "src/prepare-source.ts", "src/summary.ts", "src/summary-markdown.ts", "src/workspace.ts", "src/write-json.ts", "tsconfig.json",
 ].sort();
 const git = (...args: string[]) => execFileSync("git", args, { maxBuffer: 32 * 1024 * 1024 });
 

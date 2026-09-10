@@ -89,12 +89,14 @@ volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts works
 volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --owner Reviewer --status complete --needs-follow-up --json
 volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --owner '' --json
 volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --owner '  ' --json
+volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --markdown
+volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --owner Reviewer --status complete --needs-follow-up --markdown
 ```
 
 Outside the fleet, run `bun run src/index.ts workspace summary /path/to/workspace`
 or `bun run src/index.ts workspace summary /path/to/workspace --json`.
 This addition is after the fixed proposed preview candidate; it is not in that candidate's assets.
-Both views report all four status counts, incomplete, unassigned-owner and no-evidence-reference
+All views report all four status counts, incomplete, unassigned-owner and no-evidence-reference
 counts, plus every item's ID, owner, status, paths and warnings (including complete items).
 They omit Markdown bodies and evidence contents. Counts can overlap; they are not a readiness
 score, evidence-sufficiency assessment, SOC2 coverage claim or audit judgment.
@@ -106,6 +108,25 @@ The [derived report contract](docs/workspace-format.md#derived-summary-report) d
 schema 1, filtered schema 2, option/error semantics and the quiescent-folder boundary. No workspace files
 are written. For an owner starting with `--`, use `--owner=--example`; folder names starting with `--`
 must be qualified (for example `./--example`).
+
+For a standalone Markdown handoff outside the fleet:
+
+```bash
+bun run src/index.ts workspace summary /path/to/workspace --markdown
+bun run src/index.ts workspace summary /path/to/workspace --owner Reviewer --needs-follow-up --markdown
+# Choose a NEW destination OUTSIDE the workspace; noclobber helps refuse existing files.
+(set -C; bun run src/index.ts workspace summary /path/to/workspace --markdown > /path/outside-workspace/new-follow-up.md)
+```
+
+The CLI only emits stdout; it does not create the report file. Shell redirection may create or truncate
+a destination before validation, even when the command fails; never redirect onto workspace sources.
+Check the exit status before sharing. Markdown labels derived facts, count scopes, selectors, warnings
+and limitations. IDs, owners and relative paths use ASCII-only JSON string literals in code spans,
+with Unicode and punctuation escaped to prevent active Markdown/HTML and preserve exact distinctions.
+It is not an import format or live snapshot. `--json` and `--markdown` cannot be combined. On usage
+errors a literal `--json` anywhere after `workspace summary` takes precedence (JSON failure on stdout);
+otherwise diagnostics use stderr and Markdown failure stdout is empty. See the format contract for
+escaping details, error ordering and unchanged format 1/quiescent-folder limitations.
 
 ## Local verification
 
