@@ -85,6 +85,9 @@ Creation requires all five item fields; update applies only supplied fields and 
 To change context or evidence, supply `"context":"context/other.md"` or an entire replacement
 `"evidence":["evidence/other.csv"]` array, with files already present. An empty evidence array is allowed.
 Unknown input keys are refused; existing unknown record fields are preserved.
+Writes refuse manifest-alias context/evidence references (including internal symlinks and untouched
+items), and JSON numbers that would lose value during reserialization. Read-only version 1 validation
+is unchanged; see the write contract below for precision limits and external-editor recovery.
 The writer reads and validates the manifest before printing `Ready` to stderr and reading stdin until
 EOF (Ctrl-D interactively). For a read/edit/write session, wait for `Ready` before composing your JSON.
 A precomposed pipe is applied against the manifest read at command start, not an earlier editor view.
