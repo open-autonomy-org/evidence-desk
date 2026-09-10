@@ -83,6 +83,12 @@ From the current repository checkout, after creating the synthetic example below
 ```bash
 volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example"
 volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --json
+volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --owner Reviewer
+volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --status complete --json
+volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --needs-follow-up
+volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --owner Reviewer --status complete --needs-follow-up --json
+volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --owner '' --json
+volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --owner '  ' --json
 ```
 
 Outside the fleet, run `bun run src/index.ts workspace summary /path/to/workspace`
@@ -92,8 +98,14 @@ Both views report all four status counts, incomplete, unassigned-owner and no-ev
 counts, plus every item's ID, owner, status, paths and warnings (including complete items).
 They omit Markdown bodies and evidence contents. Counts can overlap; they are not a readiness
 score, evidence-sufficiency assessment, SOC2 coverage claim or audit judgment.
-The [derived report contract](docs/workspace-format.md#derived-summary-report) defines JSON schema 1,
-ordering, empty/failure semantics and the quiescent-folder boundary. No workspace files are written.
+Selectors intersect and owner matching is exact/case-sensitive, without trimming (empty differs from
+whitespace). Follow-up means incomplete status or any existing warning, including complete-with-warnings.
+Selection still validates the entire workspace; excluded invalid items fail, while no matches succeeds.
+Filtered output labels whole-workspace and selected counts and lists only selected item facts.
+The [derived report contract](docs/workspace-format.md#derived-summary-report) defines unfiltered JSON
+schema 1, filtered schema 2, option/error semantics and the quiescent-folder boundary. No workspace files
+are written. For an owner starting with `--`, use `--owner=--example`; folder names starting with `--`
+must be qualified (for example `./--example`).
 
 ## Local verification
 

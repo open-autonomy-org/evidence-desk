@@ -153,7 +153,7 @@ manifest changes or other workspace files. Unknown fields and all file bytes are
 and refusal. As with inspection, access times may change; a quiescent folder is required, with no
 snapshot guarantee against concurrent external edits or symlink replacement.
 
-JSON stdout is exactly one object with these fields, in this order:
+Without selectors, JSON stdout is exactly one object with these fields, in this order:
 
 - `reportSchemaVersion: 1`: the derived report schema, independent of product and workspace versions.
 - `ok`: boolean validation success. Warnings and incomplete statuses alone succeed (exit 0).
@@ -181,6 +181,40 @@ Failure prints diagnostics and no totals. There are no timestamps or generated I
 produce deterministic reports on the same filesystem/runtime. Neither view interprets evidence,
 computes a readiness score, establishes SOC2 coverage nor issues an audit judgment. `complete` remains
 the owner's self-reported status. Exact commands are in [README](../README.md#read-only-readiness-summary-development-source).
+
+### Selection and derived report schema 2
+
+Optional `--owner <exact-string>`, `--status <status>` and `--needs-follow-up` selectors intersect.
+Owner matching is exact and case-sensitive, including empty, whitespace and control-character strings;
+no trimming or normalization occurs. Status must be one of the four format 1 statuses. Follow-up means
+status other than `complete` OR at least one of the existing warnings above. Incomplete items without
+warnings are included; complete items without warnings are excluded. This does not assess evidence.
+
+Each flag (including `--json`) may appear only once, in any order after the folder. Missing values,
+unknown options, extra positional arguments and unsupported statuses exit 1 with repair instructions.
+A separate value beginning with `--` is treated as a missing value; use `--owner=<exact-string>` to
+represent such owners (also accepted for any other owner, including empty). Both owner spellings count
+as the same flag for repeat detection. No other equals-form is supported. Qualify a folder beginning
+with `--` as `./--name`. Shell quoting is necessary to preserve spaces, empty strings and controls;
+OS argument strings cannot contain NUL.
+
+A successfully parsed invocation with any selector uses schema 2, even if it matches all or no items.
+Its fields in order are `reportSchemaVersion: 2`, `ok`, `selection`, `workspaceCounts`, `counts`, `items`,
+`errors`. `selection` contains only applied keys in fixed order: `owner` (exact string), `status` (exact
+status), `needsFollowUp: true`. Absent owner is omitted, not `""` or null. `workspaceCounts` has the schema 1
+count shape over all items; `counts` has that same shape over selected items. `items` has the unchanged
+schema 1 item shape, in manifest order, restricted to the intersection. Zero matches succeeds with zero
+selected counts and empty items. Human output prints JSON-quoted `Selection`, `Whole workspace counts`,
+then `Selected counts`, followed by only the selected facts, using the schema 1 count/item rendering.
+
+Validation always precedes selection, across every record and reference. On filesystem/validation
+failure schema 2 retains the parsed `selection`, sets both count scopes to null and items to `[]`;
+errors contain diagnostics and exit is 1. No partial data is emitted. Usage failures always use schema 1
+(no partially parsed selectors), independent of option order. For summary usage errors, a literal
+`--json` argument anywhere after `workspace summary` requests the single JSON failure object on stdout;
+otherwise diagnostics go to stderr. Successfully parsed invocations use the actual `--json` flag.
+Unfiltered success and validation failure remain schema 1. Selection changes no persisted format,
+warnings, bytes, files or the read-only/quiescent-folder and platform limitations above.
 
 ## Inspection and validation
 

@@ -2,22 +2,26 @@
 import { resolve } from "node:path";
 import { createWorkspace, inspectWorkspace } from "./workspace";
 import { writeItem } from "./item-write";
-import { failedSummary, printSummary, summarizeWorkspace } from "./summary";
+import { failedSummary, parseSummaryOptions, printSummary, summarizeWorkspace, type Selection } from "./summary";
 
 const [group, operation, destination, ...extra] = process.argv.slice(2);
-const usage = "Usage: bun run src/index.ts workspace <create|open|inspect|validate> <folder> OR workspace summary <folder> [--json] OR workspace item-create <folder> --stdin OR workspace item-update <folder> <existing-id> --stdin";
+const usage = "Usage: bun run src/index.ts workspace <create|open|inspect|validate> <folder> OR workspace summary <folder> [--owner <exact-string>] [--status <todo|in-progress|blocked|complete>] [--needs-follow-up] [--json] OR workspace item-create <folder> --stdin OR workspace item-update <folder> <existing-id> --stdin";
 const jsonSummary = group === "workspace" && operation === "summary" && process.argv.slice(4).includes("--json");
+let selection: Selection | undefined;
 
 try {
   const creatingItem = operation === "item-create" && extra.length === 1 && extra[0] === "--stdin";
   const updatingItem = operation === "item-update" && extra.length === 2 && extra[1] === "--stdin";
-  const summary = operation === "summary" && (!extra.length || (extra.length === 1 && extra[0] === "--json"));
+  const summary = operation === "summary";
   if (group !== "workspace" || !destination ||
       !(creatingItem || updatingItem || summary || (!extra.length && ["create", "open", "inspect", "validate"].includes(operation)))) {
     throw new Error(usage);
   }
   if (operation === "summary") {
-    printSummary(summarizeWorkspace(destination), jsonSummary);
+    if (destination.startsWith("--")) throw new Error(`Missing folder; ${usage}`);
+    const options = parseSummaryOptions(extra);
+    if (Object.keys(options.selection).length) selection = options.selection;
+    printSummary(summarizeWorkspace(destination, selection), options.json);
   } else if (operation === "item-create" || operation === "item-update") {
     writeItem(destination, operation, updatingItem ? extra[0] : undefined);
   } else if (operation === "create") {
@@ -45,7 +49,7 @@ try {
   }
 } catch (error) {
   if (jsonSummary) {
-    printSummary(failedSummary([error instanceof Error ? error.message : String(error)]), true);
+    printSummary(failedSummary([error instanceof Error ? error.message : String(error)], selection), true);
   } else {
     console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
   }
