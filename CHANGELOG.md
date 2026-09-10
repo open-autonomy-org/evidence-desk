@@ -7,6 +7,13 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Corrected first-poll GitHub discovery and activated the native Hermes Python environment in terminal
+  shells; exposed World tooling to login shells and preserved project-owned runtime instructions across
+  kit upgrades. Setup/operator acceptance records completed recurring PM/community runs and public
+  publication, concluding the temporary development hold, not approving a product release.
+  ([PR #52](https://github.com/open-autonomy-org/evidence-desk/pull/52),
+  [PR #53](https://github.com/open-autonomy-org/evidence-desk/pull/53),
+  [PM delivery](https://discord.com/channels/1544906154868744202/1546981849979682916/1547400673287602237))
 - Replaced the development fleet's Codex app-server bridge with Hermes's native agent loop and
   host-owned subscription forwarding; request bodies now support known-length forwarding and replay
   after credential refresh. These are setup/operator contributions, not new product features or Hermes
@@ -14,7 +21,7 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
   [PR #50](https://github.com/open-autonomy-org/evidence-desk/pull/50))
 - Updated World/core dependencies for attachment markers and sealed-client request guards, and adopted
   reporting recovery that preserves native worker completion. The setup record documents installed
-  verification; complete activation acceptance remains in the roadmap.
+  verification; subsequent activation acceptance is recorded in PR #52 above.
   ([PR #43](https://github.com/open-autonomy-org/evidence-desk/pull/43),
   [PR #44](https://github.com/open-autonomy-org/evidence-desk/pull/44),
   [PR #45](https://github.com/open-autonomy-org/evidence-desk/pull/45),
@@ -30,8 +37,8 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 - Established the TypeScript/Bun development starter, portable-workspace product documentation and
   project branding. ([PR #1](https://github.com/open-autonomy-org/evidence-desk/pull/1))
 - Added the development runtime's host supervision, project-scoped Git forwarding and committed
-  Hermes configuration refresh while preserving unfinished work and native state. The complete
-  development loop remains outstanding in the setup acceptance record.
+  Hermes configuration refresh while preserving unfinished work and native state. The first complete
+  development loop subsequently passed as task t_669122cc and PM reconciliation in PR #40.
   ([PR #22](https://github.com/open-autonomy-org/evidence-desk/pull/22),
   [PR #23](https://github.com/open-autonomy-org/evidence-desk/pull/23),
   [PR #26](https://github.com/open-autonomy-org/evidence-desk/pull/26))
