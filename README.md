@@ -52,14 +52,8 @@ tar -xzf evidence-desk-0.1.0-alpha.1-source.tar.gz
 cd evidence-desk-0.1.0-alpha.1-source
 bun install --frozen-lockfile
 scratch=$(mktemp -d)
-bun run src/index.ts workspace create "$scratch/example"
-mkdir "$scratch/example/context" "$scratch/example/evidence"
-printf '# Synthetic review\n' > "$scratch/example/context/review.md"
-printf 'Synthetic evidence\n' > "$scratch/example/evidence/review.txt"
-printf '%s\n' '{"id":"REVIEW-1","owner":"Example","status":"todo","context":"context/review.md","evidence":["evidence/review.txt"]}' | bun run src/index.ts workspace item-create "$scratch/example" --stdin
-printf '%s\n' '{"status":"complete"}' | bun run src/index.ts workspace item-update "$scratch/example" REVIEW-1 --stdin
-bun run src/index.ts workspace open "$scratch/example"
-bun run src/index.ts workspace validate "$scratch/example"
+bun run src/index.ts workspace create "$scratch/preview-example"
+bun run src/index.ts workspace validate "$scratch/preview-example"
 ```
 
 No Git checkout or fleet configuration is needed to use the extracted CLI. Registry access (or cached
@@ -76,117 +70,198 @@ refused, and crash leftovers require manual recovery. Read the full
 [write limitations](docs/workspace-format.md#item-writes-and-concurrency) before using external editors.
 Product SemVer and workspace format version 1 are separate; see [compatibility policy](CONTRIBUTING.md#source-preview-policy-proposed-not-a-release).
 
-## Read-only readiness summary (development source)
+## Development-source walkthrough
 
-From the current repository checkout, after creating the synthetic example below:
+This is one ordered synthetic handoff, not an audit assessment. Use a fresh checkout of current main,
+not the fixed unpublished `0.1.0-alpha.1` archive: summary and selection commands landed after that
+candidate and are **not available in its assets**. No customer data, credentials, hosted service or AI
+provider is needed. Ordinary users need Git, Bash, Unix tools and Bun exactly 1.3.10, not fleet tooling.
+Installation still needs registry access or cached packages and an execution-enabled filesystem.
 
-```bash
-volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example"
-volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --json
-volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --owner Reviewer
-volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --status complete --json
-volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --needs-follow-up
-volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --owner Reviewer --status complete --needs-follow-up --json
-volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --owner '' --json
-volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --owner '  ' --json
-volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --markdown
-volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --owner Reviewer --status complete --needs-follow-up --markdown
-```
-
-Outside the fleet, run `bun run src/index.ts workspace summary /path/to/workspace`
-or `bun run src/index.ts workspace summary /path/to/workspace --json`.
-This addition is after the fixed proposed preview candidate; it is not in that candidate's assets.
-All views report all four status counts, incomplete, unassigned-owner and no-evidence-reference
-counts, plus every item's ID, owner, status, paths and warnings (including complete items).
-They omit Markdown bodies and evidence contents. Counts can overlap; they are not a readiness
-score, evidence-sufficiency assessment, SOC2 coverage claim or audit judgment.
-Selectors intersect and owner matching is exact/case-sensitive, without trimming (empty differs from
-whitespace). Follow-up means incomplete status or any existing warning, including complete-with-warnings.
-Selection still validates the entire workspace; excluded invalid items fail, while no matches succeeds.
-Filtered output labels whole-workspace and selected counts and lists only selected item facts.
-The [derived report contract](docs/workspace-format.md#derived-summary-report) defines unfiltered JSON
-schema 1, filtered schema 2, option/error semantics and the quiescent-folder boundary. No workspace files
-are written. For an owner starting with `--`, use `--owner=--example`; folder names starting with `--`
-must be qualified (for example `./--example`).
-
-For a standalone Markdown handoff outside the fleet:
+Run the following blocks in order in the same Bash shell, stopping on unexpected failure. `set -e`
+stops the walkthrough; expected refusals below are handled explicitly. All temporary folders are newly
+created outside the checkout. Fleet contributors first apply the separate [World prerequisite](#local-verification).
 
 ```bash
-bun run src/index.ts workspace summary /path/to/workspace --markdown
-bun run src/index.ts workspace summary /path/to/workspace --owner Reviewer --needs-follow-up --markdown
-# Choose a NEW destination OUTSIDE the workspace; noclobber helps refuse existing files.
-(set -C; bun run src/index.ts workspace summary /path/to/workspace --markdown > /path/outside-workspace/new-follow-up.md)
+set -euo pipefail
+source_root=$(mktemp -d)
+git clone https://github.com/open-autonomy-org/evidence-desk.git "$source_root/evidence-desk"
+cd "$source_root/evidence-desk"
+git rev-parse HEAD
+test "$(bun --version)" = 1.3.10
+bun install --frozen-lockfile
+scratch=$(mktemp -d)
+workspace="$scratch/example"
+reports="$scratch/reports"
+mkdir "$reports"
+bun run src/index.ts workspace create "$workspace"
+mkdir "$workspace/context" "$workspace/evidence"
+printf '# Synthetic access review\n' > "$workspace/context/access.md"
+printf 'reviewer,result\nExample,pending\n' > "$workspace/evidence/access.csv"
+printf 'Unrelated synthetic note: retain me.\n' > "$workspace/notes.txt"
+printf '%s\n' '{"id":"ACCESS-01","owner":"Example","status":"todo","context":"context/access.md","evidence":["evidence/access.csv"]}' | bun run src/index.ts workspace item-create "$workspace" --stdin
+printf '%s\n' '{"status":"complete","owner":"Reviewer","evidence":[]}' | bun run src/index.ts workspace item-update "$workspace" ACCESS-01 --stdin
+printf '%s\n' '{"id":"FOLLOW-02","owner":"","status":"todo","context":"context/access.md","evidence":[]}' | bun run src/index.ts workspace item-create "$workspace" --stdin
+bun run src/index.ts workspace open "$workspace"
+bun run src/index.ts workspace validate "$workspace"
 ```
 
-The CLI only emits stdout; it does not create the report file. Shell redirection may create or truncate
-a destination before validation, even when the command fails; never redirect onto workspace sources.
-Check the exit status before sharing. Markdown labels derived facts, count scopes, selectors, warnings
-and limitations. IDs, owners and relative paths use ASCII-only JSON string literals in code spans,
-with Unicode and punctuation escaped to prevent active Markdown/HTML and preserve exact distinctions.
-It is not an import format or live snapshot. `--json` and `--markdown` cannot be combined. On usage
-errors a literal `--json` anywhere after `workspace summary` takes precedence (JSON failure on stdout);
-otherwise diagnostics use stderr and Markdown failure stdout is empty. See the format contract for
-escaping details, error ordering and unchanged format 1/quiescent-folder limitations.
+Create requires a new or empty folder with an existing parent. `workspace inspect` aliases `open`.
+Item creation requires all five fields; updates apply only supplied fields, with an evidence array
+replacing the entire association list. Context/evidence must already exist; their bytes are not written
+by the CLI. Unknown patch keys are refused, but existing unknown record fields are retained.
+
+### Read-only readiness summary (development source)
+
+```bash
+bun run src/index.ts workspace summary "$workspace"
+bun run src/index.ts workspace summary "$workspace" --json
+bun run src/index.ts workspace summary "$workspace" --markdown
+bun run src/index.ts workspace summary "$workspace" --owner Reviewer --needs-follow-up --json
+bun run src/index.ts workspace summary "$workspace" --owner Reviewer --needs-follow-up --markdown
+```
+
+Expect two items: one `todo`, one `complete`, one incomplete, one unassigned owner and two without
+evidence references. These counts overlap: FOLLOW-02 contributes to all three follow-up counts.
+ACCESS-01 is complete-with-warnings and still matches Reviewer/follow-up because its evidence list is
+empty. Complete is self-reported; neither it nor these counts establish evidence sufficiency, a readiness
+score, SOC2 coverage/mappings or an audit judgment. Warnings and incomplete work succeed with exit 0.
+
+All views show the same facts, not evidence contents, context bodies or extension data. Owner matching
+is exact/case-sensitive without trimming (empty differs from whitespace). Selectors intersect;
+`--status complete` can further narrow this selection. Validation covers even excluded items; zero
+matches succeeds. The [derived report contract](docs/workspace-format.md#derived-summary-report)
+defines JSON schemas 1/2, escaping and option/error semantics. `--json` and `--markdown` cannot be
+combined. Qualify folder names starting with `--` (such as `./--example`); use `--owner=--example`
+for such an owner.
+
+### External edit, validation and a safe correction
+
+Stop other editors/writers and keep the folder and reference topology quiescent. This external edit
+uses Bun only as a local JSON editor, not a new CLI feature. It acquires the cooperating lock before
+reading, changes FOLLOW-02's owner/status and adds synthetic extension data without replacing other
+fields or files. The trap removes only the lock this block successfully acquired. Do not remove a
+live writer's lock. This small-number synthetic example is not a precision-preserving general editor.
+
+```bash
+(
+  mkdir "$workspace/.evidence-desk-write.lock"
+  trap 'rmdir "$workspace/.evidence-desk-write.lock"' EXIT
+  bun -e 'const fs = require("node:fs"); const p = process.argv[1]; const data = JSON.parse(fs.readFileSync(p, "utf8")); const item = data.items.find(item => item.id === "FOLLOW-02"); item.owner = "Reviewer"; item.status = "blocked"; item.customNotes = {source: "Synthetic external edit"}; data.customWorkspaceData = {team: "Synthetic Example Firm"}; fs.writeFileSync(p, JSON.stringify(data, null, 2) + "\n");' "$workspace/workspace.json"
+)
+bun run src/index.ts workspace validate "$workspace"
+bun run src/index.ts workspace summary "$workspace" --json
+bun run src/index.ts workspace summary "$workspace" --owner Reviewer --needs-follow-up --json
+```
+
+Now both items match Reviewer/follow-up; the whole workspace has one blocked, one complete, one
+incomplete, zero unassigned and two without evidence references. Each invocation rereads disk.
+
+Try an association to an absent file, handling the expected exit 1 explicitly:
+
+```bash
+if printf '%s\n' '{"evidence":["evidence/missing.csv"]}' | bun run src/index.ts workspace item-update "$workspace" ACCESS-01 --stdin; then
+  printf 'Unexpected success; stop and inspect the workspace.\n' >&2
+  exit 1
+else
+  status=$?
+  printf 'Invalid-reference exit: %s (expected 1)\n' "$status"
+  test "$status" -eq 1
+fi
+bun run src/index.ts workspace validate "$workspace"
+```
+
+Read the diagnostic: `evidence/missing.csv` does not exist. The refused patch leaves the manifest and
+sources unchanged; validation still succeeds. Do not blindly retry or invent evidence to satisfy it.
+For this synthetic example the intended file was the already-created `evidence/access.csv`. Inspect
+its contents, then explicitly correct the association, preserving the external extension data:
+
+```bash
+cat "$workspace/evidence/access.csv"
+printf '%s\n' '{"evidence":["evidence/access.csv"]}' | bun run src/index.ts workspace item-update "$workspace" ACCESS-01 --stdin
+bun run src/index.ts workspace validate "$workspace"
+bun run src/index.ts workspace summary "$workspace" --json
+bun run src/index.ts workspace summary "$workspace" --owner Reviewer --needs-follow-up --json
+```
+
+Only FOLLOW-02 now matches; ACCESS-01 is complete without warnings. Whole-workspace no-evidence
+count is one. Nothing has assessed the CSV's sufficiency. If instead an external edit invalidates the
+stored manifest, validate and correct that specific source externally before any CLI item write;
+the CLI will not automatically repair or silently discard it.
+
+Writes use cooperating locks, not atomic compare-and-swap against arbitrary writers. The CLI prints
+`Ready` before reading stdin; a precomposed pipe applies to the manifest read at command start, not
+an earlier editor view. A detected external change after `Ready` refuses: reopen and reconsider the
+patch. Manifest aliases and lossy JSON numeric writes are refused; manual crash recovery and platform
+limits remain. Read the [format/concurrency contract](docs/workspace-format.md#item-writes-and-concurrency),
+including numeric/alias recovery, rather than treating this sequential example as concurrent safety.
+Read operations acquire no lock and provide no live snapshot.
+
+### Save and review the handoff
+
+The concrete destination below is new and outside the workspace. No-clobber refuses an existing
+file. Check the command's exit status before opening or sharing the report:
+
+```bash
+report="$reports/reviewer-follow-up.md"
+if (set -C; bun run src/index.ts workspace summary "$workspace" --owner Reviewer --needs-follow-up --markdown > "$report"); then
+  printf 'Report exit: 0; review %s before sharing\n' "$report"
+  cat "$report"
+else
+  status=$?
+  printf 'Report failed (exit %s); do not share %s. Inspect the diagnostic and destination.\n' "$status" "$report" >&2
+  exit "$status"
+fi
+```
+
+The CLI only emits stdout; the shell creates the report, not the application. Redirection can create
+an empty file before failed validation (or truncate an existing file without no-clobber). Never redirect
+onto workspace sources. After failure inspect any destination before deliberately choosing a new one;
+do not share or blindly overwrite it. Markdown failure stdout is empty and diagnostics use stderr.
+Authored IDs, owners and paths are ASCII-only JSON string literals in code spans, with Unicode and
+punctuation escaped against active Markdown/HTML. Do not decode then reinterpret them as markup.
+Review the contents, including names and paths, before sharing: escaping is not confidentiality.
+This is derived data, not an import format or live snapshot. Synthetic operational verification is
+not customer adoption. Keep or remove these disposable folders yourself after reviewing them.
 
 ## Local verification
 
-The CLI uses TypeScript and Bun exactly 1.3.10. Follow [AGENTS.md](AGENTS.md) to attach commands
-to the local World environment. Install pinned dependencies with `bun install --frozen-lockfile` and
-run `bun run check` in that environment before each push. The check typechecks the source; behavior
-is verified by operating the CLI against disposable synthetic folders.
-
-The fleet executor has a prepared World named `evidence-desk`, with its configuration and synthetic
-workspace outside the checkout. Start it when needed, then attach checks from the current worktree:
+This section is for fleet contributors, not a user installation requirement. Before running any Bun
+command above, follow [AGENTS.md](AGENTS.md) and the machine's World instructions. This executor's
+prepared World is `evidence-desk`; preserve its host lifecycle, limits, leases and schedules and the
+Docker `--init` prerequisite. Do not start an alternate service or relax isolation. If it is stopped,
+the configured start command is:
 
 ```bash
 export PATH=/opt/agent/.open-autonomy/node_modules/.bin:$PATH
 volter-world up /opt/data/evidence-desk-pilot/world.config.json --root /opt/data --env-file /opt/data/evidence-desk-pilot/app.env
+```
+
+For the walkthrough in this fleet, use the existing execution-enabled disposable root (not noexec
+`/tmp`) and map every ordinary `bun` invocation, including the external JSON editor, through World:
+
+```bash
+volter-world doctor evidence-desk --root /opt/data
+export TMPDIR=/opt/data/artifact-verification
+bun() { volter-world attach evidence-desk --root /opt/data -- bun "$@"; }
+```
+
+Run all walkthrough blocks in that same shell. The function preserves stdin, arguments and exit codes;
+World attaches in the current checkout with those same absolute synthetic paths. Ordinary users omit
+this function entirely. Other developer machines establish their own World using their machine's
+instructions. This World has no external product services; add vendor twins if dependencies emerge.
+From the worktree being pushed, install frozen dependencies and run the unchanged check through World:
+
+```bash
 volter-world attach evidence-desk --root /opt/data -- bun install --frozen-lockfile
 volter-world attach evidence-desk --root /opt/data -- bun run check
+git diff --check
 ```
 
-This initial World has no external product services. Add vendor twins when product dependencies emerge.
-Other developer machines establish their own World using their machine's World instructions.
-
-From the repository root, create a disposable synthetic folder and run the CLI:
-
-```bash
-scratch=$(mktemp -d)
-volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace create "$scratch/example"
-volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace open "$scratch/example"
-volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace validate "$scratch/example"
-```
-
-`workspace inspect` is an alias for `workspace open`. Create accepts only a new or empty folder;
-its parent must exist. Create Markdown context and evidence with your own editor first, then associate
-those existing files (their bytes are never overwritten):
-
-```bash
-mkdir "$scratch/example/context" "$scratch/example/evidence"
-printf '# Synthetic access review\n' > "$scratch/example/context/access.md"
-printf 'reviewer,result\nExample,pending\n' > "$scratch/example/evidence/access.csv"
-printf '%s\n' '{"id":"ACCESS-01","owner":"Example","status":"todo","context":"context/access.md","evidence":["evidence/access.csv"]}' | volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace item-create "$scratch/example" --stdin
-printf '%s\n' '{"id":"ACCESS-02","owner":"Reviewer","status":"complete"}' | volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace item-update "$scratch/example" ACCESS-01 --stdin
-volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace open "$scratch/example"
-volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace validate "$scratch/example"
-```
-
-Creation requires all five item fields; update applies only supplied fields and can rename the ID.
-To change context or evidence, supply `"context":"context/other.md"` or an entire replacement
-`"evidence":["evidence/other.csv"]` array, with files already present. An empty evidence array is allowed.
-Unknown input keys are refused; existing unknown record fields are preserved.
-Writes refuse manifest-alias context/evidence references (including internal symlinks and untouched
-items), and JSON numbers that would lose value during reserialization. Read-only version 1 validation
-is unchanged; see the write contract below for precision limits and external-editor recovery.
-The writer reads and validates the manifest before printing `Ready` to stderr and reading stdin until
-EOF (Ctrl-D interactively). For a read/edit/write session, wait for `Ready` before composing your JSON.
-A precomposed pipe is applied against the manifest read at command start, not an earlier editor view.
-External manifest edits after `Ready` cause a conflict: reopen and reconsider your patch before retrying.
-See the [write and concurrency contract](docs/workspace-format.md#item-writes-and-concurrency) for
-cooperating locks, deterministic conflict reproduction and failure/crash limits.
-Open prints incomplete items as well as complete ones; missing evidence produces actionable errors.
-Open/validate are read-only and return exit code 1 on invalid input. No hosted service, customer
-credentials or AI provider is needed. Source packaging is preparation only; no release is published by a build.
+The check typechecks source and must finish under thirty seconds before each push. Behavior is verified
+by operating fresh synthetic folders, not by the check alone. Only Linux aarch64/local ext4 with Bun
+1.3.10 is verified; macOS, Windows and network/cloud-drive filesystems are untested. Source packaging
+is preparation only, never release approval, publication or deployment.
 
 For fleet administration, follow the [agent-led setup guide](.open-autonomy/SETUP.md). The project uses
 the Open Autonomy Hermes kit; `create-open-autonomy check .` checks kit-owned files. The container
