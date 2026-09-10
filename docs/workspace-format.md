@@ -190,7 +190,7 @@ no trimming or normalization occurs. Status must be one of the four format 1 sta
 status other than `complete` OR at least one of the existing warnings above. Incomplete items without
 warnings are included; complete items without warnings are excluded. This does not assess evidence.
 
-Each flag (including `--json`) may appear only once, in any order after the folder. Missing values,
+Each flag (including `--json` and `--markdown`) may appear only once, in any order after the folder. Missing values,
 unknown options, extra positional arguments and unsupported statuses exit 1 with repair instructions.
 A separate value beginning with `--` is treated as a missing value; use `--owner=<exact-string>` to
 represent such owners (also accepted for any other owner, including empty). Both owner spellings count
@@ -215,6 +215,46 @@ errors contain diagnostics and exit is 1. No partial data is emitted. Usage fail
 otherwise diagnostics go to stderr. Successfully parsed invocations use the actual `--json` flag.
 Unfiltered success and validation failure remain schema 1. Selection changes no persisted format,
 warnings, bytes, files or the read-only/quiescent-folder and platform limitations above.
+
+### Standalone Markdown view
+
+`workspace summary <folder> --markdown` renders the same fully validated facts and accepts the same
+selectors. It changes neither format 1 nor JSON schemas 1/2. A deterministic standalone document on
+stdout labels itself a derived read-only report. It shows applied selectors (or none), whole-workspace
+counts, then selected counts only when filtered, and selected item facts in manifest order. Evidence
+paths retain array order. Empty workspaces and zero matches succeed with explicit no-items text.
+Fixed warning meanings and concise limitations accompany every document. No timestamp, absolute
+workspace location, unknown fields, Markdown body or evidence contents are emitted in a successful
+document. This is not a readiness score, sufficiency judgment, audit claim, import format or live snapshot.
+
+Every authored ID, owner and path (including selector owners) is represented as an ASCII-only JSON
+string inside a single-backtick code span. Start with JSON string quoting; escape every remaining
+character except ASCII letters, digits, space, `/`, `.`, `_`, `-`, double quote and backslash as a
+lowercase four-hex-digit `\uXXXX` UTF-16 code unit. JSON's existing quote/backslash/control escapes
+are retained. Non-BMP characters use surrogate pairs; lone surrogates remain distinguishable.
+There is no Unicode normalization. For example empty owner is `""`, two spaces is `"  "`, a pipe is
+`"\u007c"`, a backtick is `"\u0060"`, and an actual line feed is `"\n"`, distinct from literal
+backslash-n `"\\n"`. Quotes bound the spaces, preventing Markdown code-span edge-space trimming.
+Decoding the code span as a JSON string recovers the exact string; this representation is not a new
+workspace import interface. No authored backtick, raw HTML delimiter, pipe, newline, control or
+non-ASCII character can break the span or forge document structure, links, images or rows. This
+assumes ordinary Markdown code-span semantics; do not decode escapes then reinterpret them as markup.
+
+`--json` and `--markdown` are mutually exclusive. Option parsing reports the first left-to-right
+unknown/repeated/missing/unsupported option error, then checks mixed formats after parsing. Usage
+errors retain the existing precedence: any literal `--json` argument after `workspace summary`
+selects a schema 1 JSON failure on stdout, even alongside `--markdown`, independent of order; no
+partially parsed selectors are emitted. Without that literal token, errors use stderr and stdout is
+empty. Valid Markdown invocations that fail filesystem or full-workspace validation emit only stderr,
+never a partial or successful-looking document. Successfully parsed invocations use actual flags, so
+an owner supplied as `--owner=--json` does not select JSON. Existing human and JSON views are unchanged.
+
+Each invocation rereads external edits and writes nothing in the workspace, on success or refusal.
+Optional shell redirection is the caller's operation, not a file-writing CLI option. Use a new file
+outside the workspace and check exit status: the shell may create/truncate a destination even when
+validation fails. See README for exact commands. Access times may change on reads; all existing
+quiescent-folder, symlink and platform limitations apply (Linux aarch64/local ext4 verified; macOS,
+Windows and network/cloud filesystem behavior unverified).
 
 ## Inspection and validation
 

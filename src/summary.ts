@@ -6,15 +6,17 @@ export function parseSummaryOptions(args: string[]) {
   const selection: Selection = {};
   const seen = new Set<string>();
   let json = false;
+  let markdown = false;
   for (let i = 0; i < args.length; i++) {
     const inlineOwner = args[i].startsWith("--owner=");
     const flag = inlineOwner ? "--owner" : args[i];
-    if (!["--owner", "--status", "--needs-follow-up", "--json"].includes(flag)) {
-      throw new Error(`Unknown summary option ${JSON.stringify(flag)}; use --owner <exact-string>, --status <status>, --needs-follow-up or --json.`);
+    if (!["--owner", "--status", "--needs-follow-up", "--json", "--markdown"].includes(flag)) {
+      throw new Error(`Unknown summary option ${JSON.stringify(flag)}; use --owner <exact-string>, --status <status>, --needs-follow-up, --json or --markdown.`);
     }
     if (seen.has(flag)) throw new Error(`Repeated ${flag}; supply each summary option once.`);
     seen.add(flag);
     if (flag === "--json") json = true;
+    else if (flag === "--markdown") markdown = true;
     else if (flag === "--needs-follow-up") selection.needsFollowUp = true;
     else {
       const value = inlineOwner ? args[i].slice("--owner=".length) : args[++i];
@@ -26,11 +28,12 @@ export function parseSummaryOptions(args: string[]) {
       }
     }
   }
+  if (json && markdown) throw new Error("Cannot combine --json and --markdown; choose one output format.");
   return { selection: {
     ...(selection.owner === undefined ? {} : { owner: selection.owner }),
     ...(selection.status === undefined ? {} : { status: selection.status }),
     ...(selection.needsFollowUp ? { needsFollowUp: true as const } : {}),
-  }, json };
+  }, json, markdown };
 }
 
 export function failedSummary(errors: string[], selection?: Selection) {
