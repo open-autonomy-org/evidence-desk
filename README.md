@@ -27,10 +27,11 @@ Hermes coordinates development. PM reconciles contributions, queues work and con
 decisions and release review. The local runtime uses the operator’s installed Codex subscription, with
 an isolated executor container and a host sidecar supervised by native launchd. The first supervised PM
 cycle has landed its planning reconciliation. The first worker implementation and independent native review
-completed in [PR #38](https://github.com/open-autonomy-org/evidence-desk/pull/38). Recurring schedules remain
-paused while the setup operator assesses the bounded development cycle. Earlier watchdog failures and
-human-authored inbound Discord verification remain unresolved evidence limits; see the existing setup
-record and [current roadmap](ROADMAP.md#development-ready-complete-the-development-installation).
+completed in [PR #38](https://github.com/open-autonomy-org/evidence-desk/pull/38). The fleet now uses
+Hermes's native agent loop with host-owned subscription forwarding, and the public operator test
+verified inbound identity handling. Full setup acceptance and reconciliation of recurring schedule
+activation remain held; see the [current roadmap](ROADMAP.md#development-ready-complete-the-development-installation).
+Operator tests are not human release approval; earlier watchdog failures remain historical evidence limits.
 
 The [Open Autonomy project page](https://open-autonomy.org/p/open-autonomy-org%2Fevidence-desk) carries
 the public development stream. This installation uses local compute and the operator’s subscription;
