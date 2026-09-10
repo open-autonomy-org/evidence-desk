@@ -25,7 +25,7 @@ export function createWorkspace(destination: string): void {
 }
 
 // Check every component before reading: even an intermediate symlink must stay inside root.
-function localFile(root: string, value: unknown, label: string): string {
+export function localFile(root: string, value: unknown, label: string): string {
   if (typeof value !== "string" || !value || /[\\:\x00-\x1f\x7f]/.test(value) ||
       isAbsolute(value) || value.split("/").some(part => !part || part === "." || part === "..")) {
     throw new Error(`${label}: use a workspace-relative path with / separators, no absolute path, traversal, backslash, colon or empty segment.`);
@@ -46,11 +46,16 @@ function localFile(root: string, value: unknown, label: string): string {
 }
 
 export function inspectWorkspace(destination: string): Inspection {
-  const result: Inspection = { items: [], errors: [], warnings: [] };
   const root = realpathSync(resolve(destination));
   let manifest: unknown;
   try { manifest = JSON.parse(readFileSync(localFile(root, "workspace.json", "workspace.json"), "utf8")); }
   catch (error) { throw new Error(`workspace.json: ${message(error)}`); }
+  return validateManifest(root, manifest);
+}
+
+// Shared validation for disk inspection and proposed item writes.
+export function validateManifest(root: string, manifest: unknown): Inspection {
+  const result: Inspection = { items: [], errors: [], warnings: [] };
   if (!record(manifest)) throw new Error("workspace.json: expected a JSON object.");
   if (manifest.formatVersion !== 1) throw new Error(`workspace.json: unsupported formatVersion ${JSON.stringify(manifest.formatVersion)}; this CLI supports numeric version 1.`);
   if (!Array.isArray(manifest.items)) throw new Error("workspace.json: items must be an array.");

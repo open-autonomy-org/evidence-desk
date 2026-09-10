@@ -1,16 +1,21 @@
 // Local CLI for creating and inspecting portable Evidence Desk workspaces.
 import { resolve } from "node:path";
 import { createWorkspace, inspectWorkspace } from "./workspace";
+import { writeItem } from "./item-write";
 
 const [group, operation, destination, ...extra] = process.argv.slice(2);
-const usage = "Usage: bun run src/index.ts workspace <create|open|inspect|validate> <folder>";
+const usage = "Usage: bun run src/index.ts workspace <create|open|inspect|validate> <folder> OR workspace item-create <folder> --stdin OR workspace item-update <folder> <existing-id> --stdin";
 
 try {
-  if (group !== "workspace" || !destination || extra.length ||
-      !["create", "open", "inspect", "validate"].includes(operation)) {
+  const creatingItem = operation === "item-create" && extra.length === 1 && extra[0] === "--stdin";
+  const updatingItem = operation === "item-update" && extra.length === 2 && extra[1] === "--stdin";
+  if (group !== "workspace" || !destination ||
+      !(creatingItem || updatingItem || (!extra.length && ["create", "open", "inspect", "validate"].includes(operation)))) {
     throw new Error(usage);
   }
-  if (operation === "create") {
+  if (operation === "item-create" || operation === "item-update") {
+    writeItem(destination, operation, updatingItem ? extra[0] : undefined);
+  } else if (operation === "create") {
     createWorkspace(destination);
     console.log(`Created workspace: ${resolve(destination)}`);
   } else {
