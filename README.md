@@ -68,6 +68,9 @@ to existing files only. Writes use cooperating locks, not atomic compare-and-swa
 external writers; keep reference topology quiescent. Manifest aliases and lossy JSON numeric writes are
 refused, and crash leftovers require manual recovery. Read the full
 [write limitations](docs/workspace-format.md#item-writes-and-concurrency) before using external editors.
+For interrupted writes, follow the ordered [manual recovery procedure](docs/workspace-format.md#manual-interrupted-write-recovery):
+account for all writers, preserve an independent quiescent copy, inspect and reopen before exact-path cleanup
+or a deliberate new edit. A failed write or an empty lock is not proof of abandonment.
 Product SemVer and workspace format version 1 are separate; see [compatibility policy](CONTRIBUTING.md#source-preview-policy-proposed-not-a-release).
 
 ## Development-source walkthrough
