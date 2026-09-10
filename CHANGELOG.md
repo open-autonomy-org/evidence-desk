@@ -7,6 +7,16 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Corrected community source reads to pin current main and read committed documents without changing
+  a preserved worker checkout. Active and committed community skills match at 2.3.1; independent native
+  review verified full synthetic workspace preservation and an honest failed-fetch freshness gap.
+  PM subsequently verified adoption in the next ordinary scheduled run and its delivered report.
+  This is a development-fleet correction, not a product release or exhaustive source-coverage claim.
+  ([PR #67](https://github.com/open-autonomy-org/evidence-desk/pull/67),
+  `5e856eba9a6ce106bea340a4de351e3cc2d25958`, [native acceptance, run 22](hermes:task/t_2615f453),
+  [observed run](hermes:session/cron_0538d914b691_20260910_075056),
+  [delivery](https://discord.com/channels/1544906154868744202/1546981849979682916/1547514909796073512))
+
 - Added read-only `workspace summary` in human and deterministic JSON views: all status counts,
   overlapping follow-up counts, item paths and warnings without context/evidence bodies or audit claims.
   Invalid workspaces fail without partial totals; external edits are reread and workspace bytes preserved.

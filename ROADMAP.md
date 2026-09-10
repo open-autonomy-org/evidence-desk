@@ -4,54 +4,61 @@ Notable present/future intentions and outstanding outcomes, carefully maintained
 Sources support decisions and claims. Ideas and unanswered requests are not commitments or dispatch orders.
 See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliation cycle.
 
-## community-current-source: Answer from pinned main without disturbing worker workspaces
+## summary-markdown: Share a readable local follow-up report without copying evidence
 
 Dispatch: fleet
 
-PM priority: repair a demonstrated source-freshness risk before another product expansion. The
-`summary-selection` outcome is complete in [PR #65](https://github.com/open-autonomy-org/evidence-desk/pull/65),
-`e3745b560152c080e09a9515ef30715b8d16d686`, independently accepted in
-[run 20](hermes:task/t_5362d9cb); it is retired, not queued again. The latest
-[public community run](hermes:session/cron_0538d914b691_20260910_071856), message 2108, nevertheless
-read the older `workspace-first`/`Release decision: accumulate` roadmap. PM reproduced that content
-in the preserved root checkout at `af24783ee915d4371fe4432d206bb9b89610c1f0`, while pinned main
-`59a9fbf4ed4b902bae511f4f524ec21c3497aa08` contains the fixed ready proposal below.
-Fetching main alone does not update a worker checkout. No erroneous human reply was found in that
-silent run, but stale source reads could misstate priorities or readiness.
+PM priority: build a bounded Markdown view of the accepted summary and selectors for firm/client
+handoffs. The [current summary](https://github.com/open-autonomy-org/evidence-desk/blob/23aa12956a388180ad29c971a68fe83ed6c1d3b1/src/summary.ts)
+provides console prose and JSON, but no Markdown document. A locally redirected report makes existing
+follow-up facts usable in an owner's ordinary documents without a service or evidence upload.
+This is PM inference under the [portable-files constitution](https://github.com/open-autonomy-org/evidence-desk/blob/23aa12956a388180ad29c971a68fe83ed6c1d3b1/CONSTITUTION.md),
+not a human feature request, volunteered commitment or release decision.
 
-The active default-profile community skill now instructs fetch, full-SHA pinning and `git show`
-reads, an immediate PM procedural mitigation recorded in
-[this public scrum](hermes:session/cron_cbe439e4782f_20260910_073256). Repository persistence,
-independent verification and observation of a subsequent scheduled run remain outstanding.
-This is PM coordination under the constitutional sourced-planning invariant, not new owner direction
-or authorization to reconfigure the gateway. One bounded fleet task should persist and exercise the
-skill correction; PM separately observes scheduled adoption before retiring this outcome.
+The prior `community-current-source` outcome is retired: [PR #67](https://github.com/open-autonomy-org/evidence-desk/pull/67),
+`5e856eba9a6ce106bea340a4de351e3cc2d25958`, and [independent run 22](hermes:task/t_2615f453)
+complete its bounded repair. PM verified full pinned-main roster/planning/constitution output in
+[the next ordinary community run](hermes:session/cron_0538d914b691_20260910_075056), messages 2297/2300,
+and [actual report delivery](https://discord.com/channels/1544906154868744202/1546981849979682916/1547514909796073512).
+That establishes this adoption gate, not exhaustive source coverage or product publication.
 
 Completion:
-- Update only `hermes/skills/open-autonomy/community/SKILL.md` to require fetching current main,
-  pinning its full SHA, and reading roster/roadmap/changelog/constitution and relevant code/docs with
-  `git show <SHA>:<path>`. Do not infer updated working-tree files from fetch or switch/reset/clean
-  worker workspaces. Explain failed-fetch freshness gaps and keep current-main evidence distinct from
-  a fixed release candidate. Preserve public-source boundaries, authority checks and existing reply rules.
-- Reconcile that committed skill with the already patched active default-profile skill using supported
-  skill tooling; preserve unrelated instructions and do not change other profiles, schedules, hooks,
-  gateway configuration, protected files or credentials. Record exact scope and version/provenance.
-- Exercise the documented reads from a deliberately older disposable Git checkout using actual Git
-  commands. Demonstrate that pinned main supplies the current roadmap and roster while HEAD, branch,
-  tracked/untracked synthetic scratch bytes and inventory stay unchanged. Demonstrate a bounded
-  unavailable-remote case that records a freshness gap rather than claiming a successful current read.
-  Do not retrieve confidential sessions, modify the real worker checkout, post test messages or mark
-  community cursors as part of rehearsal. Save exact commands/results in the native handoff, not a journal.
-- Pass unchanged World-attached `bun run check` under thirty seconds and `git diff --check` before
-  pushing the signed task branch; independent native review verifies every task acceptance line.
-  Execution acceptance proves the bounded skill repair, not deployment or the behavior of a future run.
-- PM then inspects the next ordinary community run for pinned-main document reads and successful
-  completion/delivery (or intentional silence), retaining this adoption gate if not yet observed.
+- Add `workspace summary <folder> --markdown`, combinable with existing owner/status/follow-up
+  selectors. Emit a deterministic standalone Markdown document to stdout, with an explicit derived-report
+  label, existing counts, item facts and warning meanings. Filtered reports label applied selectors,
+  whole-workspace counts and selected counts separately, preserving manifest order and zero-match success.
+- Preserve existing human output and JSON schemas 1/2. Reject repeated/unknown/missing options and
+  mixed `--json`/`--markdown` with useful nonzero diagnostics; document deterministic error-format precedence.
+  Reuse complete workspace validation before filtering/rendering. Invalid or unsupported workspaces,
+  including invalid excluded records or references, emit no successful/partial Markdown report to stdout.
+- Render all user-authored IDs, owners and paths as inert literal data: no injected headings, HTML,
+  links/images, broken fences or forged rows via punctuation, newlines, control characters or Unicode.
+  Document the chosen escaping/representation and preserve exact string distinctions, including empty
+  versus whitespace owners. Do not print Markdown bodies, evidence contents, absolute workspace locations,
+  readiness scores, sufficiency judgments or audit claims. Include a concise limitations statement.
+- Reread external edits on each call. Do not write reports, caches, locks or other files in the workspace;
+  preserve all source bytes/inventory on success and refusal. Output is derived, not an import format or
+  live snapshot. README documents exact commands and optional shell redirection to a new file outside
+  the workspace, warning that shell redirection may truncate a destination even when validation fails.
+  Update the existing format document; retain format 1 and quiescent-folder/platform limitations.
+- Exercise the actual CLI through World using synthetic empty, all-status, warning-overlap, selected,
+  no-match and externally edited workspaces. Programmatically reconcile Markdown facts/count scopes/order
+  against JSON; demonstrate deterministic repeats and inert hostile strings (including HTML, image/link
+  syntax, pipes, backticks/fences, CR/LF, tabs and Unicode). Show whole-workspace refusal for malformed,
+  duplicate, unsupported and missing/unsafe/symlink-escaping excluded references; prove stdout is empty
+  on Markdown validation failure and exact bytes/inventory remain unchanged. Recheck option errors,
+  existing human/JSON behavior and create/item-create/item-update/open/inspect/validate.
+- Record exact commands, outputs/exits, full implementation SHA and limitations in the native handoff.
+  Run unchanged World-attached `bun run check` under thirty seconds and `git diff --check` before pushing
+  the signed task branch. Independent native review verifies every acceptance line and exercises behavior;
+  only that review completes execution. Add any product module to the explicit source allowlist.
 
-Dependencies: no overlapping open PR, active board execution or accepted volunteer commitment was found
-in the reviewed sources. Keep product feature expansion out of this repair. No asset rebuild, product
-version bump, changed release proposal, repeated review ask, tag, approval, publication or deployment.
-The preview below remains fixed; newer summary features accumulate independently beyond its assets.
+Dependencies: accepted summary selection [t_5362d9cb](hermes:task/t_5362d9cb) and source-read repair
+[t_2615f453](hermes:task/t_2615f453). No overlapping open PR or volunteered implementation was found in
+reviewed public sources. Queue one successor, not duplicate accepted work. Exclude CSV, file-writing
+export options, import, GUI, catalogs, due dates, sync, AI and release preparation. No version bump,
+fixed-asset rebuild, changed candidate, repeated review ask, tag, approval, publication or deployment.
+The preview below remains fixed; this work accumulates independently beyond its assets.
 
 ## release-next: First portable-workspace preview
 
