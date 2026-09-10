@@ -7,6 +7,21 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Added local readiness-item creation/update with ID renaming and existing Markdown/evidence associations,
+  preserving unknown values and untouched files. A cooperating-writer lock and stale-manifest check
+  refuse detected external conflicts; this is not atomic compare-and-swap against arbitrary writers.
+  Writes also refuse manifest-alias references and lossy numeric reserialization without narrowing
+  read-only format version 1. Native review accepted the rework at
+  `af24783ee915d4371fe4432d206bb9b89610c1f0`, independently exercising workflow, conflict/failure recovery
+  and 60 byte-preserving refusals; its unchanged check passed in 1.641s. Crash leftovers require inspected
+  manual recovery; packaging and human release review remain outstanding.
+  ([PR #56](https://github.com/open-autonomy-org/evidence-desk/pull/56),
+  [PR #57](https://github.com/open-autonomy-org/evidence-desk/pull/57),
+  [native acceptance, run 10](hermes:task/t_23847d50))
+- Enabled native file tools within the product checkout while retaining unrelated-path and credential
+  restrictions. This setup/operator contribution unblocked the existing task; it was not a separate
+  Hermes product execution. ([PR #55](https://github.com/open-autonomy-org/evidence-desk/pull/55))
+
 - Corrected first-poll GitHub discovery and activated the native Hermes Python environment in terminal
   shells; exposed World tooling to login shells and preserved project-owned runtime instructions across
   kit upgrades. Setup/operator acceptance records completed recurring PM/community runs and public
@@ -31,8 +46,8 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
   workspace, reopen externally authored readiness items, inspect incomplete work, and validate records
   and evidence references. Read operations preserve unknown data and evidence bytes; occupied destinations,
   unsupported formats and unsafe references are rejected. Native review independently verified synthetic
-  workflows through the World and passed the check in 0.674s. Item editing and concurrent-write protection
-  remain future work. ([PR #38](https://github.com/open-autonomy-org/evidence-desk/pull/38),
+  workflows through the World and passed the check in 0.674s. Item editing and bounded stale-write
+  refusal subsequently landed as described above. ([PR #38](https://github.com/open-autonomy-org/evidence-desk/pull/38),
   [native acceptance](hermes:task/t_669122cc))
 - Established the TypeScript/Bun development starter, portable-workspace product documentation and
   project branding. ([PR #1](https://github.com/open-autonomy-org/evidence-desk/pull/1))

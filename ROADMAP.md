@@ -4,78 +4,75 @@ Notable present/future intentions and outstanding outcomes, carefully maintained
 Sources support decisions and claims. Ideas and unanswered requests are not commitments or dispatch orders.
 See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliation cycle.
 
-## workspace-first: Demonstrate readiness work in a portable local folder
+## preview-artifact: Prepare a reproducible local source preview
 
-Status: create/open/validate landed and accepted; item editing and conflicting-write protection are ready for implementation.
+Status: ready for bounded artifact/version preparation.
 Dispatch: fleet
 
-Build the first usable slice of the [constitutional product](https://github.com/open-autonomy-org/evidence-desk/blob/417f7f9334c460b03c95eaa4e51ca5d9cb66a5dd/CONSTITUTION.md):
-create a workspace, record a readiness item, associate evidence, and inspect what remains incomplete.
-PM proposes a local command-line entry point first to demonstrate the file contract before adding
-a larger interface. This sequencing is a PM inference from the portable-folder and external-editing
-requirements, not a new owner commitment. The [starter](https://github.com/open-autonomy-org/evidence-desk/pull/1)
-already supplies its introductory README and reports a successful frozen install and World check;
-its historical hello intention needs no duplicate task.
+The portable-folder workflow is implemented and independently accepted in
+[PR #38](https://github.com/open-autonomy-org/evidence-desk/pull/38),
+[PR #56](https://github.com/open-autonomy-org/evidence-desk/pull/56) and
+[PR #57](https://github.com/open-autonomy-org/evidence-desk/pull/57):
+[t_669122cc](hermes:task/t_669122cc) covers create/open/validate and
+[t_23847d50](hermes:task/t_23847d50), review run 10, accepts item creation/update and stale-write refusal
+at `af24783ee915d4371fe4432d206bb9b89610c1f0`. The completed workspace-first intention is retired;
+release-specific installation and artifact verification are not implied by that execution acceptance.
 
-[PR #38](https://github.com/open-autonomy-org/evidence-desk/pull/38) delivers the documented
-[version 1 file contract](https://github.com/open-autonomy-org/evidence-desk/blob/6b07216cc97ffcec757ce16e2a71503d44176108/docs/workspace-format.md)
-and runnable create/open/inspect/validate commands. Native review in
-[t_669122cc](hermes:task/t_669122cc) verified externally authored items and edits, incomplete counts,
-malformed/unsupported input, unsafe and missing references, occupied-destination refusal, and preservation
-of unknown data and evidence bytes. The CLI assumes quiescent folders and supplies no item-write command;
-read-only preservation is not evidence of safe conflicting writes.
+PM now selects the previously sequenced source-preview preparation under the
+[local-application procedure](.open-autonomy/PRODUCTION.md#packages-and-local-applications).
+Use a minimal product source archive for human publication as a GitHub Release asset in this repository,
+not an npm package, hosted service or bundled executable. This is PM's packaging proposal, not publication
+authorization. Retain package.json's private flag. Propose SemVer prereleases starting at
+`0.1.0-alpha.1`, separate from workspace format version 1; explicitly document compatibility expectations
+and require a format version change for incompatible persisted-data changes, with no silent migration.
+No human has volunteered implementation; dispatch one fleet preparation task, not duplicate item work.
 
-Remaining completion / next slice:
-- Add local item creation and updates for ID, owner, status, Markdown-context and existing evidence
-  references using the landed format; preserve unknown fields and unrelated files.
-- Define and demonstrate conflicting-write refusal: an external change since the application's read
-  must produce an actionable conflict without silently replacing that change. Document the supported
-  concurrency boundary and failure behavior before claiming safe writes.
-- Drive the full create/item-edit/reopen/validate workflow, external-edit conflicts and byte preservation
-  through the World on disposable folders; record exact commands and results in the implementation
-  PR/native handoff, with `bun run check` passing in under thirty seconds.
+Completion:
+- Establish artifact contents, naming, deterministic build command, version/compatibility policy and
+  human-only GitHub Release publication procedure in CONTRIBUTING.md. Keep exact user installation and
+  runnable CLI commands in README. Pin the supported Bun toolchain and dependencies.
+- Add the proposed product version and a minimal reproducible source-archive preparation command.
+  Include required source, lockfile, package/toolchain metadata, license and user format documentation;
+  exclude Git metadata, installed dependencies, fleet/runtime configuration, scratch evidence and secrets.
+  Derive contents from a specified full committed SHA, not dirty or untracked working-tree contents;
+  record provenance and an archive checksum without circular self-hashing.
+- Build twice from the same committed input and compare bytes/checksums; inspect the complete archive
+  inventory. Extract into a disposable folder and install frozen dependencies through the World, then
+  drive create/item-create/item-update/open/validate, a deterministic stale-write refusal and preservation
+  checks using synthetic files. Demonstrate the extracted artifact works without the repository checkout.
+- Record exact commands, full input SHA, artifact path/checksum/inventory, toolchain, outputs and limits
+  in the PR/native handoff. Pass unchanged `bun run check` through the World in under thirty seconds
+  before push, and obtain independent native execution review. Do not tag, publish, approve or select
+  the final release candidate; PM reconciles the landed preparation before candidate-specific verification.
 
-Dependencies: the first slice's implementation and native review prerequisite is satisfied. The
-[landed setup reconciliation](https://github.com/open-autonomy-org/evidence-desk/blob/a7d6bb119735ad964c8f020c2d888627279d8619/.open-autonomy/setup.json)
-in [PR #52](https://github.com/open-autonomy-org/evidence-desk/pull/52) concludes the temporary operator
-observation and records owner-authorized resumption of recurring jobs and successor development after
-native shell/intake acceptance. The current scrum exercised the corrected terminal, World doctor and PM
-poll, and verified the previous PM run completed and its
-[final report was delivered](https://discord.com/channels/1544906154868744202/1546981849979682916/1547400673287602237).
-The fulfilled development-ready outcome is retired; historical source-coverage and incident pointers stay
-in native PM working memory, not as a new setup or implementation gate. This supersedes the temporary
-hold in [PR #51](https://github.com/open-autonomy-org/evidence-desk/pull/51), not the human release gate.
-
-PM selects item editing with conflicting-write protection as the next coherent fleet slice, inferred
-from the constitutional external-editing invariant and accepted CLI's explicit write/concurrency limits.
-Queue one successor, not a duplicate of t_669122cc; no human implementation commitment is recorded.
-Optional cloud synchronization and customer AI integrations remain future product choices; core use
-requires no hosted account or customer credentials.
+Dependencies: accepted workflow above and setup acceptance in
+[PR #52](https://github.com/open-autonomy-org/evidence-desk/pull/52) are satisfied. Packaging must expose,
+not conceal, the [write limitations](https://github.com/open-autonomy-org/evidence-desk/blob/af24783ee915d4371fe4432d206bb9b89610c1f0/docs/workspace-format.md#item-writes-and-concurrency):
+existing-file association only, cooperating-writer locking rather than atomic compare-and-swap,
+quiescent reference topology, lossy-number/manifest-alias refusals and manual crash-leftover recovery.
+No GUI, sync, automatic conflict merging, customer integration or general concurrent-writer guarantee
+is added to this preview scope.
 
 ## release-next: First portable-workspace preview
 
 Dispatch: hold
-Release decision: accumulate
-Target version: 0.1.0-alpha.1, proposed pending the artifact/version policy
+Release decision: prepare
+Target version: 0.1.0-alpha.1, proposed pending the landed artifact/version policy
 Target window: 2026-09-16 through 2026-09-18, America/New_York; provisional forecast
 Review by: 2026-09-15, America/New_York; proposed review target, subject to reviewer availability
 Candidate: not selected
-Scope: workspace-first and a documented, reproducible local preview artifact
+Scope: accepted portable-workspace CLI and preview-artifact; no GUI, sync or hosted service
 Readiness: pending
-Readiness evidence: https://github.com/open-autonomy-org/evidence-desk/pull/38 and hermes:task/t_669122cc establish the running create/open/validate slice and native review; https://github.com/open-autonomy-org/evidence-desk/pull/52 resolves the setup hold. Item editing/conflict handling, artifact/version policy and candidate-specific release verification remain outstanding.
-Rationale: Retain the provisional window after setup acceptance enables the next product slice; a complete portable-folder workflow and reviewable artifact still need preparation. The forecast allows implementation followed by human review, but supplies neither a reviewer commitment nor publication authority.
-Version rationale: Retain proposed 0.1.0-alpha.1 for an experimental file contract; the project API still returns no tags or GitHub releases, and package.json has no product version. Artifact/version policy must land before candidate selection.
+Readiness evidence: https://github.com/open-autonomy-org/evidence-desk/pull/38 and hermes:task/t_669122cc establish create/open/validate; https://github.com/open-autonomy-org/evidence-desk/pull/57 and hermes:task/t_23847d50 review run 10 establish item editing, preservation safeguards and bounded conflict/failure acceptance. Artifact/version policy and candidate-specific artifact/install verification remain outstanding.
+Rationale: Move from accumulation to preparation after independent acceptance of the complete bounded folder workflow. Retain the existing forecast to allow reproducible artifact preparation and human review rather than treating the early merge as a release trigger.
+Version rationale: Retain proposed 0.1.0-alpha.1 for the first experimental CLI preview; GitHub tags/releases remain empty and package.json has no product version at 90c9e493c017abab0bee1b6182f8c9a5b820c164. Land the proposed prerelease policy before candidate selection; workspace format 1 remains distinct.
 
-This remains PM's forecast under the [local-application release procedure](.open-autonomy/PRODUCTION.md#packages-and-local-applications),
-not an accepted deadline or a review request. Propose a source archive with pinned Bun dependencies
-and documented local commands as the first artifact; establish its version policy and distribution
-destination in CONTRIBUTING.md before preparing a candidate. Sequence that preparation after the bounded
-item-editing handoff so packaging reflects the verified workflow. Reassess the forecast when that slice
-is verified; unresolved dependencies move the target rather than waive readiness.
-
-Readiness requires workspace-first, a landed artifact/version policy, a full landed candidate SHA,
-inspected artifact contents, and candidate-specific installation/workflow/check evidence.
-PM then lands the exact proposal and seeks candidate-specific review from the currently authorized reviewer
-through [#evidence-desk](https://discord.com/channels/1544906154868744202/1546981849979682916).
-Publication remains a human action. Installation complexity, file-preservation defects and reviewer
-availability are the principal risks. No reviewer commitment or independent human release approval is recorded.
+This is PM's forecast, not an accepted human deadline or a review request. Completion of preview-artifact
+must precede selection of a full landed candidate SHA and inspection/rehearsal of that candidate's exact
+artifact. PM then lands a ready, fixed proposal and seeks candidate-specific human review in
+[#evidence-desk](https://discord.com/channels/1544906154868744202/1546981849979682916).
+Human publication and subsequent verification of the published version/checksum remain separate gates.
+No reviewer commitment or independent human release approval is recorded. Installation complexity,
+archive reproducibility, documented filesystem/concurrency limits and reviewer availability are risks;
+unresolved dependencies move the forecast rather than waive readiness. Optional cloud synchronization
+and customer AI integrations remain future choices; core use needs neither hosted accounts nor customer credentials.

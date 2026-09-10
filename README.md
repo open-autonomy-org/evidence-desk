@@ -31,7 +31,7 @@ completed in [PR #38](https://github.com/open-autonomy-org/evidence-desk/pull/38
 Hermes's native agent loop with host-owned subscription forwarding, and the public operator test
 verified inbound identity handling. The [landed setup acceptance](https://github.com/open-autonomy-org/evidence-desk/pull/52)
 concludes the temporary observation hold: recurring PM/community and autonomous product development
-have resumed. See the [current roadmap](ROADMAP.md#workspace-first-demonstrate-readiness-work-in-a-portable-local-folder).
+have resumed. See the [current roadmap](ROADMAP.md#preview-artifact-prepare-a-reproducible-local-source-preview).
 Operator tests are not human release approval; earlier watchdog failures remain historical evidence limits.
 
 The [Open Autonomy project page](https://open-autonomy.org/p/open-autonomy-org%2Fevidence-desk) carries
