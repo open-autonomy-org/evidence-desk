@@ -10,6 +10,11 @@ the constitution's invariants. Short on purpose; the reviewer reads it whole.
 - **Verification environment.** Run the application, dependency installation and checks through the
   local World environment described in `AGENTS.md`. Real development-fleet credentials are distinct
   from synthetic application integrations; customer credentials are never needed for a development check.
+  Extract/install runnable dependencies on an execution-enabled filesystem outside Git checkouts, not a
+  `noexec` mount. This fleet's operator-authorized disposable root is `/opt/data/artifact-verification`;
+  use a unique subdirectory there through the existing World. `/tmp` remains `noexec`: installed compiler
+  execution there can fail with EACCES or a silent Bun runner exit. Preserve the failure, do not substitute
+  direct compiler success for `bun run check`, and never remount or relax isolation to obtain green.
 - **Shape.** Small modules with one job each, named for what they hold. No layer that exists only to forward.
 - **Thirty seconds, total, forever.** `bun run check` is every test and typecheck there is, and it must finish in
   under thirty seconds. A test guards an invariant of the constitution or it is not written; behavior is verified by
