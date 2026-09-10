@@ -29,8 +29,9 @@ an isolated executor container and a host sidecar supervised by native launchd. 
 cycle has landed its planning reconciliation. The first worker implementation and independent native review
 completed in [PR #38](https://github.com/open-autonomy-org/evidence-desk/pull/38). The fleet now uses
 Hermes's native agent loop with host-owned subscription forwarding, and the public operator test
-verified inbound identity handling. Full setup acceptance and reconciliation of recurring schedule
-activation remain held; see the [current roadmap](ROADMAP.md#development-ready-complete-the-development-installation).
+verified inbound identity handling. The [landed setup acceptance](https://github.com/open-autonomy-org/evidence-desk/pull/52)
+concludes the temporary observation hold: recurring PM/community and autonomous product development
+have resumed. See the [current roadmap](ROADMAP.md#workspace-first-demonstrate-readiness-work-in-a-portable-local-folder).
 Operator tests are not human release approval; earlier watchdog failures remain historical evidence limits.
 
 The [Open Autonomy project page](https://open-autonomy.org/p/open-autonomy-org%2Fevidence-desk) carries
