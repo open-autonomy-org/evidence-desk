@@ -7,6 +7,15 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Added reproducible, allowlisted source-archive preparation from a full committed SHA, with checksum,
+  provenance and pinned toolchain metadata; documented extracted installation, experimental SemVer
+  compatibility and human-only publication. The private product version is proposed as `0.1.0-alpha.1`,
+  separate from workspace format 1. Native review reproduced the archive and extracted CLI/preservation
+  workflow, accepting the bounded preparation; an additional extracted development-check failure remains
+  a candidate-readiness blocker in ROADMAP, not a passing check or release approval.
+  ([PR #59](https://github.com/open-autonomy-org/evidence-desk/pull/59),
+  `cbef9a2137908df60f298443cb4cebc340f5c3a1`, [native acceptance, run 12](hermes:task/t_4116639b))
+
 - Added local readiness-item creation/update with ID renaming and existing Markdown/evidence associations,
   preserving unknown values and untouched files. A cooperating-writer lock and stale-manifest check
   refuse detected external conflicts; this is not atomic compare-and-swap against arbitrary writers.
