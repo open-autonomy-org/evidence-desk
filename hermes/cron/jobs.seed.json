@@ -27,6 +27,21 @@
         "discord_admin"
       ],
       "deliver": "discord:1546981849979682916"
+    },
+    {
+      "name": "strategy",
+      "prompt": "Run the strategy skill under Evidence Desk's autonomous mandate in project-communications: pursue the best SOC2 app in the world and parity with all relevant competitors. Research current primary evidence and land justified, constitution-compatible roadmap decisions. Preserve PM work and human release gates; PM owns dispatch. Report only notable decisions or actionable gaps.",
+      "schedule": "every 24h",
+      "skills": [
+        "strategy",
+        "project-communications"
+      ],
+      "enabled_toolsets": [
+        "hermes-cron",
+        "discord",
+        "discord_admin"
+      ],
+      "deliver": "discord:1546981849979682916"
     }
   ]
 }
