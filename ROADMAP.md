@@ -4,61 +4,62 @@ Notable present/future intentions and outstanding outcomes, carefully maintained
 Sources support decisions and claims. Ideas and unanswered requests are not commitments or dispatch orders.
 See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliation cycle.
 
-## summary-markdown: Share a readable local follow-up report without copying evidence
+## guided-workflow: Make the local follow-up handoff runnable from a fresh start
 
 Dispatch: fleet
 
-PM priority: build a bounded Markdown view of the accepted summary and selectors for firm/client
-handoffs. The [current summary](https://github.com/open-autonomy-org/evidence-desk/blob/23aa12956a388180ad29c971a68fe83ed6c1d3b1/src/summary.ts)
-provides console prose and JSON, but no Markdown document. A locally redirected report makes existing
-follow-up facts usable in an owner's ordinary documents without a service or evidence upload.
-This is PM inference under the [portable-files constitution](https://github.com/open-autonomy-org/evidence-desk/blob/23aa12956a388180ad29c971a68fe83ed6c1d3b1/CONSTITUTION.md),
-not a human feature request, volunteered commitment or release decision.
+PM priority: consolidate the existing workflow before adding more product surface. The
+[current README](https://github.com/open-autonomy-org/evidence-desk/blob/693b63e0441b555e130784bd530665078718358b/README.md#read-only-readiness-summary-development-source)
+places summary commands before the synthetic setup they require, mixes fleet-specific commands with
+ordinary-user examples, and uses placeholder report destinations. Its commands describe accepted features,
+but a new reader must assemble the end-to-end handoff. This is a documentation/usability deduction from
+source, not an observed customer failure, human commitment or owner feature request. The constitutional
+[portable-files and external-editing workflow](https://github.com/open-autonomy-org/evidence-desk/blob/693b63e0441b555e130784bd530665078718358b/CONSTITUTION.md)
+supports one bounded documentation task rather than another formatter.
 
-The prior `community-current-source` outcome is retired: [PR #67](https://github.com/open-autonomy-org/evidence-desk/pull/67),
-`5e856eba9a6ce106bea340a4de351e3cc2d25958`, and [independent run 22](hermes:task/t_2615f453)
-complete its bounded repair. PM verified full pinned-main roster/planning/constitution output in
-[the next ordinary community run](hermes:session/cron_0538d914b691_20260910_075056), messages 2297/2300,
-and [actual report delivery](https://discord.com/channels/1544906154868744202/1546981849979682916/1547514909796073512).
-That establishes this adoption gate, not exhaustive source coverage or product publication.
+`summary-markdown` is complete in [PR #69](https://github.com/open-autonomy-org/evidence-desk/pull/69),
+`3c3d9ce1607dfdd9f55e7a1e01c48912db60f4ef`, independently accepted by
+[native run 24](hermes:task/t_0f8efb43). PM inspected its full diff, rehearsal script, actual command
+records and [review-session outputs](hermes:session/20260910_085711_10d41f), including messages 2530/2534.
+The completed implementation is not queued again and remains outside the fixed preview below.
 
 Completion:
-- Add `workspace summary <folder> --markdown`, combinable with existing owner/status/follow-up
-  selectors. Emit a deterministic standalone Markdown document to stdout, with an explicit derived-report
-  label, existing counts, item facts and warning meanings. Filtered reports label applied selectors,
-  whole-workspace counts and selected counts separately, preserving manifest order and zero-match success.
-- Preserve existing human output and JSON schemas 1/2. Reject repeated/unknown/missing options and
-  mixed `--json`/`--markdown` with useful nonzero diagnostics; document deterministic error-format precedence.
-  Reuse complete workspace validation before filtering/rendering. Invalid or unsupported workspaces,
-  including invalid excluded records or references, emit no successful/partial Markdown report to stdout.
-- Render all user-authored IDs, owners and paths as inert literal data: no injected headings, HTML,
-  links/images, broken fences or forged rows via punctuation, newlines, control characters or Unicode.
-  Document the chosen escaping/representation and preserve exact string distinctions, including empty
-  versus whitespace owners. Do not print Markdown bodies, evidence contents, absolute workspace locations,
-  readiness scores, sufficiency judgments or audit claims. Include a concise limitations statement.
-- Reread external edits on each call. Do not write reports, caches, locks or other files in the workspace;
-  preserve all source bytes/inventory on success and refusal. Output is derived, not an import format or
-  live snapshot. README documents exact commands and optional shell redirection to a new file outside
-  the workspace, warning that shell redirection may truncate a destination even when validation fails.
-  Update the existing format document; retain format 1 and quiescent-folder/platform limitations.
-- Exercise the actual CLI through World using synthetic empty, all-status, warning-overlap, selected,
-  no-match and externally edited workspaces. Programmatically reconcile Markdown facts/count scopes/order
-  against JSON; demonstrate deterministic repeats and inert hostile strings (including HTML, image/link
-  syntax, pipes, backticks/fences, CR/LF, tabs and Unicode). Show whole-workspace refusal for malformed,
-  duplicate, unsupported and missing/unsafe/symlink-escaping excluded references; prove stdout is empty
-  on Markdown validation failure and exact bytes/inventory remain unchanged. Recheck option errors,
-  existing human/JSON behavior and create/item-create/item-update/open/inspect/validate.
-- Record exact commands, outputs/exits, full implementation SHA and limitations in the native handoff.
-  Run unchanged World-attached `bun run check` under thirty seconds and `git diff --check` before pushing
-  the signed task branch. Independent native review verifies every acceptance line and exercises behavior;
-  only that review completes execution. Add any product module to the explicit source allowlist.
+- Maintain README in place with one clearly ordered, copy-runnable development-source walkthrough
+  from a fresh checkout with Bun 1.3.10 and frozen dependency installation. Distinguish current source
+  from the fixed unpublished alpha.1 archive; do not make summary commands appear available in that
+  archive. Separate ordinary-user commands from the fleet World invocation prerequisite without requiring
+  users to install fleet tooling. Retain the actual application run command and existing installation policy.
+- Use only a newly created disposable synthetic workspace outside the checkout. Define all variables
+  and create context/evidence files before referencing them. Demonstrate create, item-create, item-update,
+  open/validate, then human/JSON/Markdown summaries and an owner/follow-up selection with meaningful
+  matching data. Explain complete-with-warnings and overlapping counts without inventing readiness scores,
+  evidence sufficiency or SOC2 mappings. No real customer examples, credentials, service or AI dependency.
+- Demonstrate a quiescent external edit followed by validation and a changed summary, preserving unrelated
+  fields/files. Document a useful invalid-reference refusal and safe correction without blind retry,
+  automatic repair or silent discard. Link to the existing format/concurrency contract rather than copying
+  it; retain cooperating-lock, no live snapshot, numeric/alias and platform limitations.
+- Show Markdown redirection to a new concrete destination outside the workspace with no-clobber and
+  explicit exit-status handling. Explain shell-created/truncated files on failure, escaped authored strings,
+  derived rather than import/live data, and reviewing report contents before sharing. Do not imply the
+  application writes reports or that synthetic operational verification establishes customer adoption.
+- Independently execute the documented sequence in its stated order through World using fresh synthetic
+  folders, without hidden fixture preparation or prior shell variables. Capture exact documented commands,
+  World mapping, outputs/exits and source SHA in native handoff, not a committed rehearsal journal.
+  Programmatically verify expected JSON facts/selection and Markdown agreement; compare complete bytes
+  and inventory across read/refusal operations and preserve unrelated sources across intended edits.
+  A second clean rehearsal must not depend on the first workspace. Do not claim untested platforms.
+- Limit repository changes to README and, only if needed to fix a link or clarify existing behavior,
+  docs/workspace-format.md. Consolidate redundant examples instead of appending a second manual.
+  No product code, dependencies, formats, automated tests/check changes or new CLI features. Pass
+  unchanged World-attached `bun run check` under thirty seconds and `git diff --check` before pushing
+  the signed task branch. Independent native review reads the pinned roadmap, constitution and
+  contributing rules, verifies every acceptance line and operates the documented walkthrough itself.
 
-Dependencies: accepted summary selection [t_5362d9cb](hermes:task/t_5362d9cb) and source-read repair
-[t_2615f453](hermes:task/t_2615f453). No overlapping open PR or volunteered implementation was found in
-reviewed public sources. Queue one successor, not duplicate accepted work. Exclude CSV, file-writing
-export options, import, GUI, catalogs, due dates, sync, AI and release preparation. No version bump,
-fixed-asset rebuild, changed candidate, repeated review ask, tag, approval, publication or deployment.
-The preview below remains fixed; this work accumulates independently beyond its assets.
+Dependencies: accepted [Markdown execution](hermes:task/t_0f8efb43); no overlapping open issue/PR or
+accepted volunteer commitment found in reviewed public sources. One fleet documentation successor;
+no human assignment. Preserve all worker scratch and review evidence. No version bump, archive rebuild,
+changed release candidate/window, repeated review request, tag, approval, publication or deployment.
+This work accumulates independently beyond the fixed preview assets.
 
 ## release-next: First portable-workspace preview
 
