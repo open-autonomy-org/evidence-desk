@@ -266,5 +266,5 @@ Errors name the file, item array index and reference field where applicable, wit
 
 All commands exit `0` on success and `1` for usage, filesystem or validation errors. Warnings and
 incomplete statuses alone do not fail validation. `complete` is an owner-authored status, not an audit
-judgment; even a complete item may have warnings. See [README](../README.md#local-verification) for
+judgment; even a complete item may have warnings. See [README](../README.md#development-source-walkthrough) for
 exact runnable commands.
