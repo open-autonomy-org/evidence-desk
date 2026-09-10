@@ -145,5 +145,11 @@ a forwarding address and stand-in credential enter Hermes.
 The kit record preserves the host reporter and its two container helpers as deliberate
 project-owned files. The Codex app-server bridge is retired. The operator's World config
 and launchd service live beside the checkout; stop through that service, wait for World
-teardown, then restart. Preserve the native state and checkout volumes. Product tests
-continue through their separate World, and release authorization follows the gates above.
+teardown, then restart. Preserve the native state and checkout volumes. The installed host World
+executor run command must retain Docker `--init` so PID 1 adopts/reaps orphaned children; an idle
+`sleep` as PID 1 exhausted the unchanged 256-process limit. The [operator recovery](hermes:task/t_1f2de365)
+preserved draft hashes and review artifacts, verified `docker-init` and orphan reaping, and restored
+World-attached installation. This was an installed host configuration repair, not a generic kit/template
+code change. If resource admission fails again, preserve work and request operator lifecycle recovery;
+do not kill live leases, raise isolation limits or inspect crash dumps. Product tests continue through
+their separate World, and release authorization follows the gates above.
