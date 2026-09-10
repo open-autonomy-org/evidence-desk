@@ -7,6 +7,15 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Added read-only `workspace summary` in human and deterministic JSON views: all status counts,
+  overlapping follow-up counts, item paths and warnings without context/evidence bodies or audit claims.
+  Invalid workspaces fail without partial totals; external edits are reread and workspace bytes preserved.
+  The report schema is independent of workspace format 1, and the source allowlist includes the new module.
+  Independent native review reran 73 CLI commands and the unchanged check passed in 1.478s.
+  This feature is after, and absent from, the fixed `0.1.0-alpha.1` candidate and review assets.
+  ([PR #63](https://github.com/open-autonomy-org/evidence-desk/pull/63),
+  `89637675fa407946d32ac13ad66be3b76005c8be`, [native acceptance, run 18](hermes:task/t_1f2de365))
+
 - Added reproducible, allowlisted source-archive preparation from a full committed SHA, with checksum,
   provenance and pinned toolchain metadata; documented extracted installation, experimental SemVer
   compatibility and human-only publication. The private product version is proposed as `0.1.0-alpha.1`,

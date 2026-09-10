@@ -4,58 +4,60 @@ Notable present/future intentions and outstanding outcomes, carefully maintained
 Sources support decisions and claims. Ideas and unanswered requests are not commitments or dispatch orders.
 See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliation cycle.
 
-## readiness-summary: See outstanding readiness work without reading every item body
+## summary-selection: Find an owner's work and follow-up items without hiding workspace errors
 
 Dispatch: fleet
 
-PM priority: implement one bounded read-only summary of the existing version 1 workspace next.
-The [constitution](https://github.com/open-autonomy-org/evidence-desk/blob/fe1aedb75662a662f41c752b01f5ff2b39d2cdab/CONSTITUTION.md#invariants)
-calls for locally usable readiness information and customer-owned tools. The accepted
-[folder contract and inspection](https://github.com/open-autonomy-org/evidence-desk/pull/38) and
-[item editing](https://github.com/open-autonomy-org/evidence-desk/pull/57) already supply status, owner,
-context and evidence references. Current [CLI inspection](https://github.com/open-autonomy-org/evidence-desk/blob/fe1aedb75662a662f41c752b01f5ff2b39d2cdab/src/index.ts)
-prints every Markdown body and only an overall incomplete count; it offers no concise grouped summary
-or documented machine-readable report. A firm/client can use a summary to find follow-up work without
-scanning those bodies, and its own tools can consume the same facts without parsing console prose.
-This is PM inference and sequencing within existing direction, not a named owner feature request or
-human implementation commitment. The operator-forwarded request to continue in
-[the current public scrum](hermes:session/cron_cbe439e4782f_20260910_054655) prompted reassessment;
-it neither changes the constitution nor supplies release approval.
+PM priority: extend the accepted read-only summary with bounded owner/status/follow-up selection.
+[PR #63](https://github.com/open-autonomy-org/evidence-desk/pull/63), implementation
+`89637675fa407946d32ac13ad66be3b76005c8be`, and [independent native review run 18](hermes:task/t_1f2de365)
+complete the previous `readiness-summary` outcome; it is retired, not queued again. The current
+[summary implementation](https://github.com/open-autonomy-org/evidence-desk/blob/89637675fa407946d32ac13ad66be3b76005c8be/src/summary.ts)
+always lists every item. A firm or client coordinating an owned folder can next isolate one owner's
+work or items needing follow-up, while retaining visible whole-workspace context and validation.
+This is PM inference under the [constitution](https://github.com/open-autonomy-org/evidence-desk/blob/5033b0de7f1affa807be5c7982a3a6ea838a9efa/CONSTITUTION.md),
+not a named owner feature request or human commitment. The operator-forwarded continue request in
+[the prior public scrum](hermes:session/cron_cbe439e4782f_20260910_054655) and
+[current reconciliation](hermes:session/cron_cbe439e4782f_20260910_062455) prompt sequencing, not release approval.
 
 Completion:
-- Add `workspace summary <folder>` and `workspace summary <folder> --json`, with exact runnable
-  examples in README and the derived report contract in the existing workspace-format documentation.
-  Reuse version 1 validation; no persisted-format changes, migration, index, service or AI dependency.
-- For a valid workspace, report total items and counts for all four existing statuses, incomplete items,
-  unassigned owners and items with no evidence references. Provide concise per-item follow-up facts
-  (ID, owner, status, context/evidence paths and relevant warnings), without Markdown bodies or evidence
-  contents. Include complete items with warnings; do not confuse self-reported completion or reference
-  existence with evidence sufficiency, SOC2 coverage, an audit opinion or a readiness score.
-- JSON mode emits one documented report object on stdout, with a report schema version distinct from
-  workspace format/product version, deterministic ordering and no console prose mixed in. Define
-  overlapping counts and empty-workspace semantics. Human and JSON views must agree on the same facts.
-- Invalid or unsupported manifests, malformed/duplicate records and missing/unsafe/symlink-escaping
-  references produce actionable diagnostics and nonzero exit. JSON failures remain machine-readable;
-  never present totals from omitted malformed records as a successful complete workspace report.
-  Warnings alone do not fail. Preserve the existing open/inspect/validate and write behavior.
-- Each invocation rereads external edits and is read-only: no report files, locks or caches in the
-  workspace, no mutation of unknown fields, manifest, context, evidence or unrelated files. Retain the
-  quiescent-folder concurrency limitation; do not imply a snapshot against concurrent external writers.
-- Demonstrate the actual CLI through World on disposable synthetic folders: empty workspace, all
-  statuses, overlapping follow-up reasons, complete-with-warnings, externally edited data, malformed
-  records, unsupported version, missing files and unsafe/symlink references. Compare parsed JSON with
-  human facts and byte-compare workspace contents before/after successful and refused commands.
-  Record exact commands, exits, outputs and limitations in the implementation PR/native handoff;
-  pass the unchanged `bun run check` under thirty seconds and obtain independent native acceptance.
+- Extend `workspace summary <folder>` with optional `--owner <exact-string>`, `--status <status>` and
+  `--needs-follow-up`, combinable with `--json`. One value per owner/status flag; reject repeated,
+  unknown or missing options and unsupported statuses with actionable nonzero errors. Owner comparison
+  is exact and case-sensitive (including an explicitly empty string); do not normalize stored values.
+  Different selectors intersect. Follow-up means status is not complete OR the existing report has
+  any warning, including complete items with warnings; this is not evidence sufficiency or audit advice.
+- Validate the entire workspace before selection. An invalid record or missing/unsafe reference outside
+  the selected subset must still fail the command. Never hide problems by filtering malformed records.
+  Reuse format 1 and existing warning definitions; no persistence, migration, cache or service dependency.
+- Preserve the existing unfiltered human output and JSON report schema 1 contract. Filtered JSON uses
+  an explicitly documented derived report schema 2 with the applied selectors, whole-workspace counts,
+  selected counts and selected item facts in manifest order. Distinguish absent selectors from empty
+  owner. Human output clearly labels selection and both count scopes, agrees with JSON, and safely quotes
+  owner-authored strings. A zero-match selection succeeds with zero selected counts, not an error.
+  Failure emits no partial counts/items; `--json` failures remain a single machine-readable object with
+  no mixed prose. Document schema choice for usage failures and keep it deterministic. Update README
+  with exact runnable examples and the existing workspace-format document with the selection/report contract.
+- Reread external edits each invocation and preserve all bytes, unknown fields, evidence, context and
+  unrelated files on success/refusal. No report files, locks or caches in the workspace. Keep the
+  quiescent-folder/no-concurrent-snapshot limitation, no bodies/evidence contents, scoring or audit claims.
+- Exercise actual CLI commands through World on synthetic folders: empty/no-match, every status,
+  exact/case-sensitive/empty/whitespace/control-character owners, each selector and intersections,
+  incomplete items without warnings, complete items with/without warnings, repeated/missing/invalid
+  options and external edits. Include malformed/duplicate/unsupported records and missing/unsafe/symlink
+  references excluded by the requested selection to prove whole-workspace refusal. Programmatically
+  reconcile selected IDs, both count scopes and human/JSON facts; compare deterministic repeated output
+  and exact workspace bytes/inventory before/after successes and refusals. Recheck unfiltered schema 1
+  and existing create/item-create/item-update/open/inspect/validate behavior. Record commands, outputs,
+  exits, full SHA and limitations; pass unchanged World-attached `bun run check` under thirty seconds
+  before pushing, followed by independent native review of every completion line.
 
-Dependencies: accepted [t_669122cc](hermes:task/t_669122cc) and
-[t_23847d50](hermes:task/t_23847d50); both are done. No human publication dependency or volunteer overlap
-is known from the current board/open PRs. Keep one fleet execution, followed by native review.
-Scope excludes filters, CSV/Markdown export, control catalogs/mappings, due dates, evidence interpretation,
-GUI, sync and new writing operations. If source modules are added, maintain the existing explicit source
-archive allowlist; this does not authorize building a replacement review asset. No version bump or new
-release proposal is needed for this implementation. Accumulate accepted changes after the fixed preview
-candidate; preserve its version, assets, schedule and human gate below.
+Dependencies: [t_1f2de365](hermes:task/t_1f2de365) is done and landed. One successor fleet execution;
+no overlapping volunteer commitment or open PR was found in the reviewed public sources/current board.
+Scope excludes export, new write operations, GUI, catalogs/mappings, due dates, sync, AI, evidence
+interpretation and release preparation. Maintain the explicit source allowlist if modules are added.
+No product version bump or fixed-asset rebuild; this development accumulates beyond the preview below.
+Publication is not a dependency. Preserve its exact candidate, version, assets, forecast and human gate.
 
 ## release-next: First portable-workspace preview
 
