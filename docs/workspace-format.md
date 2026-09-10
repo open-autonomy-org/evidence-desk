@@ -139,11 +139,227 @@ Malformed input, duplicates, invalid references and I/O errors exit 1. Before re
 existing manifest intact; ordinary unwinding removes this invocation's temporary file and lock. A cleanup
 failure is reported and may leave them behind. Errors after rename (including lock cleanup failure)
 can mean the update committed: reopen before retrying. EOF with incomplete JSON refuses the update.
-An interrupt/kill or machine crash can leave a lock and temporary file: stop writers, inspect the manifest
-and leftovers, then manually remove only abandoned protocol files. Never automatically restore an old
-manifest over external changes. The temporary file is fsynced but the containing directory is not; no
-power-loss durability guarantee is made. Rename provides whole-manifest visibility on a supporting local
-filesystem, not a multi-file transaction. No evidence or context rollback is performed.
+An interrupt/kill or machine crash can leave a lock and temporary file; follow the ordered
+[manual recovery procedure](#manual-interrupted-write-recovery) below. The temporary file is fsynced
+but the containing directory is not; no power-loss durability guarantee is made. Rename provides
+whole-manifest visibility on a supporting local filesystem, not a multi-file transaction. No evidence
+or context rollback is performed.
+
+### Manual interrupted-write recovery
+
+There is no unlock, repair or rollback command. A failed command is not permission to delete a lock
+or retry a patch. Use this order; stop at any uncertainty rather than guessing:
+
+1. **Account for every writer.** Identify the CLI sessions, external editors/scripts and any sync
+   clients that can write this folder. Coordinate with their owners, stop new writes and wait for active
+   operations to finish. A live CLI waiting at `Ready` still owns its lock: let its operator finish or
+   cancel it and confirm process exit before proceeding. Do not signal an unidentified PID or remove a
+   live lock. The lock contains no reliable owner/lease record: age, emptiness, a failed write or absence
+   from one machine's process list does not establish abandonment. Unknown ownership, remote writers,
+   ongoing sync or uncertain filesystem state means **stop and resolve that uncertainty**.
+2. **Preserve a quiescent independent copy outside the workspace.** Before cleanup or correction, copy
+   the entire folder, including hidden protocol entries, unknown files and current manifest, to a new
+   destination. Record the failing command, stdout/stderr and exit, directory inventory, exact leftover
+   names/types and current bytes. Check the copy against the source and ensure regular files are not
+   hard links to it. Preserve symlinks as links rather than following them; inspect their targets and
+   portability separately. A live/syncing copy is not a snapshot. Copy tools may not preserve ownership,
+   ACLs or extended metadata; arrange appropriate owner-controlled preservation if these matter.
+3. **Inspect before choosing an action.** Read the current `workspace.json`, not just a remembered
+   pre-edit version. Inspect each exact lock/temp path, its type and contents without following unknown
+   links. Compare the current manifest with the intended patch and preserved data. Distinguish:
+   - Ordinary pre-rename refusal (`Conflict`, invalid JSON/reference, etc.): that invocation did not
+     commit; normal unwinding removes its own lock/temp. External edits may nevertheless be present.
+     If no leftovers remain, there is nothing to unlock. Reopen and reconsider, not blind retry.
+   - Confirmed stopped writer with leftovers: preserve them first. A temp is only a candidate, possibly
+     incomplete or stale; its existence does not say whether rename happened. Never promote it or
+     restore an old manifest automatically, even if it parses or has a newer timestamp.
+   - Error after rename (for example `Cleanup failed ... Manifest committed`): the requested edit may
+     already be present. Exit 1 is not rollback. Inspect current values before deciding any edit is needed.
+4. **Validate and reopen read-only while quiescent.** Run `workspace validate`, `workspace open` and,
+   on current development source, `workspace summary ... --json`. These do not acquire/remove locks.
+   They cannot certify that all writers stopped, that a temp is authoritative or that evidence is
+   sufficient. A malformed manifest requires explicit owner-chosen correction from the preserved data;
+   stop and resolve it externally, preserving unknown/external values. Do not describe deleting a lock
+   as recovering malformed data. Revalidate after the chosen correction.
+5. **Remove only confirmed-abandoned protocol paths.** Only after the preceding inspection, use
+   `rmdir` on the exact inspected empty `.evidence-desk-write.lock` directory. For an individually
+   inspected, confirmed-abandoned regular `.evidence-desk-write-<uuid>.tmp`, use `unlink` with its exact
+   quoted path after preserving it. Do not use cleanup globs, recursive deletion or delete other files.
+   Unexpected types, nonempty locks, changed inventory or a cleanup error mean stop and inspect again;
+   do not escalate to forced cleanup. Keep all writers stopped throughout this decision and action.
+6. **Reopen before deliberately editing.** Validate/open again and decide whether the intended patch
+   is still needed against the current state. If already committed, do not reapply it. If a new edit is
+   chosen, make it once, then freshly validate/open/summary and compare source files and unknown values
+   with the preserved copy. Retain that independent copy until the owner accepts the result. Read access
+   times may change; successful writes retain permission bits, not all inode/ownership/extended metadata.
+
+All cooperating-writer, quiescent-topology, reference/symlink and filesystem limits above still apply.
+This is not automatic repair, arbitrary-writer isolation, multi-file rollback or power-loss recovery.
+Only Linux aarch64/local ext4 with Bun 1.3.10 has been verified; macOS, Windows and network/cloud
+filesystem behavior remain unverified.
+
+#### Disposable synthetic demonstration (current development source)
+
+Use a current checkout with frozen dependencies installed, not the fixed unpublished preview assets
+(those lack summary). Ordinary users need Bash, Python 3, Unix tools and Bun 1.3.10; Python here is only
+an operator driver, not an application dependency. Run these blocks in order in one Bash shell from the
+checkout, stopping on unexpected results. They create only a new synthetic folder and sibling backup.
+Never substitute a customer folder. No other writers or sync clients may access this disposable folder.
+
+Fleet contributors first follow [README's World prerequisite](../README.md#local-verification) and
+install frozen dependencies through World. For this demonstration, attach the **whole Bash shell/script**
+using `volter-world attach evidence-desk --root /opt/data -- bash`, then run
+`export TMPDIR=/opt/data/artifact-verification` and the blocks inside it. This also attaches Python's
+direct child Bun processes; a Bash `bun()` wrapper alone cannot wrap Python subprocesses.
+Ordinary users do not need World. The driver
+signals only the direct synthetic Bun child it spawned, never the World wrapper, workers or leases.
+
+Prepare a current externally authored manifest with unknown values and unrelated Markdown/binary files:
+
+```bash
+set -euo pipefail
+test "$(bun --version)" = 1.3.10
+export recovery_demo=$(mktemp -d "${TMPDIR:-/tmp}/evidence-desk-recovery.XXXXXX")
+export workspace="$recovery_demo/workspace"
+export backup="$recovery_demo/quiescent-backup"
+bun run src/index.ts workspace create "$workspace"
+python3 - <<'PY'
+import json, os
+from pathlib import Path
+w = Path(os.environ['workspace'])
+lock = w / '.evidence-desk-write.lock'
+lock.mkdir()  # This external editor owns this newly acquired lock only.
+try:
+    (w / 'context.md').write_text('# Synthetic recovery context\n')
+    (w / 'evidence.bin').write_bytes(bytes([0, 255, 10, 128]))
+    (w / 'unrelated.md').write_text('Unrelated synthetic note; retain exactly.\n')
+    data = json.loads((w / 'workspace.json').read_text())
+    data['customWorkspaceData'] = {'source': 'external current value', 'count': 7}
+    data['items'] = [{'id': 'REC-01', 'owner': 'External Reviewer', 'status': 'blocked',
+                      'context': 'context.md', 'evidence': ['evidence.bin'],
+                      'customNotes': {'retain': ['external', 42]}}]
+    (w / 'workspace.json').write_text(json.dumps(data, indent=2) + '\n')
+finally:
+    lock.rmdir()
+PY
+bun run src/index.ts workspace validate "$workspace"
+```
+
+Hold the actual writer at `Ready` with stdin open. The driver prints every app command, stdout,
+stderr and exit, confirms live refusal without unlock, then deliberately kills and reaps only its
+owned child. A negative Python return code `-9` means SIGKILL, not a CLI exit 1. This controlled
+interruption occurs before a temp is created; it is not a machine crash or power-loss experiment.
+
+```bash
+python3 - <<'PY'
+import base64, json, os, selectors, shlex, shutil, subprocess
+from pathlib import Path
+w, backup = Path(os.environ['workspace']), Path(os.environ['backup'])
+base = ['bun', 'run', 'src/index.ts', 'workspace']
+def snapshot(root):
+    result = {}
+    for p in sorted(root.iterdir()):  # This fixture has only flat, known regular files.
+        assert not p.is_symlink(), p
+        result[p.name] = ('directory' if p.is_dir() else
+                          base64.b64encode(p.read_bytes()).decode())
+        if p.is_dir():
+            assert p.name == '.evidence-desk-write.lock' and not list(p.iterdir())
+    return result
+def record(name):
+    data = snapshot(w)
+    (w.parent / (name + '.json')).write_text(json.dumps(data, indent=2) + '\n')
+    print(name, json.dumps(data), flush=True)
+    return data
+def run(args, patch=None, expected=0):
+    cmd = base + args
+    print('$', shlex.join(cmd), 'stdin=', repr(patch), flush=True)
+    r = subprocess.run(cmd, input=patch, text=True, capture_output=True, timeout=15)
+    print('stdout:', r.stdout, 'stderr:', r.stderr, 'exit:', r.returncode, flush=True)
+    assert r.returncode == expected
+    return r
+before = record('before')
+cmd = base + ['item-update', str(w), 'REC-01', '--stdin']
+print('$', shlex.join(cmd), '(stdin held open)', flush=True)
+p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                     stderr=subprocess.PIPE, text=True)
+try:
+    ready = selectors.DefaultSelector()
+    ready.register(p.stderr, selectors.EVENT_READ)
+    assert ready.select(15), 'No Ready boundary; stop and inspect'
+    line = p.stderr.readline()
+    print('owned PID:', p.pid, 'stderr:', line, flush=True)
+    assert line.startswith('Ready:') and p.poll() is None
+    live = record('live')
+    r = run(['item-update', str(w), 'REC-01', '--stdin'], '{"status":"complete"}', 1)
+    assert 'Cannot acquire' in r.stderr and p.poll() is None
+    assert record('after-live-refusal') == live  # Lock is still present, untouched.
+finally:
+    if p.poll() is None:
+        print('SIGKILL direct owned child:', p.pid, shlex.join(p.args), flush=True)
+        p.kill()
+    out, err = p.communicate(timeout=15)
+    print('first writer stdout:', out, 'remaining stderr:', err, 'exit:', p.returncode)
+assert p.returncode == -9 and out == '' and err == ''
+left = record('stopped-leftovers')
+assert left == dict(before, **{'.evidence-desk-write.lock': 'directory'})
+shutil.copytree(w, backup, symlinks=True)  # New destination, no hard-link copying.
+assert snapshot(backup) == left
+for f in w.iterdir():
+    if f.is_file():
+        assert not os.path.samefile(f, backup / f.name)
+print('Independent quiescent backup:', backup)
+print('Current manifest:', (w / 'workspace.json').read_text())
+for op in ['validate', 'open', 'summary']:
+    run([op, str(w)] + (['--json'] if op == 'summary' else []))
+assert record('after-reads') == left
+PY
+```
+
+Inspect the printed manifest and inventories: REC-01 is still blocked, owned by External Reviewer,
+with both unknown extensions intact. The only leftover must be the empty lock; no temp is expected
+at this boundary. The child has exited, the entire folder is copied independently, and reads left it
+unchanged. If these assertions or that inspection disagree, stop here. This is the manual decision
+point, not permission to apply the next command to any other folder or unexplained lock.
+
+```bash
+rmdir "$workspace/.evidence-desk-write.lock"
+diff -r --exclude=.evidence-desk-write.lock "$backup" "$workspace"
+bun run src/index.ts workspace validate "$workspace"
+bun run src/index.ts workspace open "$workspace"
+# Deliberately choose a NEW edit after inspecting the current blocked state, not a blind retry.
+printf '%s\n' '{"status":"complete"}' | bun run src/index.ts workspace item-update "$workspace" REC-01 --stdin
+bun run src/index.ts workspace validate "$workspace"
+bun run src/index.ts workspace open "$workspace"
+bun run src/index.ts workspace summary "$workspace" --json
+python3 - <<'PY'
+import base64, json, os
+from pathlib import Path
+w, b = Path(os.environ['workspace']), Path(os.environ['backup'])
+before = json.loads((w.parent / 'before.json').read_text())
+expected = json.loads((b / 'workspace.json').read_text())
+expected['items'][0]['status'] = 'complete'
+assert json.loads((w / 'workspace.json').read_text()) == expected
+assert set(p.name for p in w.iterdir()) == set(before)
+for name, encoded in before.items():
+    assert (b / name).read_bytes() == base64.b64decode(encoded)
+    assert not os.path.samefile(w / name, b / name)
+    if name != 'workspace.json':
+        assert (w / name).read_bytes() == (b / name).read_bytes()
+assert set(p.name for p in b.iterdir()) == set(before) | {'.evidence-desk-write.lock'}
+assert (b / '.evidence-desk-write.lock').is_dir()
+assert not list((b / '.evidence-desk-write.lock').iterdir())
+after = {p.name: base64.b64encode(p.read_bytes()).decode() for p in sorted(w.iterdir())}
+(w.parent / 'after.json').write_text(json.dumps(after, indent=2) + '\n')
+print('after', json.dumps(after))
+print('Verified: only status changed; external/unknown values and all other bytes retained; backup independent and unchanged.')
+print('Retain synthetic evidence at', w.parent)
+PY
+```
+
+The preserved backup intentionally retains its abandoned lock; do not treat it as an immediately writable
+workspace. This demonstration neither produces a temp leftover nor induces a post-commit cleanup error.
+If rehearsing those separately with hand-created fixtures, label them **staged**, not observed crash
+results; the same inspection/owner-decision procedure applies. It never authorizes restoring temp bytes.
 
 ## Derived summary report
 
