@@ -31,7 +31,7 @@ completed in [PR #38](https://github.com/open-autonomy-org/evidence-desk/pull/38
 Hermes's native agent loop with host-owned subscription forwarding, and the public operator test
 verified inbound identity handling. The [landed setup acceptance](https://github.com/open-autonomy-org/evidence-desk/pull/52)
 concludes the temporary observation hold: recurring PM/community and autonomous product development
-have resumed. See the [current roadmap](ROADMAP.md#preview-artifact-prepare-a-reproducible-local-source-preview).
+have resumed. See the [current roadmap](ROADMAP.md#release-next-first-portable-workspace-preview).
 Operator tests are not human release approval; earlier watchdog failures remain historical evidence limits.
 
 The [Open Autonomy project page](https://open-autonomy.org/p/open-autonomy-org%2Fevidence-desk) carries
@@ -63,8 +63,10 @@ bun run src/index.ts workspace validate "$scratch/example"
 ```
 
 No Git checkout or fleet configuration is needed to use the extracted CLI. Registry access (or cached
-packages) is needed for installation; the archive does not bundle dependencies or Bun. The verified
-environment is Linux aarch64, Bun 1.3.10 on a local filesystem. macOS, Windows and network/cloud-drive
+packages) is needed for installation; the archive does not bundle dependencies or Bun. Extract and
+install on an execution-enabled filesystem: a `noexec` location can prevent the installed compiler
+runner from launching. Fleet extraction follows [the verification prerequisite](CONTRIBUTING.md).
+The verified environment is Linux aarch64, Bun 1.3.10 on local ext4. macOS, Windows and network/cloud-drive
 filesystems have not been verified; the shell examples require Unix tools. Folder format portability is
 not a guarantee of identical locking, rename or symlink semantics on every filesystem.
 There is no GUI, sync, hosted service, automatic evidence authoring or conflict merging. Association is
