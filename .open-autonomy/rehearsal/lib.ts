@@ -7,9 +7,14 @@ import { resolve } from 'node:path';
 export const KIT_DIR = import.meta.dir;                       // .open-autonomy/rehearsal (the kit's)
 export const ROOT = resolve(KIT_DIR, '..', '..');             // the project
 export const REHEARSAL = resolve(ROOT, 'rehearsal');          // the project's: world.json, model/, stories/, hooks.ts
+// The project's rehearsal settings (rehearsal/env, KEY=VALUE, never a secret): the world's name, where its state lives,
+// a twins checkout, the client's repository and branch prefix, the tracker's project and its people. Defaults for this
+// process, never over what the operator exported; read first, since everything below follows from them.
+for (const [k, v] of Object.entries(readEnvFile(resolve(REHEARSAL, 'env')))) if (process.env[k] === undefined) process.env[k] = v.replace(/\$HOME|^~(?=\/)/g, process.env.HOME ?? '');
 export const NAME = process.env.REHEARSAL_WORLD ?? `${readConfig().account.replace('/', '-')}-rehearsal`;
 // The twins: the published packages in the project's .open-autonomy/node_modules (@volter/twin-world and one
-// @volter/twin-<vendor> per twin), or a checkout named by TWINS_ROOT when the twins themselves are being developed.
+// @volter/twin-<vendor> per twin), else the nearest node_modules up the tree (a project that is a directory of a larger
+// repository, which installs them), or a checkout named by TWINS_ROOT when the twins themselves are being developed.
 export const TWINS_ROOT = process.env.TWINS_ROOT ? resolve(process.env.TWINS_ROOT) : undefined;
 export const twinCli = (name: string): string => {
   const override = process.env[`WORLD_${name.toUpperCase().replaceAll('-', '_')}_CLI`];
@@ -19,7 +24,9 @@ export const twinCli = (name: string): string => {
     const candidates = name === 'world' ? [resolve(TWINS_ROOT, 'packages/world-runtime/src/cli.ts'), resolve(TWINS_ROOT, 'packages/twin/world-runtime/src/cli.ts')] : [resolve(TWINS_ROOT, 'packages/twin', name, 'src/cli.ts')];
     return candidates.find(existsSync) ?? candidates[0];
   }
-  return resolve(ROOT, '.open-autonomy', 'node_modules', '@volter', name === 'world' ? 'twin-world' : `twin-${name}`, 'src/cli.ts');
+  const pkg = name === 'world' ? 'twin-world' : `twin-${name}`;
+  const installed = [resolve(ROOT, '.open-autonomy'), ...(() => { const dirs: string[] = []; for (let d = ROOT; ; d = resolve(d, '..')) { dirs.push(d); if (d === resolve(d, '..')) break; } return dirs; })()].map((d) => resolve(d, 'node_modules', '@volter', pkg, 'src/cli.ts'));
+  return installed.find(existsSync) ?? installed[0];
 };
 // Where the world's state lives (its instances, the generated config, the backend copy's books, the stack's clone and
 // home): the project by default, or WORLD_STATE_ROOT — a disk with headroom, since the runtime admits a world only
@@ -54,7 +61,8 @@ export const need = (name: string): string => {
 export function readEnvFile(path: string): Record<string, string> {
   const out: Record<string, string> = {};
   if (!existsSync(path)) return out;
-  for (const line of readFileSync(path, 'utf8').split('\n')) { const m = /^([A-Z_][A-Z0-9_]*)=(.*)$/.exec(line.trim()); if (m) out[m[1]] = m[2].replace(/^"(.*)"$/, '$1'); }
+  // The runtime writes its env file shell-style (`export KEY=value`); a project's settings file is bare KEY=value.
+  for (const line of readFileSync(path, 'utf8').split('\n')) { const m = /^(?:export\s+)?([A-Z_][A-Z0-9_]*)=(.*)$/.exec(line.trim()); if (m) out[m[1]] = m[2].replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1'); }
   return out;
 }
 export const worldEnv = (): Record<string, string> => readEnvFile(resolve(GENERATED, 'world.env'));
@@ -93,6 +101,7 @@ export const timed = <T>(label: string, fn: () => T): T => { const t0 = Date.now
 //   conditions       the project's own story conditions: { name: (ctx, want) => Promise<boolean> }
 //   stackEnv(ctx)    extra environment for the brain's stack (twin addresses its channels need), beyond the kit's
 //   hermesBin        a Hermes to run instead of the pin (a directory holding `hermes`)
+//   models           models the world's keys carry beyond the project's bounds (a world-only name, say)
 //   ticks            the monitor jobs a story ticks after each act (default: every monitor job)
 export interface RehearsalContext { world: Record<string, string>; name: string; data: string; secrets: string; stack: { project: string; home: string }; account: string; root: string; log: (m: string) => void }
 export interface Hooks {
@@ -102,6 +111,7 @@ export interface Hooks {
   conditions?: Record<string, (ctx: RehearsalContext, want: unknown, line: Record<string, unknown>) => Promise<boolean> | boolean>;
   stackEnv?: (ctx: RehearsalContext) => Record<string, string>;
   hermesBin?: string;
+  models?: string[];
   ticks?: string[];
 }
 export async function hooks(): Promise<Hooks> {

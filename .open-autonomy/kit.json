@@ -6,9 +6,6 @@
     "account": "open-autonomy-org/evidence-desk"
   },
   "divergences": [
-    ".open-autonomy/reporter.ts",
-    ".open-autonomy/sdk/container-home.ts",
-    ".open-autonomy/sdk/container-process.ts",
     ".open-autonomy/PRODUCTION.md"
   ]
 }
