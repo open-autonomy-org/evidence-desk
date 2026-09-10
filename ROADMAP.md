@@ -4,60 +4,54 @@ Notable present/future intentions and outstanding outcomes, carefully maintained
 Sources support decisions and claims. Ideas and unanswered requests are not commitments or dispatch orders.
 See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliation cycle.
 
-## summary-selection: Find an owner's work and follow-up items without hiding workspace errors
+## community-current-source: Answer from pinned main without disturbing worker workspaces
 
 Dispatch: fleet
 
-PM priority: extend the accepted read-only summary with bounded owner/status/follow-up selection.
-[PR #63](https://github.com/open-autonomy-org/evidence-desk/pull/63), implementation
-`89637675fa407946d32ac13ad66be3b76005c8be`, and [independent native review run 18](hermes:task/t_1f2de365)
-complete the previous `readiness-summary` outcome; it is retired, not queued again. The current
-[summary implementation](https://github.com/open-autonomy-org/evidence-desk/blob/89637675fa407946d32ac13ad66be3b76005c8be/src/summary.ts)
-always lists every item. A firm or client coordinating an owned folder can next isolate one owner's
-work or items needing follow-up, while retaining visible whole-workspace context and validation.
-This is PM inference under the [constitution](https://github.com/open-autonomy-org/evidence-desk/blob/5033b0de7f1affa807be5c7982a3a6ea838a9efa/CONSTITUTION.md),
-not a named owner feature request or human commitment. The operator-forwarded continue request in
-[the prior public scrum](hermes:session/cron_cbe439e4782f_20260910_054655) and
-[current reconciliation](hermes:session/cron_cbe439e4782f_20260910_062455) prompt sequencing, not release approval.
+PM priority: repair a demonstrated source-freshness risk before another product expansion. The
+`summary-selection` outcome is complete in [PR #65](https://github.com/open-autonomy-org/evidence-desk/pull/65),
+`e3745b560152c080e09a9515ef30715b8d16d686`, independently accepted in
+[run 20](hermes:task/t_5362d9cb); it is retired, not queued again. The latest
+[public community run](hermes:session/cron_0538d914b691_20260910_071856), message 2108, nevertheless
+read the older `workspace-first`/`Release decision: accumulate` roadmap. PM reproduced that content
+in the preserved root checkout at `af24783ee915d4371fe4432d206bb9b89610c1f0`, while pinned main
+`59a9fbf4ed4b902bae511f4f524ec21c3497aa08` contains the fixed ready proposal below.
+Fetching main alone does not update a worker checkout. No erroneous human reply was found in that
+silent run, but stale source reads could misstate priorities or readiness.
+
+The active default-profile community skill now instructs fetch, full-SHA pinning and `git show`
+reads, an immediate PM procedural mitigation recorded in
+[this public scrum](hermes:session/cron_cbe439e4782f_20260910_073256). Repository persistence,
+independent verification and observation of a subsequent scheduled run remain outstanding.
+This is PM coordination under the constitutional sourced-planning invariant, not new owner direction
+or authorization to reconfigure the gateway. One bounded fleet task should persist and exercise the
+skill correction; PM separately observes scheduled adoption before retiring this outcome.
 
 Completion:
-- Extend `workspace summary <folder>` with optional `--owner <exact-string>`, `--status <status>` and
-  `--needs-follow-up`, combinable with `--json`. One value per owner/status flag; reject repeated,
-  unknown or missing options and unsupported statuses with actionable nonzero errors. Owner comparison
-  is exact and case-sensitive (including an explicitly empty string); do not normalize stored values.
-  Different selectors intersect. Follow-up means status is not complete OR the existing report has
-  any warning, including complete items with warnings; this is not evidence sufficiency or audit advice.
-- Validate the entire workspace before selection. An invalid record or missing/unsafe reference outside
-  the selected subset must still fail the command. Never hide problems by filtering malformed records.
-  Reuse format 1 and existing warning definitions; no persistence, migration, cache or service dependency.
-- Preserve the existing unfiltered human output and JSON report schema 1 contract. Filtered JSON uses
-  an explicitly documented derived report schema 2 with the applied selectors, whole-workspace counts,
-  selected counts and selected item facts in manifest order. Distinguish absent selectors from empty
-  owner. Human output clearly labels selection and both count scopes, agrees with JSON, and safely quotes
-  owner-authored strings. A zero-match selection succeeds with zero selected counts, not an error.
-  Failure emits no partial counts/items; `--json` failures remain a single machine-readable object with
-  no mixed prose. Document schema choice for usage failures and keep it deterministic. Update README
-  with exact runnable examples and the existing workspace-format document with the selection/report contract.
-- Reread external edits each invocation and preserve all bytes, unknown fields, evidence, context and
-  unrelated files on success/refusal. No report files, locks or caches in the workspace. Keep the
-  quiescent-folder/no-concurrent-snapshot limitation, no bodies/evidence contents, scoring or audit claims.
-- Exercise actual CLI commands through World on synthetic folders: empty/no-match, every status,
-  exact/case-sensitive/empty/whitespace/control-character owners, each selector and intersections,
-  incomplete items without warnings, complete items with/without warnings, repeated/missing/invalid
-  options and external edits. Include malformed/duplicate/unsupported records and missing/unsafe/symlink
-  references excluded by the requested selection to prove whole-workspace refusal. Programmatically
-  reconcile selected IDs, both count scopes and human/JSON facts; compare deterministic repeated output
-  and exact workspace bytes/inventory before/after successes and refusals. Recheck unfiltered schema 1
-  and existing create/item-create/item-update/open/inspect/validate behavior. Record commands, outputs,
-  exits, full SHA and limitations; pass unchanged World-attached `bun run check` under thirty seconds
-  before pushing, followed by independent native review of every completion line.
+- Update only `hermes/skills/open-autonomy/community/SKILL.md` to require fetching current main,
+  pinning its full SHA, and reading roster/roadmap/changelog/constitution and relevant code/docs with
+  `git show <SHA>:<path>`. Do not infer updated working-tree files from fetch or switch/reset/clean
+  worker workspaces. Explain failed-fetch freshness gaps and keep current-main evidence distinct from
+  a fixed release candidate. Preserve public-source boundaries, authority checks and existing reply rules.
+- Reconcile that committed skill with the already patched active default-profile skill using supported
+  skill tooling; preserve unrelated instructions and do not change other profiles, schedules, hooks,
+  gateway configuration, protected files or credentials. Record exact scope and version/provenance.
+- Exercise the documented reads from a deliberately older disposable Git checkout using actual Git
+  commands. Demonstrate that pinned main supplies the current roadmap and roster while HEAD, branch,
+  tracked/untracked synthetic scratch bytes and inventory stay unchanged. Demonstrate a bounded
+  unavailable-remote case that records a freshness gap rather than claiming a successful current read.
+  Do not retrieve confidential sessions, modify the real worker checkout, post test messages or mark
+  community cursors as part of rehearsal. Save exact commands/results in the native handoff, not a journal.
+- Pass unchanged World-attached `bun run check` under thirty seconds and `git diff --check` before
+  pushing the signed task branch; independent native review verifies every task acceptance line.
+  Execution acceptance proves the bounded skill repair, not deployment or the behavior of a future run.
+- PM then inspects the next ordinary community run for pinned-main document reads and successful
+  completion/delivery (or intentional silence), retaining this adoption gate if not yet observed.
 
-Dependencies: [t_1f2de365](hermes:task/t_1f2de365) is done and landed. One successor fleet execution;
-no overlapping volunteer commitment or open PR was found in the reviewed public sources/current board.
-Scope excludes export, new write operations, GUI, catalogs/mappings, due dates, sync, AI, evidence
-interpretation and release preparation. Maintain the explicit source allowlist if modules are added.
-No product version bump or fixed-asset rebuild; this development accumulates beyond the preview below.
-Publication is not a dependency. Preserve its exact candidate, version, assets, forecast and human gate.
+Dependencies: no overlapping open PR, active board execution or accepted volunteer commitment was found
+in the reviewed sources. Keep product feature expansion out of this repair. No asset rebuild, product
+version bump, changed release proposal, repeated review ask, tag, approval, publication or deployment.
+The preview below remains fixed; newer summary features accumulate independently beyond its assets.
 
 ## release-next: First portable-workspace preview
 

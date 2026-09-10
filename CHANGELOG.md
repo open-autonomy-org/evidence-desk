@@ -11,10 +11,15 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
   overlapping follow-up counts, item paths and warnings without context/evidence bodies or audit claims.
   Invalid workspaces fail without partial totals; external edits are reread and workspace bytes preserved.
   The report schema is independent of workspace format 1, and the source allowlist includes the new module.
-  Independent native review reran 73 CLI commands and the unchanged check passed in 1.478s.
-  This feature is after, and absent from, the fixed `0.1.0-alpha.1` candidate and review assets.
+  Owner/status/follow-up selectors now intersect without hiding invalid excluded records. Unfiltered
+  schema 1 remains unchanged; filtered schema 2 labels whole-workspace and selected counts, including
+  empty/no-match results and safely quoted user strings. Native review accepted selection after its
+  independent 166-command rehearsal and separate 38-command probe; unchanged check passed in 1.667s.
+  These summary features are after, and absent from, the fixed `0.1.0-alpha.1` candidate and review assets.
   ([PR #63](https://github.com/open-autonomy-org/evidence-desk/pull/63),
-  `89637675fa407946d32ac13ad66be3b76005c8be`, [native acceptance, run 18](hermes:task/t_1f2de365))
+  `89637675fa407946d32ac13ad66be3b76005c8be`, [native acceptance, run 18](hermes:task/t_1f2de365);
+  [PR #65](https://github.com/open-autonomy-org/evidence-desk/pull/65),
+  `e3745b560152c080e09a9515ef30715b8d16d686`, [native acceptance, run 20](hermes:task/t_5362d9cb))
 
 - Added reproducible, allowlisted source-archive preparation from a full committed SHA, with checksum,
   provenance and pinned toolchain metadata; documented extracted installation, experimental SemVer
