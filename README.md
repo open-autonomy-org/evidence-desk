@@ -5,8 +5,8 @@ Local-first SOC2 readiness for CPA firms and clients, with evidence in portable 
 Evidence Desk is being built as an open-source workbench around a local folder of JSON, CSV, Markdown
 and evidence files. Either the firm or the client can own the folder. People and their own AI coding
 tools should be able to inspect and edit it directly, with optional Git or cloud-drive synchronization.
-The first local CLI creates, inspects and validates workspaces. Author readiness items directly in the
-[version 1 folder format](docs/workspace-format.md); application item editing remains future work.
+The local CLI creates, edits, inspects and validates workspaces. Readiness items use the portable
+[version 1 folder format](docs/workspace-format.md), also editable with your own tools.
 
 Customer workspaces are separate from this public code repository and its public development sessions.
 Use synthetic evidence for development. Do not submit real customer records in issues, PRs or fleet chats.
@@ -68,11 +68,32 @@ volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts works
 ```
 
 `workspace inspect` is an alias for `workspace open`. Create accepts only a new or empty folder;
-its parent must exist. Use an editor to add the synthetic item, Markdown context and evidence shown
-in the [folder format](docs/workspace-format.md), then repeat open and validate to see the edits.
+its parent must exist. Create Markdown context and evidence with your own editor first, then associate
+those existing files (their bytes are never overwritten):
+
+```bash
+mkdir "$scratch/example/context" "$scratch/example/evidence"
+printf '# Synthetic access review\n' > "$scratch/example/context/access.md"
+printf 'reviewer,result\nExample,pending\n' > "$scratch/example/evidence/access.csv"
+printf '%s\n' '{"id":"ACCESS-01","owner":"Example","status":"todo","context":"context/access.md","evidence":["evidence/access.csv"]}' | volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace item-create "$scratch/example" --stdin
+printf '%s\n' '{"id":"ACCESS-02","owner":"Reviewer","status":"complete"}' | volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace item-update "$scratch/example" ACCESS-01 --stdin
+volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace open "$scratch/example"
+volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace validate "$scratch/example"
+```
+
+Creation requires all five item fields; update applies only supplied fields and can rename the ID.
+To change context or evidence, supply `"context":"context/other.md"` or an entire replacement
+`"evidence":["evidence/other.csv"]` array, with files already present. An empty evidence array is allowed.
+Unknown input keys are refused; existing unknown record fields are preserved.
+The writer reads and validates the manifest before printing `Ready` to stderr and reading stdin until
+EOF (Ctrl-D interactively). For a read/edit/write session, wait for `Ready` before composing your JSON.
+A precomposed pipe is applied against the manifest read at command start, not an earlier editor view.
+External manifest edits after `Ready` cause a conflict: reopen and reconsider your patch before retrying.
+See the [write and concurrency contract](docs/workspace-format.md#item-writes-and-concurrency) for
+cooperating locks, deterministic conflict reproduction and failure/crash limits.
 Open prints incomplete items as well as complete ones; missing evidence produces actionable errors.
 Open/validate are read-only and return exit code 1 on invalid input. No hosted service, customer
-credentials or AI provider is needed. This slice has no item-write command, sync, packaging or release.
+credentials or AI provider is needed. This slice has no sync, packaging or release.
 
 For fleet administration, follow the [agent-led setup guide](.open-autonomy/SETUP.md). The project uses
 the Open Autonomy Hermes kit; `create-open-autonomy check .` checks kit-owned files. The container
