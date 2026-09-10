@@ -4,6 +4,59 @@ Notable present/future intentions and outstanding outcomes, carefully maintained
 Sources support decisions and claims. Ideas and unanswered requests are not commitments or dispatch orders.
 See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliation cycle.
 
+## readiness-summary: See outstanding readiness work without reading every item body
+
+Dispatch: fleet
+
+PM priority: implement one bounded read-only summary of the existing version 1 workspace next.
+The [constitution](https://github.com/open-autonomy-org/evidence-desk/blob/fe1aedb75662a662f41c752b01f5ff2b39d2cdab/CONSTITUTION.md#invariants)
+calls for locally usable readiness information and customer-owned tools. The accepted
+[folder contract and inspection](https://github.com/open-autonomy-org/evidence-desk/pull/38) and
+[item editing](https://github.com/open-autonomy-org/evidence-desk/pull/57) already supply status, owner,
+context and evidence references. Current [CLI inspection](https://github.com/open-autonomy-org/evidence-desk/blob/fe1aedb75662a662f41c752b01f5ff2b39d2cdab/src/index.ts)
+prints every Markdown body and only an overall incomplete count; it offers no concise grouped summary
+or documented machine-readable report. A firm/client can use a summary to find follow-up work without
+scanning those bodies, and its own tools can consume the same facts without parsing console prose.
+This is PM inference and sequencing within existing direction, not a named owner feature request or
+human implementation commitment. The operator-forwarded request to continue in
+[the current public scrum](hermes:session/cron_cbe439e4782f_20260910_054655) prompted reassessment;
+it neither changes the constitution nor supplies release approval.
+
+Completion:
+- Add `workspace summary <folder>` and `workspace summary <folder> --json`, with exact runnable
+  examples in README and the derived report contract in the existing workspace-format documentation.
+  Reuse version 1 validation; no persisted-format changes, migration, index, service or AI dependency.
+- For a valid workspace, report total items and counts for all four existing statuses, incomplete items,
+  unassigned owners and items with no evidence references. Provide concise per-item follow-up facts
+  (ID, owner, status, context/evidence paths and relevant warnings), without Markdown bodies or evidence
+  contents. Include complete items with warnings; do not confuse self-reported completion or reference
+  existence with evidence sufficiency, SOC2 coverage, an audit opinion or a readiness score.
+- JSON mode emits one documented report object on stdout, with a report schema version distinct from
+  workspace format/product version, deterministic ordering and no console prose mixed in. Define
+  overlapping counts and empty-workspace semantics. Human and JSON views must agree on the same facts.
+- Invalid or unsupported manifests, malformed/duplicate records and missing/unsafe/symlink-escaping
+  references produce actionable diagnostics and nonzero exit. JSON failures remain machine-readable;
+  never present totals from omitted malformed records as a successful complete workspace report.
+  Warnings alone do not fail. Preserve the existing open/inspect/validate and write behavior.
+- Each invocation rereads external edits and is read-only: no report files, locks or caches in the
+  workspace, no mutation of unknown fields, manifest, context, evidence or unrelated files. Retain the
+  quiescent-folder concurrency limitation; do not imply a snapshot against concurrent external writers.
+- Demonstrate the actual CLI through World on disposable synthetic folders: empty workspace, all
+  statuses, overlapping follow-up reasons, complete-with-warnings, externally edited data, malformed
+  records, unsupported version, missing files and unsafe/symlink references. Compare parsed JSON with
+  human facts and byte-compare workspace contents before/after successful and refused commands.
+  Record exact commands, exits, outputs and limitations in the implementation PR/native handoff;
+  pass the unchanged `bun run check` under thirty seconds and obtain independent native acceptance.
+
+Dependencies: accepted [t_669122cc](hermes:task/t_669122cc) and
+[t_23847d50](hermes:task/t_23847d50); both are done. No human publication dependency or volunteer overlap
+is known from the current board/open PRs. Keep one fleet execution, followed by native review.
+Scope excludes filters, CSV/Markdown export, control catalogs/mappings, due dates, evidence interpretation,
+GUI, sync and new writing operations. If source modules are added, maintain the existing explicit source
+archive allowlist; this does not authorize building a replacement review asset. No version bump or new
+release proposal is needed for this implementation. Accumulate accepted changes after the fixed preview
+candidate; preserve its version, assets, schedule and human gate below.
+
 ## release-next: First portable-workspace preview
 
 Dispatch: hold
@@ -39,11 +92,12 @@ preserved the exact external manifest, Markdown, binary evidence, unrelated file
 Only Linux aarch64, local ext4, Bun 1.3.10, Git 2.47.3 and gzip 1.13 were verified.
 
 Completion and remaining gates:
-- Land this fixed proposal and request candidate-specific review from the currently authorized owner,
-  Aaron Yuan (GitHub `yueranyuan`, ID `2255943`; Discord ID `605505624226136074`), in
-  [#evidence-desk](https://discord.com/channels/1544906154868744202/1546981849979682916).
-  The cron-delivered review request and original human reply are the conversation of record;
-  delivery must be observed before claiming receipt. No human approval or accepted deadline is recorded.
+- The fixed proposal landed in [PR #61](https://github.com/open-autonomy-org/evidence-desk/pull/61).
+  Native Discord history verifies delivery of the [candidate-specific request](https://discord.com/channels/1544906154868744202/1546981849979682916/1547449011466801202)
+  and [publication instructions](https://discord.com/channels/1544906154868744202/1546981849979682916/1547449012586545203)
+  to the authorized owner Aaron Yuan (GitHub `yueranyuan`, ID `2255943`; Discord ID `605505624226136074`).
+  Await the original human response in that conversation; no approval or accepted deadline is recorded.
+  Continued development is not candidate-specific approval and does not supersede this request.
 - The human reviews scope, full SHA, exact assets, verification and limitations; approves, rejects or
   redirects this concrete proposal. Follow [human-only publication](CONTRIBUTING.md#human-only-publication)
   and the [local-application procedure](.open-autonomy/PRODUCTION.md#packages-and-local-applications).

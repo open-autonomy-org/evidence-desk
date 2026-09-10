@@ -25,7 +25,8 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
   read-only format version 1. Native review accepted the rework at
   `af24783ee915d4371fe4432d206bb9b89610c1f0`, independently exercising workflow, conflict/failure recovery
   and 60 byte-preserving refusals; its unchanged check passed in 1.641s. Crash leftovers require inspected
-  manual recovery; packaging and human release review remain outstanding.
+  manual recovery. Source preparation subsequently landed as described above; human release review
+  and publication remain outstanding.
   ([PR #56](https://github.com/open-autonomy-org/evidence-desk/pull/56),
   [PR #57](https://github.com/open-autonomy-org/evidence-desk/pull/57),
   [native acceptance, run 10](hermes:task/t_23847d50))
