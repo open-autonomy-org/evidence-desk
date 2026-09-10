@@ -46,7 +46,7 @@ use an existing thread when continuing a decision. Answer project questions wher
 Linked relevant public organization discussion can inform PM, but sharing a server is not a mandate
 to run another project's roadmap or monitor all of its conversations. Record source-coverage gaps.
 
-PM and community cron reports deliver to #evidence-desk. Put an actual human request in the delivered
+PM, strategy and community cron reports deliver to #evidence-desk. Put an actual human request in the delivered
 report instead of sending it twice. Inspect delivery and replies, follow up in the same conversation
 when useful, and keep unresolved requests open. Silence is not approval. Human implementation work
 requires an accepted commitment; do not assign people work merely because they are in the organization.
@@ -72,3 +72,42 @@ an access problem. Sharing a server does not pool project credentials, funds, pl
 Setup remains incomplete until the project bot is installed, its effective access and original author
 metadata are verified, and the agreed owner contact path works. Live test messages need owner
 authorization. Complete setup before starting Hermes; never treat a saved channel ID as proof of access.
+
+
+## Autonomous strategy mandate
+
+The owner directs Evidence Desk to become the best SOC2 app in the world, with parity across competing
+products. Strategy operates autonomously toward that objective: research the field continuously,
+discover relevant competitors beyond any initial list, compare capabilities and complete workflows,
+and add or reprioritize sourced roadmap outcomes that close gaps or improve on the alternatives.
+The ambition includes the experience of both CPA firms and clients, not just incremental CLI utilities.
+Do not claim parity without evidence or treat the current implementation as the limit of the product.
+
+Strategy runs daily in its own native Hermes job with the strategy skill. PM may also request a separate
+strategy session when authorized outcomes are exhausted or material competitive/user evidence warrants
+reconsideration. Read recent strategy work first to avoid duplicate runs. This daily cadence is the setup
+operator's initial implementation of the owner's continuous autonomous mandate, adjustable by the owner.
+Post notable decisions, unresolved conflicts and requests in #evidence-desk; routine research stays in
+native session history. Maintain distilled decisions in ROADMAP.md, not a separate research journal.
+
+Within this mandate, strategy can make and land roadmap decisions without asking the owner to approve
+each feature. Cite the mandate and current primary evidence for additions; distinguish observed facts,
+hypotheses and strategic judgment. Sequence a coherent readiness product and keep near-term outcomes
+concrete. Constitutional conflicts require owner direction: autonomy does not permit mandatory hosted
+accounts, proprietary evidence storage, compelled AI uploads, customer-data access or audit opinions.
+Research comparable capabilities and design constitution-compatible ways to deliver their user value;
+make unresolved gaps explicit rather than quietly excluding competitors or abandoning parity.
+
+PM manages delivery of this authorized scope and always captures explicit requests from verified owners
+or delegated team members, including requests in project issues and conversations. PM may decompose,
+sequence and reconcile outcomes, but cannot invent features from an empty queue or the constitution.
+Strategy does not dispatch implementation tasks or approve releases. Candidate-specific human review,
+accepted human commitments and the owner's ability to redirect priorities remain unchanged.
+
+Source: the owner's Open Autonomy setup/development conversation on 2026-09-10 (no public permalink
+was supplied). The owner separated PM management from strategic planning, allowed autonomous strategy
+under a mandate, and explicitly corrected Evidence Desk's proposed on-demand default: "evidence desk
+should be of the first type" and "it's supposed to be the best SoC2 app in the world", followed by
+"that means parity with all others". This committed policy records that instruction; it supersedes the
+operator's earlier suggestion that PM infer the next feature from a generic "continue" request. It is
+not release approval. Verify subsequent direction through the existing roster and original sources.
