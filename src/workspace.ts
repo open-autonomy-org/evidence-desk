@@ -4,7 +4,7 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 type Item = { id: string; owner: string; status: string; context: string; evidence: string[]; markdown: string };
 type Inspection = { items: Item[]; errors: string[]; warnings: string[] };
-const statuses = ["todo", "in-progress", "blocked", "complete"];
+export const statuses = ["todo", "in-progress", "blocked", "complete"];
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
