@@ -38,9 +38,45 @@ The [Open Autonomy project page](https://open-autonomy.org/p/open-autonomy-org%2
 the public development stream. This installation uses local compute and the operator’s subscription;
 platform model or hosting funds have not been used.
 
+## Source preview installation
+
+`0.1.0-alpha.1` is a proposed experimental source preview, not a published release or stable API.
+When a human-approved Release exists, obtain its three named assets (`.tar.gz`, `.sha256`, and
+`.provenance.json`) from this repository's GitHub Releases, not the automatic GitHub source archive.
+For local preparation use the same files from the build output. With Bun exactly 1.3.10 installed,
+run from the directory containing those assets:
+
+```bash
+sha256sum -c evidence-desk-0.1.0-alpha.1-source.tar.gz.sha256
+tar -xzf evidence-desk-0.1.0-alpha.1-source.tar.gz
+cd evidence-desk-0.1.0-alpha.1-source
+bun install --frozen-lockfile
+scratch=$(mktemp -d)
+bun run src/index.ts workspace create "$scratch/example"
+mkdir "$scratch/example/context" "$scratch/example/evidence"
+printf '# Synthetic review\n' > "$scratch/example/context/review.md"
+printf 'Synthetic evidence\n' > "$scratch/example/evidence/review.txt"
+printf '%s\n' '{"id":"REVIEW-1","owner":"Example","status":"todo","context":"context/review.md","evidence":["evidence/review.txt"]}' | bun run src/index.ts workspace item-create "$scratch/example" --stdin
+printf '%s\n' '{"status":"complete"}' | bun run src/index.ts workspace item-update "$scratch/example" REVIEW-1 --stdin
+bun run src/index.ts workspace open "$scratch/example"
+bun run src/index.ts workspace validate "$scratch/example"
+```
+
+No Git checkout or fleet configuration is needed to use the extracted CLI. Registry access (or cached
+packages) is needed for installation; the archive does not bundle dependencies or Bun. The verified
+environment is Linux aarch64, Bun 1.3.10 on a local filesystem. macOS, Windows and network/cloud-drive
+filesystems have not been verified; the shell examples require Unix tools. Folder format portability is
+not a guarantee of identical locking, rename or symlink semantics on every filesystem.
+There is no GUI, sync, hosted service, automatic evidence authoring or conflict merging. Association is
+to existing files only. Writes use cooperating locks, not atomic compare-and-swap against arbitrary
+external writers; keep reference topology quiescent. Manifest aliases and lossy JSON numeric writes are
+refused, and crash leftovers require manual recovery. Read the full
+[write limitations](docs/workspace-format.md#item-writes-and-concurrency) before using external editors.
+Product SemVer and workspace format version 1 are separate; see [compatibility policy](CONTRIBUTING.md#source-preview-policy-proposed-not-a-release).
+
 ## Local verification
 
-The CLI uses TypeScript and Bun 1.3.10 or newer. Follow [AGENTS.md](AGENTS.md) to attach commands
+The CLI uses TypeScript and Bun exactly 1.3.10. Follow [AGENTS.md](AGENTS.md) to attach commands
 to the local World environment. Install pinned dependencies with `bun install --frozen-lockfile` and
 run `bun run check` in that environment before each push. The check typechecks the source; behavior
 is verified by operating the CLI against disposable synthetic folders.
@@ -96,7 +132,7 @@ See the [write and concurrency contract](docs/workspace-format.md#item-writes-an
 cooperating locks, deterministic conflict reproduction and failure/crash limits.
 Open prints incomplete items as well as complete ones; missing evidence produces actionable errors.
 Open/validate are read-only and return exit code 1 on invalid input. No hosted service, customer
-credentials or AI provider is needed. This slice has no sync, packaging or release.
+credentials or AI provider is needed. Source packaging is preparation only; no release is published by a build.
 
 For fleet administration, follow the [agent-led setup guide](.open-autonomy/SETUP.md). The project uses
 the Open Autonomy Hermes kit; `create-open-autonomy check .` checks kit-owned files. The container

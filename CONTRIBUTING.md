@@ -20,3 +20,61 @@ the constitution's invariants. Short on purpose; the reviewer reads it whole.
   what it is for. The README says how to run it. Nothing else is documented twice.
 - **Dependencies.** Add one only when writing it would be more code than reading it. Pin what you add.
 - **History.** One change per commit, the task id first in the subject, signed as the agent.
+
+## Source preview policy (proposed, not a release)
+
+The first product version is proposed as `0.1.0-alpha.1`. Use SemVer: increment the alpha
+sequence for subsequent experimental previews; PM must explicitly propose later minor/major or
+stable versions and explain compatibility. Pre-1.0 CLI interfaces may change between previews;
+release notes must describe changes. No stable API or cross-platform filesystem guarantee is implied.
+Product versions are distinct from persisted workspace `formatVersion: 1`. Incompatible persisted-data
+changes require a new format version, documented compatibility and an explicit user-chosen migration
+path; never silently migrate or reinterpret old data. Keep `package.json` private: this is not npm publication.
+
+The proposed asset is `evidence-desk-<version>-source.tar.gz`, with a single matching top-level folder.
+Its explicit file allowlist lives in `src/prepare-source.ts`: CLI and builder source, package metadata,
+pinned Bun version and lockfile, TypeScript configuration, LICENSE, README, this policy, constitution
+and workspace-format documentation. No Git internals, node_modules, fleet/runtime configuration,
+scratch workspaces or secrets are selected or read. Add product files deliberately, not by globbing.
+LICENSE is copied unchanged. Repository-only links in these documents refer to the public source
+repository; fleet tooling is intentionally not shipped.
+
+From a Git checkout containing the full committed input, use Bun exactly 1.3.10, Git, GNU tar and
+GNU gzip. Execute the builder from that commit, not a dirty local copy (the output parent must exist;
+the output directory must not). For example, replacing the placeholder with the full 40-character SHA:
+
+```bash
+sha=<full-committed-SHA>
+driver=$(mktemp --suffix=.ts)
+git show "$sha:src/prepare-source.ts" > "$driver"
+volter-world attach evidence-desk --root /opt/data -- bun run "$driver" "$sha" /tmp/preview-build-a
+volter-world attach evidence-desk --root /opt/data -- bun run "$driver" "$sha" /tmp/preview-build-b
+cmp /tmp/preview-build-a/evidence-desk-0.1.0-alpha.1-source.tar.gz /tmp/preview-build-b/evidence-desk-0.1.0-alpha.1-source.tar.gz
+```
+
+The builder reads only committed allowlisted regular files, normalizes archive modes through Git,
+uses the commit timestamp and gzip `-n -9`, and refuses an inventory mismatch or existing output.
+Reproducibility is for the same input and builder/toolchain (verified on Linux aarch64 with Bun 1.3.10,
+Git 2.47.3 and GNU gzip 1.13); other versions/platforms need verification. Adjacent `.sha256` and
+`.provenance.json` files record the archive hash, full source SHA, tool versions and complete inventory.
+They are outside the archive to avoid circular self-hashing; the tar's Git commit header also identifies
+the input. Checksums detect changes, not publisher identity. Frozen installation needs registry access
+or a populated cache; dependencies and a Bun executable are not bundled.
+
+### Human-only publication
+
+Local preparation and native execution review do not select or authorize a release candidate.
+PM first reconciles the landed policy, fixes a full landed SHA and version in a ready ROADMAP proposal,
+and verifies that exact candidate's two builds, inventory, extracted installation/workflow, preservation,
+checks and limitations. The human review package must include those commands/results, asset checksum,
+source SHA, scope, risks and proposed target/review window under the repository's production procedure.
+
+Only the owner or currently delegated human reviewer may authorize publication. After candidate-specific
+approval, a human opens this repository's GitHub Releases page, creates tag `v0.1.0-alpha.1` at the
+approved full SHA (not moving main), marks the Release as a prerelease, describes scope/limitations,
+and uploads the exact reviewed `.tar.gz`, `.sha256` and `.provenance.json` assets. For later previews use
+their approved version consistently. Required GitHub permissions/gates must be satisfied by the human;
+agents never create tags, approve, publish, or add publishing credentials/workflows. Any change to SHA,
+version or bytes requires renewed review. PM then downloads the published assets and verifies version,
+provenance and checksum before recording an actual release in CHANGELOG; publication remains pending
+until there is a verified release record. Do not treat GitHub's automatic source zip/tar as these assets.
