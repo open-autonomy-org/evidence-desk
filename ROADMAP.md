@@ -23,23 +23,35 @@ World; their checks passed in 0.794s and 0.674s respectively. The
 also succeeded. This reconciliation accounts for that completed task without treating its acceptance
 as human approval or completion of the larger product outcome.
 
-The [setup evidence and diagnosis](https://github.com/open-autonomy-org/evidence-desk/pull/37)
-retain the earlier watchdog failures and unresolved cause; later successful runs do not explain those
-failures or establish the failed attempts' public terminal attribution. The reviewer also recorded
-that installed World attachment omits the documented `VOLTER_WORLD` marker, despite successful
-attached execution, doctor and coverage checks. Keep that tooling discrepancy for setup reconciliation.
-The [scheduled report readback](https://discord.com/channels/1544906154868744202/1546981849979682916/1547199081451888650)
-proves bot delivery; human-authored inbound handling remains unverified. The setup operator retains
-acceptance ownership. Under the [bounded reconciliation instruction](hermes:session/cron_1afde51fbc2c_20260909_113316),
-recurring schedules stay paused and no successor implementation is queued.
+The setup operator's [published acceptance record](https://github.com/open-autonomy-org/evidence-desk/pull/46)
+now records completed worker transcripts, restored World attachment markers, installed World 0.1.7/core
+0.1.3 request guards and orderly shutdown. These supersede the earlier marker and successful-session
+publication gaps, but do not explain the original watchdog failures or establish failed-attempt attribution.
+This is outside setup work, not an additional Hermes implementation task.
+
+[PR #49](https://github.com/open-autonomy-org/evidence-desk/pull/49) retires the app-server bridge in favor
+of Hermes's native `openai-codex` loop with host-owned subscription forwarding;
+[PR #50](https://github.com/open-autonomy-org/evidence-desk/pull/50) makes request bodies replayable.
+The [latest public operator test](https://discord.com/channels/1544906154868744202/1547376034712789103/1547398791706050692)
+has original author `605505624226136074`, matching the committed owner roster, and one
+[final reply](https://discord.com/channels/1544906154868744202/1547376034712789103/1547398924371763354).
+It demonstrates inbound delivery and reports native Discord/cron access; it explicitly is an operator
+test, not independent human approval. PM also exercised native history and cron directly.
+
+The [current scrum's native inspection](hermes:session/cron_cbe439e4782f_20260910_001209)
+finds recurring PM/community active, with a completed and
+[delivered community run](https://discord.com/channels/1544906154868744202/1546981849979682916/1547399457388241017).
+That differs from the paused state in the landed setup record and latest test. No public activation
+acceptance or successor-dispatch authorization was found in the reviewed sources. Keep implementation
+held while the setup operator reconciles this transition; PM has not changed schedules. The earlier
+broken-pipe cron incident remains unresolved, and this PM run's final delivery needs later observation.
 
 Completion:
-- The setup operator assesses the complete worker/reviewer/landing/reconciliation evidence, preserving
-  earlier failures and the World marker discrepancy without inferring their resolution.
-- Demonstrate human-authored inbound handling through the agreed public channel with original-author
-  provenance; bot messages and the roster alone do not satisfy this criterion.
-- Preserve verified World execution, runtime/version reporting and source checkpoints when the
-  operator concludes the exercise; recurring operation and delivery still need observation after resumption.
+- The setup operator reconciles current native runtime and schedule activation with the landed setup
+  record, retaining earlier failures and distinguishing operator tests from independent human approval.
+- Verify recurring PM completion, public reporting and single final delivery after resumption; retain
+  source checkpoints and recover the historical coverage gaps rather than acknowledging unread history.
+- Confirm the bounded setup observation is concluded before dispatching the next implementation slice.
 
 Dependencies: the current [setup agreement](https://github.com/open-autonomy-org/evidence-desk/blob/8de5088d33e8515a125ac16b7b7b82127c8d6fda/.open-autonomy/setup.json)
 and [communication policy](hermes/skills/project-communications/SKILL.md). No human implementation

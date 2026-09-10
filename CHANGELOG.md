@@ -7,6 +7,19 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Replaced the development fleet's Codex app-server bridge with Hermes's native agent loop and
+  host-owned subscription forwarding; request bodies now support known-length forwarding and replay
+  after credential refresh. These are setup/operator contributions, not new product features or Hermes
+  task executions. ([PR #49](https://github.com/open-autonomy-org/evidence-desk/pull/49),
+  [PR #50](https://github.com/open-autonomy-org/evidence-desk/pull/50))
+- Updated World/core dependencies for attachment markers and sealed-client request guards, and adopted
+  reporting recovery that preserves native worker completion. The setup record documents installed
+  verification; complete activation acceptance remains in the roadmap.
+  ([PR #43](https://github.com/open-autonomy-org/evidence-desk/pull/43),
+  [PR #44](https://github.com/open-autonomy-org/evidence-desk/pull/44),
+  [PR #45](https://github.com/open-autonomy-org/evidence-desk/pull/45),
+  [PR #46](https://github.com/open-autonomy-org/evidence-desk/pull/46))
+
 - Added the first local workspace CLI and version 1 JSON/Markdown file contract: create a new or empty
   workspace, reopen externally authored readiness items, inspect incomplete work, and validate records
   and evidence references. Read operations preserve unknown data and evidence bytes; occupied destinations,
