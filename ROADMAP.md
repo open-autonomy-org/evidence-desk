@@ -4,53 +4,61 @@ Notable present/future intentions and outstanding outcomes, carefully maintained
 Sources support decisions and claims. Ideas and unanswered requests are not commitments or dispatch orders.
 See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliation cycle.
 
-## workspace-relocation: Verify the folder handoff across local locations
+## interrupted-write-guide: Make manual write recovery actionable without automatic repair
 
 Dispatch: fleet
 
-PM priority: verify portability of the integrated current-source workflow before extending product
-surface. The [format contract](https://github.com/open-autonomy-org/evidence-desk/blob/c3c512356cd8a0f9dd7c9f1dbe0e132612223b42/docs/workspace-format.md#paths-and-preservation)
-anchors references at the workspace root, and the [constitution](https://github.com/open-autonomy-org/evidence-desk/blob/c3c512356cd8a0f9dd7c9f1dbe0e132612223b42/CONSTITUTION.md)
-makes owned portable folders fundamental. The accepted walkthrough exercises fresh folders but not
-moving an already-populated folder and continuing work from another location. This is a bounded PM
-verification priority, not an observed defect, customer adoption claim or human commitment.
+PM priority: consolidate recoverability before adding more product surface. The current
+[write/concurrency contract](https://github.com/open-autonomy-org/evidence-desk/blob/477c0063ed133040ecd46f70a049c49530dfeabb/docs/workspace-format.md#item-writes-and-concurrency)
+describes abandoned locks, temporary files and potentially committed updates after errors, but its
+manual recovery advice is a short paragraph rather than an ordered operator procedure. Under the
+[external-editing and preservation invariants](https://github.com/open-autonomy-org/evidence-desk/blob/477c0063ed133040ecd46f70a049c49530dfeabb/CONSTITUTION.md),
+make that existing contract usable without adding an unlock/repair command. This is PM inference from
+documentation, not a newly observed defect, customer incident or human implementation commitment.
 
-`guided-workflow` is complete in [PR #71](https://github.com/open-autonomy-org/evidence-desk/pull/71),
-`2a5dcc8caf2dedbd987e229aa699a5d80a29a815`, following [native review run 26](hermes:task/t_f78cbdd0).
-PM inspected the diff, review records, preservation/fact verifier and two fresh-clone rehearsal results
-in [the review session](hermes:session/20260910_100342_63d111). Do not repeat that documentation task.
+`workspace-relocation` is retired following [native independent review run 28](hermes:task/t_7280443e)
+at `477c0063ed133040ecd46f70a049c49530dfeabb`. PM inspected the independent driver, recorded commands,
+result and [actual review execution](hermes:session/20260910_110634_1a5626), message 2939: local moves,
+continued edits, independent copies and internal/unsafe symlink behavior passed with preservation;
+the unchanged World check passed in 2.102 seconds. This evidence-only work changed no product files
+and establishes only Linux aarch64/local ext4 behavior with Bun 1.3.10, not publication or adoption.
 
 Completion:
-- Pin fresh main and operate the existing CLI through World in unique disposable synthetic folders.
-  Create a populated format-1 workspace with all statuses, shared context/evidence references, binary
-  evidence, unknown root/item fields, unrelated files, and names with spaces/Unicode. Record full source
-  SHA, toolchain/platform, exact commands, outputs and exits in native handoff, not a committed journal.
-- Move the entire quiescent folder to a different parent/name outside the source checkout, leaving its
-  old location absent. Without editing manifest references, run open/inspect/validate, human/JSON/Markdown
-  summaries and intersected owner/status/follow-up selection from a different working directory using
-  the absolute source entry point. Reconcile item facts, counts and ordering against the original;
-  location-bearing diagnostics may differ, derived JSON/Markdown facts must not depend on the old root.
-- Continue item-create/item-update and a cooperating external edit in the moved folder. Verify reread
-  behavior, unknown values and unrelated source preservation. Make a separate complete local copy and
-  verify it independently; changes in the copy must not mutate the original. Do not use customer folders,
-  remote storage, a sync service or hard links as a substitute for an independent copy.
-- Exercise relative internal symlinks separately on the verified Linux filesystem, plus a dangling or
-  escaping reference after relocation. Valid internal references retain their meaning; invalid references
-  fail whole-workspace validation even when excluded by selectors. Markdown validation failure emits no
-  partial report. Compare complete bytes and inventory across successful read/refusal operations and
-  untouched files across intended writes. Record symlink/filesystem limitations, not a universal portability claim.
-- Independently review every acceptance line and repeat a fresh move/copy/read/edit/refusal workflow.
-  Run unchanged World-attached `bun run check` under thirty seconds and `git diff --check`. This is
-  evidence-only: no product code, dependency, format, test/check, documentation or version change is
-  required, and no empty commit is needed. If a material defect is found, preserve the minimal reproduction
-  and report the unfulfilled criterion for PM-scoped repair; do not silently weaken acceptance or expand scope.
+- Improve the existing format document in place with an ordered manual recovery procedure and link it
+  from README. Distinguish an active writer, ordinary pre-rename refusal, abandoned lock/temp files,
+  and an error that may occur after commit. Explain how to stop and account for all writers, preserve
+  an independent quiescent copy outside the workspace, inspect the current manifest and exact leftovers,
+  and validate/reopen before deciding whether any patch is still needed. Unknown writer ownership or
+  uncertain filesystem state means stop, not infer abandonment from age, an empty lock or a failed write.
+- Give concrete commands for a disposable synthetic demonstration with all variables and files prepared;
+  distinguish ordinary-user commands from fleet World prerequisites. Remove only explicitly inspected,
+  confirmed-abandoned protocol paths, never broad globs/recursive cleanup or an active writer's lock.
+  Never automatically restore a temp/old manifest, discard external edits or prescribe blind patch retry.
+  A malformed manifest requires explicit owner-chosen correction from preserved data, not claimed recovery.
+- Operate a fresh synthetic World-attached writer held at its real Ready boundary. Show a second writer
+  refusing while the first is live, with no manual unlock; then deliberately terminate only the task-owned
+  synthetic writer, confirm its exit, inspect its actual leftovers and follow the documented recovery.
+  Preserve exact commands/stdout/stderr/exits and before/after bytes/inventory. If demonstrating a temp
+  leftover or post-commit cleanup error requires a staged fixture, label it as staged, not an observed crash
+  or proof of power-loss durability. Do not kill fleet workers, leases, unrelated processes or the World.
+- Verify read/refusal preservation, current external/unknown values and unrelated Markdown/binary evidence
+  across recovery, followed by a deliberate successful edit and fresh validation/summary. Manual cleanup
+  must remove only the confirmed protocol leftovers; verify preserved backup independence. Repeat the
+  documented sequence from a second fresh synthetic folder during independent native review. Retain
+  cooperating-writer, quiescent-topology, metadata, symlink, platform and no-power-loss-guarantee limits.
+- Limit changes to docs/workspace-format.md and README; consolidate existing prose rather than create
+  a second manual. No product code, dependencies, format, tests/check changes or new CLI commands.
+  Record full source SHA and evidence in the native handoff, not a committed rehearsal journal. Run
+  unchanged World-attached bun run check under thirty seconds and git diff --check before the signed
+  task-branch push. Independent native review reads every pinned completion line and policies, verifies
+  actual behavior and alone completes execution. A material defect gets a preserved reproduction and
+  unfulfilled criterion for PM-scoped repair, not an out-of-scope product fix.
 
-Dependencies: accepted [guided workflow](hermes:task/t_f78cbdd0). Queue one evidence-only successor;
-no overlapping open issue/PR or accepted volunteer commitment found in reviewed public sources.
-Native review alone completes execution. Preserve existing scratch, workspaces and leases. Exclude
-Git/cloud sync, catalogs, GUI, new export/import commands and release preparation. This current-source
-verification neither changes nor re-verifies the fixed preview below; its candidate, assets, forecast and
-human-review gate remain unchanged. Never tag, approve, publish, deploy or repeat the existing release ask.
+Dependencies: accepted [relocation verification](hermes:task/t_7280443e); no overlapping open issue/PR
+or volunteered implementation found in reviewed public sources. Queue one bounded documentation task;
+no human assignment. Preserve prior scratch, worker checkouts and exact fixed preview assets. No version
+bump, candidate/window change, archive rebuild, repeated review ask, tag, approval, publication or deployment.
+This current-source documentation accumulates independently beyond the fixed preview below.
 
 ## release-next: First portable-workspace preview
 
