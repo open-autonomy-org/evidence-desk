@@ -4,23 +4,50 @@ import { spawn } from 'node:child_process';
 
 async function python(container: string, script: string, input: unknown): Promise<string> {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(container)) throw new Error('A container name or ID is required.');
-  const child = spawn('docker', ['exec', '-i', '--user', 'hermes', container, 'python3', '-c', script], { stdio: ['pipe', 'pipe', 'ignore'] });
+  const child = spawn('docker', ['exec', '-i', '--user', 'hermes', container, '/opt/hermes/.venv/bin/python', '-c', script], { stdio: ['pipe', 'pipe', 'pipe'] });
   child.stdin.on('error', () => {});
   child.stdin.end(JSON.stringify(input));
   const output: Buffer[] = [];
   child.stdout.on('data', chunk => output.push(chunk));
+  // Scripts print only fixed diagnostics; input and environment values never appear.
+  let diagnostic = '';
+  child.stderr.on('data', chunk => { diagnostic = (diagnostic + chunk.toString()).slice(-2000); });
   const timer = setTimeout(() => child.kill('SIGKILL'), 60_000);
   try {
     const code = await new Promise<number>(resolve => { child.once('error', () => resolve(1)); child.once('exit', code => resolve(code ?? 1)); });
-    if (code !== 0) throw new Error('Container home preparation failed; Hermes was not started. Check the committed configuration and Git connection.');
+    if (code !== 0) throw new Error(`Executor preparation failed; Hermes was not started. ${diagnostic.trim()}`);
     return Buffer.concat(output).toString();
   } finally { clearTimeout(timer); }
 }
 
+/** Check the actual execution boundary, including exec permission rather than mode bits alone. */
+export async function verifyContainer(options: { container: string; home: string; workspace: string }): Promise<void> {
+  await python(options.container, String.raw`
+import json,os,pathlib,shutil,subprocess,sys,tempfile
+s=json.load(sys.stdin)
+def require(ok,message):
+    if not ok: print(message,file=sys.stderr);sys.exit(1)
+require(pathlib.Path('/proc/1/comm').read_text().strip() in ['docker-init','tini'], 'Recreate the World executor with --init; PID 1 must reap orphaned children.')
+for name in ['bun','git','hermes','supercode','volter-world']:
+    require(shutil.which(name), 'Executor is missing required tool: '+name)
+home=pathlib.Path(s['home']);workspace=pathlib.Path(s['workspace'])
+require(home.is_absolute() and workspace.is_absolute() and home != workspace and home != pathlib.Path('/'), 'Use separate absolute home and checkout paths.')
+roots=os.environ.get('HERMES_WRITE_SAFE_ROOT','').split(':')
+require(all(any(root and pathlib.Path(root).is_absolute() and path.resolve().is_relative_to(pathlib.Path(root).resolve()) for root in roots) for path in [home,workspace]), 'Native write roots must include the Hermes home and checkout.')
+scratch=home/'artifact-verification'
+require(not scratch.is_symlink(), 'Verification scratch must not be a symlink.')
+scratch.mkdir(parents=True,exist_ok=True)
+with tempfile.TemporaryDirectory(prefix='exec-check-',dir=scratch) as temp:
+    command=pathlib.Path(temp)/'probe';command.write_text('#!/bin/sh\nexit 0\n');command.chmod(0o700)
+    try: subprocess.run([str(command)],check=True,timeout=5,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    except (OSError,subprocess.SubprocessError): require(False, 'Verification scratch is not executable; choose an executable home volume before activation.')
+`, options);
+}
+
 /** Always load configuration from fetched main, including after an interrupted task. */
-export async function prepareContainerHome(options: { container: string; home: string; workspace: string }): Promise<{ revision: string; dirty: boolean; config: string }> {
+export async function prepareContainerHome(options: { container: string; home: string; workspace: string }): Promise<{ revision: string; dirty: boolean; config: string; models: Array<{ provider?: string; default?: string }> }> {
   const output = await python(options.container, String.raw`
-import io,json,os,pathlib,shutil,subprocess,sys,tarfile,tempfile
+import io,json,os,pathlib,shutil,subprocess,sys,tarfile,tempfile,yaml
 s=json.load(sys.stdin)
 home=pathlib.Path(s['home']);workspace=pathlib.Path(s['workspace'])
 assert home.is_absolute() and workspace.is_absolute() and home != workspace and home != pathlib.Path('/')
@@ -49,7 +76,8 @@ with tempfile.TemporaryDirectory(prefix='oa-home-') as temp:
         elif target.exists(): shutil.rmtree(target)
     # State databases, cron execution state and native .env files belong to the runtime.
     shutil.copytree(source,home,dirs_exist_ok=True,ignore=shutil.ignore_patterns('.env'))
-print(json.dumps({'revision':revision,'dirty':dirty,'config':config}))
+models=[(yaml.safe_load((home/p).read_text()) or {}).get('model',{}) for p in ['config.yaml','profiles/treasurer/config.yaml']]
+print(json.dumps({'revision':revision,'dirty':dirty,'config':config,'models':models}))
 `, options);
   return JSON.parse(output);
 }

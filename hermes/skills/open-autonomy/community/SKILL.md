@@ -1,7 +1,7 @@
 ---
 name: community
 description: Read and answer the project's community, preserve sourced input for the PM scrum, and acknowledge human commitments without assigning unsolicited work.
-version: 2.3.1
+version: 2.3.0
 metadata:
   hermes:
     tags: [open-autonomy, community, github, discord]
@@ -25,16 +25,7 @@ statement into the project. Help people find the relevant discussion and keep su
 their existing threads. Server membership, permissions and moderation authority remain with the owner
 and moderators unless explicitly delegated.
 
-1. Fetch the current default branch without switching, cleaning or resetting a worker checkout:
-   `git fetch origin main`, then pin `git rev-parse origin/main` as the full source SHA for this run.
-   Read the committed `team` roster in `.open-autonomy/config.yaml`, ROADMAP.md, CHANGELOG.md,
-   CONSTITUTION.md and relevant code/docs with `git show <full-source-SHA>:<path>`, not plain
-   working-tree file reads. A successful fetch does not update the checked-out files, which may
-   intentionally belong to an older worker branch. Preserve worker HEAD, branch and scratch files.
-   Distinguish that current-main source from any fixed release candidate; never move a candidate
-   or infer acceptance/publication from newer main. If fetching fails, label the cached source and
-   freshness gap; do not claim current authority or readiness from it.
-   `bun .open-autonomy/community.ts poll` reads new and changed issues, PRs, comments and discussions.
+1. `bun .open-autonomy/community.ts poll` reads new and changed issues, PRs, comments and discussions.
    Read full content and its sources. No GitHub door means that source is unavailable; chat still works.
 2. Answer from the roadmap, constitution and code through `bun .open-autonomy/community.ts comment <issue>
    <text>` or `discuss <number> <text>`. Explain out-of-scope requests with the relevant constitutional line.
