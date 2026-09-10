@@ -7,6 +7,15 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Consolidated README into an ordered fresh-source synthetic walkthrough: setup precedes summaries,
+  ordinary-user commands are separate from fleet prerequisites, and external editing, invalid-reference
+  correction and safe Markdown sharing form one runnable handoff. The fixed unpublished preview remains
+  explicitly distinct. Independent native review operated two fresh-clone World rehearsals, reconciled
+  report facts and full read/refusal preservation, and passed the unchanged check in 2.085 seconds.
+  This is documentation acceptance, not customer adoption or publication.
+  ([PR #71](https://github.com/open-autonomy-org/evidence-desk/pull/71),
+  `2a5dcc8caf2dedbd987e229aa699a5d80a29a815`, [native acceptance, run 26](hermes:task/t_f78cbdd0))
+
 - Corrected community source reads to pin current main and read committed documents without changing
   a preserved worker checkout. Active and committed community skills match at 2.3.1; independent native
   review verified full synthetic workspace preservation and an honest failed-fetch freshness gap.

@@ -4,62 +4,53 @@ Notable present/future intentions and outstanding outcomes, carefully maintained
 Sources support decisions and claims. Ideas and unanswered requests are not commitments or dispatch orders.
 See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliation cycle.
 
-## guided-workflow: Make the local follow-up handoff runnable from a fresh start
+## workspace-relocation: Verify the folder handoff across local locations
 
 Dispatch: fleet
 
-PM priority: consolidate the existing workflow before adding more product surface. The
-[current README](https://github.com/open-autonomy-org/evidence-desk/blob/693b63e0441b555e130784bd530665078718358b/README.md#read-only-readiness-summary-development-source)
-places summary commands before the synthetic setup they require, mixes fleet-specific commands with
-ordinary-user examples, and uses placeholder report destinations. Its commands describe accepted features,
-but a new reader must assemble the end-to-end handoff. This is a documentation/usability deduction from
-source, not an observed customer failure, human commitment or owner feature request. The constitutional
-[portable-files and external-editing workflow](https://github.com/open-autonomy-org/evidence-desk/blob/693b63e0441b555e130784bd530665078718358b/CONSTITUTION.md)
-supports one bounded documentation task rather than another formatter.
+PM priority: verify portability of the integrated current-source workflow before extending product
+surface. The [format contract](https://github.com/open-autonomy-org/evidence-desk/blob/c3c512356cd8a0f9dd7c9f1dbe0e132612223b42/docs/workspace-format.md#paths-and-preservation)
+anchors references at the workspace root, and the [constitution](https://github.com/open-autonomy-org/evidence-desk/blob/c3c512356cd8a0f9dd7c9f1dbe0e132612223b42/CONSTITUTION.md)
+makes owned portable folders fundamental. The accepted walkthrough exercises fresh folders but not
+moving an already-populated folder and continuing work from another location. This is a bounded PM
+verification priority, not an observed defect, customer adoption claim or human commitment.
 
-`summary-markdown` is complete in [PR #69](https://github.com/open-autonomy-org/evidence-desk/pull/69),
-`3c3d9ce1607dfdd9f55e7a1e01c48912db60f4ef`, independently accepted by
-[native run 24](hermes:task/t_0f8efb43). PM inspected its full diff, rehearsal script, actual command
-records and [review-session outputs](hermes:session/20260910_085711_10d41f), including messages 2530/2534.
-The completed implementation is not queued again and remains outside the fixed preview below.
+`guided-workflow` is complete in [PR #71](https://github.com/open-autonomy-org/evidence-desk/pull/71),
+`2a5dcc8caf2dedbd987e229aa699a5d80a29a815`, following [native review run 26](hermes:task/t_f78cbdd0).
+PM inspected the diff, review records, preservation/fact verifier and two fresh-clone rehearsal results
+in [the review session](hermes:session/20260910_100342_63d111). Do not repeat that documentation task.
 
 Completion:
-- Maintain README in place with one clearly ordered, copy-runnable development-source walkthrough
-  from a fresh checkout with Bun 1.3.10 and frozen dependency installation. Distinguish current source
-  from the fixed unpublished alpha.1 archive; do not make summary commands appear available in that
-  archive. Separate ordinary-user commands from the fleet World invocation prerequisite without requiring
-  users to install fleet tooling. Retain the actual application run command and existing installation policy.
-- Use only a newly created disposable synthetic workspace outside the checkout. Define all variables
-  and create context/evidence files before referencing them. Demonstrate create, item-create, item-update,
-  open/validate, then human/JSON/Markdown summaries and an owner/follow-up selection with meaningful
-  matching data. Explain complete-with-warnings and overlapping counts without inventing readiness scores,
-  evidence sufficiency or SOC2 mappings. No real customer examples, credentials, service or AI dependency.
-- Demonstrate a quiescent external edit followed by validation and a changed summary, preserving unrelated
-  fields/files. Document a useful invalid-reference refusal and safe correction without blind retry,
-  automatic repair or silent discard. Link to the existing format/concurrency contract rather than copying
-  it; retain cooperating-lock, no live snapshot, numeric/alias and platform limitations.
-- Show Markdown redirection to a new concrete destination outside the workspace with no-clobber and
-  explicit exit-status handling. Explain shell-created/truncated files on failure, escaped authored strings,
-  derived rather than import/live data, and reviewing report contents before sharing. Do not imply the
-  application writes reports or that synthetic operational verification establishes customer adoption.
-- Independently execute the documented sequence in its stated order through World using fresh synthetic
-  folders, without hidden fixture preparation or prior shell variables. Capture exact documented commands,
-  World mapping, outputs/exits and source SHA in native handoff, not a committed rehearsal journal.
-  Programmatically verify expected JSON facts/selection and Markdown agreement; compare complete bytes
-  and inventory across read/refusal operations and preserve unrelated sources across intended edits.
-  A second clean rehearsal must not depend on the first workspace. Do not claim untested platforms.
-- Limit repository changes to README and, only if needed to fix a link or clarify existing behavior,
-  docs/workspace-format.md. Consolidate redundant examples instead of appending a second manual.
-  No product code, dependencies, formats, automated tests/check changes or new CLI features. Pass
-  unchanged World-attached `bun run check` under thirty seconds and `git diff --check` before pushing
-  the signed task branch. Independent native review reads the pinned roadmap, constitution and
-  contributing rules, verifies every acceptance line and operates the documented walkthrough itself.
+- Pin fresh main and operate the existing CLI through World in unique disposable synthetic folders.
+  Create a populated format-1 workspace with all statuses, shared context/evidence references, binary
+  evidence, unknown root/item fields, unrelated files, and names with spaces/Unicode. Record full source
+  SHA, toolchain/platform, exact commands, outputs and exits in native handoff, not a committed journal.
+- Move the entire quiescent folder to a different parent/name outside the source checkout, leaving its
+  old location absent. Without editing manifest references, run open/inspect/validate, human/JSON/Markdown
+  summaries and intersected owner/status/follow-up selection from a different working directory using
+  the absolute source entry point. Reconcile item facts, counts and ordering against the original;
+  location-bearing diagnostics may differ, derived JSON/Markdown facts must not depend on the old root.
+- Continue item-create/item-update and a cooperating external edit in the moved folder. Verify reread
+  behavior, unknown values and unrelated source preservation. Make a separate complete local copy and
+  verify it independently; changes in the copy must not mutate the original. Do not use customer folders,
+  remote storage, a sync service or hard links as a substitute for an independent copy.
+- Exercise relative internal symlinks separately on the verified Linux filesystem, plus a dangling or
+  escaping reference after relocation. Valid internal references retain their meaning; invalid references
+  fail whole-workspace validation even when excluded by selectors. Markdown validation failure emits no
+  partial report. Compare complete bytes and inventory across successful read/refusal operations and
+  untouched files across intended writes. Record symlink/filesystem limitations, not a universal portability claim.
+- Independently review every acceptance line and repeat a fresh move/copy/read/edit/refusal workflow.
+  Run unchanged World-attached `bun run check` under thirty seconds and `git diff --check`. This is
+  evidence-only: no product code, dependency, format, test/check, documentation or version change is
+  required, and no empty commit is needed. If a material defect is found, preserve the minimal reproduction
+  and report the unfulfilled criterion for PM-scoped repair; do not silently weaken acceptance or expand scope.
 
-Dependencies: accepted [Markdown execution](hermes:task/t_0f8efb43); no overlapping open issue/PR or
-accepted volunteer commitment found in reviewed public sources. One fleet documentation successor;
-no human assignment. Preserve all worker scratch and review evidence. No version bump, archive rebuild,
-changed release candidate/window, repeated review request, tag, approval, publication or deployment.
-This work accumulates independently beyond the fixed preview assets.
+Dependencies: accepted [guided workflow](hermes:task/t_f78cbdd0). Queue one evidence-only successor;
+no overlapping open issue/PR or accepted volunteer commitment found in reviewed public sources.
+Native review alone completes execution. Preserve existing scratch, workspaces and leases. Exclude
+Git/cloud sync, catalogs, GUI, new export/import commands and release preparation. This current-source
+verification neither changes nor re-verifies the fixed preview below; its candidate, assets, forecast and
+human-review gate remain unchanged. Never tag, approve, publish, deploy or repeat the existing release ask.
 
 ## release-next: First portable-workspace preview
 
