@@ -145,6 +145,43 @@ manifest over external changes. The temporary file is fsynced but the containing
 power-loss durability guarantee is made. Rename provides whole-manifest visibility on a supporting local
 filesystem, not a multi-file transaction. No evidence or context rollback is performed.
 
+## Derived summary report
+
+`workspace summary <folder>` and `workspace summary <folder> --json` reuse the same format 1
+validator as inspection. They reread disk every invocation and never write reports, locks, caches,
+manifest changes or other workspace files. Unknown fields and all file bytes are preserved on success
+and refusal. As with inspection, access times may change; a quiescent folder is required, with no
+snapshot guarantee against concurrent external edits or symlink replacement.
+
+JSON stdout is exactly one object with these fields, in this order:
+
+- `reportSchemaVersion: 1`: the derived report schema, independent of product and workspace versions.
+- `ok`: boolean validation success. Warnings and incomplete statuses alone succeed (exit 0).
+- `counts`: on success, `{total, statuses: {todo, "in-progress", blocked, complete}, incomplete,
+  unassignedOwner, noEvidenceReferences}`; every value is an integer count of items.
+- `items`: on success, every item in manifest array order, including complete items without warnings.
+  Each object has `{id, owner, status, context, evidence, warnings}`. Strings/paths are retained exactly;
+  evidence array order is retained. Markdown bodies, evidence contents and unknown fields are omitted.
+- `errors`: empty on success. On any usage, filesystem or validation failure it contains diagnostic
+  strings, `ok` is false, `counts` is null and `items` is empty (exit 1). No partial totals are reported.
+  Validation diagnostics retain validator traversal order and identify item indices/fields where applicable.
+  JSON errors also go only to stdout, with no mixed console prose.
+
+`incomplete` counts every status other than `complete`. `unassignedOwner` counts empty or whitespace-only
+owners. `noEvidenceReferences` counts empty evidence arrays, not missing files (missing references fail).
+These three counts overlap: one item may contribute to all three, regardless of status. The four status
+counts partition total. An empty workspace succeeds with all counts zero and empty items/errors arrays.
+Per-item warnings appear in fixed order: unassigned owner, empty/whitespace-only Markdown context,
+no evidence references. Complete items are not exempt. Warnings describe follow-up facts, not sufficiency.
+
+Human output uses the same report: total, the four statuses in the order above, incomplete, unassigned
+owner and no-evidence-reference counts, then every item's facts/warnings in manifest order. Owner-authored
+strings and evidence arrays are JSON-quoted to keep embedded control characters from forging lines.
+Failure prints diagnostics and no totals. There are no timestamps or generated IDs; unchanged inputs
+produce deterministic reports on the same filesystem/runtime. Neither view interprets evidence,
+computes a readiness score, establishes SOC2 coverage nor issues an audit judgment. `complete` remains
+the owner's self-reported status. Exact commands are in [README](../README.md#read-only-readiness-summary-development-source).
+
 ## Inspection and validation
 
 Open and inspect are aliases: they print structurally valid items, owner, status, Markdown context,

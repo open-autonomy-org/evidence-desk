@@ -2,18 +2,23 @@
 import { resolve } from "node:path";
 import { createWorkspace, inspectWorkspace } from "./workspace";
 import { writeItem } from "./item-write";
+import { failedSummary, printSummary, summarizeWorkspace } from "./summary";
 
 const [group, operation, destination, ...extra] = process.argv.slice(2);
-const usage = "Usage: bun run src/index.ts workspace <create|open|inspect|validate> <folder> OR workspace item-create <folder> --stdin OR workspace item-update <folder> <existing-id> --stdin";
+const usage = "Usage: bun run src/index.ts workspace <create|open|inspect|validate> <folder> OR workspace summary <folder> [--json] OR workspace item-create <folder> --stdin OR workspace item-update <folder> <existing-id> --stdin";
+const jsonSummary = group === "workspace" && operation === "summary" && process.argv.slice(4).includes("--json");
 
 try {
   const creatingItem = operation === "item-create" && extra.length === 1 && extra[0] === "--stdin";
   const updatingItem = operation === "item-update" && extra.length === 2 && extra[1] === "--stdin";
+  const summary = operation === "summary" && (!extra.length || (extra.length === 1 && extra[0] === "--json"));
   if (group !== "workspace" || !destination ||
-      !(creatingItem || updatingItem || (!extra.length && ["create", "open", "inspect", "validate"].includes(operation)))) {
+      !(creatingItem || updatingItem || summary || (!extra.length && ["create", "open", "inspect", "validate"].includes(operation)))) {
     throw new Error(usage);
   }
-  if (operation === "item-create" || operation === "item-update") {
+  if (operation === "summary") {
+    printSummary(summarizeWorkspace(destination), jsonSummary);
+  } else if (operation === "item-create" || operation === "item-update") {
     writeItem(destination, operation, updatingItem ? extra[0] : undefined);
   } else if (operation === "create") {
     createWorkspace(destination);
@@ -39,6 +44,10 @@ try {
     }
   }
 } catch (error) {
-  console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+  if (jsonSummary) {
+    printSummary(failedSummary([error instanceof Error ? error.message : String(error)]), true);
+  } else {
+    console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+  }
   process.exitCode = 1;
 }

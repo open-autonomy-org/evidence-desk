@@ -76,6 +76,25 @@ refused, and crash leftovers require manual recovery. Read the full
 [write limitations](docs/workspace-format.md#item-writes-and-concurrency) before using external editors.
 Product SemVer and workspace format version 1 are separate; see [compatibility policy](CONTRIBUTING.md#source-preview-policy-proposed-not-a-release).
 
+## Read-only readiness summary (development source)
+
+From the current repository checkout, after creating the synthetic example below:
+
+```bash
+volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example"
+volter-world attach evidence-desk --root /opt/data -- bun run src/index.ts workspace summary "$scratch/example" --json
+```
+
+Outside the fleet, run `bun run src/index.ts workspace summary /path/to/workspace`
+or `bun run src/index.ts workspace summary /path/to/workspace --json`.
+This addition is after the fixed proposed preview candidate; it is not in that candidate's assets.
+Both views report all four status counts, incomplete, unassigned-owner and no-evidence-reference
+counts, plus every item's ID, owner, status, paths and warnings (including complete items).
+They omit Markdown bodies and evidence contents. Counts can overlap; they are not a readiness
+score, evidence-sufficiency assessment, SOC2 coverage claim or audit judgment.
+The [derived report contract](docs/workspace-format.md#derived-summary-report) defines JSON schema 1,
+ordering, empty/failure semantics and the quiescent-folder boundary. No workspace files are written.
+
 ## Local verification
 
 The CLI uses TypeScript and Bun exactly 1.3.10. Follow [AGENTS.md](AGENTS.md) to attach commands
