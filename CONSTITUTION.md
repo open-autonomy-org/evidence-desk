@@ -41,8 +41,15 @@ implementation at merge; compatibility with it alone never authorizes additional
   Project-funded calls and purchases are metered and published through Open Autonomy. An explicitly
   selected operator subscription uses that operator's allowance; customer AI usage is separate.
 - **Done is demonstrated.** Acceptance must hold in the running local system using synthetic data.
-  The complete automated check finishes within thirty seconds. Verify material behavior by operating
+  Verify material behavior by operating
   the application in its world, including preservation of files written by external tools.
+
+- **No automated tests.** Automated tests accumulate permanent code and maintenance obligations. As agents
+  add more, that cruft compounds until maintaining tests can make progress in the repository impossible.
+  Do not write or run automated tests. No automated test code or persistent test harness may be committed
+  to main. Each develop agent must verify the feature it adds or changes through REPL-style manual usage
+  of the running product, inspecting actual results without writing permanent test code. Record the
+  actions, observations and limitations in the task handoff or PR, not a new test file.
 
 ## Out of scope
 
