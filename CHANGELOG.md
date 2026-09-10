@@ -7,6 +7,18 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Added ordered manual interrupted-write recovery guidance and a runnable synthetic demonstration:
+  account for writers, preserve an independent quiescent copy, inspect current data, validate/reopen,
+  and remove only confirmed-abandoned protocol paths before choosing a new edit. Independent native
+  review repeated the documented sequence in a fresh World folder, verifying live-writer refusal,
+  owned-child interruption, exact lock cleanup, unknown/external-value and evidence preservation,
+  backup independence and a deliberate successful edit. The unchanged check passed in 4.397 seconds.
+  This is documentation acceptance on Linux aarch64/local ext4 with Bun 1.3.10, not power-loss durability,
+  automatic repair, customer adoption or publication; the fixed preview assets are unchanged.
+  ([PR #74](https://github.com/open-autonomy-org/evidence-desk/pull/74),
+  `2f9a6f2cf95fc277fd40909557244f9bf9fa3fdc`, [native acceptance, run 30](hermes:task/t_366259d0),
+  [independent execution](hermes:session/20260910_121629_940590))
+
 - Consolidated README into an ordered fresh-source synthetic walkthrough: setup precedes summaries,
   ordinary-user commands are separate from fleet prerequisites, and external editing, invalid-reference
   correction and safe Markdown sharing form one runnable handoff. The fixed unpublished preview remains

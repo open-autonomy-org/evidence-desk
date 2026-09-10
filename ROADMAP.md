@@ -4,62 +4,6 @@ Notable present/future intentions and outstanding outcomes, carefully maintained
 Sources support decisions and claims. Ideas and unanswered requests are not commitments or dispatch orders.
 See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliation cycle.
 
-## interrupted-write-guide: Make manual write recovery actionable without automatic repair
-
-Dispatch: fleet
-
-PM priority: consolidate recoverability before adding more product surface. The current
-[write/concurrency contract](https://github.com/open-autonomy-org/evidence-desk/blob/477c0063ed133040ecd46f70a049c49530dfeabb/docs/workspace-format.md#item-writes-and-concurrency)
-describes abandoned locks, temporary files and potentially committed updates after errors, but its
-manual recovery advice is a short paragraph rather than an ordered operator procedure. Under the
-[external-editing and preservation invariants](https://github.com/open-autonomy-org/evidence-desk/blob/477c0063ed133040ecd46f70a049c49530dfeabb/CONSTITUTION.md),
-make that existing contract usable without adding an unlock/repair command. This is PM inference from
-documentation, not a newly observed defect, customer incident or human implementation commitment.
-
-`workspace-relocation` is retired following [native independent review run 28](hermes:task/t_7280443e)
-at `477c0063ed133040ecd46f70a049c49530dfeabb`. PM inspected the independent driver, recorded commands,
-result and [actual review execution](hermes:session/20260910_110634_1a5626), message 2939: local moves,
-continued edits, independent copies and internal/unsafe symlink behavior passed with preservation;
-the unchanged World check passed in 2.102 seconds. This evidence-only work changed no product files
-and establishes only Linux aarch64/local ext4 behavior with Bun 1.3.10, not publication or adoption.
-
-Completion:
-- Improve the existing format document in place with an ordered manual recovery procedure and link it
-  from README. Distinguish an active writer, ordinary pre-rename refusal, abandoned lock/temp files,
-  and an error that may occur after commit. Explain how to stop and account for all writers, preserve
-  an independent quiescent copy outside the workspace, inspect the current manifest and exact leftovers,
-  and validate/reopen before deciding whether any patch is still needed. Unknown writer ownership or
-  uncertain filesystem state means stop, not infer abandonment from age, an empty lock or a failed write.
-- Give concrete commands for a disposable synthetic demonstration with all variables and files prepared;
-  distinguish ordinary-user commands from fleet World prerequisites. Remove only explicitly inspected,
-  confirmed-abandoned protocol paths, never broad globs/recursive cleanup or an active writer's lock.
-  Never automatically restore a temp/old manifest, discard external edits or prescribe blind patch retry.
-  A malformed manifest requires explicit owner-chosen correction from preserved data, not claimed recovery.
-- Operate a fresh synthetic World-attached writer held at its real Ready boundary. Show a second writer
-  refusing while the first is live, with no manual unlock; then deliberately terminate only the task-owned
-  synthetic writer, confirm its exit, inspect its actual leftovers and follow the documented recovery.
-  Preserve exact commands/stdout/stderr/exits and before/after bytes/inventory. If demonstrating a temp
-  leftover or post-commit cleanup error requires a staged fixture, label it as staged, not an observed crash
-  or proof of power-loss durability. Do not kill fleet workers, leases, unrelated processes or the World.
-- Verify read/refusal preservation, current external/unknown values and unrelated Markdown/binary evidence
-  across recovery, followed by a deliberate successful edit and fresh validation/summary. Manual cleanup
-  must remove only the confirmed protocol leftovers; verify preserved backup independence. Repeat the
-  documented sequence from a second fresh synthetic folder during independent native review. Retain
-  cooperating-writer, quiescent-topology, metadata, symlink, platform and no-power-loss-guarantee limits.
-- Limit changes to docs/workspace-format.md and README; consolidate existing prose rather than create
-  a second manual. No product code, dependencies, format, tests/check changes or new CLI commands.
-  Record full source SHA and evidence in the native handoff, not a committed rehearsal journal. Run
-  unchanged World-attached bun run check under thirty seconds and git diff --check before the signed
-  task-branch push. Independent native review reads every pinned completion line and policies, verifies
-  actual behavior and alone completes execution. A material defect gets a preserved reproduction and
-  unfulfilled criterion for PM-scoped repair, not an out-of-scope product fix.
-
-Dependencies: accepted [relocation verification](hermes:task/t_7280443e); no overlapping open issue/PR
-or volunteered implementation found in reviewed public sources. Queue one bounded documentation task;
-no human assignment. Preserve prior scratch, worker checkouts and exact fixed preview assets. No version
-bump, candidate/window change, archive rebuild, repeated review ask, tag, approval, publication or deployment.
-This current-source documentation accumulates independently beyond the fixed preview below.
-
 ## release-next: First portable-workspace preview
 
 Dispatch: hold
