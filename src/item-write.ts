@@ -3,6 +3,7 @@ import { closeSync, fchmodSync, fsyncSync, lstatSync, mkdirSync, openSync, readF
 import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
 import { localFile, validateManifest } from "./workspace";
+import { parseWriteJson } from "./write-json";
 
 export function writeItem(destination: string, operation: "item-create" | "item-update", id?: string): void {
   const root = realpathSync(resolve(destination));
@@ -21,18 +22,22 @@ export function writeItem(destination: string, operation: "item-create" | "item-
     if (!before.isFile()) throw new Error("workspace.json: item writes require a regular non-symlink manifest; edit the canonical workspace instead.");
     if (before.nlink !== 1n) throw new Error("workspace.json: item writes refuse hard-linked manifests; use an independent regular manifest.");
     const original = readFileSync(path);
-    const parse = (text: string, label: string) => {
-      try { return JSON.parse(text); }
-      catch (error) { throw new Error(`${label}: invalid JSON; correct the JSON and retry (${String(error)}).`); }
-    };
-    const manifest = parse(original.toString("utf8"), "workspace.json");
+    const manifest = parseWriteJson(original.toString("utf8"), "workspace.json");
     const requireValid = (value: unknown) => {
       const result = validateManifest(root, value);
       if (result.errors.length) throw new Error(result.errors.join("\n"));
+      // Check both the original and proposed manifest, including untouched items.
+      for (const item of result.items) {
+        for (const reference of [item.context, ...item.evidence]) {
+          if (realpathSync(localFile(root, reference, `Item ${item.id} reference`)) === path) {
+            throw new Error(`Item ${JSON.stringify(item.id)} reference ${JSON.stringify(reference)} resolves to workspace.json. Item writes refuse to overwrite referenced context/evidence; use an external editor to associate an independent file before retrying. Nothing committed.`);
+          }
+        }
+      }
     };
     requireValid(manifest);
     console.error("Ready: workspace.json read; send one JSON item/patch on stdin, then EOF. No files committed yet.");
-    const input: unknown = parse(readFileSync(0, "utf8"), "stdin");
+    const input: unknown = parseWriteJson(readFileSync(0, "utf8"), "stdin");
     if (typeof input !== "object" || input === null || Array.isArray(input)) throw new Error("Input must be a JSON item/patch object.");
     const fields = Object.keys(input);
     if (!fields.length || fields.some(key => !["id", "owner", "status", "context", "evidence"].includes(key))) {

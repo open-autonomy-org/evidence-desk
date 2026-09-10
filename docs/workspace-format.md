@@ -87,11 +87,26 @@ indentation and a trailing newline: whitespace, numeric spelling and duplicate-k
 preserved. Version 1 and its existing validation rules are unchanged. An invalid existing workspace
 must be corrected externally before item writes; commands do not silently repair it.
 
+Write-only preservation restrictions do not change read-only version 1 validation. Before editing,
+the writer checks every JSON number token, including nested unknown root/item data and untouched
+items. It refuses if parsing and reserialization would change its exact decimal value (for example
+`1e400`, `9007199254740993`, underflow or excess fractional precision), or erase negative zero.
+Equivalent numeric spelling such as `1.00e2` may become `100`. No numeric value is silently rounded
+or converted to null: use an external precision-preserving editor, or explicitly choose a string
+representation for extension data before retrying. This is a decimal round-trip check, not an
+arbitrary-precision arithmetic API.
+
 Context and evidence must already exist and pass the shared validator. Item operations never author,
 truncate, delete or overwrite Markdown/evidence files, even when changing a context association to an
 existing path shared by another item. Author Markdown with your own editor before the command. Missing
 new context refuses the manifest update, so ordinary failures cannot leave a reference to context the
 CLI failed to create. Unrelated files remain untouched except the transient protocol files below.
+Writes refuse if any existing or proposed context/evidence reference resolves to `workspace.json`,
+including internal symlink aliases and references on untouched items. Otherwise replacing the manifest
+would also replace referenced evidence/context bytes. Read-only commands still accept these references;
+use an external editor to associate an independent file before retrying. Even a patch removing the
+offending reference is refused when the existing manifest has one. Hard-linked manifests are refused
+as described below.
 
 The writer exclusively creates `.evidence-desk-write.lock` at the canonical workspace root, reads and
 validates `workspace.json`, prints `Ready` to stderr, then reads JSON on stdin through EOF. Hold this
