@@ -50,3 +50,8 @@ discord:
   channel_skill_bindings:
     - id: "1546981849979682916" # evidence-desk; threads inherit this binding
       skills: [project-communications]
+
+# Reuse the native reviewer even in a Blank Slate Hermes home.
+skills:
+  external_dirs:
+    - /opt/hermes/skills/devops/sdlc-review
