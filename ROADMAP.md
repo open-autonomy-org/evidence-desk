@@ -243,6 +243,16 @@ outcome or a new standalone reporting feature. The existing [format-1 contract](
 provides items, references and preservation-safe item writes but no engagement/control model or UI.
 Use user-authored scope and synthetic controls; catalog redistribution is not a prerequisite for this slice.
 
+Compatibility decision: [implementation run 41](hermes:task/t_2605a8a6) demonstrated that format 1
+accepts hypothetical extension-key collisions unchanged ([observed execution](hermes:session/20260911_014316_cef0b6),
+message 4782). Its documented unknown-field/unreferenced-file contract reserves no activation marker.
+PM therefore selects explicit per-operation sidecar activation below, within the parent's already
+authorized compatible-extension scope: no implicit discovery, no format migration, no new user outcome.
+The tradeoff is deliberate path selection on reopen and explicit readiness-aware CLI use, rather than
+silently treating every ordinary format-1 validation as readiness validation. This is implementation
+coordination, not a claim the extension exists or has passed review. Resume the existing card only after
+this acceptance clarification lands through native review; preserve its original collision evidence.
+
 Completion:
 - Provide a documented local graphical launch command that opens one explicitly selected workspace
   folder (new or existing). A user can create/save/reopen engagement system-boundary text, chosen SOC2
@@ -253,13 +263,35 @@ Completion:
   evidence files, navigate control-to-item-to-reference, and show missing/unassigned/incomplete work and
   justified exclusions without scores or sufficiency claims. File contents need not be previewed or uploaded.
   Due-date editing and richer follow-up filtering remain in the parent outcome for a later bounded slice.
-- Document a versioned compatible optional record extension (absent means an ordinary existing workspace),
-  or stop with a concrete compatibility blocker if that cannot preserve format-1 semantics. CLI and UI
-  must read the same files and validate new records consistently. Preserve unknown values and unrelated
-  files, and refuse duplicate identities, dangling associations, invalid dates/periods and unsupported
-  extension versions. Do not silently reinterpret a pre-existing unknown field as owned data or migrate it.
-  Reuse existing write/concurrency protections; an external edit after UI load must cause visible conflict,
-  not overwrite or silent reload-and-save. Explicit reload/revalidation exposes external edits.
+- Keep format 1 and all existing unknown root/item fields semantically unchanged. Use a documented,
+  versioned optional readiness sidecar at a user-selected safe workspace-relative path, not an implicitly
+  discovered root key or reserved filename. Activation is explicit for EACH CLI invocation/UI launch:
+  choose either create-new readiness records or open-existing readiness records at that exact path.
+  No directory scan, magic-marker detection, remembered default or mere sidecar presence enables it.
+  Ordinary format-1 commands continue unchanged and make no claim to validate unselected readiness data.
+  Document matching explicit CLI readiness selection for validation, item writes and summaries; selected
+  CLI/UI operations use the same whole-workspace plus readiness validation. Reopen requires the same
+  deliberate selection, including after folder relocation; there is no opaque activation registry.
+- Creating readiness records requires an absent selected path and exclusive creation; any existing file,
+  directory, alias or unrelated content is a collision to refuse without modification, not overwrite,
+  rename, import or adopt automatically. Opening existing records requires deliberate open-existing
+  selection and successful schema validation; explain that this selects the file as readiness data,
+  not proof of provenance or prior app ownership. Reject unsafe paths and aliases to the manifest or
+  referenced context/evidence. Do not read/serve arbitrary unselected files or reinterpret unknown fields.
+  New sidecar fields are owned only within this explicit mode; retain unknown sidecar values on edits.
+  Unsupported versions, duplicate identities, dangling associations and invalid dates/periods refuse
+  selected operations without partial successful reports. No persisted-format migration in this slice.
+- Reuse cooperating-writer locks and stale-source protections for BOTH manifest and selected sidecar.
+  Avoid claiming atomic transactions across two files: keep each action to one authoritative file,
+  refuse an item-ID change that would dangle selected control associations rather than rewrite both,
+  and document ordinary CLI/external edits can require explicit correction before selected-mode use.
+  An external edit to either source after UI load must cause visible conflict, not overwrite or silent
+  reload-and-save. Explicit reload/revalidation exposes external edits. Preserve unknown values,
+  unrelated files and evidence; keep existing numeric-loss, alias and quiescent-topology safeguards.
+- Manually demonstrate non-activation for pre-existing root-key and filename collisions, explicit
+  create refusal with complete byte/inventory preservation, deliberate valid/invalid open-existing,
+  selected CLI/UI agreement, and reopen/relocation requiring explicit selection. A same-shaped legacy
+  unknown object/file is not activation; no product operation may silently acquire its ownership.
 - Serve only on loopback, scoped to the explicitly selected folder. Reject unexpected Host/Origin and
   unauthorized mutation requests, prevent cross-site writes and path escape, and render authored content
   as inert text. Do not serve arbitrary filesystem paths or evidence bytes. Explain that loopback is not
