@@ -7,6 +7,18 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Adopted the shared host fleet entrypoint, separated SDK readiness from historical transcript replay,
+  and excluded rehearsal cache links from dirty-checkout detection. Subscription forwarding now obtains
+  the host's current login through installed Codex rather than maintaining a project login copy; Codex
+  owns refresh. These are setup/operator contributions, not Hermes product tasks or a product release.
+  PR #79 reports installed host activation and a completed executor model response; its landing check
+  passed. Recurring-run completion and report delivery remain separate operational verification.
+  ([PR #76](https://github.com/open-autonomy-org/evidence-desk/pull/76),
+  [PR #77](https://github.com/open-autonomy-org/evidence-desk/pull/77),
+  [PR #78](https://github.com/open-autonomy-org/evidence-desk/pull/78),
+  [PR #79](https://github.com/open-autonomy-org/evidence-desk/pull/79),
+  `3676a69b5d5079fe94c2cc16c8102f3fd9cd033c`)
+
 - Added ordered manual interrupted-write recovery guidance and a runnable synthetic demonstration:
   account for writers, preserve an independent quiescent copy, inspect current data, validate/reopen,
   and remove only confirmed-abandoned protocol paths before choosing a new edit. Independent native

@@ -4,10 +4,87 @@ Notable present/future intentions and outstanding outcomes, carefully maintained
 Sources support decisions and claims. Ideas and unanswered requests are not commitments or dispatch orders.
 See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliation cycle.
 
+
+## evidence-reference-index: See which readiness items share recorded evidence
+
+Dispatch: hold
+
+Proposal status: preserved PM-inferred scope, not authorized standalone dispatch. The owner's
+[role correction in PR #80](https://github.com/open-autonomy-org/evidence-desk/pull/80) supersedes
+constitution-only feature inference. The [separate strategy decision](hermes:session/cron_2af471468131_20260910_232625)
+landed in [PR #84](https://github.com/open-autonomy-org/evidence-desk/pull/84), merge
+`010afbd949012e4a1b1e659b672b1fa03e89acb5`, after independent [review](hermes:task/t_4aad868a).
+It prioritizes a guided local CPA/client workbench and places association traceability within that
+workflow. Retain this option as held, not a prerequisite standalone CLI expansion. The
+completion sketch below is provisional, not worker acceptance or permission to queue. Any eventual
+execution follows the current no-automated-tests policy: REPL-style manual observations in the handoff,
+no automated suites or persistent verification harnesses, and no test-running checks or hooks.
+
+Original PM rationale (historical inference, not current strategic priority): make evidence associations inspectable in the reverse direction, without copying or
+interpreting evidence. The [current summary](https://github.com/open-autonomy-org/evidence-desk/blob/cd5cee4dca8994164d4a1108b5c8d7e6c4fe49de/src/summary.ts)
+is item-oriented; finding all items that reference a shared path currently requires assembling that
+view externally. The [format contract](https://github.com/open-autonomy-org/evidence-desk/blob/cd5cee4dca8994164d4a1108b5c8d7e6c4fe49de/docs/workspace-format.md#layout-and-records)
+already records explicit evidence paths. Under the [constitution's inspectable, owned-file workflow](https://github.com/open-autonomy-org/evidence-desk/blob/cd5cee4dca8994164d4a1108b5c8d7e6c4fe49de/CONSTITUTION.md),
+a small reverse-reference view helps a firm or client review associations before external edits.
+This is PM implementation/sequencing inference, not an owner feature request, observed customer defect,
+audit-coverage claim or human commitment. Accepted summaries, relocation and recovery guidance are not
+queued again. The fixed preview below remains pending human review; that does not pause independent work.
+
+Completion:
+- Add `workspace evidence <folder>` and `workspace evidence <folder> --json` as read-only derived views.
+  Reuse complete format-1 workspace validation before reporting. Group evidence references by exact
+  recorded relative-path string, in first-encounter manifest/evidence-array order. For each path list
+  distinct referring items in manifest order with ID, owner and status; repeated references within one
+  item must not duplicate that item. Define counts explicitly: total items, distinct recorded evidence
+  paths, distinct item/path associations, paths shared by multiple items, and items with no references.
+  Include the IDs of items without references; empty workspaces succeed with zero counts.
+- Document one deterministic versioned JSON report contract, distinct from persisted workspace and
+  existing summary schemas. Human output and JSON must agree; JSON stdout contains only one object.
+  Invalid/unsupported workspaces emit useful nonzero diagnostics, no partial index or successful counts;
+  JSON refusals use a documented failure object with null counts and empty result arrays. Reject unknown,
+  repeated and extra options/arguments; document error-format precedence. No selectors or Markdown/CSV
+  output in this slice. Preserve all existing command behavior and summary schemas.
+- Treat paths as recorded associations, not unique physical files: do not merge symlink/hard-link aliases,
+  canonicalize displayed paths, hash/read evidence contents or scan unreferenced files. Continue shared
+  validator reference checks and existing context validation. State that identical bytes at different paths
+  are separate records and that neither existence nor sharing proves sufficiency, freshness or SOC2 coverage.
+  Human-rendered authored strings must be quoted inert data, preserving exact distinctions and preventing
+  forged lines/control sequences. Do not print context bodies, evidence contents or absolute workspace roots
+  in successful reports. JSON escaping preserves original strings.
+- Reread external edits on each invocation; write no index, report, cache, lock or workspace files.
+  Preserve complete bytes and inventory on success/refusal, including unknown fields and unrelated files.
+  Retain quiescent-folder, no live snapshot and filesystem/symlink limitations. Update README in place with
+  exact runnable synthetic examples and the existing format document with grouping/count/error semantics.
+  Add any new product module to the explicit source allowlist, without preparing or replacing an archive.
+- Operate the actual CLI through World against fresh synthetic empty, all-status, shared-path, repeated-
+  reference, no-reference, Unicode/space and hostile ID/owner fixtures. Reconcile all counts, grouping and
+  order programmatically against manifest associations and existing summary JSON. Demonstrate deterministic
+  repeats, reread after external edits, safe internal aliases kept distinct, and entire-workspace refusal for
+  malformed/duplicate/unsupported records and missing/unsafe/escaping references, even in an otherwise
+  unrelated item. Compare full source bytes/inventory across every read/refusal; exercise existing
+  create/item-create/item-update/open/inspect/validate and all summary formats for regressions.
+- Record full source SHA, exact commands/stdout/stderr/exits, platform and limitations in native handoff,
+  not a committed rehearsal journal. Run unchanged World-attached `bun run check` under thirty seconds
+  and `git diff --check` before a signed task-first branch push. Independent native review reads this
+  complete outcome, CONSTITUTION.md and CONTRIBUTING.md, verifies every acceptance line against the actual
+  handoff and repeats representative shared-reference, external-edit and refusal workflows. Only native
+  review completes execution; merge alone is not operational acceptance.
+
+Dependencies: accepted [summary](hermes:task/t_1f2de365), [selection](hermes:task/t_5362d9cb) and
+[Markdown view](hermes:task/t_0f8efb43). Reviewed public open issues/PRs contain no overlap or accepted
+volunteer commitment at original drafting. If later selected, use one bounded fleet task; none is
+currently authorized or queued for this standalone proposal. No human assignment. Use a fresh separate task worktree and
+unique synthetic scratch, preserving prior review artifacts, worker checkouts and native leases. All app,
+install and check commands use `volter-world attach evidence-desk --root /opt/data -- <command>` with the
+prepared World; admission failures require capability recovery, not weaker isolation or deletion of evidence.
+Exclude persistence, content inspection, orphan-file discovery, deletion/repair, import, catalogs, GUI, sync,
+AI and release preparation. No version bump, candidate/window change, archive rebuild, repeated release
+ask, tag, approval, publication or deployment. This outcome accumulates after the fixed alpha.1 candidate.
+
 ## readiness-product: From a portable folder to a complete CPA/client workbench
 
 Dispatch: hold
-Decision: authorized strategy direction; landing and delivery readiness pending
+Decision: authorized strategy direction landed in PR #84; delivery starts with guided-readiness-core
 
 Authority: the owner's [autonomous competitive-parity mandate](hermes/skills/project-communications/SKILL.md#autonomous-strategy-mandate),
 committed in [PR #80](https://github.com/open-autonomy-org/evidence-desk/pull/80), authorizes strategy to
@@ -55,7 +132,7 @@ Sequence and tradeoffs:
    collection and trust workflows. High breadth/integration cost; keep later choices provisional rather
    than treating a connector inventory or AI layer as the first milestone.
 
-PM reconciliation: preserve the unlanded `evidence-reference-index` draft and its original provenance
+PM reconciliation: preserve the held `evidence-reference-index` proposal and its original provenance
 ([PM report](https://discord.com/channels/1544906154868744202/1546981849979682916/1547726195536433293)).
 The constitution-only rationale does not independently authorize dispatch. Strategy authorizes association
 traceability within the outcomes below, not a prerequisite standalone CLI expansion. PM should reconcile
@@ -66,7 +143,7 @@ The fixed `release-next` proposal, target dates, assets and human review gate be
 ## guided-readiness: Scope a SOC2 engagement and work through it visually, locally
 
 Dispatch: hold
-Decision: authorized outcome under `readiness-product`; PM readiness/decomposition pending
+Decision: authorized outcome under `readiness-product`; first bounded execution is guided-readiness-core
 Priority: first product milestone after the existing portable-workspace foundation
 
 Outcome: a CPA or client can open/create their own folder in a local graphical workbench, record the
@@ -155,6 +232,61 @@ requiring proprietary storage, compelled uploads or audit opinions stays held fo
 No authorization to access customer systems, provide audit services, or expand into unrelated financial
 statement audit/AI-governance products merely because a competitor sells them.
 
+## guided-readiness-core: First local scope-to-evidence visual journey
+
+Dispatch: fleet
+
+Authority and priority: PM delivery decomposition of `guided-readiness`, authorized by strategy in
+[PR #84](https://github.com/open-autonomy-org/evidence-desk/pull/84), reviewed as
+[t_4aad868a](hermes:task/t_4aad868a). This is the first thin end-to-end journey, not the entire parent
+outcome or a new standalone reporting feature. The existing [format-1 contract](https://github.com/open-autonomy-org/evidence-desk/blob/010afbd949012e4a1b1e659b672b1fa03e89acb5/docs/workspace-format.md)
+provides items, references and preservation-safe item writes but no engagement/control model or UI.
+Use user-authored scope and synthetic controls; catalog redistribution is not a prerequisite for this slice.
+
+Completion:
+- Provide a documented local graphical launch command that opens one explicitly selected workspace
+  folder (new or existing). A user can create/save/reopen engagement system-boundary text, chosen SOC2
+  category names, engagement type and period; author controls with stable IDs, framework/version/source
+  references, applicability and exclusion rationale; and link controls to existing readiness items.
+  Keep authored mappings distinct from official standards or demonstrated coverage. No bundled checklist.
+- In the same actual UI, create/update an item's owner, status and associations to existing context and
+  evidence files, navigate control-to-item-to-reference, and show missing/unassigned/incomplete work and
+  justified exclusions without scores or sufficiency claims. File contents need not be previewed or uploaded.
+  Due-date editing and richer follow-up filtering remain in the parent outcome for a later bounded slice.
+- Document a versioned compatible optional record extension (absent means an ordinary existing workspace),
+  or stop with a concrete compatibility blocker if that cannot preserve format-1 semantics. CLI and UI
+  must read the same files and validate new records consistently. Preserve unknown values and unrelated
+  files, and refuse duplicate identities, dangling associations, invalid dates/periods and unsupported
+  extension versions. Do not silently reinterpret a pre-existing unknown field as owned data or migrate it.
+  Reuse existing write/concurrency protections; an external edit after UI load must cause visible conflict,
+  not overwrite or silent reload-and-save. Explicit reload/revalidation exposes external edits.
+- Serve only on loopback, scoped to the explicitly selected folder. Reject unexpected Host/Origin and
+  unauthorized mutation requests, prevent cross-site writes and path escape, and render authored content
+  as inert text. Do not serve arbitrary filesystem paths or evidence bytes. Explain that loopback is not
+  multi-user authentication/RBAC. Core use requires no external network, account, CDN or AI dependency;
+  dependency installation may require registry access. Visible labels, keyboard operation, focus/error
+  feedback and readable empty states belong to the first UI, not a later cosmetic pass.
+- Manually operate the full fresh-folder scope/control/item/evidence journey through the actual UI in
+  World using disposable synthetic files. Reopen the folder; exercise keyboard interaction, hostile text,
+  external edits, stale-save refusal, malformed extension/reference refusal and preservation of unknown
+  data/evidence. Inspect actual HTTP refusals for cross-origin/Host/path requests and unchanged existing
+  CLI create/open/validate/item/summary behavior. Record commands, browser observations, outputs, exits,
+  source SHA and platform limits in the native handoff. No automated tests or persistent harnesses.
+- Maintain README launch/use instructions and the format contract in place; include new product files
+  deliberately in the source allowlist without rebuilding the fixed preview. Keep modules small; add only
+  justified pinned dependencies. Run unchanged World-attached `bun run check` and `git diff --check`
+  before push. Independent native review verifies every line, exact-head GitHub review and observed merge
+  before completing this execution; the parent guided-readiness outcome stays open.
+
+Dependencies: existing accepted workspace/item-write foundation and landed strategy; no overlapping
+implementation card, open product PR or accepted volunteer commitment found in current public intake.
+Queue one fleet implementation, not a human assignment. Use a fresh task worktree and unique scratch
+under `/opt/data/artifact-verification`; all app/install/check commands use
+`volter-world attach evidence-desk --root /opt/data -- <command>`. Preserve World limits and worker leases.
+Exclude review exchanges, package export, multi-client dashboards, collectors, sync, AI, official content
+catalogs and automatic repair. Preserve fixed alpha.1 candidate/version/assets/window and human gate.
+This is unreleased development, not parity, customer adoption or release acceptance.
+
 ## release-next: First portable-workspace preview
 
 Dispatch: hold
@@ -201,8 +333,10 @@ Completion and remaining gates:
   and the [local-application procedure](.open-autonomy/PRODUCTION.md#packages-and-local-applications).
   After approval, only a human creates `v0.1.0-alpha.1` at the fixed SHA, marks the GitHub Release a
   prerelease, and uploads the reviewed archive and both sidecars. Verify required GitHub permissions/gates
-  at that step: the fleet valve denies ruleset/collaborator-permission reads, so this scrum cannot attest
-  to their current effective state. No service deployment or new publishing credentials are needed.
+  at that step: [PR #82](https://github.com/open-autonomy-org/evidence-desk/pull/82) restored read-only
+  main-rule inspection, and PM observed one required approval, stale-approval dismissal and no code-owner
+  review. This verifies development review rules, not human publication permissions or release approval.
+  No service deployment or new publishing credentials are needed.
 - PM verifies the actual release record and downloaded version/provenance/checksum before moving
   product changes out of Unreleased. A changed candidate, version or artifact needs renewed review.
 
