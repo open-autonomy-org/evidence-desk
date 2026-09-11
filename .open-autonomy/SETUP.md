@@ -732,6 +732,13 @@ Also exercise native file creation and patching in a disposable checkout subdire
 container’s `HERMES_WRITE_SAFE_ROOT` includes `/opt/data` and `/work/project`; verify unrelated paths
 and protected credential paths remain denied. A working terminal does not prove file-tool access.
 
+Record material setup architecture choices in project-owned ADRs under `docs/decisions/`, following
+`CONTRIBUTING.md`: include the runtime and credential boundaries, alternatives, sources and constitutional
+fit. Complete independent constitution review and normal PR landing before activating those choices.
+When adopting an existing project, inspect its records and reconcile conflicting or unreviewed choices;
+do not label historical architecture accepted merely because it is already running. Keep project ADRs
+and contribution policy intact during kit upgrades; reconcile new guidance through an ordinary PR.
+
 PM starts with the established constitution, roster, communication policy and operating configuration,
 plus the project's ordinary source history. It does not need setup notes or the setup agent's chat.
 Future product scope, architecture and release proposals are PM work; unfinished setup is not. PM reconciles the generic
