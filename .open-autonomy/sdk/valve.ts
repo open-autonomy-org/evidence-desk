@@ -187,7 +187,8 @@ if (githubArg) {
     if (path === repo) return method === 'GET';
     if (!path.startsWith(`${repo}/`)) return false;
     const resource = path.slice(repo.length);
-    if (method === 'GET' && /^\/(pulls|actions|releases|tags|commits|compare|check-runs|check-suites|statuses)(\/|$)/.test(resource)) return true;
+    if (method === 'GET' && /^\/(pulls|actions|releases|tags|commits|compare|check-runs|check-suites|statuses|rules|rulesets|branches)(\/|$)/.test(resource)) return true;
+    if (method === 'POST' && /^\/pulls\/[0-9]+\/reviews$/.test(resource)) return true;
     if (method === 'PATCH' && path.startsWith(`${repo}/issues/`) && /^[0-9]+$/.test(path.slice(`${repo}/issues/`.length))) return true;
     if (/^\/(issues|discussions)(\/|$)/.test(resource)) return method === 'GET' || method === 'POST';
     return false;

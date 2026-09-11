@@ -3,7 +3,7 @@
 How code is written here, for people and for the agent alike. The bar every diff is reviewed against, beside
 the constitution's invariants. Short on purpose; the reviewer reads it whole.
 
-- **Language and tooling.** TypeScript on Bun. `bun run check` is the definition of green and runs in seconds.
+- **Language and tooling.** TypeScript on Bun.
 - **Workspace integrity.** Use synthetic data. Exercise changes against disposable workspace folders,
   including edits made outside the application. Preserve evidence files and provenance, make formats
   explicit, and report invalid input or conflicting edits without silently overwriting the owner's work.
@@ -14,11 +14,13 @@ the constitution's invariants. Short on purpose; the reviewer reads it whole.
   `noexec` mount. This fleet's operator-authorized disposable root is `/opt/data/artifact-verification`;
   use a unique subdirectory there through the existing World. `/tmp` remains `noexec`: installed compiler
   execution there can fail with EACCES or a silent Bun runner exit. Preserve the failure, do not substitute
-  direct compiler success for `bun run check`, and never remount or relax isolation to obtain green.
+  another command for missing manual feature verification, and never remount or relax isolation.
 - **Shape.** Small modules with one job each, named for what they hold. No layer that exists only to forward.
-- **Thirty seconds, total, forever.** `bun run check` is every test and typecheck there is, and it must finish in
-  under thirty seconds. A test guards an invariant of the constitution or it is not written; behavior is verified by
-  driving the running system. Test cruft compounds, because every agent that follows writes more of it.
+- **Manual feature verification belongs to each develop agent.** Follow the no-automated-tests invariant
+  in `CONSTITUTION.md`. Exercise the feature being added or changed through REPL-style manual usage,
+  inspect the actual results and relevant failure cases, and report what happened in the handoff or PR.
+  Do not write permanent test code, add test suites or commit tests to main. Reviewers verify this evidence
+  and reject test code in the diff. Never invoke automated tests indirectly through checks or hooks.
 - **Errors.** Fail loudly with the cause in the message. No silent fallbacks.
 - **Docs.** Keep durable project documentation, maintained in place; no rehearsal journals, session reports
   or temporary planning documents. Put change-specific verification evidence in the PR. A file's header says

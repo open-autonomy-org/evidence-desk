@@ -3,11 +3,13 @@
 Evidence Desk is an open-source, local-first SOC2 readiness workbench for CPA firms and their clients.
 It helps them organize readiness work and supporting evidence in a folder they own, using documented
 JSON, CSV, Markdown and ordinary evidence files. Either the firm or the client can own that workspace.
-The ambition is a comprehensive readiness experience while keeping the underlying information directly
-usable by people, other software and the customer's own AI tools.
+The ambition is the best SOC2 app in the world, matching or exceeding competing products while keeping
+the underlying information directly usable by people, other software and the customer's own AI tools.
 
 This constitution defines the product and binds every task. The owner sets its direction; changing
-these constraints requires the owner's agreement. PM determines the implementation plan and sequencing.
+these constraints requires the owner's agreement. Strategy develops roadmap scope under the owner's
+mandate; PM manages delivery and sequencing. Check this constitution at conception and against the
+implementation at merge; compatibility with it alone never authorizes additional scope.
 
 ## Invariants
 
@@ -26,7 +28,9 @@ these constraints requires the owner's agreement. PM determines the implementati
   are public. The fleet uses synthetic workspaces and evidence only. It receives no permission to read
   customer folders, customer repositories, cloud drives or confidential human discussions.
 - **Planning is carefully sourced.** Hermes PM maintains notable current and future intentions in
-  `ROADMAP.md`, and distills notable changes consolidated into main into `CHANGELOG.md`. PM discovers
+  `ROADMAP.md` within authorized scope, and distills notable changes consolidated into main into
+  `CHANGELOG.md`. Strategy adds and reprioritizes outcomes under the sourced owner mandate in the
+  project-communications skill. PM always captures explicit authorized user requests. PM discovers
   ordinary code, PRs, issues and conversations, resolves contradictions and queues ready fleet work.
   Contributors do not need to edit planning documents or produce handoff journals.
 - **Human commitments and release authority are explicit.** Assign implementation to a human only
@@ -37,8 +41,15 @@ these constraints requires the owner's agreement. PM determines the implementati
   Project-funded calls and purchases are metered and published through Open Autonomy. An explicitly
   selected operator subscription uses that operator's allowance; customer AI usage is separate.
 - **Done is demonstrated.** Acceptance must hold in the running local system using synthetic data.
-  The complete automated check finishes within thirty seconds. Verify material behavior by operating
+  Verify material behavior by operating
   the application in its world, including preservation of files written by external tools.
+
+- **No automated tests.** Automated tests accumulate permanent code and maintenance obligations. As agents
+  add more, that cruft compounds until maintaining tests can make progress in the repository impossible.
+  Do not write or run automated tests. No automated test code or persistent test harness may be committed
+  to main. Each develop agent must verify the feature it adds or changes through REPL-style manual usage
+  of the running product, inspecting actual results without writing permanent test code. Record the
+  actions, observations and limitations in the task handoff or PR, not a new test file.
 
 ## Out of scope
 
@@ -59,5 +70,7 @@ The owner subsequently accepted the working name Evidence Desk and the public re
 
 The original conversation has no supplied public permalink. These product constraints come from that
 owner direction; the initial setup PR makes this distillation reviewable before fleet activation.
-Implementation details, feature priority and release targets remain PM work, subject to this constitution
-and later sourced owner decisions.
+The owner subsequently directed autonomous strategy toward the best SOC2 app in the world and parity
+with all competitors on 2026-09-10; the project-communications skill records that mandate and its source.
+Strategy owns product scope and priority under it. PM manages implementation, sequencing and release
+proposals, subject to this constitution and later sourced owner decisions.
