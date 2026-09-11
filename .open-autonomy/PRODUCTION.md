@@ -136,16 +136,22 @@ they too are set by a human through the gate and never by the agent.
 ## This installation's development fleet
 
 Evidence Desk runs one local World-managed executor and a host sidecar under launchd.
-The sidecar entrypoint is `.open-autonomy/local-runtime.ts`; it runs the credential valves
-and the SDK reporter on the host, prepares the committed Hermes home, and supervises
-the native gateway inside the executor. Both profiles use `openai-codex` with the selected
-`gpt-6-astra` model. The Codex subscription login stays in protected host storage; only
-a forwarding address and stand-in credential enter Hermes.
+The shared sidecar entrypoint is `.open-autonomy/start.ts --container`, implemented by
+`.open-autonomy/host.ts`; it runs credential valves and the SDK reporter on the host,
+prepares the committed Hermes home, and supervises the native gateway inside the executor.
+Both profiles use `openai-codex` with the selected `gpt-6-astra` model. Installed Codex owns
+host authentication and refresh; the valve obtains the current login through its authentication
+RPC without retaining a project login copy. Only a forwarding address and stand-in credential
+enter Hermes. This is not the retired app-server agent-loop bridge.
 
-The kit record preserves the host reporter and its two container helpers as deliberate
-project-owned files. The Codex app-server bridge is retired. The operator's World config
-and launchd service live beside the checkout; stop through that service, wait for World
-teardown, then restart. Preserve the native state and checkout volumes. The installed host World
+[PR #76](https://github.com/open-autonomy-org/evidence-desk/pull/76) adopted the shared runtime;
+[PR #79](https://github.com/open-autonomy-org/evidence-desk/pull/79) reports installed activation
+and an executor model-response check. The kit record now retains only this production document
+as a project divergence; the reporter and container helpers are kit-owned. Follow
+[the current host operating instructions](../container/README.md) for controlled maintenance;
+a source merge alone does not update the separately installed host kit. The operator's World
+config and launchd service live beside the checkout; preserve their supervision and teardown
+sequence rather than restarting processes ad hoc. Preserve the native state and checkout volumes. The installed host World
 executor run command must retain Docker `--init` so PID 1 adopts/reaps orphaned children; an idle
 `sleep` as PID 1 exhausted the unchanged 256-process limit. The [operator recovery](hermes:task/t_1f2de365)
 preserved draft hashes and review artifacts, verified `docker-init` and orphan reaping, and restored
