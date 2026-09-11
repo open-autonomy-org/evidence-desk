@@ -111,3 +111,30 @@ should be of the first type" and "it's supposed to be the best SoC2 app in the w
 "that means parity with all others". This committed policy records that instruction; it supersedes the
 operator's earlier suggestion that PM infer the next feature from a generic "continue" request. It is
 not release approval. Verify subsequent direction through the existing roster and original sources.
+
+
+## Manual feature verification
+
+The owner explicitly banned automated tests and committing test code to main in the development
+conversation on 2026-09-10 (no public permalink supplied). The reason is accumulated test cruft and
+maintenance obligations that eventually prevent repository progress. Each develop agent owns testing
+its feature through REPL-style manual usage of the running product without permanent test code.
+PM must not request automated tests as acceptance, and reviewers inspect manual observations and the
+diff instead. Do not invoke test-running checks or hooks. The constitution and contributing instructions
+record this policy; previous requests to run automated suites are superseded, not evidence of permission.
+
+
+## Development PR review
+
+The developer pushes and opens a PR before review. The native reviewer independently examines the
+exact head commit, constitutional fit, scope authority and manual verification evidence, then submits
+the GitHub verdict. Main requires an approving review and invalidates stale approvals on changed diffs.
+The landing workflow's GitHub Actions identity opens the PR; the project App submits review, so GitHub
+sees distinct author/reviewer identities. Agents must not approve from their authoring session.
+Native task completion follows observed merge. PM and strategy hand planning PRs into the same native
+review lane; outside contributions are discovered by PM and receive review without special handoffs.
+Human approval for a release remains separate from agent review of a development PR.
+
+Source: the owner's 2026-09-10 development conversation required finishing the review-order correction
+and explicitly rejected hiding changes locally until after review: "what about PRs". This policy keeps
+PRs open and reviewable before approval and merge; it does not delegate human release authority.
