@@ -1,4 +1,4 @@
-// Host orchestration of the existing container checkout and native Hermes home.
+// Prepare the existing container checkout and native Hermes home before startup.
 // Values travel on Docker stdin, never command arguments or inherited host env.
 import { spawn } from 'node:child_process';
 
@@ -18,30 +18,6 @@ async function python(container: string, script: string, input: unknown): Promis
     if (code !== 0) throw new Error(`Executor preparation failed; Hermes was not started. ${diagnostic.trim()}`);
     return Buffer.concat(output).toString();
   } finally { clearTimeout(timer); }
-}
-
-/** Check the actual execution boundary, including exec permission rather than mode bits alone. */
-export async function verifyContainer(options: { container: string; home: string; workspace: string }): Promise<void> {
-  await python(options.container, String.raw`
-import json,os,pathlib,shutil,subprocess,sys,tempfile
-s=json.load(sys.stdin)
-def require(ok,message):
-    if not ok: print(message,file=sys.stderr);sys.exit(1)
-require(pathlib.Path('/proc/1/comm').read_text().strip() in ['docker-init','tini'], 'Recreate the World executor with --init; PID 1 must reap orphaned children.')
-for name in ['bun','git','hermes','supercode','volter-world']:
-    require(shutil.which(name), 'Executor is missing required tool: '+name)
-home=pathlib.Path(s['home']);workspace=pathlib.Path(s['workspace'])
-require(home.is_absolute() and workspace.is_absolute() and home != workspace and home != pathlib.Path('/'), 'Use separate absolute home and checkout paths.')
-roots=os.environ.get('HERMES_WRITE_SAFE_ROOT','').split(':')
-require(all(any(root and pathlib.Path(root).is_absolute() and path.resolve().is_relative_to(pathlib.Path(root).resolve()) for root in roots) for path in [home,workspace]), 'Native write roots must include the Hermes home and checkout.')
-scratch=home/'artifact-verification'
-require(not scratch.is_symlink(), 'Verification scratch must not be a symlink.')
-scratch.mkdir(parents=True,exist_ok=True)
-with tempfile.TemporaryDirectory(prefix='exec-check-',dir=scratch) as temp:
-    command=pathlib.Path(temp)/'probe';command.write_text('#!/bin/sh\nexit 0\n');command.chmod(0o700)
-    try: subprocess.run([str(command)],check=True,timeout=5,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-    except (OSError,subprocess.SubprocessError): require(False, 'Verification scratch is not executable; choose an executable home volume before activation.')
-`, options);
 }
 
 /** Always load configuration from fetched main, including after an interrupted task. */

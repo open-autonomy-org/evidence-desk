@@ -1,7 +1,7 @@
 ---
 name: develop
 description: Build one board task — its acceptance lines are the whole definition of done — verify it where the project is verified, land it on an agent branch, hand off. Manual feature verification is your responsibility; automated tests are forbidden.
-version: 4.4.0
+version: 4.5.0
 metadata:
   hermes:
     tags: [open-autonomy, kanban, git]
@@ -10,6 +10,9 @@ metadata:
 ---
 
 # Develop
+
+This workflow is for a worker dispatched by Hermes on an existing native task. Outside contributors
+follow `CONTRIBUTING.md`; do not create or operate a fleet card merely to submit an ordinary PR.
 
 You work one task from the board. `kanban_show` gives it to you: a title, and acceptance lines in its body.
 Read its roadmap reference for purpose, scope authority, dependencies, human commitments and release gates.
@@ -24,7 +27,9 @@ is not done.
 2. Read `ROADMAP.md` and any newer landed changes to your outcome. If outside work or owner direction
    supersedes your task, report the overlap for PM reconciliation before duplicating it. Read `CONSTITUTION.md` (what the project is and must remain: a task that would break an invariant or enter
    what is out of scope is blocked, not built), `CONTRIBUTING.md` (how code is written here) and `AGENTS.md`.
-   Read the code an acceptance line touches before you write.
+   Read the code an acceptance line touches before you write. Consult accepted architecture decisions in
+   `docs/decisions/`. A material architecture change needs the ADR defined in `CONTRIBUTING.md`, linked
+   from its PR. Draft it with the proposed change; unresolved conflicting decisions hold dependent work.
 3. Build it. Match `CONTRIBUTING.md`. Automated tests are banned: their permanent code and maintenance
    obligations compound as agents add more, eventually making repository progress impossible. Never write
    or run automated tests, and never commit test code or a persistent test harness to main. This includes
@@ -43,7 +48,9 @@ is not done.
    `git commit -s --author="Open Autonomy agent <agent@open-autonomy.org>" -m "<task id>: <what changed>"`.
 6. Push the completed candidate to agent/<task id>. The landing workflow opens its PR and enables
    auto-merge; GitHub must require an approving review and dismiss stale approvals when the diff changes.
-   Observe the open PR and record its URL and full head SHA. Pushing opens review, not permission to merge.
+   Observe the open PR and record its URL and full head SHA. Apply the draft-readiness rules in
+   `CONTRIBUTING.md`: mark a finished candidate ready, recording dependencies separately. Pushing opens
+   review, not permission to merge.
    Do not approve your own work, bypass review or merge as the implementer.
 7. Hand off with `kanban_request_review`: name the PR, workspace, branch and full candidate SHA, then
    the manual actions and observed results for every acceptance line and any limitations. Leave the
@@ -58,6 +65,11 @@ its generic automated-test instructions. Read the PR's actual diff, original tas
 constitution and manual evidence. Compare the handed-off SHA with the current PR head before reviewing
 and again before submitting the verdict. A changed candidate requires review of the new diff; never
 approve it using evidence for an older commit. Do not edit the implementation while reviewing it.
+For architecture changes, require the linked ADR and independently assess its sources, authorized scope,
+alternatives, consequences and compatibility with the current constitution; cite the relevant clauses in
+the verdict. Verify the code follows the decision and any supersession is explicit. Missing ADRs,
+constitutional conflicts or unresolved competing decisions require changes. Neither an ADR status label
+nor a prior instruction file overrides the constitution; acceptance requires this review and merge.
 
 For correctable defects, submit a GitHub REQUEST_CHANGES review and use `kanban_request_changes` with
 concrete findings. For approval, submit a GitHub APPROVE review through the project's configured GitHub

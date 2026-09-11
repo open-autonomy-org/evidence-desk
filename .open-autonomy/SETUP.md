@@ -17,6 +17,12 @@ workflow. Deterministic helpers perform bounded operations and check facts: the 
 command success, credential storage and access. Do not turn this guide into a configuration framework
 or treat discovered credentials as decisions.
 
+Automated tests are banned by the project constitution. Do not create or run them, including indirectly
+through check commands or hooks, and never commit test code to main. During setup, inspect any verification
+command before running it. Each develop agent demonstrates its feature through REPL-style manual usage
+without permanent test code and records observations in its handoff. This rule also applies to setup
+rehearsals; use interactive operation, not automated scenario runners.
+
 ## Orient before presenting setup
 
 Open Autonomy follows GitHub's organization structure: an OA organization is the GitHub organization,
@@ -229,7 +235,7 @@ outcome only after observing every listed result; otherwise keep the outstanding
   [x] PM contacted you and read your reply on GitHub
   [x] First bounded task landed and PM reconciled it
 
-  Planning       PM maintains ROADMAP.md and CHANGELOG.md
+  Planning       Strategy sets scope; PM manages delivery and CHANGELOG.md
   Human contact  GitHub issues
   Releases       Candidate-specific human review required
 ```
@@ -246,13 +252,28 @@ conversation has no accessible reference, identify the setup summary and establi
 before activation, reusing direction already given. An agent-written summary alone is not evidence of owner
 approval. For an existing project,
 read and preserve its established constitution and working conventions before proposing changes.
-PM owns the sourced roadmap and changelog after handoff. Do not invent a backlog during setup.
+PM manages the sourced roadmap and changelog after handoff and always captures explicit authorized
+requests. Strategy develops scope under the owner's mandate. Do not invent a backlog during setup.
+
+Establish strategy activation and authority separately in the existing project-communications skill.
+Recommend on-demand strategy preparing proposals for human decision unless the owner's instructions
+already establish another arrangement. Offer native recurring discussions/research or event triggers
+only when useful to that project; a schedule does not grant scope authority. An autonomous mandate
+states its objective and bounds (for example competitive parity and constitutional boundaries); collaborative strategy
+names the agreed decision-makers and channel. Reuse the verified roster, selected integrations and
+existing answers. Projects driven by explicit requests still have on-demand strategy available.
+
+Create or update a native strategy cron job only for an agreed schedule, loading skills: [strategy].
+On-demand strategy runs in a separate native session loading the same skill; it needs no idle recurring
+job, extra service, profile/model configuration or policy parser. Verify the actual installed skill and
+agreed activation. Check that PM can capture an authorized request without invoking strategy, and that
+an ordinary suggestion or an empty board does not become autonomous new scope.
 
 Reuse answers already given and present the recommended operating defaults together. Settle only what
 is missing and materially affects setup: working name/repository owner, the development host, the model
 arrangement and budget, human coordination destination, and owner/release reviewer. Keep the template's
 development conventions and native schedules unless the project requires a change. Architecture and
-feature questions can remain for PM; credentials or directories found on the machine are availability
+feature questions can remain for strategy under its mandate; credentials or directories found on the machine are availability
 evidence, not permission to use them for this project.
 
 Use a lowercase runtime slug such as `audit-desk` for `--project`: letters and digits separated by
@@ -354,14 +375,16 @@ the same wherever it runs.
   ChatGPT access token. Codex owns storage and refresh, including its configured credential store.
   Run the host service as the signed-in user with the same `CODEX_HOME`. The next request picks up a
   changed login. OA does not copy the login into project secrets or Hermes's home. Hermes receives
-  only a stand-in credential and the valve address. Bare execution still has the host user's filesystem
-  permissions; use the container for isolation. Git uses the project GitHub App valve.
+  only a stand-in credential and the valve address. Bare execution alone provides no filesystem
+  isolation: real autonomous runs require an OS user boundary (the existing `--as` mode) or the container.
+  Use synthetic credentials for unisolated rehearsals. Container Git uses the project GitHub App valve.
 - **In a world:** the rehearsal engine names the model twin in `HERMES_CODEX_BASE_URL`, and the same
   forwarding points the provider at the twin's Responses door without accessing the host login.
 
 `--with subscription` verifies authentication through the installed Codex and switches profiles that
 are not already on `openai-codex` to the kit's starter model. It does not select the owner's exact model.
-On upgrade, old protected codex.json copies are unused; remove them after verifying the host connection.
+On upgrade, old protected codex.json copies are unused. Preserve them during migration; any later
+credential cleanup is a separate owner decision, never an incidental kit upgrade.
 Before activation, the setup agent reconciles **both** `hermes/config.yaml` and
 `hermes/profiles/treasurer/config.yaml` with the agreed, locally verified model:
 
@@ -384,11 +407,12 @@ template's default as a verified catalog. This discovery does not require starti
 model call. A missing or unusable subscription should be stated plainly when offering the platform options.
 
 When the owner already selected the subscription, retain that choice and verify its agreed model; a catalog
-comparison is not a prerequisite. The platform connection is still needed for reporting. File-based Codex
-credentials use `CODEX_HOME` (default `~/.codex`); keyring-only or ephemeral login does not establish a
-transferable host credential. Follow [Codex authentication](https://developers.openai.com/codex/auth) for
-the installed storage arrangement. Never print the credential or silently change the operator's global
-storage policy. The managed subscription step remains incomplete until its protected copy is usable.
+comparison is not a prerequisite. The platform connection is still needed for reporting. Verify access
+through the installed Codex app-server as the intended host service user, with the same `CODEX_HOME`
+(default `~/.codex`). Codex owns its configured credential storage, including keyring access; OA does not
+require a transferable credential file. Follow [Codex authentication](https://developers.openai.com/codex/auth)
+for the installed storage arrangement. Never print credentials or change the operator's global storage
+policy. The subscription step remains incomplete until that host process can use the current login.
 
 After applying the helper, reconcile `hermes/config.yaml` with the agreed provider and exact model;
 the helper's seeded provider defaults are not the owner's model selection. For platform-funded profiles,
@@ -457,21 +481,25 @@ directory with owner-only permissions. Existing credential files must be regular
 
 | Connection | Setup and credential handoff | Proof before completion |
 |---|---|---|
-| GitHub repository | Verify the owner and repository; the helper generates and registers a repository-scoped SSH push key | The agent's key can push its branch; main and workflow ownership follow the agreed policy |
+| GitHub repository | Verify the owner and repository; the helper generates and registers a repository-scoped SSH push key | The agent's key can push its branch; main requires agent review; release requires human approval |
 | Project GitHub App | The browser agent handles registration and installation; the standalone credential receiver only saves the key; verify access through the running valve | Through the app/valve, read this repository's issues, PR reviews/checks, workflows and release records |
 | Open Autonomy platform | The key tool prepares a repository-control claim; the setup agent lands it through normal Git/PR tools, then reruns setup to provision developer/treasurer credentials into protected host storage | The project account is correct and the actual reporting/model arrangement works |
 | Optional communication provider | Guide the chosen provider's application setup, scopes and installation; use protected page capture for displayed credentials, or secure entry when capture is unavailable | Read the agreed history, deliver to the agreed destination, and recognize the owner's reply |
 | Development model | Reuse the agreed authorized connection or complete the required provider authorization | A call through the installed runtime succeeds under the intended account and bounds |
 
-Verify these connections before starting Hermes. Use the existing vendored SDK valve CLI directly in the
-prepared runtime, supplying the selected `--key`, `--github-app` credential-file
-arguments; this starts only the valve. In a container, use a one-off command with the entrypoint overridden,
-keeping its ports inside the runtime network with no published ports. The valve listens on all interfaces;
-its placeholder bearer is not an access boundary. Make the checks from inside that protected environment.
+Verify these connections before starting the fleet. Run the existing vendored SDK valve CLI on the
+host, supplying `--loopback` and the selected `--key`, `--github-app` and optional `--codex` arguments;
+this starts only the valve. Credential files stay in protected host storage. The executor reaches the
+host valve through its verified local route; never mount credentials into it or publish the valve
+publicly. Its placeholder bearer is not an access boundary.
+
 Use actual repository reads and a bounded model request under the agreed funding arrangement; a health
-response alone is insufficient. Stop the temporary valve before the normal stack takes its ports.
-The setup agent verifies the scoped push key and selected communication provider through their native
-tools as well. Reporter delivery and the loaded Hermes configuration are checked on the final startup;
+response alone is insufficient. Exercise a PR read through the installed Hermes terminal tool with its
+normal unattended approval policy, so a command-scanner rejection is discovered during setup. Resolve
+trust for the configured local connection through native policy before activation; do not disable the
+scanner or grant blanket command approval. Stop the temporary valve before the normal stack takes its
+ports. Verify the effective Git fetch and push routes and selected communication provider through their
+native tools as well. Reporter delivery and the loaded Hermes configuration are checked on final startup;
 those checks do not require PM to finish credentials or policy.
 
 When key minting reports a pending claim, land the prepared `.open-autonomy-claim` on the repository's
@@ -626,7 +654,7 @@ runs inside. Follow `container/README.md` for preparation, activation and superv
 script remains the development and twin-rehearsal path; it is not credential isolation.
 
 Verify Bun 1.3.10 or newer and the application's verification tools where the fleet runs before
-starting PM. Install locked project dependencies and run the project's check in that environment.
+starting PM. Install locked project dependencies and manually verify the feature in that environment.
 The kit image includes `volter-world` on PATH. The host preflight verifies PID 1 reaping, native tool
 availability, the checkout write roots, and execution from `$HERMES_HOME/artifact-verification`. Use unique
 directories there for extracted installs and release checks; `/tmp` may deliberately be `noexec`.
@@ -732,16 +760,30 @@ Also exercise native file creation and patching in a disposable checkout subdire
 container’s `HERMES_WRITE_SAFE_ROOT` includes `/opt/data` and `/work/project`; verify unrelated paths
 and protected credential paths remain denied. A working terminal does not prove file-tool access.
 
+For a host service, retain the operator's real `HOME` and intended `CODEX_HOME`; use `--home` or
+`HERMES_HOME` for Hermes's own state. Only the container process receives the container home.
+Verify the installed Codex under that actual service environment. Native startup can perform local
+database maintenance before authentication; let it finish. A failure before `initialize` is a Codex
+runtime failure, not proof of an invalid login. Diagnose it before asking for another sign-in. Keep
+credential storage and conversation history intact; setup does not clone or repair Codex databases.
+
+Record material setup architecture choices in project-owned ADRs under `docs/decisions/`, following
+`CONTRIBUTING.md`: include the runtime and credential boundaries, alternatives, sources and constitutional
+fit. Complete independent constitution review and normal PR landing before activating those choices.
+When adopting an existing project, inspect its records and reconcile conflicting or unreviewed choices;
+do not label historical architecture accepted merely because it is already running. Keep project ADRs
+and contribution policy intact during kit upgrades; reconcile new guidance through an ordinary PR.
+
 PM starts with the established constitution, roster, communication policy and operating configuration,
 plus the project's ordinary source history. It does not need setup notes or the setup agent's chat.
-Future product scope, architecture and release proposals are PM work; unfinished setup is not. PM reconciles the generic
-starter intention into a sourced initial roadmap and queues only ready work. The historical kanban seed
-does not dispatch work on startup. Observe bounded tasks through implementation, verification, review,
-landing and subsequent PM reconciliation before claiming the development loop works. Include a review
-correction, a graceful restart preserving unfinished work, reported native session completion, and PM
-reassessment after the queue drains while release review remains held. A process running or one task
-passing does not establish these outcomes. Continue the authorized setup through these checks; pause
-only for an actual owner decision, provider challenge or reported blocker. The actual first
+Strategy handles product scope under the established mandate; PM handles authorized delivery,
+implementation sequencing and release proposals. The constitution is a conception/merge constraint,
+not a backlog generator. PM reconciles historical starter intentions against explicit authority; the
+hello seed alone grants none. Strategy's first invocation develops a coherent product-level plan when
+requested or triggered under its agreement; on-demand availability does not require running it during
+setup. PM can immediately record and deliver explicit authorized requests without a strategy meeting. The historical kanban seed
+does not dispatch work on startup. Observe a bounded task through implementation, verification, review,
+landing and subsequent PM reconciliation before claiming the development loop works. The actual first
 release still needs candidate-specific human review. Local applications and packages follow the artifact
 procedure in `.open-autonomy/PRODUCTION.md`; a missing live-service address does not prevent their release
 planning. Later production provisioning is not an initial development-setup blocker.

@@ -1,14 +1,16 @@
-// The host half of start.ts: credentials and SDK reporting here, native Hermes in
-// one already prepared World executor. Provisioning and restart policy belong to setup/World.
+// Container startup for the existing start.ts entrypoint. The valve and reporter
+// stay here; only native Hermes runs in the prepared World executor. This module
+// owns its child processes, not container provisioning or restart policy.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import { parseEnv } from 'node:util';
+import { codexAccess } from './sdk/codex-auth.ts';
 import { checkCredentialDirectory } from './sdk/credentials.ts';
-import { checkContainerGit, startContainerProcess } from './sdk/container-process.ts';
-import { prepareContainerHome, prepareContainerSubscription, verifyContainer, writeContainerEnvironment, writeContainerKitRecord } from './sdk/container-home.ts';
+import { startContainerProcess } from './container-process.ts';
+import { prepareContainerHome, prepareContainerSubscription, writeContainerEnvironment, writeContainerKitRecord } from './container-home.ts';
 
-export async function startHost(options: {
+export async function startContainer(options: {
   container: string; project?: string; home?: string; secrets?: string; state?: string; config?: string; port: number;
 }) {
   const { container, port } = options;
@@ -25,7 +27,6 @@ export async function startHost(options: {
   const github = resolve(secrets, 'github-app.json');
   if ([...keys, github].some(path => !existsSync(path))) throw new Error('Restore the project credentials and installed GitHub App before starting Hermes');
   const kit = JSON.parse(readFileSync(resolve(import.meta.dir, 'kit.json'), 'utf8'));
-  await verifyContainer({ container, home, workspace });
 
   const services: ReturnType<typeof Bun.spawn>[] = [];
   let gateway: ReturnType<typeof startContainerProcess> | undefined;
@@ -58,23 +59,30 @@ export async function startHost(options: {
   };
   try {
     own('executor', ['docker', 'wait', container]);
-    const ports = [port, port + 1, port + 3];
+    const ports = [port, port + 1];
     const args = keys.flatMap((file, i) => ['--key', `${file}:${port + i}`]);
-    args.push('--github-app', `${github}:${port + 3}`);
-    args.push('--codex', String(port + 2));
+    // Git must be available before fetching the committed model/configuration.
+    own('github valve', ['bun', resolve(import.meta.dir, 'sdk/valve.ts'), '--loopback', '--github-app', `${github}:${port + 3}`]);
+    await ready(async () => {
+      try { return (await fetch(`http://127.0.0.1:${port + 3}/healthz`, { signal: AbortSignal.timeout(1000) })).ok; }
+      catch { return false; }
+    }, 'GitHub valve');
+    const host = 'http://host.docker.internal';
+    const prepared = await prepareContainerHome({ container, home, workspace });
+    if ((Bun.YAML.parse(prepared.config) as any)?.account !== account) throw new Error('Committed configuration names another project');
+    const onCodex = prepared.models.some(model => model?.provider === 'openai-codex');
+    // Let native Codex startup finish before starting the fleet; its database
+    // maintenance is not an authentication RPC timeout.
+    if (onCodex && !process.env.HERMES_CODEX_BASE_URL?.trim()) await codexAccess();
+    const twin = process.env.HERMES_CODEX_BASE_URL?.trim();
+    const codexBase = onCodex ? (twin || `${host}:${port + 2}/backend-api/codex`) : '';
+    if (onCodex) await prepareContainerSubscription({ container, home, baseUrl: codexBase });
+    if (onCodex && !twin) args.push('--codex', String(port + 2));
     own('valve', ['bun', resolve(import.meta.dir, 'sdk/valve.ts'), '--loopback', ...args]);
     await ready(async () => {
       try { return (await Promise.all(ports.map(async p => (await fetch(`http://127.0.0.1:${p}/healthz`, { signal: AbortSignal.timeout(1000) })).text()))).every(s => s.startsWith('ok')); }
       catch { return false; }
     }, 'credential valves');
-    const host = 'http://host.docker.internal';
-    await checkContainerGit({ container, home, workspace, account, baseUrl: `${host}:${port + 3}` });
-    const prepared = await prepareContainerHome({ container, home, workspace });
-    if ((Bun.YAML.parse(prepared.config) as any)?.account !== account) throw new Error('Committed configuration names another project');
-    const onCodex = prepared.models.some(model => model?.provider === 'openai-codex');
-    if (onCodex && !(await fetch(`http://127.0.0.1:${port + 2}/healthz`, { signal: AbortSignal.timeout(125_000) })).ok) throw new Error('The committed model needs the current host Codex ChatGPT login; check the service user and CODEX_HOME');
-    const codexBase = onCodex ? `${host}:${port + 2}/backend-api/codex` : '';
-    if (onCodex) await prepareContainerSubscription({ container, home, baseUrl: codexBase });
     const channelsFile = resolve(secrets, 'channels.env');
     const channels = existsSync(channelsFile) ? parseEnv(readFileSync(channelsFile, 'utf8')) : {};
     const env = { ...channels, HOME: home, HERMES_HOME: home, TERMINAL_CWD: workspace,
@@ -84,13 +92,14 @@ export async function startHost(options: {
     await writeContainerEnvironment({ container, home, env });
     const reportConfig = resolve(state, 'project-config.yaml');
     writeFileSync(reportConfig, prepared.config, { mode: 0o600 });
-    let watching = false;
+    let reportReady!: () => void;
+    const reporterReady = new Promise<void>(resolve => { reportReady = resolve; });
     own('reporter', ['bun', resolve(import.meta.dir, 'reporter.ts'), '--container', container,
       '--config', reportConfig, '--project', workspace, '--state-file', resolve(state, 'reporter-state.json')], {
       env: { ...process.env, HERMES_HOME: home, OPEN_AUTONOMY_BASE_URL: `http://127.0.0.1:${port}/v1`, OPEN_AUTONOMY_KEY: 'valve' },
-      ipc(message) { if (message?.type === 'reporter-ready') watching = true; },
+      ipc(message) { if (message?.type === 'reporter-ready') reportReady(); },
     });
-    await ready(async () => watching, 'SDK reporter');
+    await Promise.race([reporterReady, exited.then(() => { throw new Error('Runtime stopped before SDK reporter readiness'); })]);
     if (ending) throw new Error('A host service stopped during preparation');
     await writeContainerKitRecord({ container, home, version: kit.version });
     gateway = startContainerProcess({ container, cwd: workspace, command: ['hermes', 'gateway', 'run'], env });
