@@ -8,3 +8,5 @@
 - **Secrets.** There are none for you to use: your model calls and your pushes are authorized outside your reach. Never read or print `.env` files or key material; your sessions are published live.
 - **Do not edit** `LICENSE`, `.github/workflows/`, `container/`, `.open-autonomy/reporter.ts`, or anything under `hermes/` except a skill a task asks you to improve.
 - **Cost.** Your calls are metered and public. Read before writing; manually verify the feature; stop when verified.
+
+- **Architecture.** Material architecture decisions require an ADR and independent constitution review before acceptance, following `CONTRIBUTING.md`. Read accepted records in `docs/decisions/`; unresolved conflicting decisions hold dependent work.

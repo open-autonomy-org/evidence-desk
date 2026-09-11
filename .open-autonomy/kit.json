@@ -6,6 +6,10 @@
     "account": "open-autonomy-org/evidence-desk"
   },
   "divergences": [
-    ".open-autonomy/PRODUCTION.md"
+    ".open-autonomy/PRODUCTION.md",
+    ".open-autonomy/rehearsal/lib.ts",
+    ".open-autonomy/rehearsal/seed.ts",
+    ".open-autonomy/rehearsal/stack.ts",
+    ".open-autonomy/rehearsal/story.ts"
   ]
 }

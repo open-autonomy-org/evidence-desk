@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// Start native Hermes. --container runs the host sidecar against a prepared World
+// Start native Hermes. --container runs the existing valve/reporter on this host, against a prepared World
 // executor (container/README.md). Without it this is the bare development/rehearsal
 // stack; legacy --as privilege dropping remains available for existing installations.
 //
@@ -38,8 +38,8 @@ const arg = (name: string): string | undefined => { const i = argv.indexOf(name)
 // A managed executor keeps credentials, reporting and supervision on this host.
 // The bare entrypoint below remains the development/rehearsal path.
 if (arg('--container')) {
-  const { startHost } = await import('./host.ts');
-  const runtime = await startHost({ container: arg('--container')!, project: arg('--project'),
+  const { startContainer } = await import('./container.ts');
+  const runtime = await startContainer({ container: arg('--container')!, project: arg('--project'),
     home: arg('--home'), secrets: arg('--secrets'), state: arg('--state'),
     config: arg('--config'), port: Number(arg('--valve') ?? 8787) });
   process.exit(await runtime.exited);
@@ -251,17 +251,24 @@ if (onCodex && !codexTwin) keys.push('--codex', String(codexPort));
 // The agent's GitHub identity: the valve mints the app's installation tokens and serves the desk's routes on the fourth port.
 const githubFile = resolve(secrets, 'github-app.json');
 if (githubApp) keys.push('--github-app', `${githubFile}:${valvePort + 3}`);
-spawn('valve', ['bun', resolve(import.meta.dir, 'sdk', 'valve.ts'), ...keys], { env: hostEnvironment });
+spawn('valve', ['bun', resolve(import.meta.dir, 'sdk', 'valve.ts'), '--loopback', ...keys], { env: hostEnvironment });
 
 // 5. The reporter and the gateway, as the agent. The reporter's own dependencies (supercode, beside it in
-//    .open-autonomy/package.json) are reconciled before every bare start. A failed install
-//    can leave node_modules behind; its existence is not evidence of a complete installation.
+//    .open-autonomy/package.json) are installed when that file is not the one the last complete install satisfied:
+//    a stamp beside them names it, and a failed install leaves none, so node_modules alone is no evidence. (The
+//    lockfile is not the identity: a clone carries none, the kit ignores it.) An install that is already complete
+//    costs no registry call, which a sealed world could not make.
 const env = agentEnv();
 {
-  const locked = ['bun.lock', 'bun.lockb'].some(file => existsSync(resolve(import.meta.dir, file)));
-  const install = Bun.spawnSync({ cmd: drop(['bun', 'install', ...(locked ? ['--frozen-lockfile'] : [])]), cwd: import.meta.dir, env, stdout: 'inherit', stderr: 'inherit' });
-  if (install.exitCode !== 0) { console.error(`start: cannot install the reporter's dependencies in ${import.meta.dir}`); process.exit(1); }
-  say(`reporter dependencies installed in ${import.meta.dir}`);
+  const lock = ['bun.lock', 'bun.lockb'].map((file) => resolve(import.meta.dir, file)).find(existsSync);
+  const stamp = resolve(import.meta.dir, 'node_modules', '.open-autonomy-install');
+  const want = String(Bun.hash(readFileSync(resolve(import.meta.dir, 'package.json'))));
+  if ((existsSync(stamp) ? readFileSync(stamp, 'utf8').trim() : '') !== want) {
+    const install = Bun.spawnSync({ cmd: drop(['bun', 'install', ...(lock ? ['--frozen-lockfile'] : [])]), cwd: import.meta.dir, env, stdout: 'inherit', stderr: 'inherit' });
+    if (install.exitCode !== 0) { console.error(`start: cannot install the reporter's dependencies in ${import.meta.dir}`); process.exit(1); }
+    writeFileSync(stamp, `${want}\n`);
+    say(`reporter dependencies installed in ${import.meta.dir}`);
+  }
 }
 spawn('reporter', ['bun', resolve(import.meta.dir, 'reporter.ts'), '--config', resolve(project, '.open-autonomy', 'config.yaml')], { asAgent: true, env: { ...env, OPEN_AUTONOMY_BASE_URL: baseUrl } });
 const gateway = spawn('gateway', ['hermes', 'gateway', 'run'], { asAgent: true, env: { ...env, HERMES_GATEWAY_EXTERNAL_SUPERVISOR: '1' } });

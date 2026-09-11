@@ -9,7 +9,8 @@ the reporter publishes it from the host through the Open Autonomy SDK.
 The same native Hermes profiles support platform-funded models and the optional Codex subscription.
 Model and GitHub App credentials stay in protected host storage. Explicitly configured native channel
 credentials are supplied to Hermes through its home; do not print them. Bare `start.ts` is still useful
-for development and twin rehearsals, but shares the operator's filesystem access and is not isolation.
+for development and twin rehearsals, but is not isolation. Use synthetic credentials there; a real
+autonomous bare installation requires the existing `--as` OS user boundary protecting host credentials.
 
 ## Prepare and start
 
@@ -32,7 +33,7 @@ World tooling. Keep host runtime code and credentials outside the agent-writable
    user, configure the repository-specific Git URL rewriting shown in SETUP.md, then clone the canonical
    `https://github.com/open-autonomy-org/evidence-desk.git` into `/work/project`. Verify that both effective fetch and push
    routes use the valve, including worker worktrees. Verify the installed App's Contents write grant and actual landing settings.
-   Stop this temporary valve before the sidecar starts; reuse the clone when resuming.
+   Stop this temporary valve before startup; reuse the clone when resuming.
 4. Install the reviewed kit's `.open-autonomy` directory in host-owned storage and run:
 
    ```bash
@@ -49,8 +50,8 @@ World tooling. Keep host runtime code and credentials outside the agent-writable
    finish before restarting. Native restart exit 75 is a request for the supervisor to restart the host
    entrypoint. The World must be healthy before that entrypoint runs.
 
-The sidecar verifies orphan reaping, required tools, native write roots, executable scratch, the Git
-route and the fetched project identity before starting Hermes. It loads configuration from committed
+During setup, verify orphan reaping, required tools, native write roots, executable scratch and both
+Git routes. Startup fetches main and verifies the project identity before starting Hermes. It loads configuration from committed
 main while preserving a dirty worker checkout. Reporter readiness comes from SDK initialization.
 These checks do not replace a real task, review, landing, delivered human conversation and PM cycle.
 
@@ -61,7 +62,7 @@ may be `noexec`. Product commands run through the product's World. Preserve acti
 and release-review artifacts during recovery. Never solve capacity failures by deleting worker files
 or weakening limits.
 
-Upgrade through `create-open-autonomy upgrade`, review the resulting change and run the project check.
+Upgrade through `create-open-autonomy upgrade`, review the resulting change and manually verify the changed feature.
 The host kit is a separate trusted installation: a changed checkout does not update that running copy.
 Drain active work, install the reviewed kit on the host, then restart through the service manager and
 World. Verify the reported running version and a native operation. Existing project-owned divergence

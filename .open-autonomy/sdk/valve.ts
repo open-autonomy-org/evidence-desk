@@ -114,7 +114,7 @@ if (codexArg) {
     idleTimeout: 255,
     async fetch(req) {
       const u = new URL(req.url);
-      if (u.pathname === '/healthz') { try { await codexAccess(); return new Response('ok · host Codex login\n'); } catch { return new Response('unavailable: check the host Codex login\n', { status: 503 }); } }
+      if (u.pathname === '/healthz') { try { await codexAccess(); return new Response('ok · host Codex login\n'); } catch (error) { return new Response(`unavailable: ${error instanceof Error ? error.message : 'host Codex startup or authentication failed'}\n`, { status: 503 }); } }
       if (!u.pathname.startsWith('/backend-api/codex/')) return new Response('not found: the Codex backend lives under /backend-api/codex/\n', { status: 404 });
       const path = u.pathname.slice('/backend-api/codex'.length) + u.search;
       try {
@@ -179,8 +179,8 @@ if (githubArg) {
     } finally { minting = undefined; }
   })());
   const fresh = (): Promise<InstallationToken> => (token && token.expiresAt - Date.now() > 5 * 60_000 ? Promise.resolve(token) : mint());
-  // Community conversations can be written; PM can read the same repository's review, check and release
-  // evidence. Reading an Actions run or a release never grants its mutation routes.
+  // Repository-scoped review verdicts and community conversations can be written.
+  // Rules, checks and release evidence are read-only; no administration routes are granted.
   const allowed = (app: GitHubApp, method: string, path: string): boolean => {
     const repo = `/repos/${app.repository}`;
     if (path === '/graphql') return method === 'POST';
