@@ -4,16 +4,18 @@ Notable present/future intentions and outstanding outcomes, carefully maintained
 Sources support decisions and claims. Ideas and unanswered requests are not commitments or dispatch orders.
 See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliation cycle.
 
+
 ## evidence-reference-index: See which readiness items share recorded evidence
 
 Dispatch: hold
 
 Proposal status: preserved PM-inferred scope, not authorized standalone dispatch. The owner's
 [role correction in PR #80](https://github.com/open-autonomy-org/evidence-desk/pull/80) supersedes
-constitution-only feature inference. The [separate strategy decision](hermes:session/cron_2af471468131_20260910_232625),
-locally committed as `86fb10a534d385784b18891befe39fea8003fb05` but not yet landed, prioritizes a guided
-local CPA/client workbench and places association traceability within that workflow. Reconcile this
-preserved option after strategy landing; it is not a prerequisite standalone CLI expansion. The
+constitution-only feature inference. The [separate strategy decision](hermes:session/cron_2af471468131_20260910_232625)
+landed in [PR #84](https://github.com/open-autonomy-org/evidence-desk/pull/84), merge
+`010afbd949012e4a1b1e659b672b1fa03e89acb5`, after independent [review](hermes:task/t_4aad868a).
+It prioritizes a guided local CPA/client workbench and places association traceability within that
+workflow. Retain this option as held, not a prerequisite standalone CLI expansion. The
 completion sketch below is provisional, not worker acceptance or permission to queue. Any eventual
 execution follows the current no-automated-tests policy: REPL-style manual observations in the handoff,
 no automated suites or persistent verification harnesses, and no test-running checks or hooks.
@@ -78,6 +80,212 @@ prepared World; admission failures require capability recovery, not weaker isola
 Exclude persistence, content inspection, orphan-file discovery, deletion/repair, import, catalogs, GUI, sync,
 AI and release preparation. No version bump, candidate/window change, archive rebuild, repeated release
 ask, tag, approval, publication or deployment. This outcome accumulates after the fixed alpha.1 candidate.
+
+## readiness-product: From a portable folder to a complete CPA/client workbench
+
+Dispatch: hold
+Decision: authorized strategy direction landed in PR #84; delivery starts with guided-readiness-core
+
+Authority: the owner's [autonomous competitive-parity mandate](hermes/skills/project-communications/SKILL.md#autonomous-strategy-mandate),
+committed in [PR #80](https://github.com/open-autonomy-org/evidence-desk/pull/80), authorizes strategy to
+select outcomes for the best SOC2 app across CPA and client workflows. This decision uses that delegation,
+not the constitution or an empty board as permission. It does not need per-feature human approval.
+The constitution still excludes audit opinions, mandatory hosting and compelled evidence/AI uploads.
+
+Product judgment: prioritize a guided, local visual readiness workflow over successive standalone CLI
+reports. A client should be able to define scope, understand requested work, supply evidence, respond to
+review and hand over a bounded package; a CPA should be able to review that work and repeat it across
+engagements. Current main provides generic items and derived summaries, not this complete experience
+([baseline README](https://github.com/open-autonomy-org/evidence-desk/blob/dbb0427/README.md)).
+The hypothesis is that connected workflows provide more value to nontechnical participants than another
+isolated report. This is strategic inference, not observed customer research or a measured usability result.
+
+Primary competitive evidence reviewed 2026-09-10 (vendor statements, not independently operated products):
+- [Vanta Audit](https://www.vanta.com/products/audit): automated collection, scoped sharing, evidence
+  requests/statuses, contextual comments and evidence reuse across audits.
+- [Drata Audit Hub](https://drata.com/product/audit-hub): framework/period setup, auditor samples and
+  requests, threaded responses, point-in-time downloadable packages and agreed sample/package freezing.
+- [Secureframe Auditor Partner Console](https://support.secureframe.com/hc/en-us/articles/38955364460947-Auditor-Dashboard-Guide):
+  multiple client engagements, assigned auditors, customer-initiated linking/consent and unlinking.
+- [Sprinto](https://sprinto.com/): scoping, control mapping, ongoing monitoring/evidence refresh, risk,
+  vendor diligence, AI governance, trust center and questionnaire workflows.
+- [Hyperproof](https://hyperproof.io/): common controls linked to risks, request-linked evidence,
+  policy approvals, third-party risk, trust workflows and integrations.
+- [Fieldguide](https://www.fieldguide.io/): CPA engagement workflows, client requests, evidence review
+  and AI-assisted testing; [Thoropass](https://thoropass.com/): combined readiness, evidence management,
+  auditor interaction and audit services. Their audit execution/service claims are not authority for
+  Evidence Desk to issue opinions or replace professional judgment.
+
+This discovery deliberately includes CPA practice software and broader GRC alternatives, not only the
+initial automation vendors. It is not an exhaustive competitor inventory or proof of parity. Integration
+breadth, permissions, accessibility, import/export fidelity, performance and real end-to-end operation
+remain unverified. Refresh discovery during daily strategy; research other relevant alternatives,
+including Optro/AuditBoard and open-source local/self-hosted tools, before claiming category coverage.
+
+Sequence and tradeoffs:
+1. `guided-readiness`: scoped controls and client-facing local visual workbench. Highest immediate
+   coherence/value; medium-to-high uncertainty in content rights, UX and compatibility, so deliver a thin
+   complete journey before a large catalog. Existing CLI remains a supported companion, not the ceiling.
+2. `evidence-review-cycle`: requests, period-aware evidence and CPA feedback through a deliberate handoff.
+   Depends on scope/control identity; higher integrity/sharing complexity, but necessary to close the loop.
+3. `continuous-firm-readiness`: recurring readiness and multi-client practice operation, then optional
+   collection and trust workflows. High breadth/integration cost; keep later choices provisional rather
+   than treating a connector inventory or AI layer as the first milestone.
+
+PM reconciliation: preserve the held `evidence-reference-index` proposal and its original provenance
+([PM report](https://discord.com/channels/1544906154868744202/1546981849979682916/1547726195536433293)).
+The constitution-only rationale does not independently authorize dispatch. Strategy authorizes association
+traceability within the outcomes below, not a prerequisite standalone CLI expansion. PM should reconcile
+that draft as an optional bounded component of the end-to-end workflow, without discarding its work or
+claiming the old inference was owner direction. No implementation task or human assignment is made here.
+The fixed `release-next` proposal, target dates, assets and human review gate below remain unchanged.
+
+## guided-readiness: Scope a SOC2 engagement and work through it visually, locally
+
+Dispatch: hold
+Decision: authorized outcome under `readiness-product`; first bounded execution is guided-readiness-core
+Priority: first product milestone after the existing portable-workspace foundation
+
+Outcome: a CPA or client can open/create their own folder in a local graphical workbench, record the
+system boundary, chosen SOC2 categories and engagement period/type, define controls and rationale-backed
+applicability, and navigate from a control to owned readiness work and supporting files. A nontechnical
+client can see what to do next and record progress without editing JSON or invoking the CLI.
+Why now: the baseline lacks a scoped SOC2 model and visual workflow, while Vanta, Drata and Sprinto tie
+work to controls and engagements. Item completion alone must not be presented as SOC2 coverage.
+
+Observable success:
+- Operate a synthetic scope-to-control-to-task-to-evidence journey in the actual local UI, including
+  owner/due-date follow-up, gaps and justified exclusions; reopen it from the same portable folder.
+- Distinguish authored status, mapped coverage and unresolved work from evidence sufficiency or an audit
+  opinion. Framework/version references and mapping provenance are visible; no invented official checklist.
+- External file edits appear after revalidation; invalid edits/conflicts are surfaced without lost unknown
+  data or evidence. CLI and UI operate the same documented files, with no opaque authoritative database.
+- Core workflow works without a hosted account, network dependency or chosen AI service. Untrusted file
+  content renders inertly; local access boundaries and supported platforms are explicit, not implied RBAC.
+
+Dependencies/fit: existing file-preservation contract; an explicit compatible extension or user-chosen,
+versioned migration if needed; lawful framework references and content sourcing before bundled catalogs.
+Use synthetic controls and user-authored references until redistribution rights are established. Do not
+copy vendor policies or licensed standards. PM defines bounded execution acceptance and actual launch
+instructions; operated synthetic UX proves functionality, not customer adoption. Accessibility and
+fresh-start usability belong to this experience, not a future cosmetic phase. Sources and authority:
+`readiness-product`, especially Drata framework/period setup and Sprinto scoping/control mapping.
+
+## evidence-review-cycle: Close client evidence requests with a traceable CPA handoff
+
+Dispatch: hold
+Decision: authorized outcome under `readiness-product`; depends on guided-readiness
+
+Outcome: a firm requests evidence for a scoped control and period; a client supplies ordinary files;
+a reviewer records feedback, requests a revision and closes the readiness request with a visible record
+of who said what and which version was reviewed. The owner deliberately exports only selected records
+and evidence for another participant to inspect and return, without giving access to the entire folder.
+Why next: Vanta's contextual requests/reuse and Drata's period packages/freezing connect collection to
+review; the current Markdown status report is not an evidence package or collaborative review workflow.
+
+Observable success:
+- Run a synthetic request, submission, return-for-change, replacement and closure cycle. Preserve prior
+  submission provenance and discussion, distinguish contributor declarations from reviewer dispositions,
+  and make shared evidence/control associations inspectable without claiming sufficiency from reuse.
+- Record evidence source, collection time and relevant period; expose missing or stale information with
+  explicit rules rather than infer dates from filenames. A changed file cannot silently retain a claim
+  that its current bytes are the reviewed version. Hashes detect change, not identity or truth.
+- Preview/export a point-in-time, documented portable package; the recipient can inspect its selected
+  scope, references and evidence offline. Demonstrate omission of unrelated synthetic client information,
+  missing-reference refusal and non-destructive reconciliation of returned work against intervening edits.
+- Retain local solo operation. Shared folders and authored reviewer names are not authenticated identities
+  or access-control enforcement. Define provenance/trust limits; no mandatory hosted portal or automatic
+  synchronization. Explicit sharing cannot revoke copies already delivered.
+
+Dependencies/fit: stable engagement/control identities, preservation-safe versioned records, selection
+and disclosure review, and a bounded transport-independent exchange design. Start with deliberate file
+handoff before live collaboration. This authorizes readiness review support, not audit testing conclusions,
+CPA sign-off automation, a tamper-proof ledger or publication. PM owns slicing and operational verification.
+Sources and authority: `readiness-product`, Vanta Audit and Drata Audit Hub.
+
+## continuous-firm-readiness: Sustain readiness across periods and client engagements
+
+Dispatch: hold
+Decision: authorized later intention; specific implementation choices remain provisional
+
+Outcome: a firm can deliberately register separate client folders, see scoped follow-ups without accidental
+cross-client disclosure, roll readiness into a new period without silently accepting stale evidence, and
+maintain linked policies, risks, vendors and recurring people/access-review obligations. Later, optional
+owner-operated collectors reduce repeated evidence work, while reviewed disclosure/questionnaire outputs
+reuse sourced readiness facts instead of inventing assurances.
+Why later: Secureframe demonstrates the multi-client journey; Sprinto/Hyperproof expose ongoing control,
+risk, policy and trust breadth. Those gaps cannot be closed by polishing the initial CLI indefinitely,
+but integration automation before stable provenance would amplify unreliable records.
+
+Success direction: operate two isolated synthetic client engagements, a new-period review preserving
+history, and a recurring obligation through remediation. Subsequently demonstrate an explicitly enabled
+collector with reproducible provenance, visible failures and a manual/offline fallback, and a reviewed
+shareable answer linked to its sources. Collector/vendor selection and detailed acceptance require a
+later sourced strategy refinement, not a speculative connector backlog.
+
+Dependencies/constitutional boundaries: guided workflow and evidence review first; explicit storage/OS
+permission model before multi-user access claims; vendor twins and synthetic API seeds for development.
+Optional sync and customer-selected AI must leave portable records and non-AI core operation intact.
+Hosted trust-center convenience, enforced remote permissions and autonomous evidence testing are unresolved
+parity questions, not features claimed achieved. Research owner-controlled alternatives; any solution
+requiring proprietary storage, compelled uploads or audit opinions stays held for owner direction.
+No authorization to access customer systems, provide audit services, or expand into unrelated financial
+statement audit/AI-governance products merely because a competitor sells them.
+
+## guided-readiness-core: First local scope-to-evidence visual journey
+
+Dispatch: fleet
+
+Authority and priority: PM delivery decomposition of `guided-readiness`, authorized by strategy in
+[PR #84](https://github.com/open-autonomy-org/evidence-desk/pull/84), reviewed as
+[t_4aad868a](hermes:task/t_4aad868a). This is the first thin end-to-end journey, not the entire parent
+outcome or a new standalone reporting feature. The existing [format-1 contract](https://github.com/open-autonomy-org/evidence-desk/blob/010afbd949012e4a1b1e659b672b1fa03e89acb5/docs/workspace-format.md)
+provides items, references and preservation-safe item writes but no engagement/control model or UI.
+Use user-authored scope and synthetic controls; catalog redistribution is not a prerequisite for this slice.
+
+Completion:
+- Provide a documented local graphical launch command that opens one explicitly selected workspace
+  folder (new or existing). A user can create/save/reopen engagement system-boundary text, chosen SOC2
+  category names, engagement type and period; author controls with stable IDs, framework/version/source
+  references, applicability and exclusion rationale; and link controls to existing readiness items.
+  Keep authored mappings distinct from official standards or demonstrated coverage. No bundled checklist.
+- In the same actual UI, create/update an item's owner, status and associations to existing context and
+  evidence files, navigate control-to-item-to-reference, and show missing/unassigned/incomplete work and
+  justified exclusions without scores or sufficiency claims. File contents need not be previewed or uploaded.
+  Due-date editing and richer follow-up filtering remain in the parent outcome for a later bounded slice.
+- Document a versioned compatible optional record extension (absent means an ordinary existing workspace),
+  or stop with a concrete compatibility blocker if that cannot preserve format-1 semantics. CLI and UI
+  must read the same files and validate new records consistently. Preserve unknown values and unrelated
+  files, and refuse duplicate identities, dangling associations, invalid dates/periods and unsupported
+  extension versions. Do not silently reinterpret a pre-existing unknown field as owned data or migrate it.
+  Reuse existing write/concurrency protections; an external edit after UI load must cause visible conflict,
+  not overwrite or silent reload-and-save. Explicit reload/revalidation exposes external edits.
+- Serve only on loopback, scoped to the explicitly selected folder. Reject unexpected Host/Origin and
+  unauthorized mutation requests, prevent cross-site writes and path escape, and render authored content
+  as inert text. Do not serve arbitrary filesystem paths or evidence bytes. Explain that loopback is not
+  multi-user authentication/RBAC. Core use requires no external network, account, CDN or AI dependency;
+  dependency installation may require registry access. Visible labels, keyboard operation, focus/error
+  feedback and readable empty states belong to the first UI, not a later cosmetic pass.
+- Manually operate the full fresh-folder scope/control/item/evidence journey through the actual UI in
+  World using disposable synthetic files. Reopen the folder; exercise keyboard interaction, hostile text,
+  external edits, stale-save refusal, malformed extension/reference refusal and preservation of unknown
+  data/evidence. Inspect actual HTTP refusals for cross-origin/Host/path requests and unchanged existing
+  CLI create/open/validate/item/summary behavior. Record commands, browser observations, outputs, exits,
+  source SHA and platform limits in the native handoff. No automated tests or persistent harnesses.
+- Maintain README launch/use instructions and the format contract in place; include new product files
+  deliberately in the source allowlist without rebuilding the fixed preview. Keep modules small; add only
+  justified pinned dependencies. Run unchanged World-attached `bun run check` and `git diff --check`
+  before push. Independent native review verifies every line, exact-head GitHub review and observed merge
+  before completing this execution; the parent guided-readiness outcome stays open.
+
+Dependencies: existing accepted workspace/item-write foundation and landed strategy; no overlapping
+implementation card, open product PR or accepted volunteer commitment found in current public intake.
+Queue one fleet implementation, not a human assignment. Use a fresh task worktree and unique scratch
+under `/opt/data/artifact-verification`; all app/install/check commands use
+`volter-world attach evidence-desk --root /opt/data -- <command>`. Preserve World limits and worker leases.
+Exclude review exchanges, package export, multi-client dashboards, collectors, sync, AI, official content
+catalogs and automatic repair. Preserve fixed alpha.1 candidate/version/assets/window and human gate.
+This is unreleased development, not parity, customer adoption or release acceptance.
 
 ## release-next: First portable-workspace preview
 
