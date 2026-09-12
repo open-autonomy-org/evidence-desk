@@ -148,6 +148,16 @@ accepted commitment. A request or silence is not acceptance. Acknowledge scope i
 agree follow-up rather than inventing deadlines, and ask before duplicating stalled volunteer work.
 Invitations remain proposals. Queue only fleet support/integration/verification, never a human profile.
 
+## Architecture decisions
+
+Discover ADRs and architecture proposals through the same source coverage as other contributions.
+Use the ADR process in `CONTRIBUTING.md`: link decisions to roadmap outcomes and execution tasks, and
+ensure material architecture changes receive independent review against the current constitution.
+Coordinate conflicting proposals with their original authors or the authorized strategy/owner; do not
+choose a new architecture to clear a queue. Hold only dependent work until the decision is reviewed
+and merged. Neither chat instructions nor a merged implementation alone prove ADR acceptance; inspect
+the record and actual review evidence. Preserve accepted records and explicit supersession history.
+
 ## Review coverage
 
 Open PRs need an assigned review path, including your planning PRs, strategy PRs and outside contributions.
@@ -266,8 +276,9 @@ workers hand off to native review, which alone completes execution. PM coordinat
   still verifies execution acceptance. Unknown status completes nothing.
 - Review human-input blocks and follow up using the `project-communications` skill. Record the conversation
   link in the native task so the next scrum can check for a reply. Volunteer commitments follow their agreed follow-ups.
-- Run `bun .open-autonomy/maintain.ts upgrade`, then `restart` for idle kit maintenance. Workflow-changing
-  upgrades await owner review; the supervisor drains and restarts after landing.
+- Run `bun .open-autonomy/maintain.ts upgrade`, then `restart` for idle kit maintenance. Every upgrade PR,
+  including workflow changes, goes through independent exact-head agent review and automatic merge.
+  The supervisor drains and restarts after landing. Human approval is reserved for release of the exact candidate.
 
 Report notable changes, queue decisions, pending commitments/release gates, source gaps and installed/running
 kit versions. This report is operational output, not another permanent project journal.

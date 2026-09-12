@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 // The valve: a credential-injecting sidecar for one Open Autonomy key per port. The key lives in a file only this
 // process reads; the agent is configured with this address and the literal word `valve` as its key, and sees no
-// credential. Only the routes an agent legitimately uses pass — the model routes, the narration routes (the stream,
-// the roadmap), the rails, and public reads of its own account — so key management and admin never reach the
+// credential. Only the routes an agent legitimately uses pass — the model routes, the narration route, the rails, and
+// public reads of its own account — so key management and admin never reach the
 // platform from the agent's side. Held outside the agent's process, the key survives anything the agent prints
 // or commits, which is the whole point: everything the agent produces is public.
 //
-//   open-autonomy-valve --key /secrets/agent.env:8787 [--key /secrets/treasurer.env:8788] [--codex 8789]
+//   bun .open-autonomy/valve.ts --key /secrets/agent.env:8787 [--key /secrets/treasurer.env:8788] [--codex 8789]
 //                       [--github-app /secrets/github-app.json:8790] [--loopback]
 // Host sidecars use --loopback; ordinary container valves retain their container interface.
 //   (each key file `OPEN_AUTONOMY_BASE_URL=…` and `OPEN_AUTONOMY_KEY=…`, re-read when it changes: a rotated key is
@@ -32,7 +32,7 @@ const keys: Array<{ file: string; port: number }> = [];
 for (let i = 0; i < process.argv.length; i++) if (process.argv[i] === '--key') { const [file, port] = String(process.argv[i + 1]).split(':'); keys.push({ file, port: Number(port || 8787 + keys.length) }); }
 const codexArg = process.argv.includes('--codex') ? String(process.argv[process.argv.indexOf('--codex') + 1]) : undefined;
 const githubArg = process.argv.includes('--github-app') ? String(process.argv[process.argv.indexOf('--github-app') + 1]) : undefined;
-if (!keys.length && !codexArg && !githubArg) { console.error('usage: open-autonomy-valve --key <file>:<port> [--key <file>:<port> …] [--codex <port>] [--github-app <app.json>:<port>]'); process.exit(2); }
+if (!keys.length && !codexArg && !githubArg) { console.error('usage: bun .open-autonomy/valve.ts --key <file>:<port> [--key <file>:<port> …] [--codex <port>] [--github-app <app.json>:<port>]'); process.exit(2); }
 const caches = new Map<string, { at: number; env: Record<string, string> }>();
 function keyEnv(file: string): Record<string, string> {
   if (!existsSync(file)) return {};
@@ -63,11 +63,12 @@ function announce(file: string, token: string | undefined): void {
 }
 const base = (file: string): string => (keyEnv(file).OPEN_AUTONOMY_BASE_URL || 'https://open-autonomy.org/v1').replace(/\/$/, '');
 const key = (file: string): string | undefined => keyEnv(file).OPEN_AUTONOMY_KEY;
-// The model routes, the narration routes (the stream and the roadmap), and the two other rails (a card, a partner charge): the platform
+// The model routes, the narration route (everything the automation says), and the two other rails (a card, a partner charge): the platform
 // bounds each rail by the owner's config, and every settlement lands on the public audit trail.
-const FORWARDED = new Set(['/v1/chat/completions', '/v1/messages', '/v1/responses', '/v1/models', '/v1/catalog', '/v1/agent/events', '/v1/agent/roadmap', '/v1/rails/card', '/v1/rails/partner']);
-// Public reads the reporter needs to resume where the platform is (its own account's sessions).
-const isPublicRead = (path: string, method: string) => method === 'GET' && /^\/v1\/accounts\/[^/]+(?:$|\/(sessions|items)(\/|$))/.test(path);
+const FORWARDED = new Set(['/v1/chat/completions', '/v1/messages', '/v1/responses', '/v1/models', '/v1/catalog', '/v1/agent/events', '/v1/rails/card', '/v1/rails/partner']);
+// Public reads the reporter needs: to resume where the platform is (its own account's sessions), and the owner's word on
+// the operating state (its own account's state), which it applies and answers.
+const isPublicRead = (path: string, method: string) => method === 'GET' && /^\/v1\/accounts\/[^/]+(?:$|\/(sessions|items|state)(\/|$))/.test(path);
 
 for (const { file, port } of keys) Bun.serve({
   hostname: process.argv.includes('--loopback') ? '127.0.0.1' : '0.0.0.0',
@@ -114,7 +115,7 @@ if (codexArg) {
     idleTimeout: 255,
     async fetch(req) {
       const u = new URL(req.url);
-      if (u.pathname === '/healthz') { try { await codexAccess(); return new Response('ok · host Codex login\n'); } catch { return new Response('unavailable: check the host Codex login\n', { status: 503 }); } }
+      if (u.pathname === '/healthz') { try { await codexAccess(); return new Response('ok · host Codex login\n'); } catch (error) { return new Response(`unavailable: ${error instanceof Error ? error.message : 'host Codex startup or authentication failed'}\n`, { status: 503 }); } }
       if (!u.pathname.startsWith('/backend-api/codex/')) return new Response('not found: the Codex backend lives under /backend-api/codex/\n', { status: 404 });
       const path = u.pathname.slice('/backend-api/codex'.length) + u.search;
       try {
@@ -179,8 +180,8 @@ if (githubArg) {
     } finally { minting = undefined; }
   })());
   const fresh = (): Promise<InstallationToken> => (token && token.expiresAt - Date.now() > 5 * 60_000 ? Promise.resolve(token) : mint());
-  // Community conversations can be written; PM can read the same repository's review, check and release
-  // evidence. Reading an Actions run or a release never grants its mutation routes.
+  // Repository-scoped review verdicts and community conversations can be written.
+  // Rules, checks and release evidence are read-only; no administration routes are granted.
   const allowed = (app: GitHubApp, method: string, path: string): boolean => {
     const repo = `/repos/${app.repository}`;
     if (path === '/graphql') return method === 'POST';
