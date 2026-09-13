@@ -17,7 +17,7 @@
     {
       "name": "community",
       "prompt": "Run the community skill: answer people and preserve sourced input for roadmap scrum.",
-      "schedule": "every 15m",
+      "schedule": "every 5m",
       "skills": [
         "community"
       ],
@@ -26,7 +26,8 @@
         "discord",
         "discord_admin"
       ],
-      "deliver": "discord:1546981849979682916"
+      "deliver": "discord:1546981849979682916",
+      "monitor_script": "community-monitor.sh"
     },
     {
       "name": "strategy",
