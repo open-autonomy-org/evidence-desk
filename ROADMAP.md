@@ -48,8 +48,8 @@ including Optro/AuditBoard and open-source local/self-hosted tools, before claim
 
 Sequence and tradeoffs:
 1. `guided-readiness`: scoped controls and client-facing local visual workbench. Highest immediate
-   coherence/value; medium-to-high uncertainty in content rights, UX and compatibility, so deliver a thin
-   complete journey before a large catalog. Existing CLI remains a supported companion, not the ceiling.
+   coherence/value; medium-to-high uncertainty in content rights, UX and compatibility. Deliver the whole
+   authorized outcome in one stream; no bundled catalog. Existing CLI remains a supported companion.
 2. `evidence-review-cycle`: requests, period-aware evidence and CPA feedback through a deliberate handoff.
    Depends on scope/control identity; higher integrity/sharing complexity, but necessary to close the loop.
 3. `continuous-firm-readiness`: recurring readiness and multi-client practice operation, then optional
@@ -66,6 +66,13 @@ of it, so that the stream that builds it holds every piece of context the outcom
 outcome). Strategy authorized the outcome in [PR #84](https://github.com/open-autonomy-org/evidence-desk/pull/84),
 reviewed as [t_4aad868a](hermes:task/t_4aad868a).
 Priority: first product milestone after the existing portable-workspace foundation
+
+The verified owner's [issue #101](https://github.com/open-autonomy-org/evidence-desk/issues/101)
+confirms immediate whole-outcome dispatch after the 2026-09-13 host migration. All pre-migration native
+cards are cancelled, not completed or resumable; their missing state is not a delivery dependency.
+The new execution is [t_8c1c52e4](hermes:task/t_8c1c52e4). Historical reports remain context, while Git
+records what actually landed. Existing infrastructure PRs #86–#88 receive merits-based native review,
+not another owner-permission gate; their proposals do not establish product acceptance.
 
 Outcome: a CPA or client can open/create their own folder in a local graphical workbench, record the
 system boundary, chosen SOC2 categories and engagement period/type, define controls and rationale-backed
@@ -147,8 +154,11 @@ compatible extension or user-chosen, versioned migration if needed; lawful frame
 sourcing before bundled catalogs. Use synthetic controls and user-authored references until redistribution
 rights are established. Do not copy vendor policies or licensed standards. Operated synthetic UX proves
 functionality, not customer adoption. Queue one fleet implementation, not a human assignment. Use a fresh
-task worktree and unique scratch under `/opt/data/artifact-verification`; all app/install/check commands use
-`volter-world attach evidence-desk --root /opt/data -- <command>`. Preserve World limits and worker leases.
+task worktree and unique disposable synthetic scratch under the current machine's documented World setup.
+All app/install/check commands use `volter-world attach <world> -- <command>` after configuring its
+host-side environment beside the checkout as required by AGENTS.md. The former `/opt/data` container
+paths are historical, not permission to bypass World after the host migration in issue #101.
+Preserve World limits and worker leases; demonstrate the actual UI on the supported current setup.
 Exclude review exchanges, package export, multi-client dashboards, collectors, sync, AI, official content
 catalogs and automatic repair. Preserve fixed alpha.1 candidate/version/assets/window and human gate.
 This is unreleased development, not parity, customer adoption or release acceptance. Sources and authority:
@@ -182,7 +192,8 @@ Observable success:
 Dependencies/fit: stable engagement/control identities, preservation-safe versioned records, selection
 and disclosure review, and a bounded transport-independent exchange design. Start with deliberate file
 handoff before live collaboration. This authorizes readiness review support, not audit testing conclusions,
-CPA sign-off automation, a tamper-proof ledger or publication. PM owns slicing and operational verification.
+CPA sign-off automation, a tamper-proof ledger or publication. PM coordinates whole-outcome execution
+and operational verification; no phase or slice is a separate task.
 Sources and authority: `readiness-product`, Vanta Audit and Drata Audit Hub.
 
 ## continuous-firm-readiness: Sustain readiness across periods and client engagements

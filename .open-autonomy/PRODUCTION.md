@@ -138,9 +138,20 @@ they too are set by a human through the gate and never by the agent.
 
 ## This installation's development fleet
 
-Evidence Desk runs one local World-managed executor and a host sidecar under launchd.
-The shared sidecar entrypoint is `.open-autonomy/start.ts --container`, implemented by
-`.open-autonomy/host.ts`; it runs credential valves and the SDK reporter on the host,
+The owner confirms in [issue #101](https://github.com/open-autonomy-org/evidence-desk/issues/101)
+that this installation moved from the container to a bare host home on 2026-09-13. The old VM no longer
+boots and its native tasks/history were not migrated. Those tasks are cancelled, not resumable or
+completed; GitHub remains the landed-work record. Do not request old-state recovery or infer current
+container isolation from the historical description below. Application verification still uses the
+machine's World and disposable synthetic folders as required by AGENTS.md; this documentation does not
+change runtime configuration or waive any verification, credential or release boundary.
+
+### Historical container installation
+
+The prior installation ran one local World-managed executor and a host sidecar under launchd.
+The shared sidecar entrypoint was `.open-autonomy/start.ts --container`, implemented by
+`.open-autonomy/container.ts` after [PR #89](https://github.com/open-autonomy-org/evidence-desk/pull/89)
+renamed `host.ts`; it runs credential valves and the SDK reporter on the host,
 prepares the committed Hermes home, and supervises the native gateway inside the executor.
 Both profiles use `openai-codex` with the selected `gpt-6-astra` model. Installed Codex owns
 host authentication and refresh; the valve obtains the current login through its authentication
