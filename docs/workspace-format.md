@@ -208,8 +208,8 @@ Never substitute a customer folder. No other writers or sync clients may access 
 
 Fleet contributors first follow [README's World prerequisite](../README.md#local-verification) and
 install frozen dependencies through World. For this demonstration, attach the **whole Bash shell/script**
-using `volter-world attach evidence-desk --root /opt/data -- bash`, then run
-`export TMPDIR=/opt/data/artifact-verification` and the blocks inside it. This also attaches Python's
+using `"$W" attach evidence-desk --root "$D" -- bash`, with `W`, `D` and
+`TMPDIR="$D/artifact-verification"` initialized as in README, then run the blocks inside it. This also attaches Python's
 direct child Bun processes; a Bash `bun()` wrapper alone cannot wrap Python subprocesses.
 Ordinary users do not need World. The driver
 signals only the direct synthetic Bun child it spawned, never the World wrapper, workers or leases.
@@ -471,6 +471,96 @@ outside the workspace and check exit status: the shell may create/truncate a des
 validation fails. See README for exact commands. Access times may change on reads; all existing
 quiescent-folder, symlink and platform limitations apply (Linux aarch64/local ext4 verified; macOS,
 Windows and network/cloud filesystem behavior unverified).
+
+## Explicit readiness version 1
+
+This optional mode is entered only through `src/readiness.ts` with a deliberate
+`--readiness-create <relative-path>` or `--readiness-open <relative-path>` on EVERY invocation/UI
+launch. There is no special filename, root manifest key, marker, scan, remembered default or registry.
+An identically shaped unknown root value or unselected file stays unknown and unowned. Ordinary
+`src/index.ts` commands are unchanged and do not claim to validate unselected readiness data.
+Opening selects that exact file as readiness records, not proof of provenance or prior app ownership.
+After moving the portable folder, explicitly select the same relative path again in the new location.
+
+Create requires an absent path and uses exclusive creation. Any existing file, directory, symlink
+(including dangling links), hard link or unrelated content is a collision, refused without adoption,
+rename, import or overwrite. Parent directories must already exist and must not be aliases. Path
+syntax follows relative reference rules and excludes workspace.json and writer protocol names.
+Selected sources must be independent regular single-link files, never symlinks or manifest aliases
+(including case aliases). Selected sources cannot also be referenced context/evidence, even through
+an internal symlink. Unselected files are not read, scanned, served or treated as records.
+
+The selected UTF-8 JSON object has this separately versioned shape (empty engagement fields are a
+visible draft, not a validation or sufficiency claim):
+
+```json
+{
+  "readinessVersion": 1,
+  "engagement": {
+    "systemBoundary": "Synthetic payroll service",
+    "categories": ["Security"],
+    "type": "Type II",
+    "start": "2026-01-01",
+    "end": "2026-06-30"
+  },
+  "controls": [{
+    "id": "CTRL-1", "title": "Synthetic access review",
+    "framework": "User-authored SOC2 mapping", "version": "Synthetic 2026",
+    "source": "Local workshop notes; not official criteria",
+    "applicability": "included", "rationale": "Access is inside the chosen boundary",
+    "itemIds": ["ITEM-1"]
+  }],
+  "followUps": [{ "itemId": "ITEM-1", "dueDate": "2026-09-30" }]
+}
+```
+
+`ITEM-1` must already exist in the format-1 manifest. Category names are unique choices among Security,
+Availability, Processing Integrity, Confidentiality and Privacy; no official checklist/content is bundled.
+Type is blank, Type I or Type II. Start/end are both blank, or valid YYYY-MM-DD dates in ordered range
+(year 0001–9999). Every control needs a unique nonblank stable ID, title, framework, version, source,
+`included`/`excluded` applicability, nonblank rationale and unique existing itemIds (empty is a visible
+mapping gap). Follow-ups have unique existing itemId and blank or valid dueDate. No automatic control
+rename, association repair, migration or format-1 due-date field is introduced.
+
+Selected CLI/UI share complete manifest-plus-readiness validation. Unsupported versions, duplicate
+identities, dangling associations, invalid dates/periods and malformed/missing references refuse the
+entire operation: no partial successful summary. Missing owner, no evidence references and unmapped
+controls remain visible work, not invalidity or audit judgments. Unknown root/item/sidecar/nested-record
+fields survive successful edits as JSON values. Existing decimal round-trip loss safeguards apply to
+both selected files and input. Standard JSON duplicate-key and formatting limitations remain as above.
+
+Manifest item-create/update accepts exactly the existing five fields. Sidecar `engagement` patches
+only its five known fields; `control-create/update` patches only the eight control fields;
+`due-date <item-id>` patches only dueDate. Arrays replace their prior known values. Existing unknown
+values remain on updated engagement/control/follow-up objects. No patch can author arbitrary extensions.
+Selected `summary` produces a derived JSON report with authored engagement/controls, item flags,
+due dates, exact recorded shared paths and missing engagement fields. It is not an import format,
+official mapped coverage, evidence equivalence/sufficiency, authenticated provenance or an audit opinion.
+
+Both selected writers acquire `.evidence-desk-write.lock` in the root and
+`<selected-path>.evidence-desk-lock` beside the sidecar. The former interoperates with ordinary item
+writes. CLI loads a revision before stdin; UI loads before editing. Revisions cover BOTH sources'
+bytes, identity and timestamps. Save revalidates and refuses changed sources; explicit reload exposes
+external edits. Sidecar edits replace only that file; item edits replace only workspace.json. A selected
+item-ID change that would dangle controls/follow-ups is refused rather than rewriting two files.
+Ordinary CLI/external edits may create such dangling records, requiring deliberate external correction
+before selected-mode use. No activation or automatic repair follows an ordinary edit.
+
+The existing single-file temp/fsync/rename, mode preservation, cleanup and manual interrupted-write
+recovery restrictions apply to both sources. Recovery must inspect/copy BOTH sources and selected lock
+as well as the root lock. Exclusive creation can leave partial new data after I/O failure; errors after
+rename/revalidation/cleanup may mean the one-file write committed: inspect before retrying. No atomic
+two-file transaction, power-loss guarantee, hostile local-writer isolation or arbitrary-writer CAS is
+claimed. Reference bytes/topology must remain quiescent; they are not snapshotted or served.
+
+The workbench binds only 127.0.0.1 and serves fixed application assets and validated record APIs, never
+arbitrary paths or evidence bytes. API reads need this launch's capability; mutations additionally
+require the exact Origin and JSON content type. Unexpected Host/Origin/cross-site requests are rejected.
+Authored content renders as inert text; CSP disallows outside scripts/styles/frames. No account, network,
+CDN or AI service is needed for core use after dependency installation. This is not OS-user isolation,
+authenticated authored owners or multi-user RBAC. See README for launch, keyboard-friendly form use
+and verified platform limits. The product design is proposed in
+[ADR0002](decisions/0002-explicit-local-readiness.md), subject to independent review with its diff.
 
 ## Inspection and validation
 
