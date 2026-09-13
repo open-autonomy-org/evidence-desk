@@ -319,6 +319,18 @@ Exclude review exchanges, package export, multi-client dashboards, collectors, s
 catalogs and automatic repair. Preserve fixed alpha.1 candidate/version/assets/window and human gate.
 This is unreleased development, not parity, customer adoption or release acceptance.
 
+Execution hold: the existing [t_2605a8a6](hermes:task/t_2605a8a6) has accepted the landed
+compatibility decision but cannot yet demonstrate the required actual UI: its World-attached Chromium
+exited with `No usable sandbox!`. Resume that same card only after supported sandbox-capable browser
+access is demonstrated; do not waive verification or queue a duplicate. The later outside kit upgrades
+([PR #89](https://github.com/open-autonomy-org/evidence-desk/pull/89),
+[PR #91](https://github.com/open-autonomy-org/evidence-desk/pull/91)) are landed infrastructure,
+not evidence that this prerequisite or product journey is complete. They overlap the still-open
+[PR #88](https://github.com/open-autonomy-org/evidence-desk/pull/88); reconcile its runtime proposal
+and the ADR policy in [PR #87](https://github.com/open-autonomy-org/evidence-desk/pull/87) against
+current main before resuming their existing review cards. A merged kit is not an accepted project ADR
+or a new grant of authority; preserve unresolved original-direction and review-route questions.
+
 ## release-next: First portable-workspace preview
 
 Dispatch: hold

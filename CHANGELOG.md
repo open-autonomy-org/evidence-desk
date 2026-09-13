@@ -7,6 +7,17 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Updated the development kit to 2.11.0 through outside maintenance contributions: host runtime
+  helpers now live beside the SDK, the unused local-runtime entrypoint and old rehearsal runners
+  were retired, and container lifecycle configuration is generated from the reviewed kit. Reporting
+  uses SDK timeline/progress events and distinguishes requested operating state from observed state.
+  These are fleet changes, not product features or a product release. The native maintenance record
+  reports installed/running 2.11.0; that does not establish complete runtime, browser or ADR acceptance.
+  ([PR #89](https://github.com/open-autonomy-org/evidence-desk/pull/89),
+  [PR #90](https://github.com/open-autonomy-org/evidence-desk/pull/90),
+  [PR #91](https://github.com/open-autonomy-org/evidence-desk/pull/91),
+  `2b3573260f7e8772398522b254a87c7247d17b29`)
+
 - Adopted the shared host fleet entrypoint, separated SDK readiness from historical transcript replay,
   and excluded rehearsal cache links from dirty-checkout detection. Subscription forwarding now obtains
   the host's current login through installed Codex rather than maintaining a project login copy; Codex

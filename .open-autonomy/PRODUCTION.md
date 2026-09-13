@@ -140,7 +140,7 @@ they too are set by a human through the gate and never by the agent.
 
 Evidence Desk runs one local World-managed executor and a host sidecar under launchd.
 The shared sidecar entrypoint is `.open-autonomy/start.ts --container`, implemented by
-`.open-autonomy/host.ts`; it runs credential valves and the SDK reporter on the host,
+`.open-autonomy/container.ts`; it runs credential valves and the SDK reporter on the host,
 prepares the committed Hermes home, and supervises the native gateway inside the executor.
 Both profiles use `openai-codex` with the selected `gpt-6-astra` model. Installed Codex owns
 host authentication and refresh; the valve obtains the current login through its authentication
@@ -149,7 +149,12 @@ enter Hermes. This is not the retired app-server agent-loop bridge.
 
 [PR #76](https://github.com/open-autonomy-org/evidence-desk/pull/76) adopted the shared runtime;
 [PR #79](https://github.com/open-autonomy-org/evidence-desk/pull/79) reports installed activation
-and an executor model-response check. The kit record now retains only this production document
+and an executor model-response check. [PR #89](https://github.com/open-autonomy-org/evidence-desk/pull/89)
+moved the implementation to `container.ts`; [PR #90](https://github.com/open-autonomy-org/evidence-desk/pull/90)
+removed the unused `local-runtime.ts`. [PR #91](https://github.com/open-autonomy-org/evidence-desk/pull/91)
+adopted kit 2.11.0 and generated runtime configuration; use the current container instructions rather
+than the retired checked-in World definitions. These source changes do not by themselves establish
+installation acceptance or resolve the held architecture proposals. The kit record retains only this production document
 as a project divergence; the reporter and container helpers are kit-owned. Follow
 [the current host operating instructions](../container/README.md) for controlled maintenance;
 a source merge alone does not update the separately installed host kit. The operator's World
