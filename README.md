@@ -34,7 +34,7 @@ concludes the temporary observation hold: recurring PM/community and autonomous 
 have resumed. See the [current roadmap](ROADMAP.md#release-next-first-portable-workspace-preview).
 Operator tests are not human release approval; earlier watchdog failures remain historical evidence limits.
 
-The [Open Autonomy project page](https://open-autonomy.org/p/open-autonomy-org%2Fevidence-desk) carries
+The [Open Autonomy project page](https://open-autonomy.org/open-autonomy-org/evidence-desk) carries
 the public development stream. This installation uses local compute and the operator’s subscription;
 platform model or hosting funds have not been used.
 
