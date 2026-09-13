@@ -11,10 +11,10 @@ the constitution's invariants. Short on purpose; the reviewer reads it whole.
   local World environment described in `AGENTS.md`. Real development-fleet credentials are distinct
   from synthetic application integrations; customer credentials are never needed for a development check.
   Extract/install runnable dependencies on an execution-enabled filesystem outside Git checkouts, not a
-  `noexec` mount. This fleet's operator-authorized disposable root is `/opt/data/artifact-verification`;
-  use a unique subdirectory there through the existing World. `/tmp` remains `noexec`: installed compiler
-  execution there can fail with EACCES or a silent Bun runner exit. Preserve the failure, do not substitute
-  another command for missing manual feature verification, and never remount or relax isolation.
+  `noexec` mount. Follow README's current-host Local verification section: the operator-authorized root
+  is `$OPEN_AUTONOMY_DATA/artifact-verification` outside the checkout (explicit fallback documented there).
+  Use a unique subdirectory through the existing World, not `/tmp`. Historical container compiler
+  EACCES/silent exits remain evidence, not current host configuration. Never remount or relax isolation.
 - **Shape.** Small modules with one job each, named for what they hold. No layer that exists only to forward.
 - **Manual feature verification belongs to each develop agent.** Follow the no-automated-tests invariant
   in `CONSTITUTION.md`. Exercise the feature being added or changed through REPL-style manual usage,
@@ -52,11 +52,13 @@ the output directory must not). For example, replacing the placeholder with the 
 
 ```bash
 sha=<full-committed-SHA>
-driver=$(mktemp --suffix=.ts)
+driver_dir=$(mktemp -d "$TMPDIR/source-driver-XXXXXX")
+driver="$driver_dir/prepare-source.ts"
 git show "$sha:src/prepare-source.ts" > "$driver"
-volter-world attach evidence-desk --root /opt/data -- bun run "$driver" "$sha" /tmp/preview-build-a
-volter-world attach evidence-desk --root /opt/data -- bun run "$driver" "$sha" /tmp/preview-build-b
-cmp /tmp/preview-build-a/evidence-desk-0.1.0-alpha.1-source.tar.gz /tmp/preview-build-b/evidence-desk-0.1.0-alpha.1-source.tar.gz
+# D, W and TMPDIR are initialized by README Local verification; output paths must be absent.
+"$W" attach evidence-desk --root "$D" -- bun run "$driver" "$sha" "$TMPDIR/preview-build-a"
+"$W" attach evidence-desk --root "$D" -- bun run "$driver" "$sha" "$TMPDIR/preview-build-b"
+cmp "$TMPDIR/preview-build-a/evidence-desk-0.1.0-alpha.1-source.tar.gz" "$TMPDIR/preview-build-b/evidence-desk-0.1.0-alpha.1-source.tar.gz"
 ```
 
 The builder reads only committed allowlisted regular files, normalizes archive modes through Git,

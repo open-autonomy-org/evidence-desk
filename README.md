@@ -24,9 +24,9 @@ The project has its own bot identity, credentials, budget and planning.
 - [Project branding](branding/README.md): the shared identity for this project's integrations.
 
 Hermes coordinates development. PM reconciles contributions, queues work and contacts the owner for
-decisions and release review. The local runtime uses the operator’s installed Codex subscription, with
-an isolated executor container and a host sidecar supervised by native launchd. The first supervised PM
-cycle has landed its planning reconciliation. The first worker implementation and independent native review
+decisions and release review. The owner migrated the fleet to the local host in
+[issue101](https://github.com/open-autonomy-org/evidence-desk/issues/101); retired executor-container
+instructions do not describe the current application World. The first worker implementation and independent native review
 completed in [PR #38](https://github.com/open-autonomy-org/evidence-desk/pull/38). The fleet now uses
 Hermes's native agent loop with host-owned subscription forwarding, and the public operator test
 verified inbound identity handling. The [landed setup acceptance](https://github.com/open-autonomy-org/evidence-desk/pull/52)
@@ -72,6 +72,66 @@ For interrupted writes, follow the ordered [manual recovery procedure](docs/work
 account for all writers, preserve an independent quiescent copy, inspect and reopen before exact-path cleanup
 or a deliberate new edit. A failed write or an empty lock is not proof of abandonment.
 Product SemVer and workspace format version 1 are separate; see [compatibility policy](CONTRIBUTING.md#source-preview-policy-proposed-not-a-release).
+
+## Local graphical workbench (development source, not the fixed alpha.1 archive)
+
+From this checkout, install the pinned dependencies with `bun install --frozen-lockfile`.
+Core operation needs no network, hosted account, CDN or AI service after installation. Run:
+
+```bash
+# Select ONE new folder explicitly; its parent must exist. Pick your own unused relative sidecar path.
+bun run src/readiness.ts serve /absolute/path/new-client --readiness-create my-readiness.json --new-workspace
+# Reopen an existing folder and deliberately select its existing readiness records every launch:
+bun run src/readiness.ts serve /absolute/path/new-client --readiness-open my-readiness.json
+```
+
+Copy the printed `http://127.0.0.1:<port>/#<session>` URL into your local browser. Stop with Ctrl-C.
+Do not run both examples simultaneously. The session URL authorizes that local process, not other
+people; keep it private. Loopback is not multi-user authentication/RBAC. No workspace/evidence bytes
+are served. Native page reload retains this launch's session; reopening the process requires its new URL.
+To add readiness to an existing format-1 workspace, omit `--new-workspace` and deliberately choose
+`--readiness-create` at an absent path. Existing files/directories/aliases are collisions, never adopted.
+`--readiness-open` validates exactly the chosen file; it is not proof of provenance or prior ownership.
+No filename, root key, remembered path or directory scan activates readiness. After relocating a folder,
+repeat the folder and relative sidecar selection. Ordinary `src/index.ts` commands remain format-1 only.
+
+In the UI:
+1. Record system boundary, SOC2 category names, engagement type and period; Save engagement.
+2. Create controls with stable IDs, framework/version/source references and applicability rationale.
+   Exclusions require rationale too. No official criteria or catalog are bundled.
+3. Create/update owned items and authored states. Associate context `.md` and evidence files already
+   present in the folder; create those ordinary files with your preferred editor first. No JSON editing
+   or CLI is needed to record progress. Link existing items from controls and follow their navigation.
+4. Save item due dates separately. Filter follow-up work by exact owner, state, due cutoff, unassigned,
+   incomplete, overdue or missing references; inspect shared recorded evidence paths and mapping gaps.
+5. Each Save changes only one authoritative file and refreshes forms. Work on one form at a time.
+   Reload/revalidate explicitly to see external edits; stale saves refuse and retain form input. Reload
+   discards unsaved forms. Malformed records/references require explicit external correction, not repair.
+
+Status and mappings are authored claims, not official coverage, evidence sufficiency or an audit opinion.
+Dates use YYYY-MM-DD; overdue compares today's UTC date and ignores authored complete work.
+
+Matching selected CLI operations use the same whole-workspace/readiness validation as the UI:
+
+```bash
+bun run src/readiness.ts init /absolute/path/client --readiness-create my-readiness.json
+bun run src/readiness.ts validate /absolute/path/client --readiness-open my-readiness.json
+bun run src/readiness.ts summary /absolute/path/client --readiness-open my-readiness.json
+printf '%s' '{"owner":"Avery","status":"in-progress"}' | bun run src/readiness.ts item-update /absolute/path/client --readiness-open my-readiness.json ITEM-1 --stdin
+printf '%s' '{"dueDate":"2026-09-30"}' | bun run src/readiness.ts due-date /absolute/path/client --readiness-open my-readiness.json ITEM-1 --stdin
+```
+
+`item-create`, `engagement`, `control-create` take `--stdin` without an existing ID; `item-update`,
+`control-update`, `due-date` require an existing ID before `--stdin`. See the
+[selected format contract](docs/workspace-format.md#explicit-readiness-version-1) for fields and refusal
+rules. Updates retain unknown values. CLI prints Ready after reading both sources and before stdin;
+edits made afterward cause conflict. Selected item-ID changes cannot dangle control/follow-up records.
+Ordinary CLI/external edits do not validate an unselected sidecar and can require explicit correction
+before selected mode is usable. There is no two-file transaction, automatic migration or repair.
+
+Development UI/CLI manually operated on macOS 26.4 arm64 with Bun 1.3.10 and local storage; the older
+fixed preview's Linux-only evidence remains separate. Windows, network/cloud-drive filesystems and
+multi-user operation are not verified. Reference topology must remain quiescent during writes.
 
 ## Development-source walkthrough
 
@@ -229,44 +289,50 @@ not customer adoption. Keep or remove these disposable folders yourself after re
 
 ## Local verification
 
-This section is for fleet contributors, not a user installation requirement. Before running any Bun
-command above, follow [AGENTS.md](AGENTS.md) and the machine's World instructions. This executor's
-prepared World is `evidence-desk`; preserve its host lifecycle, limits, leases and schedules and the
-Docker `--init` prerequisite. Do not start an alternate service or relax isolation. If it is stopped,
-the configured start command is:
+This section is for fleet contributors, not a user installation requirement. Before any application,
+installation or check command, follow [AGENTS.md](AGENTS.md). The owner's
+[current host instructions](https://github.com/open-autonomy-org/evidence-desk/issues/101#issuecomment-5656802952)
+replace the retired container paths. Preserve the prepared World `evidence-desk`, its 2048 MiB
+memory/storage limits, lifecycle, leases and schedules; do not relax isolation or start an alternate runtime.
+From the checkout in the same Bash shell:
 
 ```bash
-export PATH=/opt/agent/.open-autonomy/node_modules/.bin:$PATH
-volter-world up /opt/data/evidence-desk-pilot/world.config.json --root /opt/data --env-file /opt/data/evidence-desk-pilot/app.env
+D=${OPEN_AUTONOMY_DATA:-/Users/yueranyuan/.local/state/open-autonomy/open-autonomy-org/evidence-desk/data}
+W="$PWD/.open-autonomy/node_modules/.bin/volter-world"
+"$W" doctor evidence-desk --root "$D"
+# Only if the existing instance is down, use its configured scenario; never read app.env:
+# "$W" up "$D/evidence-desk-pilot/world.config.json" --name evidence-desk --env-file "$D/evidence-desk-pilot/app.env" --root "$D"
 ```
 
-For the walkthrough in this fleet, use the existing execution-enabled disposable root (not noexec
-`/tmp`) and map every ordinary `bun` invocation, including the external JSON editor, through World:
+Use a unique directory under the execution-enabled synthetic scratch root, not `/tmp`, and map every
+ordinary Bun invocation, including external JSON editing and the graphical launcher, through World:
 
 ```bash
-volter-world doctor evidence-desk --root /opt/data
-export TMPDIR=/opt/data/artifact-verification
-bun() { volter-world attach evidence-desk --root /opt/data -- bun "$@"; }
+mkdir -p "$D/artifact-verification"
+export TMPDIR="$D/artifact-verification"
+bun() { "$W" attach evidence-desk --root "$D" -- bun "$@"; }
 ```
 
 Run all walkthrough blocks in that same shell. The function preserves stdin, arguments and exit codes;
 World attaches in the current checkout with those same absolute synthetic paths. Ordinary users omit
 this function entirely. Other developer machines establish their own World using their machine's
-instructions. This World has no external product services; add vendor twins if dependencies emerge.
+instructions: initialize World with the kit's `volter-world init` and a data root outside the checkout.
+This World has no external product services; add vendor twins if dependencies emerge.
 From the worktree being pushed, install frozen dependencies and run the unchanged check through World:
 
 ```bash
-volter-world attach evidence-desk --root /opt/data -- bun install --frozen-lockfile
-volter-world attach evidence-desk --root /opt/data -- bun run check
+bun install --frozen-lockfile
+bun run check
 git diff --check
 ```
 
 The check typechecks source and must finish under thirty seconds before each push. Behavior is verified
-by operating fresh synthetic folders, not by the check alone. Only Linux aarch64/local ext4 with Bun
-1.3.10 is verified; macOS, Windows and network/cloud-drive filesystems are untested. Source packaging
-is preparation only, never release approval, publication or deployment.
+by operating fresh synthetic folders, not by the check alone. Use the installed `agent-browser` on this
+host for loopback UI operation; do not use customer browser profiles. Current development manual evidence
+includes macOS arm64/Bun 1.3.10; Windows and network/cloud-drive semantics remain unverified. Fixed
+alpha.1 packaging retains its historical Linux-only evidence, not a rebuilt or newly approved candidate.
 
 For fleet administration, follow the [agent-led setup guide](.open-autonomy/SETUP.md). The project uses
 the Open Autonomy Hermes kit; `create-open-autonomy check .` checks kit-owned files. The container
-entry point starts the fleet only after its host, model, credentials, human contact and review gates
+entry point is historical; current host setup starts the fleet only after its model, credentials, human contact and review gates
 are verified. Product deployment and customer integrations are separate later activations.
