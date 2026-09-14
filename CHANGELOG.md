@@ -7,6 +7,23 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Added the complete local graphical scope/control/item/evidence-reference workbench and matching
+  explicitly selected readiness CLI. A user-selected, versioned sidecar records engagement, authored
+  mappings and due dates without claiming unknown format-1 fields; ordinary CLI behavior stays separate.
+  The UI shows owner/state/due follow-up, gaps, justified exclusions and shared recorded evidence paths.
+  Dual-source stale checks, cooperating locks and one-file actions protect edits; the loopback UI renders
+  hostile authored text inertly and refuses unexpected Host/Origin and unauthorized mutation requests.
+  README documents the actual launcher and current-host World setup. ADR0002 received explicit
+  independent constitutional acceptance with the implementation, not acceptance of PR88's runtime ADR.
+  Native review inspected the full developer UI/CLI/conflict/collision/relocation/preservation evidence,
+  independently sampled actual UI/CLI and refusal behavior, and passed the unchanged World typecheck.
+  Verification is synthetic macOS arm64/Bun 1.3.10, not adoption, parity or cross-platform assurance;
+  locks are not arbitrary-writer CAS and loopback is not multi-user RBAC. No tests or new dependencies.
+  This work is absent from the unchanged fixed alpha.1 candidate and has not been released.
+  ([PR #105](https://github.com/open-autonomy-org/evidence-desk/pull/105),
+  `ee67878dc953590b26a02b40a02068a0ae2767d5`, [native acceptance, run 13](hermes:task/t_8c1c52e4),
+  [exact-head review](https://github.com/open-autonomy-org/evidence-desk/pull/105#pullrequestreview-5192776521))
+
 - Adopted the shared host fleet entrypoint, separated SDK readiness from historical transcript replay,
   and excluded rehearsal cache links from dirty-checkout detection. Subscription forwarding now obtains
   the host's current login through installed Codex rather than maintaining a project login copy; Codex

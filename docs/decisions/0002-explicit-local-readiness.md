@@ -1,7 +1,10 @@
 # ADR 0002: Explicit readiness sidecar and loopback workbench
 
-Status: Proposed with the guided-readiness implementation; independent exact-head review and merge
-are required for acceptance. This does not adopt or supersede PR88's proposed runtime ADR0001.
+Status: Accepted with [PR #105](https://github.com/open-autonomy-org/evidence-desk/pull/105), following
+[independent exact-head review](https://github.com/open-autonomy-org/evidence-desk/pull/105#pullrequestreview-5192776521)
+of `ee67878dc953590b26a02b40a02068a0ae2767d5` and observed merge
+`1175015970ea73a4cbcc04d90b00a273d900e724` (native task t_8c1c52e4, review run 13).
+This does not adopt or supersede PR88's proposed runtime ADR0001.
 
 ## Authority and context
 

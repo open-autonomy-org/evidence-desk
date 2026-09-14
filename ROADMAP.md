@@ -8,7 +8,7 @@ See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliati
 ## readiness-product: From a portable folder to a complete CPA/client workbench
 
 Dispatch: hold
-Decision: authorized strategy direction landed in PR #84; delivery is `guided-readiness`, executed whole by one stream
+Decision: authorized strategy direction landed in PR #84; guided-readiness accepted, evidence-review-cycle next
 
 Authority: the owner's [autonomous competitive-parity mandate](hermes/skills/project-communications/SKILL.md#autonomous-strategy-mandate),
 committed in [PR #80](https://github.com/open-autonomy-org/evidence-desk/pull/80), authorizes strategy to
@@ -19,8 +19,9 @@ The constitution still excludes audit opinions, mandatory hosting and compelled 
 Product judgment: prioritize a guided, local visual readiness workflow over successive standalone CLI
 reports. A client should be able to define scope, understand requested work, supply evidence, respond to
 review and hand over a bounded package; a CPA should be able to review that work and repeat it across
-engagements. Current main provides generic items and derived summaries, not this complete experience
-([baseline README](https://github.com/open-autonomy-org/evidence-desk/blob/dbb0427/README.md)).
+engagements. The strategy baseline provided generic items and derived summaries, not this complete experience
+([baseline README](https://github.com/open-autonomy-org/evidence-desk/blob/dbb0427/README.md));
+PR #105 now supplies the guided local foundation, while evidence exchange and firm operation remain open.
 The hypothesis is that connected workflows provide more value to nontechnical participants than another
 isolated report. This is strategic inference, not observed customer research or a measured usability result.
 
@@ -59,114 +60,44 @@ Sequence and tradeoffs:
 
 ## guided-readiness: Scope a SOC2 engagement and work through it visually, locally
 
-Dispatch: fleet
-Decision: authorized outcome under `readiness-product`; executed whole, as one task, by one development stream
-(owner ruling, 2026-09-13: a task is the entire arc of its outcome, never a slice, phase or "first thin journey"
-of it, so that the stream that builds it holds every piece of context the outcome needs and hands over a finished
-outcome). Strategy authorized the outcome in [PR #84](https://github.com/open-autonomy-org/evidence-desk/pull/84),
-reviewed as [t_4aad868a](hermes:task/t_4aad868a).
-Priority: first product milestone after the existing portable-workspace foundation
+Dispatch: hold
+Decision: development outcome completed; retained only as a dependency/release boundary, not redispatchable work
 
-The verified owner's [issue #101](https://github.com/open-autonomy-org/evidence-desk/issues/101)
-confirms immediate whole-outcome dispatch after the 2026-09-13 host migration. All pre-migration native
-cards are cancelled, not completed or resumable; their missing state is not a delivery dependency.
-The new execution is [t_8c1c52e4](hermes:task/t_8c1c52e4). Historical reports remain context, while Git
-records what actually landed. Existing infrastructure PRs #86–#88 receive merits-based native review,
-not another owner-permission gate; their proposals do not establish product acceptance.
+[PR #105](https://github.com/open-autonomy-org/evidence-desk/pull/105) landed the whole authorized
+outcome at `ee67878dc953590b26a02b40a02068a0ae2767d5`, merged as
+`1175015970ea73a4cbcc04d90b00a273d900e724`. Native [t_8c1c52e4](hermes:task/t_8c1c52e4)
+run 13 completed after [independent exact-head approval](https://github.com/open-autonomy-org/evidence-desk/pull/105#pullrequestreview-5192776521)
+and observed merge. The [original full criteria](https://github.com/open-autonomy-org/evidence-desk/blob/a960d28011b79c365ceb8b340f63bcd6dcf870e3/ROADMAP.md#guided-readiness-scope-a-soc2-engagement-and-work-through-it-visually-locally)
+and [actual UI/CLI handoff](https://github.com/open-autonomy-org/evidence-desk/pull/105#issuecomment-5657103582)
+remain the acceptance record; completed implementation criteria are retired from the current plan.
 
-Outcome: a CPA or client can open/create their own folder in a local graphical workbench, record the
-system boundary, chosen SOC2 categories and engagement period/type, define controls and rationale-backed
-applicability, and navigate from a control to owned readiness work and supporting files. A nontechnical
-client can see what to do next and record progress without editing JSON or invoking the CLI.
-Why now: the baseline lacks a scoped SOC2 model and visual workflow, while Vanta, Drata and Sprinto tie
-work to controls and engagements. Item completion alone must not be presented as SOC2 coverage.
+The accepted foundation is explicit, per-launch selection of a versioned readiness sidecar plus a local
+visual scope/control/item/evidence-reference workflow, with dual-source conflict refusal and preserved
+format-1 operation. Product ADR0002 was explicitly accepted by that independent review; PR88's runtime
+ADR0001 was not. README now records the actual graphical launch command and the verified owner's
+[current-host World instructions](https://github.com/open-autonomy-org/evidence-desk/issues/101#issuecomment-5656802952).
+All pre-migration cards remain cancelled, not completed or resumable, under owner issue #101.
 
-Observable success:
-- Operate a synthetic scope-to-control-to-task-to-evidence journey in the actual local UI, including
-  owner/due-date follow-up, gaps and justified exclusions; reopen it from the same portable folder.
-- Distinguish authored status, mapped coverage and unresolved work from evidence sufficiency or an audit
-  opinion. Framework/version references and mapping provenance are visible; no invented official checklist.
-- External file edits appear after revalidation; invalid edits/conflicts are surfaced without lost unknown
-  data or evidence. CLI and UI operate the same documented files, with no opaque authoritative database.
-- Core workflow works without a hosted account, network dependency or chosen AI service. Untrusted file
-  content renders inertly; local access boundaries and supported platforms are explicit, not implied RBAC.
+Remaining boundary: this is unreleased development and synthetic macOS arm64/Bun 1.3.10 acceptance,
+not customer adoption, cross-platform assurance, competitive parity or a newly approved archive.
+The fixed CLI-only alpha.1 proposal below excludes this work and stays unchanged. Subsequent product
+release selection needs its own concrete PM proposal and human gate; do not rebuild or move alpha.1.
+PR87/88 policy/runtime reconciliation remains with its existing native review cards, not a prerequisite
+to redispatch this completed product outcome. Preserve the landed current-host CONTRIBUTING examples.
 
-Completion (the whole of it lands in one execution; nothing here is deferred to a later slice):
-- Provide a documented local graphical launch command that opens one explicitly selected workspace
-  folder (new or existing). A user can create/save/reopen engagement system-boundary text, chosen SOC2
-  category names, engagement type and period; author controls with stable IDs, framework/version/source
-  references, applicability and exclusion rationale; and link controls to existing readiness items.
-  Keep authored mappings distinct from official standards or demonstrated coverage. No bundled checklist.
-- In the same actual UI, create/update an item's owner, status, due date and associations to existing
-  context and evidence files, navigate control-to-item-to-reference, filter follow-up work by owner, due
-  date and state, and show missing/unassigned/incomplete/overdue work and justified exclusions without
-  scores or sufficiency claims. Show which items share recorded evidence references. File contents need
-  not be previewed or uploaded.
-- Keep format 1 and all existing unknown root/item fields semantically unchanged. Use a documented,
-  versioned optional readiness sidecar at a user-selected safe workspace-relative path, not an implicitly
-  discovered root key or reserved filename. Activation is explicit for EACH CLI invocation/UI launch:
-  choose either create-new readiness records or open-existing readiness records at that exact path.
-  No directory scan, magic-marker detection, remembered default or mere sidecar presence enables it.
-  Ordinary format-1 commands continue unchanged and make no claim to validate unselected readiness data.
-  Document matching explicit CLI readiness selection for validation, item writes and summaries; selected
-  CLI/UI operations use the same whole-workspace plus readiness validation. Reopen requires the same
-  deliberate selection, including after folder relocation; there is no opaque activation registry.
-- Creating readiness records requires an absent selected path and exclusive creation; any existing file,
-  directory, alias or unrelated content is a collision to refuse without modification, not overwrite,
-  rename, import or adopt automatically. Opening existing records requires deliberate open-existing
-  selection and successful schema validation; explain that this selects the file as readiness data,
-  not proof of provenance or prior app ownership. Reject unsafe paths and aliases to the manifest or
-  referenced context/evidence. Do not read/serve arbitrary unselected files or reinterpret unknown fields.
-  New sidecar fields are owned only within this explicit mode; retain unknown sidecar values on edits.
-  Unsupported versions, duplicate identities, dangling associations and invalid dates/periods refuse
-  selected operations without partial successful reports. No persisted-format migration.
-- Reuse cooperating-writer locks and stale-source protections for BOTH manifest and selected sidecar.
-  Avoid claiming atomic transactions across two files: keep each action to one authoritative file,
-  refuse an item-ID change that would dangle selected control associations rather than rewrite both,
-  and document ordinary CLI/external edits can require explicit correction before selected-mode use.
-  An external edit to either source after UI load must cause visible conflict, not overwrite or silent
-  reload-and-save. Explicit reload/revalidation exposes external edits. Preserve unknown values,
-  unrelated files and evidence; keep existing numeric-loss, alias and quiescent-topology safeguards.
-- Manually demonstrate non-activation for pre-existing root-key and filename collisions, explicit
-  create refusal with complete byte/inventory preservation, deliberate valid/invalid open-existing,
-  selected CLI/UI agreement, and reopen/relocation requiring explicit selection. A same-shaped legacy
-  unknown object/file is not activation; no product operation may silently acquire its ownership.
-- Serve only on loopback, scoped to the explicitly selected folder. Reject unexpected Host/Origin and
-  unauthorized mutation requests, prevent cross-site writes and path escape, and render authored content
-  as inert text. Do not serve arbitrary filesystem paths or evidence bytes. Explain that loopback is not
-  multi-user authentication/RBAC. Core use requires no external network, account, CDN or AI dependency;
-  dependency installation may require registry access. Visible labels, keyboard operation, focus/error
-  feedback and readable empty states belong to this UI, not a later cosmetic pass.
-- Manually operate the full fresh-folder scope/control/item/evidence journey through the actual UI in
-  World using disposable synthetic files. Reopen the folder; exercise keyboard interaction, hostile text,
-  external edits, stale-save refusal, malformed extension/reference refusal and preservation of unknown
-  data/evidence. Inspect actual HTTP refusals for cross-origin/Host/path requests and unchanged existing
-  CLI create/open/validate/item/summary behavior. Record commands, browser observations, outputs, exits,
-  source SHA and platform limits in the native handoff. No automated tests or persistent harnesses.
-- Maintain README launch/use instructions and the format contract in place; include new product files
-  deliberately in the source allowlist without rebuilding the fixed preview. Keep modules small; add only
-  justified pinned dependencies. Run unchanged World-attached `bun run check` and `git diff --check`
-  before push. Independent native review verifies every line, exact-head GitHub review and observed merge
-  before completing this execution.
-
-Dependencies/fit: existing accepted workspace/item-write foundation and landed strategy; an explicit
-compatible extension or user-chosen, versioned migration if needed; lawful framework references and content
-sourcing before bundled catalogs. Use synthetic controls and user-authored references until redistribution
-rights are established. Do not copy vendor policies or licensed standards. Operated synthetic UX proves
-functionality, not customer adoption. Queue one fleet implementation, not a human assignment. Use a fresh
-task worktree and unique disposable synthetic scratch under the current machine's documented World setup.
-All app/install/check commands use `volter-world attach <world> -- <command>` after configuring its
-host-side environment beside the checkout as required by AGENTS.md. The former `/opt/data` container
-paths are historical, not permission to bypass World after the host migration in issue #101.
-Preserve World limits and worker leases; demonstrate the actual UI on the supported current setup.
-Exclude review exchanges, package export, multi-client dashboards, collectors, sync, AI, official content
-catalogs and automatic repair. Preserve fixed alpha.1 candidate/version/assets/window and human gate.
-This is unreleased development, not parity, customer adoption or release acceptance. Sources and authority:
-`readiness-product`, especially Drata framework/period setup and Sprinto scoping/control mapping.
 ## evidence-review-cycle: Close client evidence requests with a traceable CPA handoff
 
-Dispatch: hold
-Decision: authorized outcome under `readiness-product`; depends on guided-readiness
+Dispatch: fleet
+Decision: authorized outcome under `readiness-product`; guided-readiness dependency accepted in PR #105
+
+PM sequencing: execute this existing strategy outcome whole in one fleet stream, not successive CLI,
+export or review slices. [PR #84](https://github.com/open-autonomy-org/evidence-desk/pull/84) authorized
+this next outcome under the committed strategy mandate; PR #105 supplies the stable scope/control and
+preservation-safe explicit-sidecar foundation. This is dependency reconciliation, not new PM scope.
+Review the transport-independent exchange design against the constitution and ADR0002 with the actual
+diff before landing; preserve explicit activation, unknown data, source conflicts and local solo use.
+No accepted human implementation commitment exists. The alpha.1 human release hold does not block
+this separately authorized unreleased development.
 
 Outcome: a firm requests evidence for a scoped control and period; a client supplies ordinary files;
 a reviewer records feedback, requests a revision and closes the readiness request with a visible record
