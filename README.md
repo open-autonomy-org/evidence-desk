@@ -144,6 +144,7 @@ Older readiness-v1 tools cannot open v2; ordinary format-1 CLI use remains separ
 2. Choose Respond / review. Record discussion or submit an existing ordinary file, its declared source,
    collection instant and evidence period. Blank metadata remains visibly missing. For replacements use
    a new path to retain earlier bytes; each submission appends history rather than erasing it.
+   Evidence cannot alias workspace.json or the explicitly selected readiness file, including symlinks.
 3. Record reviewer requests for changes, then a replacement and readiness closure against the latest
    submission. Contributor declarations and reviewer dispositions are distinct. Inspect full discussion,
    prior versions, transfer provenance and shared request/control associations. Reuse is not sufficiency.

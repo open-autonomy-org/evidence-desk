@@ -30,7 +30,7 @@ function source(path: string) {
   const revision = createHash("sha256").update(signature).update(bytes).digest("hex");
   return { bytes, revision, mode: Number(info.mode & 0o777n) };
 }
-function references(selected: Selected, manifest: any) {
+function references(selected: Selected, manifest: any, data: any) {
   const manifestPath = realpathSync(join(selected.root, "workspace.json"));
   let readinessPath = selected.path;
   try { readinessPath = realpathSync(selected.path); }
@@ -38,6 +38,16 @@ function references(selected: Selected, manifest: any) {
   for (const i of manifest.items) for (const ref of [i.context, ...i.evidence]) {
     const target = realpathSync(localFile(selected.root, ref, "Reference"));
     if (target === readinessPath || target === manifestPath) throw new Error("Selected source aliases a context/evidence reference; nothing committed.");
+  }
+  if (data.readinessVersion === 2) for (const request of data.requests) for (const event of request.events) {
+    if (event.kind !== "submit") continue;
+    for (const file of event.files) {
+      if (file.path === "workspace.json" || file.path === selected.relative) throw new Error("Submission aliases an authoritative source; nothing committed.");
+      let target: string;
+      try { target = realpathSync(localFile(selected.root, file.path, "Submission")); }
+      catch { continue; } // Unavailable historical evidence remains an observation, not a load failure.
+      if (target === readinessPath || target === manifestPath) throw new Error("Submission aliases an authoritative source; nothing committed.");
+    }
   }
 }
 export function loadReadiness(selected: Selected) {
@@ -48,7 +58,7 @@ export function loadReadiness(selected: Selected) {
   const manifest = parseWriteJson(manifestSource.bytes.toString("utf8"), "workspace.json");
   const data = parseWriteJson(readinessSource.bytes.toString("utf8"), selected.relative);
   validateReadiness(selected.root, manifest, data);
-  references(selected, manifest);
+  references(selected, manifest, data);
   const revision = `${manifestSource.revision}:${readinessSource.revision}`;
   if (revision !== currentRevision(selected)) throw new Error("Conflict: a source changed during validation. Explicitly reload and revalidate.");
   return { manifest, data, revision, manifestSource, readinessSource };
@@ -79,7 +89,7 @@ export function createReadiness(s: Selected) {
     const manifest = parseWriteJson(before.bytes.toString("utf8"), "workspace.json");
     const data = emptyReadiness();
     validateReadiness(s.root, manifest, data);
-    references(s, manifest);
+    references(s, manifest, data);
     if (source(join(s.root, "workspace.json")).revision !== before.revision) throw new Error("Conflict: manifest changed before readiness creation.");
     const fd = openSync(s.path, "wx", 0o600);
     try { writeFileSync(fd, JSON.stringify(data, null, 2) + "\n"); fsyncSync(fd); }
@@ -105,7 +115,7 @@ export function saveReadiness(s: Selected, expected: string, operation: string, 
     else if (isItem) editItem(loaded.manifest, operation, id, input);
     else editReadiness(loaded.data, operation, id, input);
     validateReadiness(s.root, loaded.manifest, loaded.data);
-    references(s, loaded.manifest);
+    references(s, loaded.manifest, loaded.data);
     const target = isItem ? join(s.root, "workspace.json") : s.path;
     const value = isItem ? loaded.manifest : loaded.data;
     const mode = isItem ? loaded.manifestSource.mode : loaded.readinessSource.mode;
