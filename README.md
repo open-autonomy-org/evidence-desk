@@ -133,6 +133,57 @@ Development UI/CLI manually operated on macOS 26.4 arm64 with Bun 1.3.10 and loc
 fixed preview's Linux-only evidence remains separate. Windows, network/cloud-drive filesystems and
 multi-user operation are not verified. Reference topology must remain quiescent during writes.
 
+## Evidence requests and deliberate exchange (development source)
+
+Open the local workbench as above, then use section 5. No hosted account or AI service is needed.
+Keep an independent backup first, then explicitly confirm upgrading the selected readiness file to v2.
+Older readiness-v1 tools cannot open v2; ordinary format-1 CLI use remains separate. Existing unknown
+`requests` data refuses upgrade rather than being adopted. Nothing upgrades merely on open.
+
+1. Create a request for existing scoped controls and a requested period, with requester/contributor labels.
+2. Choose Respond / review. Record discussion or submit an existing ordinary file, its declared source,
+   collection instant and evidence period. Blank metadata remains visibly missing. For replacements use
+   a new path to retain earlier bytes; each submission appends history rather than erasing it.
+   Evidence cannot alias workspace.json or the explicitly selected readiness file, including symlinks.
+3. Record reviewer requests for changes, then a replacement and readiness closure against the latest
+   submission. Contributor declarations and reviewer dispositions are distinct. Inspect full discussion,
+   prior versions, transfer provenance and shared request/control associations. Reuse is not sufficiency.
+4. Reload after external file edits. Byte observations are snapshots, not a live watcher. Changed/missing
+   bytes remove the current reviewed-version claim, not the historical closure. A new disposition refuses
+   changed bytes until a replacement is submitted. Missing/stale rules appear in the UI and
+   [format contract](docs/workspace-format.md#explicit-readiness-version-2-request-history); filenames
+   never imply dates. Authored names, times and hashes are not authenticated truth or audit opinions.
+5. Select only the requests to disclose, Preview selected package, and inspect the record/file inventory
+   and the original complete files. Linked controls/items, engagement boundary, context and historical
+   submission references are included; unrelated records and unknown extensions are not. Contents within
+   selected files are not redacted. Choose a new absolute destination outside the source (parent exists),
+   then Export exactly previewed selection. Any change requires a new preview. Maximum selected bytes:
+   64 MiB. Existing destinations and missing references refuse; never share partial failed output.
+6. The recipient inspects PACKAGE.txt, JSON and ordinary evidence offline. With the app installed, run
+   `bun run src/readiness.ts serve /absolute/package --readiness-open package-readiness.json`.
+   Append responses and replacement files locally, then deliberately return the entire folder with
+   exchange.json unchanged. Do not re-export a fresh baseline as a return.
+7. At the origin, Preview returned work and conflicts, inspect the new authored events/files, then Import.
+   Selected request/control/item conflicts refuse rather than overwriting intervening edits. Unrelated
+   local edits and unknown extensions survive. Only new history and unique local evidence copies are
+   imported; scope/item changes are not. After success, replay refuses; make a fresh export for another
+   exchange. Preserve both folders for deliberate resolution of any conflict. A failed import may leave
+   orphan copies in the named return directory; inspect sources before any manual recovery.
+
+Sharing is a deliberate external handoff, not upload, publication, sync, authentication or access control.
+The same person may operate the entire workflow locally. Reviewer labels do not enforce roles; delivered
+copies cannot be revoked. Treat received files/claims as untrusted and never execute evidence.
+The documented [exchange contract](docs/workspace-format.md#selected-exchange-version-1) and proposed
+[ADR0003](docs/decisions/0003-deliberate-evidence-exchange.md) define selection, preservation and trust limits.
+
+CLI companions use the same selected v2 source and stdin/revision boundary:
+`review-enable` takes the explicit confirmation object from the format contract; `request-create` takes
+request fields without events; `request-event` requires an existing request ID and accepts a files array
+for multi-file submissions. `summary` reports history and byte/metadata observations. Export/import are
+available through the visual preview/confirm flow, not the ordinary format-1 CLI. Fleet execution always
+uses the World mapping in Local verification below. This is unreleased development, not a changed fixed
+alpha.1 candidate, CPA sign-off or a competitive-parity claim.
+
 ## Development-source walkthrough
 
 This is one ordered synthetic handoff, not an audit assessment. Use a fresh checkout of current main,

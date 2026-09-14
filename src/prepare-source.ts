@@ -9,6 +9,7 @@ const files = [
   "docs/workspace-format.md", "package.json", "src/index.ts", "src/item-write.ts",
   "docs/decisions/0002-explicit-local-readiness.md", "src/readiness.ts", "src/readiness-model.ts", "src/readiness-store.ts",
   "src/workbench-server.ts", "src/workbench.html", "src/workbench.js", "src/workbench.css",
+  "src/review-model.ts", "src/review-exchange.ts", "src/review-workbench.js", "docs/decisions/0003-deliberate-evidence-exchange.md",
   "src/prepare-source.ts", "src/summary.ts", "src/summary-markdown.ts", "src/workspace.ts", "src/write-json.ts", "tsconfig.json",
 ].sort();
 const git = (...args: string[]) => execFileSync("git", args, { maxBuffer: 32 * 1024 * 1024 });

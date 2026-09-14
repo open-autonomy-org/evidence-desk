@@ -562,6 +562,115 @@ authenticated authored owners or multi-user RBAC. See README for launch, keyboar
 and verified platform limits. The product design is proposed in
 [ADR0002](decisions/0002-explicit-local-readiness.md), subject to independent review with its diff.
 
+## Explicit readiness version 2: request history
+
+V2 retains the v1 engagement, controls and followUps and adds `requests`. It is never inferred or
+enabled by opening a folder. The explicit `review-enable` action requires
+`{"confirm":"upgrade selected readiness to v2"}` and a currently selected v1 source without an existing
+`requests` field. It changes only that sidecar, retaining other unknown values. Keep an independent
+backup first. Older readiness-v1 tools refuse v2; there is no automatic downgrade or unknown-field
+adoption. Ordinary format-1 commands remain unchanged. See [ADR0003](decisions/0003-deliberate-evidence-exchange.md)
+for the proposed architecture and independent review boundary.
+
+Each request has a unique nonblank `id`, nonblank `title`, `requester` and `contributor` labels,
+unique nonempty `controlIds` referring to existing controls, `period: {start,end}` with valid ordered
+YYYY-MM-DD dates, and an ordered `events` array. `request-create` takes precisely those fields except
+events, which starts empty. There is no request metadata-edit operation; external changes are validated
+and overlapping returned work conflicts. Controls and items can still be edited through existing actions.
+
+`request-event <request-id>` appends rather than replaces history. Its input includes `kind`, nonblank
+`author` and `message`. The application supplies a UUID `id` and UTC ISO `at` timestamp; both are authored
+local records, not signatures or proof of when an event really occurred. Supported kinds:
+
+- `comment`: discussion only; never changes request disposition.
+- `submit`: contributor declaration. Requires a nonempty `files` array of unique existing relative
+  `path`, declared `source` string, `collectedAt` (blank or exact `YYYY-MM-DDTHH:mm:ss.sssZ` UTC instant),
+  and `period` (null or ordered `{start,end}`). The application adds lowercase SHA256 `sha256` of bytes.
+  A new submission becomes current and removes the previous disposition from current state, preserving
+  prior submission metadata, hashes and all discussion. Prefer a new file path to retain old bytes.
+- `changes` and `close`: reviewer dispositions, requiring `submissionId` equal to the latest submission.
+  Missing or changed bytes refuse a newly authored disposition. Closure records readiness feedback only.
+  Any local user may use either role label; no identity or access-control enforcement is claimed.
+
+Persisted submission versions retain hashes, not embedded evidence. File removal/change does not erase
+history. Request-only missing files are flags on read; missing manifest context/evidence still fails
+whole-source validation. Submission and export refuse unsafe/missing references. Unknown existing
+values survive local edits, but event input accepts only the documented fields. Optional `transfers`
+are ordered `{at, originalPaths}` records of deliberate imports, with UTC ISO instants and arrays of
+original path strings. They preserve path provenance across copied locations and subsequent exports;
+they do not prove who transmitted anything.
+
+The selected v2 summary adds `review: {rules, requests}`. Each request includes full event history,
+latestSubmissionId, latest disposition, authored state, `currentBytesReviewed` and inspectable shared-path
+request/control associations. Every submitted file observation includes currentSha256, changed,
+unavailable, missing, stale and futureCollection. Explicit rules:
+
+- Missing source is blank/whitespace; missing time is blank; missing period is null.
+- Stale means the evidence period does not contain the entire requested period, not file age inferred
+  from a filename. Future collection time is separately flagged against the current UTC instant.
+- `currentBytesReviewed` means the latest submission has authored closure and every referenced file's
+  currently read bytes match its submission hash. A missing/changed file makes it false while preserving
+  closure as historical authored feedback. Metadata warnings do not establish or invalidate sufficiency.
+- Observations are a load-time snapshot, not a watcher. Reload explicitly after external edits. A hash
+  detects byte equality/change, not identity, truth, approval authenticity or a tamper-proof history.
+
+## Selected exchange version 1
+
+Export requires explicit nonempty unique request IDs and a prior disclosure-preview token. Selection
+includes those requests' entire known history and transfer provenance, their controls, all items linked
+by those controls, the selected items' due dates, and engagement metadata. It includes all selected item
+context/evidence and every historical submission's referenced file. It does not recursively select other
+requests sharing files, unlinked controls/items, unrelated files, or unknown JSON extensions. A selected
+context/file can itself mention unrelated information: complete bytes are copied, never redacted. Read
+them before sharing. Preview shows records and full path/hash/size inventory, not a rendered file viewer.
+
+The export writes a new absolute folder outside the source (existing parent required), containing:
+
+- `workspace.json`: projected format-1 items;
+- `package-readiness.json`: projected v2 engagement/controls/followUps/requests;
+- ordinary referenced files at their recorded relative paths;
+- `exchange.json`: `exchangeVersion: 1`, UTC `exportedAt`, `previewToken`, `files` inventory of
+  `{path,sha256,size}`, and `base: {requests,controls,items}` containing projected pre-exchange records;
+- `PACKAGE.txt`: offline inspection, local launch, return instructions and trust limits.
+
+These package filenames and writer-protocol paths cannot also be selected references. Source aliases,
+nonregular/hardlinked reference files, escaping paths and missing references refuse; safe internal parent
+symlinks are read through the existing workspace boundary validator and copied as ordinary directories.
+No directory scan copies content. Reference bytes are held in memory, with a 64 MiB selected-byte limit
+and repeated change checks. Export recomputes the preview and refuses a changed token before writing.
+Written bytes are the previewed buffered bytes; quiescent topology remains required, not an atomic
+filesystem snapshot. Existing destinations are never overwritten. Inspect any failed partial output;
+choose a new path, and never share a failed export.
+
+The recipient can inspect JSON, text and evidence with ordinary offline tools. With the application
+already installed, explicitly open `package-readiness.json` and append responses. Put replacement
+evidence into the package as ordinary files, preferably new paths. Preserve `exchange.json` and return
+the entire package folder deliberately; re-exporting creates a different baseline, not a return.
+Packages do not include executable application code or dependencies. Never execute untrusted evidence.
+
+Return preview validates the package, its complete selected history/references and the selected local
+sources. Known local request/control/item records must exactly match the exported baseline. Incoming
+request metadata and event prefix must match that baseline, and incoming control/item records must not
+have changed. Only a new event suffix is accepted. Other incoming scope/due-date/unknown data is not
+imported. Intervening edits to selected records or prior history refuse the whole import, preserving both
+folders for explicit human resolution; unrelated origin records/unknown extensions remain untouched.
+
+Import rechecks its preview token and current dual-source revision, then copies only files referenced
+by new submission events into a new unique `returned-<UUID>/` directory inside the origin. New events
+retain IDs, labels, timestamps, messages, metadata, submission links and hashes; copied paths are remapped
+and an authored transfer record is appended. Existing local evidence and prior events are never replaced.
+Even a returned file whose current bytes differ from its submitted hash retains that mismatch, not a
+rehashed approval. A new readiness JSON is committed using the existing cooperating locks and one-file
+rename protocol. Workspace.json is not rewritten. Successful import makes replay of the same baseline
+conflict rather than duplicating history. Re-export explicitly for a subsequent exchange.
+
+New evidence copies and the sidecar commit are not a multi-file transaction. A failed/interrupting import
+can leave orphan copies; the error identifies their directory. No automatic cleanup, rollback or overwrite
+of existing paths is attempted. Inspect both authoritative sources and copies before retrying or recovery.
+Source/receipt/token hashes are not authenticated provenance; a sender can forge authored records.
+Confirm only after inspecting the returned changes. No network transmission, automatic synchronization,
+multi-user permissions, remote revocation, audit opinion or mandatory hosted account is introduced.
+
 ## Inspection and validation
 
 Open and inspect are aliases: they print structurally valid items, owner, status, Markdown context,

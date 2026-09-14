@@ -5,17 +5,20 @@ import { readFileSync } from "node:fs";
 import { loadReadiness, saveReadiness, type Selected } from "./readiness-store";
 import { object, readinessReport } from "./readiness-model";
 import { parseWriteJson } from "./write-json";
+import { reviewReport } from "./review-model";
+import { previewExport, exportPackage, previewReturn, importReturn } from "./review-exchange";
 
 export function serveWorkbench(selected: Selected) {
   const token = randomBytes(32).toString("hex");
   const assets: Record<string, { type: string; bytes: Buffer }> = {
     "/": { type: "text/html; charset=utf-8", bytes: readFileSync(new URL("./workbench.html", import.meta.url)) },
     "/workbench.js": { type: "text/javascript; charset=utf-8", bytes: readFileSync(new URL("./workbench.js", import.meta.url)) },
+    "/review-workbench.js": { type: "text/javascript; charset=utf-8", bytes: readFileSync(new URL("./review-workbench.js", import.meta.url)) },
     "/workbench.css": { type: "text/css; charset=utf-8", bytes: readFileSync(new URL("./workbench.css", import.meta.url)) },
   };
   let origin = "";
   const view = (loaded: ReturnType<typeof loadReadiness>) => ({ revision: loaded.revision, readiness: loaded.data,
-    report: readinessReport(loaded.manifest, loaded.data), folder: selected.root, selectedPath: selected.relative });
+    report: readinessReport(loaded.manifest, loaded.data), review: reviewReport(selected.root, loaded.data), folder: selected.root, selectedPath: selected.relative });
   const server = createServer(async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -29,13 +32,13 @@ export function serveWorkbench(selected: Selected) {
     if (req.method === "GET" && Object.hasOwn(assets, path)) {
       const a = assets[path]; res.writeHead(200, { "Content-Type": a.type }); res.end(a.bytes); return;
     }
-    if (!["/api/load", "/api/save"].includes(path)) { reply(404, { error: "No such route. Workspace/evidence bytes are never served." }); return; }
+    if (!["/api/load", "/api/save", "/api/exchange"].includes(path)) { reply(404, { error: "No such route. Workspace/evidence bytes are never served." }); return; }
     if (req.headers["x-evidence-session"] !== token || (req.method === "POST" && req.headers.origin !== origin)) {
       reply(403, { error: "Session authorization required; use this launch's URL on the same origin." }); return;
     }
     try {
       if (path === "/api/load" && req.method === "GET") { reply(200, view(loadReadiness(selected))); return; }
-      if (path !== "/api/save" || req.method !== "POST") { reply(405, { error: "Unsupported method." }); return; }
+      if (req.method !== "POST") { reply(405, { error: "Unsupported method." }); return; }
       if (req.headers["content-type"] !== "application/json") { reply(415, { error: "Use application/json." }); return; }
       const chunks: Buffer[] = []; let length = 0;
       for await (const part of req) {
@@ -44,6 +47,15 @@ export function serveWorkbench(selected: Selected) {
         chunks.push(Buffer.from(part));
       }
       const input = parseWriteJson(Buffer.concat(chunks).toString("utf8"), "Request");
+      if (path === "/api/exchange") {
+        if (!object(input)) throw new Error("Invalid exchange envelope.");
+        if (input.operation === "preview-export") reply(200, previewExport(selected, input.ids));
+        else if (input.operation === "export") reply(200, exportPackage(selected, input.ids, input.token, input.destination));
+        else if (input.operation === "preview-return") reply(200, previewReturn(selected, input.folder));
+        else if (input.operation === "import-return") reply(200, view(importReturn(selected, input.folder, input.token)));
+        else throw new Error("Unknown exchange operation.");
+        return;
+      }
       if (!object(input) || typeof input.revision !== "string" || typeof input.operation !== "string" || (input.id !== undefined && typeof input.id !== "string")) throw new Error("Invalid edit envelope.");
       reply(200, view(saveReadiness(selected, input.revision, input.operation, input.id, input.input)));
     } catch (error) {
