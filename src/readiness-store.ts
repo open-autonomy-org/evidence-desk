@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { localFile } from "./workspace";
 import { parseWriteJson } from "./write-json";
 import { editItem, editReadiness, emptyReadiness, validateReadiness } from "./readiness-model";
+import { editReview } from "./review-model";
 
 export type Selected = { root: string; relative: string; path: string };
 export function selectReadiness(folder: string, relative: string): Selected {
@@ -86,7 +87,7 @@ export function createReadiness(s: Selected) {
     // Exclusive creation is not a two-file transaction; interrupted creation may need manual recovery.
   });
 }
-export function saveReadiness(s: Selected, expected: string, operation: string, id: string | undefined, input: unknown) {
+export function saveReadiness(s: Selected, expected: string, operation: string, id: string | undefined, input: unknown, transform?: (loaded: ReturnType<typeof loadReadiness>) => void) {
   return locked(s, () => {
     let revision: string;
     try { revision = currentRevision(s); }
@@ -99,7 +100,9 @@ export function saveReadiness(s: Selected, expected: string, operation: string, 
         (loaded.data.controls.some((c: any) => c.itemIds.includes(id)) || loaded.data.followUps.some((f: any) => f.itemId === id))) {
       throw new Error("Item-ID change would dangle selected control/follow-up associations. Correct those explicitly first; no two-file rewrite is performed.");
     }
-    if (isItem) editItem(loaded.manifest, operation, id, input);
+    if (transform) transform(loaded);
+    else if (["review-enable", "request-create", "request-event"].includes(operation)) editReview(s.root, loaded.data, operation, id, input);
+    else if (isItem) editItem(loaded.manifest, operation, id, input);
     else editReadiness(loaded.data, operation, id, input);
     validateReadiness(s.root, loaded.manifest, loaded.data);
     references(s, loaded.manifest);

@@ -1,5 +1,6 @@
-// Explicitly selected readiness version 1; these are authored records, never an official catalog.
+// Explicitly selected readiness v1/v2; these are authored records, never an official catalog.
 import { statuses, validateManifest } from "./workspace";
+import { validateReview } from "./review-model";
 export const categories = ["Security", "Availability", "Processing Integrity", "Confidentiality", "Privacy"];
 export const object = (v: unknown): v is Record<string, any> => !!v && typeof v === "object" && !Array.isArray(v);
 const text = (v: unknown): v is string => typeof v === "string";
@@ -14,7 +15,7 @@ export function emptyReadiness() {
 export function validateReadiness(root: string, manifest: any, data: any) {
   const inspection = validateManifest(root, manifest);
   if (inspection.errors.length) throw new Error(inspection.errors.join("\n"));
-  if (!object(data) || data.readinessVersion !== 1) throw new Error("Selected readiness file requires readinessVersion: 1; no migration or ownership inference is performed.");
+  if (!object(data) || ![1, 2].includes(data.readinessVersion)) throw new Error("Selected readiness file requires readinessVersion: 1 or 2; no migration or ownership inference is performed.");
   const e = data.engagement;
   if (!object(e) || !text(e.systemBoundary) || !Array.isArray(e.categories) ||
       !e.categories.every((v: unknown) => categories.includes(v as string)) || new Set(e.categories).size !== e.categories.length ||
@@ -41,6 +42,7 @@ export function validateReadiness(root: string, manifest: any, data: any) {
     }
     followed.add(f.itemId);
   }
+  if (data.readinessVersion === 2) validateReview(data);
   return inspection;
 }
 function fields(input: unknown, allowed: string[]) {
@@ -78,7 +80,7 @@ export function editReadiness(data: any, operation: string, id: string | undefin
 }
 export function readinessReport(manifest: any, data: any) {
   const today = new Date().toISOString().slice(0, 10);
-  return { reportSchemaVersion: 1, selectedReadinessVersion: 1, today,
+  return { reportSchemaVersion: 1, selectedReadinessVersion: data.readinessVersion, today,
     meaning: "Authored mappings and status only. Not official coverage, evidence sufficiency or an audit opinion.",
     engagement: data.engagement, controls: data.controls,
     gaps: [!data.engagement.systemBoundary.trim() && "System boundary missing", !data.engagement.categories.length && "No categories chosen",

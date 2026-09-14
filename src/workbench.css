@@ -12,3 +12,4 @@ button:disabled { background: #626d70; cursor: not-allowed; } :focus-visible { o
 .card { border-left: 4px solid #38838e; background: #f0f7f6; padding: 1rem; margin: 1rem 0; overflow-wrap: anywhere; }
 #message { background: #dfefea; padding: 1rem; white-space: pre-wrap; } #message.error { background: #ffe5df; color: #771a08; border: 2px solid #9a321b; }
 p, li { overflow-wrap: anywhere; } footer { font-size: .9rem; }
+#exchange-preview { max-height: 32rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid #b8cecc; padding: 1rem; }

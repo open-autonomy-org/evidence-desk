@@ -1,4 +1,5 @@
 // Authored content goes only through textContent/value. No HTML interpolation, remote code or persistence.
+import { setupReview, renderReview } from "./review-workbench.js";
 const $ = id => document.getElementById(id);
 const token = location.hash.slice(1);
 let loaded;
@@ -80,7 +81,7 @@ function render() {
   const select = field(due, "itemId"); select.replaceChildren();
   for (const i of loaded.report.items) { const o = node("option", i.id); o.value = i.id; select.append(o); }
   field(due, "dueDate").value = loaded.report.items[0]?.dueDate ?? "";
-  resetControl(); resetItem(); renderItems();
+  resetControl(); resetItem(); renderItems(); renderReview(loaded);
 }
 async function request(path, body) {
   const res = await fetch(path, { method: body ? "POST" : "GET", headers: { "X-Evidence-Session": token, ...(body ? { "Content-Type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
@@ -117,4 +118,5 @@ for (const name of ["filter-owner", "filter-state", "filter-due", "filter-follow
   $(name).oninput = renderItems;
   $(name).onchange = renderItems;
 }
+setupReview({ act, request, notice, imported: result => { loaded = result; render(); } });
 reload();
