@@ -9,11 +9,13 @@ import { readVersioned, writeVersioned } from './files.ts';
 import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
 import { questions } from './catalog.ts';
 import { serve } from './server.ts';
+import { serveFirm } from './firm-server.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { computeObligations } from './obligations.ts';
 import { collectRosterHistory, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
 import { checkCompleteness, collectChanges, collectDeployments } from './github.ts';
 import { COLLECTORS, checkTitle, ciWorkflow, configureCollector, readSettings, runChecks } from './automation.ts';
+import { actOnRequest, createEngagement, draft, exportPackage, firmSummary, importRequests, importReturn, listRequests, readEngagement, verifyPackage } from './audit.ts';
 
 const USAGE = `evidence-desk <command> <workspace> [options]
 
@@ -55,6 +57,18 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   run <dir> --by <person> [--collector <id>]  collect from each enabled collector and run its checks; exits 3 if a check fails
   checks <dir>                            the latest result of every check
   ci-template <dir>                       write .github/workflows/evidence-desk.yml to run the checks daily
+  audit <dir> new <id> --type type1|type2 --firm <name> (--as-of <date> | --period <start>..<end>)
+  audit <dir> <id>                        the engagement and its requests
+  audit <dir> <id> requests --import <csv>   the firm's request list (id, title, kind, controls)
+  audit <dir> <id> request <request> --side client|firm --by <who> [--text <message>] [--status <status>]
+                     [--evidence <id>,...] [--population <evidence id>] [--select <item>,...]
+                     [--sample <item>=provided|exception] [--sample-evidence <item>=<evidence id>]
+  audit <dir> <id> draft description|assertion|bridge [--to <date>]
+  audit <dir> <id> export --out <folder>  a package of exactly what the requests point at, with hashes
+  audit <dir> <id> import-return <folder> bring the firm's responses in from a returned package
+  audit verify <package folder>           check a package's files against its manifest, offline
+  firm <firm.json> [--serve [--port <n>]] each client's engagements, requests and readiness, client by client
+  audit package-serve <package folder> [--port <n>]   the firm's page for answering a received package
   gaps <dir> [--as-of YYYY-MM-DD]         what stands between the workspace and readiness
   validate <dir>                          check every file against its schema and references
   serve <dir> [--port <n>]                open the local app on 127.0.0.1
@@ -72,7 +86,7 @@ function parse(argv: string[]): Args {
     const vals = flags.get(key) ?? [];
     if (['set', 'add', 'update'].includes(key)) {
       while (argv[i + 1] !== undefined && !argv[i + 1].startsWith('--')) vals.push(argv[++i]);
-    } else if (!['json', 'approve', 'include', 'help', 'sign-off', 'enable', 'disable'].includes(key)) {
+    } else if (!['json', 'approve', 'include', 'help', 'sign-off', 'enable', 'disable', 'serve'].includes(key)) {
       if (i + 1 >= argv.length) throw new Error(`--${key} needs a value`);
       vals.push(argv[++i]);
     }
@@ -368,6 +382,79 @@ async function main(argv: string[]): Promise<number> {
       const rel = '.github/workflows/evidence-desk.yml';
       writeVersioned(dir, rel, ciWorkflow(readSettings(dir).settings), readVersioned(dir, rel)?.version ?? null);
       out(json, { written: rel }, () => `Wrote ${rel}. Add the secrets it names to the workspace repository and set its EVIDENCE_DESK_RECORDER variable to a person id.`);
+      return 0;
+    }
+    case 'audit': {
+      if (dirArg && rest.length === 0 && existsSync(resolve(dirArg, 'manifest.json')) && !existsSync(resolve(dirArg, 'evidence-desk.json'))) throw new Error('to check a package, run: evidence-desk audit verify <package folder>');
+      if (dirArg === 'package-serve') { serveFirm('package', resolve(rest[0] ?? ''), Number(one(a, 'port') ?? 4880)); return -1; }
+      if (cmd === 'audit' && dirArg === 'verify') {
+        const r = verifyPackage(resolve(rest[0] ?? ''));
+        out(json, r, () => r.ok ? `Verified: all ${r.files} files match the manifest, and nothing unlisted is present.` : `Does not verify:\n  ${r.problems.join('\n  ')}`);
+        return r.ok ? 0 : 1;
+      }
+      const [id, action, ...more] = rest;
+      if (id === 'new') {
+        const [start, end] = (one(a, 'period') ?? '').split('..');
+        createEngagement(dir, { id: action ?? '', type: (one(a, 'type') ?? '') as 'type1' | 'type2', firm: one(a, 'firm') ?? '', as_of: one(a, 'as-of'), start, end, contact: one(a, 'contact') });
+        out(json, { id: action }, () => `Created engagement ${action}.`);
+        return 0;
+      }
+      if (!id) throw new Error('audit needs an engagement id, new, or verify');
+      if (!action) {
+        const e = readEngagement(dir, id).data;
+        const reqs = listRequests(dir, id).map((r) => r.data);
+        out(json, { engagement: e, requests: reqs }, () => [`${e.id}: ${e.type === 'type1' ? `Type 1 as of ${e.as_of}` : `Type 2, ${e.period!.start} to ${e.period!.end}`}, ${e.firm}, ${e.status}`,
+          ...reqs.map((r) => `  ${r.id.padEnd(10)} ${r.status.padEnd(9)} ${r.kind.padEnd(10)} ${r.title}${r.samples?.length ? ` [${r.samples.map((x) => `${x.item}:${x.status}`).join(', ')}]` : ''}`)].join('\n'));
+        return 0;
+      }
+      if (action === 'requests') {
+        const f = one(a, 'import');
+        if (!f) throw new Error('requests needs --import <csv>');
+        const r = importRequests(dir, id, f);
+        out(json, r, () => `Imported ${r.added.length} request(s)${r.skipped.length ? `; ${r.skipped.length} already present (${r.skipped.join(', ')})` : ''}.`);
+        return 0;
+      }
+      if (action === 'request') {
+        const rid = more[0];
+        const cur = readVersioned(dir, `audits/${id}/requests/${rid}.json`);
+        if (!cur) throw new Error(`request ${rid} does not exist`);
+        const sample = one(a, 'sample');
+        const sampleEv = one(a, 'sample-evidence');
+        let sampleChange: { item: string; status: 'pending' | 'provided' | 'exception'; evidence?: string[] } | undefined;
+        if (sample || sampleEv) {
+          const [item, st] = (sample ?? sampleEv!.split('=')[0] + '=provided').split('=');
+          sampleChange = { item, status: st as 'provided' | 'exception', ...(sampleEv ? { evidence: [sampleEv.split('=')[1]] } : {}) };
+        }
+        actOnRequest(dir, id, rid, cur.version, { by: one(a, 'by') ?? '', side: (one(a, 'side') ?? '') as 'client' | 'firm', text: one(a, 'text'), status: one(a, 'status') as never,
+          evidence: one(a, 'evidence')?.split(',').map((x) => x.trim()).filter(Boolean), population: one(a, 'population'), select: one(a, 'select')?.split(',').map((x) => x.trim()).filter(Boolean), sample: sampleChange });
+        const r = JSON.parse(readVersioned(dir, `audits/${id}/requests/${rid}.json`)!.text);
+        out(json, r, () => `${r.id} ${r.status}: ${r.thread.at(-1).text}`);
+        return 0;
+      }
+      if (action === 'draft') {
+        const rel = draft(dir, id, (more[0] ?? '') as 'description' | 'assertion' | 'bridge', one(a, 'to'));
+        out(json, { draft: rel }, () => `Drafted ${rel}. Review it, fill every [bracketed] item, and remove the drafting comment.`);
+        return 0;
+      }
+      if (action === 'export') {
+        const o = one(a, 'out');
+        if (!o) throw new Error('export needs --out <folder>');
+        const r = exportPackage(dir, id, resolve(o));
+        out(json, r, () => `Exported ${r.files} files to ${resolve(o)}.`);
+        return 0;
+      }
+      if (action === 'import-return') {
+        const r = importReturn(dir, id, resolve(more[0] ?? ''));
+        out(json, r, () => [`Updated ${r.updated.length} request(s)${r.updated.length ? ` (${r.updated.join(', ')})` : ''}; added ${r.added.length}.`, ...r.conflicts.map((c) => `Kept for review: ${c}`)].join('\n'));
+        return 0;
+      }
+      throw new Error(`unknown audit action ${action}`);
+    }
+    case 'firm': {
+      if (a.flags.has('serve')) { firmSummary(dir); serveFirm('firm', dir, Number(one(a, 'port') ?? 4881)); return -1; }
+      const r = firmSummary(dir);
+      out(json, r, () => [`${r.firm}`, ...r.clients.map((c) => c.error ? `  ${c.name}: cannot be read (${c.error})` : [`  ${c.name} (${c.organization}): ${c.readiness}`,
+        ...c.engagements.map((e) => `    ${e.id} ${e.type} ${e.period}, ${e.status}: ${Object.entries(e.requests).map(([k, v]) => `${v} ${k}`).join(', ') || 'no requests'}${e.exceptions ? `; ${e.exceptions} exception(s)` : ''}`)].join('\n'))].join('\n'));
       return 0;
     }
     case 'gaps': {

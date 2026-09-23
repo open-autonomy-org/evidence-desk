@@ -7,6 +7,15 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Added the audit cycle. An engagement (Type 1 as of a date, Type 2 over a period) imports the firm's request list;
+  the client attaches evidence and populations, answers the samples the firm selects from them and submits; the firm
+  marks exceptions and accepts or returns requests; every act is kept in each request's conversation. The system
+  description (DC1 to DC9), management assertion and bridge letter are drafted from workspace facts with their sources.
+  A package holds exactly what the requests point at, hashed in a manifest, is refused when a referenced file is missing
+  or changed, verifies offline, and comes back with the firm's answers merged without overwriting what changed since.
+  The firm has a page for answering a package and a dashboard across its clients, each read separately. Verified on
+  synthetic companies through the CLI and every page in Chrome, including a full round trip.
+
 - Added collectors and checks. Collectors read a vendor with the owner's own read-only credentials from the
   environment; a run records what each read as evidence and every check's result in `checks/runs/`, and the gap view
   shows failing checks (dated from the first failing run), checks that could not decide, never ran or went stale. The

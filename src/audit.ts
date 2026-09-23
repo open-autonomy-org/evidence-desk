@@ -1,0 +1,476 @@
+// An audit engagement run between the company and its CPA firm. The firm's requests live beside the evidence that
+// answers them; the company drafts its system description, assertion and bridge letter from workspace facts; and the two
+// sides exchange a point-in-time package the firm can verify offline and return. Evidence Desk never forms an opinion:
+// it records requests, answers, samples, exceptions and who said what.
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { randomBytes } from 'node:crypto';
+import { check, schema } from './schema.ts';
+import { parseCsv } from './csv.ts';
+import { fileHash, readVersioned, sha256, writeVersioned } from './files.ts';
+import { categories, categoryAnswer, criteria } from './catalog.ts';
+import { computeGaps } from './gaps.ts';
+import { loadWorkspace, type Workspace } from './workspace.ts';
+
+export type Engagement = { schema: string; id: string; type: 'type1' | 'type2'; as_of?: string; period?: { start: string; end: string }; firm: string; contact?: string; status: string; created_at: string };
+export type Sample = { item: string; status: 'pending' | 'provided' | 'exception'; evidence?: string[]; note?: string };
+export type Message = { at: string; by: string; side: 'client' | 'firm'; text: string };
+export type AuditRequest = { schema: string; id: string; title: string; kind: 'document' | 'population' | 'sample'; controls: string[]; status: 'open' | 'submitted' | 'accepted' | 'returned'; evidence: string[]; population?: string; samples?: Sample[]; thread: Message[] };
+
+const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+const pretty = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
+function valid(name: string, data: unknown, what: string) { const e = check(schema(name), data); if (e.length) throw new Error(`${what} is invalid: ${e.join('; ')}`); }
+const base = (id: string) => `audits/${id}`;
+
+export function readEngagement(root: string, id: string): { data: Engagement; version: string } {
+  const r = readVersioned(root, `${base(id)}/engagement.json`);
+  if (!r) throw new Error(`engagement ${id} does not exist`);
+  return { data: JSON.parse(r.text), version: r.version };
+}
+export function listRequests(root: string, id: string): { data: AuditRequest; version: string; path: string }[] {
+  const dir = join(root, base(id), 'requests');
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((f) => f.endsWith('.json')).sort().map((f) => {
+    const path = `${base(id)}/requests/${f}`;
+    const r = readVersioned(root, path)!;
+    return { data: JSON.parse(r.text) as AuditRequest, version: r.version, path };
+  });
+}
+
+export function createEngagement(root: string, input: { id: string; type: 'type1' | 'type2'; firm: string; as_of?: string; start?: string; end?: string; contact?: string }): void {
+  const e: Engagement = { schema: 'evidence-desk.engagement/1', id: input.id, type: input.type, firm: input.firm, status: 'planning', created_at: now() };
+  if (input.type === 'type1') { if (!input.as_of) throw new Error('a Type 1 engagement needs the date it describes the design as of (--as-of)'); e.as_of = input.as_of; }
+  else { if (!input.start || !input.end) throw new Error('a Type 2 engagement needs its observation period (--period <start>..<end>)'); if (input.start >= input.end) throw new Error('the period must end after it starts'); e.period = { start: input.start, end: input.end }; }
+  if (input.contact) e.contact = input.contact;
+  valid('engagement', e, 'the engagement');
+  writeVersioned(root, `${base(input.id)}/engagement.json`, pretty(e), null);
+}
+
+// Imports the firm's request list: a CSV with id, title, kind (document, population or sample) and controls (semicolons).
+export function importRequests(root: string, id: string, file: string): { added: string[]; skipped: string[] } {
+  readEngagement(root, id);
+  const text = readFileSync(resolve(file), 'utf8');
+  const table = parseCsv(text, file);
+  for (const c of ['id', 'title']) if (!table.columns.includes(c)) throw new Error(`${file} needs an ${c} column`);
+  const known = new Set(loadWorkspace(root).controls.map((c) => c.data.id));
+  const out = { added: [] as string[], skipped: [] as string[] };
+  for (const row of table.rows) {
+    const rel = `${base(id)}/requests/${row.id}.json`;
+    if (readVersioned(root, rel)) { out.skipped.push(row.id); continue; }
+    const controls = (row.controls ?? '').split(';').map((s) => s.trim()).filter(Boolean);
+    for (const c of controls) if (!known.has(c)) throw new Error(`request ${row.id} names control ${c}, which is not in this workspace`);
+    const req: AuditRequest = { schema: 'evidence-desk.audit-request/1', id: row.id, title: row.title, kind: (row.kind || 'document') as AuditRequest['kind'], controls, status: 'open', evidence: [], thread: [] };
+    if (req.kind === 'sample') req.samples = [];
+    valid('audit-request', req, `request ${row.id}`);
+    writeVersioned(root, rel, pretty(req), null);
+    out.added.push(row.id);
+  }
+  return out;
+}
+
+type RequestChange = { by: string; side: 'client' | 'firm'; text?: string; status?: AuditRequest['status']; evidence?: string[]; population?: string; select?: string[]; sample?: { item: string; status: Sample['status']; evidence?: string[]; note?: string } };
+
+// One act on a request by one side. The client submits evidence and answers samples; the firm selects samples and
+// accepts or returns the request. Each act can carry a message, and every act is kept in the thread.
+export function actOnRequest(root: string, id: string, requestId: string, version: string, change: RequestChange): void {
+  const rel = `${base(id)}/requests/${requestId}.json`;
+  const cur = readVersioned(root, rel);
+  if (!cur) throw new Error(`request ${requestId} does not exist`);
+  if (cur.version !== version) throw new Error(`${rel} changed since it was read; reload it and try again`);
+  const req = JSON.parse(cur.text) as AuditRequest;
+  const ws = loadWorkspace(root);
+  if (!change.by.trim()) throw new Error('say who is acting');
+  if (change.side === 'client' && !(ws.registers.people?.data.rows ?? []).some((r) => r.id === change.by)) throw new Error(`${change.by} is not in registers/people.csv`);
+  const evidenceIds = new Set(ws.evidence.map((e) => e.data.id));
+  const notes: string[] = [];
+  if (change.evidence) {
+    if (change.side !== 'client') throw new Error('evidence is submitted by the client');
+    for (const e of change.evidence) if (!evidenceIds.has(e)) throw new Error(`evidence ${e} does not exist`);
+    req.evidence = [...new Set([...req.evidence, ...change.evidence])];
+    notes.push(`attached ${change.evidence.join(', ')}`);
+  }
+  if (change.population) {
+    if (!evidenceIds.has(change.population)) throw new Error(`evidence ${change.population} does not exist`);
+    req.population = change.population;
+    notes.push(`population ${change.population}`);
+  }
+  if (change.select) {
+    if (change.side !== 'firm') throw new Error('samples are selected by the firm');
+    if (req.kind !== 'sample') throw new Error('only a sample request has samples');
+    if (!req.population) throw new Error('attach the population before the firm selects samples from it');
+    const pop = ws.evidence.find((e) => e.data.id === req.population)!;
+    const rows = pop.data.files.flatMap((f) => { try { return parseCsv(readFileSync(join(root, f.path), 'utf8'), f.path).rows; } catch { return []; } });
+    const keys = new Set(rows.map((r) => Object.values(r)[0]));
+    for (const s of change.select) if (keys.size && !keys.has(s)) throw new Error(`${s} is not an item of the population in ${req.population}`);
+    const have = new Set((req.samples ?? []).map((s) => s.item));
+    req.samples = [...(req.samples ?? []), ...change.select.filter((s) => !have.has(s)).map((item) => ({ item, status: 'pending' as const }))];
+    notes.push(`selected ${change.select.join(', ')}`);
+  }
+  if (change.sample) {
+    if (change.side !== 'client' && change.sample.status !== 'exception') throw new Error('the client answers a sample; the firm can mark one an exception');
+    const s = (req.samples ?? []).find((x) => x.item === change.sample!.item);
+    if (!s) throw new Error(`${change.sample.item} is not a selected sample`);
+    for (const e of change.sample.evidence ?? []) if (!evidenceIds.has(e)) throw new Error(`evidence ${e} does not exist`);
+    s.status = change.sample.status;
+    if (change.sample.evidence?.length) s.evidence = [...new Set([...(s.evidence ?? []), ...change.sample.evidence])];
+    if (change.sample.note) s.note = change.sample.note;
+    notes.push(`sample ${s.item}: ${s.status}`);
+  }
+  if (change.status) {
+    const firmOnly = change.status === 'accepted' || change.status === 'returned';
+    if (firmOnly && change.side !== 'firm') throw new Error(`only the firm marks a request ${change.status}`);
+    if (change.status === 'submitted') {
+      if (change.side !== 'client') throw new Error('the client submits a request');
+      if (!req.evidence.length && !req.population) throw new Error('attach evidence before submitting');
+      if (req.kind === 'sample' && (req.samples ?? []).some((s) => s.status === 'pending')) throw new Error('answer every selected sample before submitting');
+    }
+    req.status = change.status;
+    notes.push(`status ${change.status}`);
+  }
+  const text = [change.text?.trim(), notes.length ? `(${notes.join('; ')})` : ''].filter(Boolean).join(' ');
+  if (!text) throw new Error('nothing to record');
+  req.thread.push({ at: now(), by: change.by, side: change.side, text });
+  valid('audit-request', req, rel);
+  writeVersioned(root, rel, pretty(req), version);
+}
+
+// ── Drafts ──────────────────────────────────────────────────────────────────────────────────────────────────────
+const inPeriod = (at: string, e: Engagement) => e.type === 'type2' ? at.slice(0, 10) >= e.period!.start && at.slice(0, 10) <= e.period!.end : at.slice(0, 10) <= e.as_of!;
+
+function description(ws: Workspace, e: Engagement): string {
+  const a = ws.scope?.data.answers ?? {};
+  const org = ws.manifest?.data.organization ?? '';
+  const inScope = ['CC', ...Object.entries(categoryAnswer).filter(([, q]) => a[q] === true).map(([c]) => c)];
+  const controls = ws.controls.filter((c) => c.data.applicable).map((c) => c.data);
+  const excludedCriteria = criteria.filter((c) => inScope.includes(c.category)).filter((c) => { const m = ws.controls.filter((x) => x.data.criteria.includes(c.id)); return m.length > 0 && m.every((x) => !x.data.applicable); });
+  const rows = (name: 'people' | 'systems' | 'vendors') => ws.registers[name]?.data.rows ?? [];
+  const incidents = ws.incidents.filter((i) => inPeriod(i.data.detected_at, e) && (i.data.severity === 'high' || i.data.severity === 'critical'));
+  const approvals = ws.policies.flatMap((p) => p.data.versions.filter((v) => inPeriod(v.approved_at, e)).map((v) => `${p.data.title} version ${v.version} approved ${v.approved_at.slice(0, 10)}`));
+  const when = e.type === 'type1' ? `as of ${e.as_of}` : `for the period ${e.period!.start} to ${e.period!.end}`;
+  return `# Description of ${org}'s system ${when}
+
+<!-- Drafted by Evidence Desk from the workspace on ${now().slice(0, 10)}. Each section names its sources. Review every section,
+fill each [bracketed] item, and remove this comment before giving it to the firm. This is management's description;
+the firm's opinion is its own. -->
+
+## DC1 Services provided
+
+${a.services || '[Describe the services provided to customers.]'}
+
+Sources: scope.json (services).
+
+## DC2 Principal service commitments and system requirements
+
+[State the security, availability and confidentiality commitments made to customers in contracts, terms and the SLA,
+and the system requirements that follow from them.]
+
+Sources: controls/GOV-07.json and its evidence.
+
+## DC3 Components of the system
+
+Infrastructure: ${a.infrastructure || '[describe]'}.
+
+Software and systems in scope:
+${rows('systems').filter((s) => s.in_scope === 'yes').map((s) => `- ${s.name}${s.description ? `: ${s.description}` : ''}${s.data ? ` (data: ${s.data})` : ''}`).join('\n') || '- [none listed]'}
+
+People and roles:
+${rows('people').filter((p) => !p.end_date).map((p) => `- ${p.name}${p.role ? `, ${p.role}` : ''}`).join('\n') || '- [none listed]'}
+
+Procedures: the organization's approved policies:
+${ws.policies.filter((p) => p.data.versions.length).map((p) => `- ${p.data.title}, version ${p.data.versions.at(-1)!.version}`).join('\n') || '- [no policy approved yet]'}
+
+Data: ${rows('systems').map((s) => s.data).filter(Boolean).join('; ') || '[describe the data the system holds]'}.
+
+Sources: scope.json, registers/systems.csv, registers/people.csv, policies/.
+
+## DC4 System incidents
+
+${incidents.length ? incidents.map((i) => `- ${i.data.detected_at.slice(0, 10)} ${i.data.title} (${i.data.severity}, ${i.data.status})${i.data.review ? `: ${i.data.review}` : ''}`).join('\n') : 'No high or critical incident is recorded for this period.'}
+
+Sources: incidents/.
+
+## DC5 Applicable trust services criteria and related controls
+
+Categories in scope: ${inScope.map((c) => categories[c]).join(', ')}.
+
+${controls.map((c) => `- ${c.id} ${c.title} (${c.criteria.join(', ')}): ${c.description}`).join('\n')}
+
+Sources: scope.json, controls/.
+
+## DC6 Complementary user entity controls
+
+[List the controls the service assumes its customers operate, for example managing their own users' access to the
+service and protecting the credentials it issues them.]
+
+## DC7 Subservice organizations
+
+The organization uses these subservice organizations and presents them using the carve-out method:
+${(String(a.subservice_organizations ?? '')).split(';').map((s) => s.trim()).filter(Boolean).map((s) => `- ${s}: [the controls the organization expects it to operate, and how the organization monitors them]`).join('\n') || '- [none listed]'}
+
+Critical vendors on record: ${rows('vendors').filter((v) => v.criticality === 'high').map((v) => v.name).join(', ') || 'none'}.
+
+Sources: scope.json (subservice_organizations), registers/vendors.csv.
+
+## DC8 Criteria not relevant to the system
+
+${excludedCriteria.length ? excludedCriteria.map((c) => `- ${c.id} ${c.title}: ${ws.controls.filter((x) => x.data.criteria.includes(c.id)).map((x) => x.data.exclusion_reason).join(' ')}`).join('\n') : 'Every criterion in scope is addressed by at least one applicable control.'}
+
+Sources: controls/ (exclusion reasons).
+${e.type === 'type2' ? `
+## DC9 Significant changes during the period
+
+${approvals.length ? approvals.map((x) => `- ${x}`).join('\n') : '- No policy version was approved during the period.'}
+- [Add significant changes to the system, its people or its controls.]
+
+Sources: policies/*.json (approved versions).
+` : ''}`;
+}
+
+function assertion(ws: Workspace, e: Engagement): string {
+  const org = ws.manifest?.data.organization ?? '';
+  const when = e.type === 'type1' ? `as of ${e.as_of}` : `throughout the period ${e.period!.start} to ${e.period!.end}`;
+  return `# Management's assertion
+
+<!-- Drafted by Evidence Desk. Management reviews, adapts and signs it; the firm may provide its own required wording. -->
+
+We have prepared the accompanying description of ${org}'s system ${e.type === 'type1' ? 'as of' : 'for the period'} ${e.type === 'type1' ? e.as_of : `${e.period!.start} to ${e.period!.end}`}
+based on the criteria for a description of a service organization's system. We confirm, to the best of our knowledge
+and belief, that:
+
+1. The description presents the system that was designed and implemented ${when} in accordance with those criteria.
+2. The controls stated in the description were suitably designed ${when} to provide reasonable assurance that our
+   service commitments and system requirements would be achieved if the controls operated effectively${e.type === 'type2' ? ', and they operated effectively throughout that period' : ''}.
+
+[Name, title]
+[Signature]
+[Date]
+`;
+}
+
+function bridge(ws: Workspace, e: Engagement, to: string): string {
+  const org = ws.manifest?.data.organization ?? '';
+  const from = e.type === 'type2' ? e.period!.end : e.as_of!;
+  const incidents = ws.incidents.filter((i) => i.data.detected_at.slice(0, 10) > from && i.data.detected_at.slice(0, 10) <= to);
+  return `# Bridge letter
+
+<!-- Drafted by Evidence Desk. Management reviews and signs it; it is not an audit opinion. -->
+
+To our customers:
+
+${org}'s most recent SOC 2 ${e.type === 'type1' ? 'Type 1' : 'Type 2'} report, issued by ${e.firm}, covered ${e.type === 'type1' ? `the design of controls as of ${e.as_of}` : `the period ${e.period!.start} to ${e.period!.end}`}.
+For the period from ${from} to ${to}, management confirms that:
+
+- there have been no material changes to the system or its controls, except: [none, or describe];
+- ${incidents.length ? `the following incidents occurred: ${incidents.map((i) => `${i.data.title} (${i.data.severity})`).join('; ')}` : 'no significant security incident has been identified'};
+- the next report is expected to cover a period ending [date].
+
+This letter is management's statement and is not an opinion of ${e.firm}.
+
+[Name, title]
+[Signature]
+[Date]
+`;
+}
+
+export function draft(root: string, id: string, kind: 'description' | 'assertion' | 'bridge', to?: string): string {
+  const e = readEngagement(root, id).data;
+  const ws = loadWorkspace(root);
+  const text = kind === 'description' ? description(ws, e) : kind === 'assertion' ? assertion(ws, e) : bridge(ws, e, to ?? now().slice(0, 10));
+  const rel = `${base(id)}/drafts/${kind}.md`;
+  const cur = readVersioned(root, rel);
+  if (cur) throw new Error(`${rel} already exists; it may hold management's edits. Rename or remove it to draft again`);
+  writeVersioned(root, rel, text, null);
+  return rel;
+}
+
+// ── Packages ────────────────────────────────────────────────────────────────────────────────────────────────────
+// Exports exactly what the engagement's requests point at, plus the engagement, its drafts, and the controls and
+// approved policy texts those requests name. Refuses when a referenced file is missing or no longer matches its record.
+export function exportPackage(root: string, id: string, out: string): { files: number; omitted: string[] } {
+  const e = readEngagement(root, id);
+  if (existsSync(out) && readdirSync(out).length) throw new Error(`${out} is not empty`);
+  const ws = loadWorkspace(root);
+  const reqs = listRequests(root, id);
+  const paths = new Set<string>([`${base(id)}/engagement.json`, ...reqs.map((r) => r.path)]);
+  const draftDir = join(root, base(id), 'drafts');
+  if (existsSync(draftDir)) for (const f of readdirSync(draftDir)) paths.add(`${base(id)}/drafts/${f}`);
+  const evidenceIds = new Set(reqs.flatMap((r) => [...r.data.evidence, ...(r.data.population ? [r.data.population] : []), ...(r.data.samples ?? []).flatMap((s) => s.evidence ?? [])]));
+  const problems: string[] = [];
+  for (const eid of evidenceIds) {
+    const rec = ws.evidence.find((x) => x.data.id === eid);
+    if (!rec) { problems.push(`evidence ${eid} is referenced but does not exist`); continue; }
+    paths.add(rec.path);
+    for (const f of rec.data.files) {
+      const h = fileHash(root, f.path);
+      if (!h) problems.push(`${f.path} (evidence ${eid}) is missing`);
+      else if (h.sha256 !== f.sha256) problems.push(`${f.path} (evidence ${eid}) changed since it was recorded`);
+      else paths.add(f.path);
+    }
+  }
+  for (const cid of new Set(reqs.flatMap((r) => r.data.controls))) {
+    const c = ws.controls.find((x) => x.data.id === cid);
+    if (!c) { problems.push(`control ${cid} does not exist`); continue; }
+    paths.add(c.path);
+    for (const pid of c.data.policies) {
+      const p = ws.policies.find((x) => x.data.id === pid);
+      const v = p?.data.versions.at(-1);
+      if (p && v) { paths.add(p.path); paths.add(v.archived); }
+    }
+  }
+  if (problems.length) throw new Error(`the package cannot be exported:\n  ${problems.join('\n  ')}`);
+  mkdirSync(out, { recursive: true });
+  const files = [...paths].sort().map((p) => {
+    const dest = join(out, 'workspace', p);
+    mkdirSync(dirname(dest), { recursive: true });
+    cpSync(join(root, p), dest);
+    const h = fileHash(join(out, 'workspace'), p)!;
+    return { path: p, sha256: h.sha256, bytes: h.bytes };
+  });
+  const manifest = { schema: 'evidence-desk.audit-package/1', engagement: e.data.id, organization: ws.manifest?.data.organization ?? '', created_at: now(), files,
+    omitted: ['Everything not referenced by this engagement\'s requests: other evidence, registers, people and unrelated records stay in the workspace.'],
+    request_versions: Object.fromEntries(reqs.map((r) => [r.data.id, r.version])) };
+  valid('audit-package', manifest, 'the package manifest');
+  writeFileSync(join(out, 'manifest.json'), pretty(manifest));
+  writeFileSync(join(out, 'README.md'), `# SOC 2 audit package: ${manifest.organization}, engagement ${e.data.id}
+
+Created ${manifest.created_at}. \`manifest.json\` lists every file under \`workspace/\` with its SHA-256. Check it with
+\`evidence-desk audit verify <this folder>\`, or compare the hashes with any SHA-256 tool. To respond, edit the request
+files under \`workspace/${base(id)}/requests/\` (add to each thread with side "firm", set status "accepted" or "returned",
+add sample items) and send the folder back. A hash shows that a file is unchanged; it does not show who made it.
+`);
+  return { files: files.length, omitted: manifest.omitted };
+}
+
+export function verifyPackage(dir: string): { ok: boolean; problems: string[]; files: number } {
+  const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
+  const errs = check(schema('audit-package'), manifest);
+  if (errs.length) return { ok: false, problems: errs, files: 0 };
+  const problems: string[] = [];
+  const listed = new Set<string>();
+  for (const f of manifest.files as { path: string; sha256: string }[]) {
+    listed.add(f.path);
+    const full = join(dir, 'workspace', f.path);
+    if (!existsSync(full)) problems.push(`${f.path} is listed but missing`);
+    else if (sha256(readFileSync(full)) !== f.sha256) problems.push(`${f.path} does not match the manifest`);
+  }
+  const walk = (d: string, rel = ''): string[] => readdirSync(join(d, rel), { withFileTypes: true }).flatMap((x) => x.isDirectory() ? walk(d, join(rel, x.name)) : [join(rel, x.name).split('\\').join('/')]);
+  for (const f of walk(join(dir, 'workspace'))) if (!listed.has(f)) problems.push(`${f} is in the package but not in the manifest`);
+  return { ok: !problems.length, problems, files: manifest.files.length };
+}
+
+// Brings the firm's side of a returned package into the workspace. Messages are merged, samples the firm added are
+// added, and the firm's status is taken unless the client also changed the request since export; then both are kept
+// in view and the difference is reported, never overwritten.
+export function importReturn(root: string, id: string, dir: string): { updated: string[]; added: string[]; conflicts: string[] } {
+  const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
+  if (manifest.engagement !== id) throw new Error(`the package is for engagement ${manifest.engagement}, not ${id}`);
+  const out = { updated: [] as string[], added: [] as string[], conflicts: [] as string[] };
+  const reqDir = join(dir, 'workspace', base(id), 'requests');
+  for (const f of existsSync(reqDir) ? readdirSync(reqDir).filter((x) => x.endsWith('.json')) : []) {
+    const theirs = JSON.parse(readFileSync(join(reqDir, f), 'utf8')) as AuditRequest;
+    const errs = check(schema('audit-request'), theirs);
+    if (errs.length) { out.conflicts.push(`${f} in the package is invalid: ${errs.join('; ')}`); continue; }
+    const rel = `${base(id)}/requests/${theirs.id}.json`;
+    const cur = readVersioned(root, rel);
+    if (!cur) {
+      if (theirs.thread.some((m) => m.side === 'client')) { out.conflicts.push(`request ${theirs.id} is new in the package but carries client messages; not imported`); continue; }
+      writeVersioned(root, rel, pretty(theirs), null); out.added.push(theirs.id); continue;
+    }
+    const mine = JSON.parse(cur.text) as AuditRequest;
+    const clientChanged = cur.version !== manifest.request_versions?.[theirs.id];
+    const key = (m: Message) => `${m.at}|${m.by}|${m.side}|${m.text}`;
+    const seen = new Set(mine.thread.map(key));
+    const newMsgs = theirs.thread.filter((m) => !seen.has(key(m)));
+    if (newMsgs.some((m) => m.side === 'client')) out.conflicts.push(`request ${theirs.id}: the package carries client messages that are not in the workspace; only firm messages were imported`);
+    const next: AuditRequest = { ...mine, thread: [...mine.thread, ...newMsgs.filter((m) => m.side === 'firm')].sort((a, b) => a.at.localeCompare(b.at)) };
+    const have = new Set((mine.samples ?? []).map((s) => s.item));
+    const addedSamples = (theirs.samples ?? []).filter((s) => !have.has(s.item)).map((s) => ({ item: s.item, status: 'pending' as const, ...(s.note ? { note: s.note } : {}) }));
+    if (addedSamples.length) next.samples = [...(mine.samples ?? []), ...addedSamples];
+    for (const s of theirs.samples ?? []) if (s.status === 'exception') { const m = next.samples?.find((x) => x.item === s.item); if (m && m.status !== 'exception') { m.status = 'exception'; if (s.note) m.note = s.note; } }
+    if (theirs.status !== mine.status && (theirs.status === 'accepted' || theirs.status === 'returned')) {
+      if (clientChanged && mine.status !== 'submitted') out.conflicts.push(`request ${theirs.id}: the firm marked it ${theirs.status}, but it changed here since export (now ${mine.status}); kept ${mine.status}`);
+      else next.status = theirs.status;
+    }
+    if (JSON.stringify(next) !== JSON.stringify(mine)) {
+      valid('audit-request', next, rel);
+      writeVersioned(root, rel, pretty(next), cur.version);
+      out.updated.push(theirs.id);
+    }
+  }
+  return out;
+}
+
+// ── The firm's view ─────────────────────────────────────────────────────────────────────────────────────────────
+// Reads each client workspace the firm lists and reports, per client, only its own engagements, request counts and
+// readiness. Nothing from one client is shown beside another client's records.
+export function firmSummary(firmFile: string): { firm: string; clients: { name: string; organization: string; engagements: { id: string; type: string; period: string; status: string; requests: Record<string, number>; exceptions: number }[]; readiness: string; error?: string }[] } {
+  const doc = JSON.parse(readFileSync(firmFile, 'utf8'));
+  const errs = check(schema('firm'), doc);
+  if (errs.length) throw new Error(`${firmFile} is invalid: ${errs.join('; ')}`);
+  return { firm: doc.firm, clients: (doc.clients as { name: string; path: string }[]).map((c) => {
+    const path = resolve(dirname(firmFile), c.path);
+    try {
+      const ws = loadWorkspace(path);
+      const g = computeGaps(ws);
+      const dir = join(path, 'audits');
+      const engagements = (existsSync(dir) ? readdirSync(dir) : []).filter((d) => existsSync(join(dir, d, 'engagement.json'))).map((d) => {
+        const e = readEngagement(path, d).data;
+        const reqs = listRequests(path, d).map((r) => r.data);
+        const requests: Record<string, number> = {};
+        for (const r of reqs) requests[r.status] = (requests[r.status] ?? 0) + 1;
+        return { id: e.id, type: e.type === 'type1' ? 'Type 1' : 'Type 2', period: e.type === 'type1' ? `as of ${e.as_of}` : `${e.period!.start} to ${e.period!.end}`, status: e.status, requests,
+          exceptions: reqs.flatMap((r) => r.samples ?? []).filter((s) => s.status === 'exception').length };
+      });
+      return { name: c.name, organization: ws.manifest?.data.organization ?? '', engagements, readiness: `${g.summary.controls_ready}/${g.summary.controls_applicable} controls ready` };
+    } catch (err) { return { name: c.name, organization: '', engagements: [], readiness: '', error: (err as Error).message }; }
+  }) };
+}
+
+export const newId = () => randomBytes(3).toString('hex');
+
+// The firm's side of a received package: one act on one request file inside the package. The firm can add a message,
+// select samples from the attached population, mark a sample an exception, and accept or return the request.
+export function respondInPackage(dir: string, requestId: string, version: string, change: { by: string; text?: string; status?: 'accepted' | 'returned'; select?: string[]; exception?: { item: string; note?: string } }): void {
+  const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
+  const wsDir = join(dir, 'workspace');
+  const rel = `${base(manifest.engagement)}/requests/${requestId}.json`;
+  const cur = readVersioned(wsDir, rel);
+  if (!cur) throw new Error(`request ${requestId} is not in this package`);
+  if (cur.version !== version) throw new Error(`${rel} changed since it was read; reload it and try again`);
+  if (!change.by.trim()) throw new Error('say who is responding');
+  const req = JSON.parse(cur.text) as AuditRequest;
+  const notes: string[] = [];
+  if (change.select?.length) {
+    if (req.kind !== 'sample' || !req.population) throw new Error('samples are selected from the population attached to a sample request');
+    const pop = JSON.parse(readFileSync(join(wsDir, 'evidence/records', `${req.population}.json`), 'utf8'));
+    const keys = new Set((pop.files as { path: string }[]).flatMap((f) => parseCsv(readFileSync(join(wsDir, f.path), 'utf8'), f.path).rows.map((r) => Object.values(r)[0])));
+    for (const s of change.select) if (!keys.has(s)) throw new Error(`${s} is not an item of the population`);
+    const have = new Set((req.samples ?? []).map((s) => s.item));
+    req.samples = [...(req.samples ?? []), ...change.select.filter((s) => !have.has(s)).map((item) => ({ item, status: 'pending' as const }))];
+    notes.push(`selected ${change.select.join(', ')}`);
+  }
+  if (change.exception) {
+    const s = (req.samples ?? []).find((x) => x.item === change.exception!.item);
+    if (!s) throw new Error(`${change.exception.item} is not a selected sample`);
+    s.status = 'exception';
+    if (change.exception.note) s.note = change.exception.note;
+    notes.push(`sample ${s.item}: exception`);
+  }
+  if (change.status) { req.status = change.status; notes.push(`status ${change.status}`); }
+  const text = [change.text?.trim(), notes.length ? `(${notes.join('; ')})` : ''].filter(Boolean).join(' ');
+  if (!text) throw new Error('nothing to record');
+  req.thread.push({ at: now(), by: change.by, side: 'firm', text });
+  valid('audit-request', req, rel);
+  writeVersioned(wsDir, rel, pretty(req), version);
+}
+
+export function packageState(dir: string) {
+  const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
+  const wsDir = join(dir, 'workspace');
+  const e = JSON.parse(readFileSync(join(wsDir, base(manifest.engagement), 'engagement.json'), 'utf8')) as Engagement;
+  const reqDir = join(wsDir, base(manifest.engagement), 'requests');
+  const requests = readdirSync(reqDir).filter((f) => f.endsWith('.json')).sort().map((f) => { const r = readVersioned(wsDir, `${base(manifest.engagement)}/requests/${f}`)!; return { ...(JSON.parse(r.text) as AuditRequest), version: r.version }; });
+  const drafts = existsSync(join(wsDir, base(manifest.engagement), 'drafts')) ? readdirSync(join(wsDir, base(manifest.engagement), 'drafts')).map((f) => `${base(manifest.engagement)}/drafts/${f}`) : [];
+  const evidence = Object.fromEntries((manifest.files as { path: string }[]).filter((f) => f.path.startsWith('evidence/records/')).map((f) => { const r = JSON.parse(readFileSync(join(wsDir, f.path), 'utf8')); return [r.id, { title: r.title, files: r.files.map((x: { path: string }) => x.path), source: r.source, period: r.period ?? null, collected_at: r.collected_at }]; }));
+  return { organization: manifest.organization, created_at: manifest.created_at, engagement: e, requests, drafts, evidence, verification: verifyPackage(dir) };
+}
