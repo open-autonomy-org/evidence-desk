@@ -87,7 +87,10 @@ the plan is done; the fleet resumes once the product works. Outcomes below are `
 does not duplicate that work.
 
 Sequence: `open-autonomy-soc2-ready` (the aim; Open Autonomy's `soc2` template is outstanding), then
-`evidence-automation` (further collectors wait on twins), `trust-and-questionnaires` and `multi-framework`.
+`evidence-automation` (further collectors wait on twins), `trust-and-questionnaires` and `multi-framework`. The workspace
+format, control library, policy templates, CLI and local app, the operation of the program, reading Open Autonomy
+projects, collectors and checks, and the audit cycle have landed; see [CHANGELOG.md](CHANGELOG.md) and
+[docs/workspace-format.md](docs/workspace-format.md).
 
 ## open-autonomy-soc2-ready: A project on Open Autonomy's soc2 template is SOC2 ready out of the box
 
