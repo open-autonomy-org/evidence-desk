@@ -125,9 +125,13 @@ Supercode orchestrator package the kit pins), never by parsing a harness's priva
 The people at the seams are the people in scope, and the human controls apply to them: each completes onboarding
 through Evidence Desk (policy acknowledgment, a security-awareness quiz, attestations such as MFA on the accounts
 that reach their seam) and the recurring reviews that are a person's decision (access, risk, incidents). Each
-completion is recorded through a seam's own door, attributable to that person's verified account. What automation
-does not cover (the service's runtime, data handling, availability) stays on the ordinary evidence paths, and the
-gap view says which facts came from where.
+completion is recorded through a seam's own door, attributable to that person's verified account. The project's
+code states its design, including its commitments, SLA and escalation policy, data handling and infrastructure,
+and its durable records show the process operating. What neither can show stays on the ordinary evidence paths:
+state held in vendor consoles, whether production matches the code (stored data, backups and restores, retention),
+facts about people and their devices (including the host that runs the agents), judgment acts such as the risk
+assessment and the signed assertion, vendors' own assurance reports, external tests, and agreements executed with
+customers. The gap view says which facts came from where.
 
 Completion:
 - One command turns an Open Autonomy project into a workspace at a named commit: `agent.json` profiles, jobs and models, the `team` roster with scopes, the declared seams, the landing and production rules, and the vendors named by its dependencies and deploy egress; each fact carries that commit as provenance and maps to the controls and criteria it evidences. A later change surfaces as a changed design fact, never a silent overwrite.
