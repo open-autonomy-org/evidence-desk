@@ -32,6 +32,9 @@ allowed everywhere and kept when Evidence Desk writes a file, so other tools can
 | `audits/<id>/engagement.json` | one audit engagement: Type 1 as of a date or Type 2 over a period | `engagement` |
 | `audits/<id>/requests/<request>.json` | one of the firm's requests, its answers, samples and conversation | `audit-request` |
 | `audits/<id>/drafts/*.md` | the system description, management assertion and bridge letter drafts | Markdown |
+| `trust.json` | what the trust center may publish; nothing else is published | `trust` |
+| `questionnaires/<id>.json` | one security questionnaire, its answers, sources and review state | `questionnaire` |
+| `answers.json` | reviewed answers kept for reuse, with the facts they cite | `answer-library` |
 | `evidence/records/<id>.json` | one evidence record | `evidence` |
 | `evidence/files/` | evidence files | any |
 | `AGENTS.md`, `CLAUDE.md` | instructions for a coding agent working in the folder | Markdown |
@@ -150,6 +153,21 @@ export keeps the client's status and the difference is reported. A hash shows th
 
 A firm keeps `firm.json` (schema `firm`) listing its clients' workspace folders. `evidence-desk firm` reports each
 client's engagements, request counts, exceptions and readiness separately.
+
+## Trust center and questionnaires
+
+`evidence-desk trust build` writes a static `index.html` from the workspace, publishing only what `trust.json` lists:
+the categories in scope, whether a SOC 2 report is available (from the latest closed engagement), titles and approval
+dates of named policies, high-criticality vendors as subprocessors, and documents offered on request through the
+security contact. The organization hosts the folder wherever it likes.
+
+A questionnaire is imported from a CSV with a question column. Each question is first matched against the answer
+library; a reviewed answer whose cited files are unchanged is reused as reviewed, and one whose facts changed is marked
+`needs-review`. Otherwise the answer is drafted by quoting the applicable controls, the reasons for excluded ones, and
+approved policy text that match the question, each cited with its file and SHA-256; a question with no matching fact is
+left `unanswered`. A draft carries a marker and cannot be marked reviewed until a person replaces it with their answer.
+Only reviewed, current answers are exported. Drafting uses no AI service; a customer's own coding agent may refine
+drafts in the files.
 
 ## Readiness
 

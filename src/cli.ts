@@ -10,6 +10,7 @@ import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
 import { questions } from './catalog.ts';
 import { serve } from './server.ts';
 import { serveFirm } from './firm-server.ts';
+import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, reviewAnswer, staleLibrary } from './trust.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { computeObligations } from './obligations.ts';
 import { collectRosterHistory, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
@@ -69,6 +70,12 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   audit verify <package folder>           check a package's files against its manifest, offline
   firm <firm.json> [--serve [--port <n>]] each client's engagements, requests and readiness, client by client
   audit package-serve <package folder> [--port <n>]   the firm's page for answering a received package
+  trust <dir> build --out <folder>        build the static trust center from what trust.json allows
+  questionnaire <dir> import <csv> --name <name>   draft answers from workspace facts, citing them
+  questionnaire <dir> <id>                the questions, answers, sources and review state
+  questionnaire <dir> <id> answer <question> --answer <text> --by <person> [--source <path>,...]
+  questionnaire <dir> <id> export --out <csv>   reviewed answers filled in, every row with its status
+  answers <dir> [--stale]                 the library of reviewed answers (--stale: those whose facts changed)
   gaps <dir> [--as-of YYYY-MM-DD]         what stands between the workspace and readiness
   validate <dir>                          check every file against its schema and references
   serve <dir> [--port <n>]                open the local app on 127.0.0.1
@@ -86,7 +93,7 @@ function parse(argv: string[]): Args {
     const vals = flags.get(key) ?? [];
     if (['set', 'add', 'update'].includes(key)) {
       while (argv[i + 1] !== undefined && !argv[i + 1].startsWith('--')) vals.push(argv[++i]);
-    } else if (!['json', 'approve', 'include', 'help', 'sign-off', 'enable', 'disable', 'serve'].includes(key)) {
+    } else if (!['json', 'approve', 'include', 'help', 'sign-off', 'enable', 'disable', 'serve', 'stale'].includes(key)) {
       if (i + 1 >= argv.length) throw new Error(`--${key} needs a value`);
       vals.push(argv[++i]);
     }
@@ -455,6 +462,42 @@ async function main(argv: string[]): Promise<number> {
       const r = firmSummary(dir);
       out(json, r, () => [`${r.firm}`, ...r.clients.map((c) => c.error ? `  ${c.name}: cannot be read (${c.error})` : [`  ${c.name} (${c.organization}): ${c.readiness}`,
         ...c.engagements.map((e) => `    ${e.id} ${e.type} ${e.period}, ${e.status}: ${Object.entries(e.requests).map(([k, v]) => `${v} ${k}`).join(', ') || 'no requests'}${e.exceptions ? `; ${e.exceptions} exception(s)` : ''}`)].join('\n'))].join('\n'));
+      return 0;
+    }
+    case 'trust': {
+      if (rest[0] !== 'build' || !one(a, 'out')) throw new Error('trust needs build --out <folder>');
+      const r = buildTrustCenter(dir, resolve(one(a, 'out')!));
+      out(json, r, () => `Built ${resolve(one(a, 'out')!)}/index.html publishing: ${r.published.join(', ') || 'only the headline and contact'}.`);
+      return 0;
+    }
+    case 'questionnaire': {
+      if (rest[0] === 'import') {
+        const r = importQuestionnaire(dir, rest[1] ?? '', one(a, 'name') ?? '');
+        out(json, r, () => `Imported ${r.id}: ${r.fromLibrary} from reviewed answers, ${r.drafted} drafted from workspace facts, ${r.unanswered} with nothing to draft from.`);
+        return 0;
+      }
+      const [id, action, qid] = rest;
+      const rel = `questionnaires/${id}.json`;
+      const cur = readVersioned(dir, rel);
+      if (!cur) throw new Error(`questionnaire ${id} does not exist`);
+      if (action === 'answer') {
+        reviewAnswer(dir, id, cur.version, qid ?? '', { answer: one(a, 'answer') ?? '', by: one(a, 'by') ?? '', sources: one(a, 'source')?.split(',').map((x) => x.trim()).filter(Boolean) });
+        out(json, { id, question: qid }, () => `Reviewed ${qid}; kept in the answer library.`);
+        return 0;
+      }
+      if (action === 'export') {
+        const r = exportQuestionnaire(dir, id, one(a, 'out') ?? '');
+        out(json, r, () => `Wrote ${r.reviewed} reviewed answer(s); ${r.blank} left blank with their status.`);
+        return 0;
+      }
+      const doc = JSON.parse(cur.text);
+      out(json, doc, () => [doc.name, ...doc.questions.map((q: { id: string; status: string; question: string; answer: string; sources: { path: string }[] }) => `  ${q.id} [${q.status}] ${q.question}\n      ${q.answer.slice(0, 200) || '(no answer)'}${q.sources.length ? `\n      sources: ${q.sources.map((x) => x.path).join(', ')}` : ''}`)].join('\n'));
+      return 0;
+    }
+    case 'answers': {
+      const stale = a.flags.has('stale') ? staleLibrary(dir) : null;
+      const lib = stale ?? JSON.parse(readVersioned(dir, 'answers.json')?.text ?? '{"answers":[]}').answers;
+      out(json, lib, () => lib.map((x: { id: string; question: string; reviewed_by: string; reviewed_at: string }) => `${x.id}  ${x.reviewed_at.slice(0, 10)} ${x.reviewed_by}  ${x.question}`).join('\n') || (stale ? 'No reviewed answer cites a fact that changed.' : 'No reviewed answers yet.'));
       return 0;
     }
     case 'gaps': {

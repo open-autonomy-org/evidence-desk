@@ -72,6 +72,13 @@ bun src/cli.ts audit ~/acme-soc2 q3 import-return ~/q3-package         # bring t
 bun src/cli.ts firm ~/firm/firm.json --serve                            # the firm's view across its clients
 ```
 
+Answer customers from the same facts, and publish a trust center you host yourself:
+
+```bash
+bun src/cli.ts questionnaire ~/acme-soc2 import bigco.csv --name "BigCo vendor review"
+bun src/cli.ts trust ~/acme-soc2 build --out ~/acme-trust
+```
+
 Add `--json` to any command for machine-readable output. `bun src/cli.ts --help` lists every command.
 
 The folder's structure is documented in [docs/workspace-format.md](docs/workspace-format.md) with JSON Schemas in

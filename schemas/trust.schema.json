@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/trust.schema.json",
+  "title": "What the trust center publishes (trust.json). Nothing is published unless listed here.",
+  "type": "object",
+  "required": [
+    "schema",
+    "headline",
+    "publish"
+  ],
+  "properties": {
+    "schema": {
+      "const": "evidence-desk.trust/1"
+    },
+    "headline": {
+      "type": "string",
+      "minLength": 1
+    },
+    "overview": {
+      "type": "string"
+    },
+    "publish": {
+      "type": "object",
+      "properties": {
+        "policies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Policy ids whose titles and approval dates are listed."
+        },
+        "subprocessors": {
+          "type": "boolean",
+          "description": "List vendors from the register with high criticality, by name and service."
+        },
+        "categories": {
+          "type": "boolean",
+          "description": "List the trust services categories in scope."
+        },
+        "report": {
+          "type": "boolean",
+          "description": "Say which SOC 2 report is available on request, from the latest engagement."
+        },
+        "documents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "title"
+            ],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Documents offered on request (never published)."
+        }
+      }
+    }
+  }
+}

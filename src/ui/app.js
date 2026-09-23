@@ -55,7 +55,7 @@ function render() {
   document.getElementById('org').textContent = S.organization;
   for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('active', b.dataset.tab === tab);
   const view = document.getElementById('view');
-  view.replaceChildren(({ overview, scope, controls, policies, registers, evidence, people: peopleView, obligations, access, incidents, oa: openAutonomy, checks: checksView, audit: auditView })[tab]?.() ?? overview());
+  view.replaceChildren(({ overview, scope, controls, policies, registers, evidence, people: peopleView, obligations, access, incidents, oa: openAutonomy, checks: checksView, audit: auditView, trust: trustView })[tab]?.() ?? overview());
 }
 
 function statusPill(c) {
@@ -613,6 +613,53 @@ function auditView() {
       h('div', { class: 'row', style: 'margin-top:0' }, h('div', { style: 'flex:1' }, outInput), h('button', { class: 'primary', onclick: async () => { const r = await post('/api/audit/export', { engagement: e.id, out: outInput.value }, null); if (r) notice(`Exported ${r.result.files} files.`, true); } }, 'Export')),
       h('label', {}, 'Bring in the firm\'s responses', h('small', {}, 'Messages, samples and statuses are merged; anything that changed here since the export is reported, not overwritten.')),
       h('div', { class: 'row', style: 'margin-top:0' }, h('div', { style: 'flex:1' }, retInput), h('button', { class: 'primary', onclick: async () => { const r = await post('/api/audit/import-return', { engagement: e.id, dir: retInput.value }, null); if (r) notice(`Updated ${r.result.updated.length}, added ${r.result.added.length}.${r.result.conflicts.length ? ` Kept for review: ${r.result.conflicts.join(' ')}` : ''}`, !r.result.conflicts.length); } }, 'Import'))));
+}
+
+function trustView() {
+  if (detail) return questionnaireView(S.questionnaires.find((q) => q.id === detail));
+  const out = h('input', { type: 'text', placeholder: 'Folder to write the site to' });
+  const qfile = h('input', { type: 'file', accept: '.csv' });
+  const qname = h('input', { type: 'text', placeholder: 'Who sent it, for example "BigCo vendor review"' });
+  const t = S.trust;
+  return h('div', {},
+    h('h1', {}, 'Trust'),
+    h('p', { class: 'lead' }, 'What you tell customers, drawn only from the workspace: a trust center you host yourself, and answers to their security questionnaires.'),
+    h('div', { class: 'card' },
+      h('h2', { style: 'margin-top:0' }, 'Trust center'),
+      t ? h('div', {}, h('p', {}, t.headline), h('p', { class: 'muted' }, 'Publishes: ', [t.publish.categories && 'categories in scope', t.publish.report && 'audit report availability', (t.publish.policies ?? []).length && `${t.publish.policies.length} policy titles`,
+        t.publish.subprocessors && 'subprocessors', (t.publish.documents ?? []).length && `${t.publish.documents.length} documents on request`].filter(Boolean).join(', ') || 'only the headline and security contact', '. Change what is published in trust.json.'))
+        : h('p', { class: 'muted' }, 'Create trust.json in the workspace to choose what the trust center publishes; nothing is published otherwise.'),
+      h('div', { class: 'row' }, h('div', { style: 'flex:1' }, out), h('button', { class: 'primary', disabled: !t, onclick: async () => { const r = await post('/api/trust/build', { out: out.value }, null); if (r) notice(`Built index.html publishing ${r.result.published.join(', ') || 'the headline and contact'}. Host the folder anywhere.`, true); } }, 'Build the site'))),
+    h('div', { class: 'card' },
+      h('h2', { style: 'margin-top:0' }, 'Security questionnaires'),
+      h('p', { class: 'muted' }, 'Upload a CSV with a question column. Each answer is drafted by quoting the workspace records it cites; a person reviews it, and reviewed answers are reused until a fact they cite changes.'),
+      h('div', { class: 'grid2' }, h('div', {}, qname), h('div', {}, qfile)),
+      h('div', { class: 'row' }, h('button', { class: 'primary', onclick: async () => {
+        const f = qfile.files[0]; if (!f) return notice('Choose the CSV.', false);
+        const r = await post('/api/questionnaire/import', { name: qname.value, filename: f.name, data: await fileToBase64(f) }, null);
+        if (r) { notice(`Imported: ${r.result.fromLibrary} reused, ${r.result.drafted} drafted, ${r.result.unanswered} with nothing to draft from.`, true); go('trust', r.result.id); }
+      } }, 'Import and draft')),
+      S.questionnaires.length ? h('table', { style: 'margin-top:12px' }, h('tr', {}, h('th', {}, 'Questionnaire'), h('th', {}, 'Imported'), h('th', {}, 'Reviewed')),
+        S.questionnaires.map((q) => h('tr', { class: 'clickable', onclick: () => go('trust', q.id) }, h('td', {}, q.name), h('td', {}, q.imported_at.slice(0, 10)), h('td', {}, `${q.questions.filter((x) => x.status === 'reviewed').length} of ${q.questions.length}`)))) : null));
+}
+
+function questionnaireView(q) {
+  if (!q) return h('p', {}, 'That questionnaire does not exist.');
+  const who = personSelect('by', '', 'Who is reviewing');
+  const kind = { reviewed: 'ok', draft: 'warn', 'needs-review': 'bad', unanswered: 'bad' };
+  return h('div', {},
+    h('a', { class: 'back', href: '#trust' }, '← Trust'),
+    h('h1', {}, q.name),
+    h('p', { class: 'lead' }, `${q.questions.filter((x) => x.status === 'reviewed').length} of ${q.questions.length} reviewed. Only reviewed answers are exported; drafts quote the records they cite and must be rewritten as your answer.`),
+    h('div', { class: 'row', style: 'margin:0 0 16px' }, h('div', { style: 'flex:1' }, who), h('a', { class: 'secondary', href: `/questionnaire/${encodeURIComponent(q.id)}`, style: 'padding:8px 14px;border:1px solid var(--accent);border-radius:6px;text-decoration:none' }, 'Download answers (CSV)')),
+    q.questions.map((x) => {
+      const ta = h('textarea', { style: 'min-height:90px', value: x.answer });
+      return h('div', { class: 'card' },
+        h('div', {}, h('b', {}, `${x.id}. ${x.question} `), pill(x.status, kind[x.status])),
+        x.sources.length ? h('div', { class: 'muted' }, 'Sources: ', x.sources.map((s, i) => [i ? ', ' : '', h('a', { href: `/files/${encodeURIComponent(s.path)}`, target: '_blank' }, s.path)])) : null,
+        ta,
+        h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => { if (!who.value) return notice('Choose who is reviewing.', false); post('/api/questionnaire/answer', { id: q.id, version: q.version, question: x.id, answer: ta.value, by: who.value }, `Question ${x.id} reviewed.`); } }, 'Save as reviewed')));
+    }));
 }
 
 load();
