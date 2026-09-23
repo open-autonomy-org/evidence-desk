@@ -106,21 +106,28 @@ Dispatch: hold
 
 Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); [ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md); differentiator D1. Waits on `soc2-program`.
 
-A company whose work runs on Open Autonomy points Evidence Desk at a project's repository and gets, without a
-questionnaire, the facts its declarations already establish: which humans hold which authority, which agents
-run on which schedules and models, how a change to the automation itself is made and how drift from it is
-caught. Over a period its records become operating evidence: tasks with their attempts and review verdicts,
-reviewed and merged changes, release approvals by the named reviewer, scheduled runs and metered model use,
-each population generated with the query that produced it. Records are read through Open Autonomy's own
-interfaces (its SDK and the published Supercode orchestrator package the kit pins), never by parsing a harness's
-private state. Where the automation is silent (acts outside it), the ordinary interview and evidence paths
-remain, and the gap view says which facts came from where.
+The target is a small project that runs on Open Autonomy: agents do the work, and people plug in at a few
+controlled seams (direction, release review, the production deploy approval and tag, credential custody,
+roster changes, moderation, and administration of the vendor accounts the project runs on). Evidence Desk points
+at the project's repository and reads, without a questionnaire, what its declarations establish: which humans
+hold which authority, which agents run on which schedules and models with which credentials by custody name,
+how a change to the automation is made and how drift from it is caught, and which vendors it depends on. Over a
+period its durable records (reviewed and merged changes, deployments with their approvals, the roster's history)
+become populations with the query that produced them. Records are read through Open Autonomy's own interfaces
+(its SDK and the published Supercode orchestrator package the kit pins), never by parsing a harness's private state.
+
+For such a project the SOC2 program shrinks to the seams: every person at a seam is a person in scope, and the
+human controls (identity and MFA, onboarding and removal, policy acknowledgment, training, periodic access review,
+risk and incident review) apply to that small set. What the automation does not cover (the service's runtime,
+data handling, availability) stays on the ordinary evidence paths, and the gap view says which facts came from where.
 
 Completion:
-- A read-only source that reads a project at a named commit: `agent.json` profiles, jobs and models, and the `team` roster with scopes; each fact carries that commit as provenance and maps to the controls and criteria it evidences (authority, change management of the automation, subprocessors).
+- A read-only source that reads a project at a named commit: `agent.json` profiles, jobs and models, the `team` roster with scopes, the landing and production rules, and the vendors named by its dependencies and deploy egress; each fact carries that commit as provenance and maps to the controls and criteria it evidences.
+- A seam inventory: every place a human acts, who may act there, and where the act is recorded. Seams whose acts are not durably recorded (a release approval given in chat, a board verdict held only in an agent's home) are shown as gaps, not counted as evidence.
+- A completeness reconciliation: the roster compared with the people who actually hold admin or deploy rights in the vendor accounts the project runs on (imported or collected); anyone with rights outside the roster is a finding.
 - Scoping answers those declarations determine are filled from them and marked as such; a later change surfaces as a changed design fact, never a silent overwrite.
-- Period populations from the project's records (board tasks with review verdicts, merged changes with their reviews, release approvals, scheduled runs, metered calls), each with its generating query and completeness basis, ready for `audit-cycle` sampling.
-- Demonstrated in the World on a synthetic project created with the current Open Autonomy kit against its twins, with synthetic history spanning a period; no real project is read.
+- Period populations only from durable records (merged changes with reviews, production deployments with approvals, roster history), each with its generating query and completeness basis, ready for `audit-cycle` sampling.
+- Demonstrated in the World on a synthetic project created with the current Open Autonomy kit against its twins, with synthetic history spanning a period and at least one out-of-roster admin found; no real project is read.
 
 ## evidence-automation: Evidence collects itself, and controls are checked continuously
 
