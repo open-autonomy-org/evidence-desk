@@ -15,7 +15,7 @@ import { writeCsv } from './csv.ts';
 import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, reviewAnswer, staleLibrary } from './trust.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { computeObligations } from './obligations.ts';
-import { collectRosterHistory, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
+import { collectRosterHistory, collectSeamRecords, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
 import { checkCompleteness, collectChanges, collectDeployments } from './github.ts';
 import { COLLECTORS, checkTitle, ciWorkflow, configureCollector, readSettings, runChecks } from './automation.ts';
 import { actOnRequest, createEngagement, draft, exportPackage, firmSummary, importRequests, importReturn, listRequests, readEngagement, verifyPackage } from './audit.ts';
@@ -54,6 +54,7 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   collect <dir> github-deployments --repo <owner/name> --environment <name> --period <start>..<end> --by <person>
                                           populations from GitHub with their queries (needs GITHUB_TOKEN)
   collect <dir> roster-history --repo <checkout> --period <start>..<end> --by <person>
+  collect <dir> seam-records --repo <checkout> --period <start>..<end> --by <person>
                                           every change to the Open Autonomy roster, from git
   collectors <dir> [<id> [--enable|--disable] [--set key=value ...]]
                                           show or configure the collectors (github)
@@ -368,7 +369,12 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => `Recorded ${r.evidence}: ${r.rows} roster changes.`);
         return 0;
       }
-      throw new Error('collect needs github-changes, github-deployments or roster-history');
+      if (rest[0] === 'seam-records') {
+        const r = collectSeamRecords(dir, { repo: resolve(one(a, 'repo') ?? '.'), start, end, by });
+        out(json, r, () => r.populations.map((p) => `${p.evidence ? `Recorded ${p.evidence}` : `Wrote ${p.file} (no applicable control; adopt the controls first)`}: ${p.rows} ${p.seam} records${p.findings.length ? `; ${p.findings.join('; ')}` : ''}.`).join('\n'));
+        return 0;
+      }
+      throw new Error('collect needs github-changes, github-deployments, roster-history or seam-records');
     }
     case 'collectors': {
       if (rest[0]) configureCollector(dir, rest[0], { ...(a.flags.has('enable') ? { enabled: true } : a.flags.has('disable') ? { enabled: false } : {}), ...(a.flags.has('set') ? { params: pairs(a.flags.get('set')!) } : {}) });

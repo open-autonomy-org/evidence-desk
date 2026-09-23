@@ -152,6 +152,11 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
     if (!reg) throw new Error(`registers/${name}.csv could not be read`);
     const existing = reg.data.rows.find((r) => r.id === row.id);
     if (!existing) { saveRegisterRow(root, name, row, reg.version); report.added.push(`${name} ${row.id}`); return; }
+    // A row this import wrote from the roster follows the roster; a row a person wrote is theirs.
+    if (existing.notes?.startsWith('From the team roster at ')) {
+      if (Object.entries(row).some(([k, v]) => k !== 'notes' && existing[k] !== v)) { saveRegisterRow(root, name, row, reg.version, row.id); report.added.push(`${name} ${row.id} (refreshed from the roster)`); }
+      return;
+    }
     for (const [k, v] of Object.entries(row)) if (k === 'name' && v && existing[k] && existing[k] !== v) report.conflicts.push(`${name} ${row.id}: ${k} is "${existing[k]}" in the register and "${v}" in the project`);
   };
   for (const m of snap.team) register('people', { id: m.id, name: m.name, role: `Open Autonomy scopes: ${m.scopes.join(', ') || 'none'}`, notes: `From the team roster at ${snap.commit.slice(0, 12)}${m.github ? `; GitHub ${m.github}` : ''}` });
@@ -161,7 +166,7 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
   register('systems', { id: 'repository', name: `${snap.account} source repository`, kind: 'source code and automation', description: 'Code and the agent setup, changed only through reviewed pull requests', in_scope: 'yes' });
 
   const applicable = new Set(loadWorkspace(root).controls.filter((c) => c.data.applicable).map((c) => c.data.id));
-  const controls = ['GOV-01', 'CHG-01', 'CHG-03', 'AC-05', 'VND-01', 'OPS-04'].filter((c) => applicable.has(c));
+  const controls = ['GOV-01', 'CHG-01', 'CHG-03', 'AC-05', 'VND-01', 'OPS-04', 'HR-06'].filter((c) => applicable.has(c));
   if (controls.length) report.evidence = addEvidence(root, {
     title: `Open Autonomy declarations at ${snap.commit.slice(0, 12)}: roster, agents, seams, landing and production rules`, controls, files: [report.snapshot], recorded_by: by,
     source: { kind: 'open-autonomy', name: snap.account, commit: snap.commit, query: `git show ${snap.commit}:.open-autonomy/config.yaml .open-autonomy/agent.json .github/workflows/` },
@@ -204,3 +209,57 @@ export function collectRosterHistory(root: string, input: { repo: string; start:
   });
   return { evidence, rows: rows.length };
 }
+
+// The acts people record through commit seams (records/ in the Open Autonomy soc2 template: incidents, break-glass
+// changes, credential lifecycle, escalations) as one population per seam: every record file whose date falls in the
+// period, with the commit that added it and its author. Complete by construction for what the repository holds: the
+// folder at the named commit is listed whole. What each kind speaks to follows its seam's id.
+export const RECORD_KINDS: Record<string, { date: string; columns: string[]; controls: string[]; finding: (r: Record<string, unknown>) => string | null }> = {
+  incidents: { date: 'detected_at', columns: ['id', 'detected_at', 'severity', 'status', 'summary', 'notification', 'review'], controls: ['OPS-03', 'OPS-02'],
+    finding: (r) => r.status === 'closed' && !r.review ? `incident ${r.id} is closed without a review` : null },
+  'break-glass': { date: 'at', columns: ['id', 'at', 'by', 'change', 'reason', 'reviewed_after'], controls: ['CHG-04'],
+    finding: (r) => r.reviewed_after ? null : `break-glass change ${r.id} has no review after the fact` },
+  credentials: { date: 'at', columns: ['id', 'at', 'by', 'custody_name', 'action', 'reason'], controls: ['AC-05'], finding: () => null },
+  escalations: { date: 'received_at', columns: ['id', 'received_at', 'responded_at', 'channel', 'summary'], controls: ['OPS-01', 'GOV-07'],
+    finding: (r) => r.responded_at ? null : `escalation ${r.id} has no recorded response` },
+};
+export type SeamRecordsReport = { commit: string; populations: { seam: string; folder: string; file: string; evidence: string | null; rows: number; findings: string[] }[] };
+export function collectSeamRecords(root: string, input: { repo: string; start: string; end: string; by: string; commit?: string }): SeamRecordsReport {
+  const snap = readProject(input.repo, input.commit ?? 'HEAD');
+  const seams = (snap.seams ?? []).filter((s) => s.door === 'commit' && /^records\/[a-z0-9-]+\/?$/.test(s.record) && RECORD_KINDS[s.id]);
+  if (!seams.length) throw new Error(`${snap.account} at ${snap.commit.slice(0, 12)} declares no commit seam recorded under records/ (the soc2 template's incidents, break-glass, credentials, escalations)`);
+  const applicable = new Set(loadWorkspace(root).controls.filter((x) => x.data.applicable).map((x) => x.data.id));
+  const csv = (v: unknown) => { const t = v === undefined || v === null ? '' : typeof v === 'string' ? v : JSON.stringify(v); return /[",\n]/.test(t) ? `"${t.replaceAll('"', '""')}"` : t; };
+  const report: SeamRecordsReport = { commit: snap.commit, populations: [] };
+  for (const seam of seams) {
+    const kind = RECORD_KINDS[seam.id];
+    const folder = seam.record.replace(/\/?$/, '/');
+    const files = git(input.repo, 'ls-tree', '-r', '--name-only', snap.commit, '--', folder).split('\n').filter((f) => f.endsWith('.json'));
+    const rows: string[] = [];
+    const findings: string[] = [];
+    for (const f of files) {
+      let r: Record<string, unknown>;
+      try { r = JSON.parse(show(input.repo, snap.commit, f) ?? ''); } catch { findings.push(`${f} is not a JSON record`); continue; }
+      const when = String(r[kind.date] ?? '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(when)) { findings.push(`${f} has no ${kind.date}`); continue; }
+      if (when < input.start || when > input.end) continue;
+      const added = git(input.repo, 'log', '--diff-filter=A', '--format=%H%x09%an <%ae>%x09%aI', snap.commit, '--', f).trim().split('\n').pop()!.split('\t');
+      const finding = kind.finding(r);
+      if (finding) findings.push(finding);
+      rows.push([f, ...kind.columns.map((c) => r[c]), added[0], added[1], added[2]].map(csv).join(','));
+    }
+    const rel = `evidence/files/populations/${seam.id}-${input.start}-${input.end}-${Date.now()}.csv`;
+    writeVersioned(root, rel, [['file', ...kind.columns, 'added_commit', 'added_by', 'added_at'].join(','), ...rows].join('\n') + '\n', null);
+    const controls = kind.controls.filter((x) => applicable.has(x));
+    const evidence = !controls.length ? null : addEvidence(root, {
+      title: `Population: ${rows.length} ${seam.id} records, ${input.start} to ${input.end}`, controls, files: [rel], recorded_by: input.by,
+      period: { start: input.start, end: input.end }, source: { kind: 'open-autonomy', name: `${seam.id} seam`, commit: snap.commit, query: `git ls-tree ${snap.commit} -- ${folder}; each file's ${kind.date} in the period, with the commit that added it` },
+      notes: `Complete by construction for ${folder} at ${snap.commit.slice(0, 12)}: every record file there is read. The seam is held by scope ${seam.scope}.${findings.length ? ` Findings: ${findings.join('; ')}.` : ''}`,
+    });
+    const latest = `sources/open-autonomy/seam-records/${seam.id}.json`;
+    writeVersioned(root, latest, pretty({ seam: seam.id, commit: snap.commit, period: { start: input.start, end: input.end }, collected_at: now(), rows: rows.length, file: rel, evidence, findings }), readVersioned(root, latest)?.version ?? null);
+    report.populations.push({ seam: seam.id, folder, file: rel, evidence, rows: rows.length, findings });
+  }
+  return report;
+}
+

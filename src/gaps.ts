@@ -4,7 +4,7 @@ import { categories, categoryAnswer, criteria, questions } from './catalog.ts';
 import { placeholders, unanswered } from './actions.ts';
 import type { Workspace } from './workspace.ts';
 import { computeObligations, type Obligation } from './obligations.ts';
-import { seamFindings, type Snapshot } from './open-autonomy.ts';
+import { RECORD_KINDS, seamFindings, type Snapshot } from './open-autonomy.ts';
 import { readVersioned } from './files.ts';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -45,6 +45,11 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
       const last = checks.filter((c) => c.vendor === acct.vendor && c.account === acct.account).sort((a, b) => a.checked_at.localeCompare(b.checked_at)).at(-1);
       if (!last) program.push(`Open Autonomy: the administrators of ${acct.vendor} ${acct.account} have not been compared with the roster`);
       else for (const o of last.outside) program.push(`Open Autonomy: ${o} administers ${acct.vendor} ${acct.account} but is not on the roster`);
+    }
+    for (const seam of (snap.seams ?? []).filter((x) => x.door === 'commit' && x.record.startsWith('records/') && RECORD_KINDS[x.id])) {
+      const got = readVersioned(ws.root, `sources/open-autonomy/seam-records/${seam.id}.json`);
+      if (!got) { program.push(`Open Autonomy: the ${seam.id} records in ${seam.record} have not been collected (collect seam-records)`); continue; }
+      for (const f of (JSON.parse(got.text) as { findings: string[] }).findings) program.push(`Open Autonomy: ${f}`);
     }
   }
   const errors = ws.problems.filter((p) => p.severity === 'error');
