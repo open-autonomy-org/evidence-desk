@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/collectors.schema.json",
+  "title": "Collector settings (collectors.json)",
+  "type": "object",
+  "required": [
+    "schema",
+    "collectors"
+  ],
+  "properties": {
+    "schema": {
+      "const": "evidence-desk.collectors/1"
+    },
+    "collectors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "enabled",
+          "params"
+        ],
+        "properties": {
+          "id": {
+            "enum": [
+              "github"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -51,6 +51,15 @@ GITHUB_TOKEN=... bun src/cli.ts collect ~/acme-soc2 github-changes --repo acme/i
 bun src/cli.ts collect ~/acme-soc2 roster-history --repo ~/acme-inbox --period 2026-07-01..2026-09-30 --by ana
 ```
 
+Checks run against your own systems with your own read-only credentials, from the Checks page or the command line,
+and can run every day in the workspace's own repository:
+
+```bash
+bun src/cli.ts collectors ~/acme-soc2 github --enable --set org=acme repos=acme/inbox
+GITHUB_TOKEN=... bun src/cli.ts run ~/acme-soc2 --by ana
+bun src/cli.ts ci-template ~/acme-soc2
+```
+
 Add `--json` to any command for machine-readable output. `bun src/cli.ts --help` lists every command.
 
 The folder's structure is documented in [docs/workspace-format.md](docs/workspace-format.md) with JSON Schemas in

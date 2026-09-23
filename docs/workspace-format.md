@@ -26,6 +26,9 @@ allowed everywhere and kept when Evidence Desk writes a file, so other tools can
 | `incidents/<id>.json` | one incident from report to closing review | `incident` |
 | `sources/open-autonomy/<commit>.json`, `latest.json` | what an Open Autonomy project declared at a commit | `open-autonomy` |
 | `sources/open-autonomy/completeness/<id>.json` | one vendor account's administrators compared with the roster | `completeness` |
+| `collectors.json` | which collectors are enabled and their parameters (never credentials) | `collectors` |
+| `checks/runs/<id>.json` | one run of the enabled collectors and every check result | `check-run` |
+| `evidence/files/collected/<collector>/<run>.json` | what a collector read in a run, with the requests it made | JSON |
 | `evidence/records/<id>.json` | one evidence record | `evidence` |
 | `evidence/files/` | evidence files | any |
 | `AGENTS.md`, `CLAUDE.md` | instructions for a coding agent working in the folder | Markdown |
@@ -106,6 +109,22 @@ outside the roster is a finding until a later check no longer finds them.
 merged pull requests with their approvals and whether an approval came from someone other than the author (`unknown`
 when the source does not identify both), production deployments with their final state, and every change to the roster
 from git history.
+
+## Collectors and checks
+
+A collector reads one vendor with credentials taken from the environment, never from the workspace, and makes only
+read requests. `evidence-desk run` executes every enabled collector, writes what each read (with the requests) under
+`evidence/files/collected/` as evidence for the controls its checks cover, and records every check's result (`pass`,
+`fail`, or `error` when it could not decide) in `checks/runs/`. The gap view uses each check's latest result: a failing
+check is a gap on its controls, dated from the first run of the current failure; a check that could not decide, never
+ran, or last ran more than two days ago is also a gap. `run` exits with status 3 when a check fails, so a scheduled
+job fails and its platform notifies the owner. `evidence-desk ci-template` writes a GitHub Actions workflow for the
+workspace's own repository that runs the checks daily at a pinned Evidence Desk commit and commits the results; it
+gates nothing.
+
+The GitHub collector covers two-factor enforcement for the organization, a required approving review and protected
+history on each checked repository's default branch, overdue critical and high Dependabot alerts, and open
+secret-scanning alerts.
 
 ## Readiness
 
