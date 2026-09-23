@@ -155,7 +155,9 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
     for (const [k, v] of Object.entries(row)) if (k === 'name' && v && existing[k] && existing[k] !== v) report.conflicts.push(`${name} ${row.id}: ${k} is "${existing[k]}" in the register and "${v}" in the project`);
   };
   for (const m of snap.team) register('people', { id: m.id, name: m.name, role: `Open Autonomy scopes: ${m.scopes.join(', ') || 'none'}`, notes: `From the team roster at ${snap.commit.slice(0, 12)}${m.github ? `; GitHub ${m.github}` : ''}` });
-  for (const v of snap.vendors) register('vendors', { id: v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), name: v, service: 'Named by the Open Autonomy project', criticality: 'high', owner: '' });
+  const SERVICE: Record<string, string> = { GitHub: 'Source code hosting, change review and deployment automation', Cloudflare: 'Hosting of the production service',
+    npm: 'Package registry for dependencies', OpenAI: 'Model provider for development agents', [VENDOR_OF['open-autonomy.org']]: 'Model access and metering for development agents' };
+  for (const v of snap.vendors) register('vendors', { id: v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), name: v, service: SERVICE[v] ?? 'Named in the project\'s configuration; describe the service', criticality: 'high', owner: '' });
   register('systems', { id: 'repository', name: `${snap.account} source repository`, kind: 'source code and automation', description: 'Code and the agent setup, changed only through reviewed pull requests', in_scope: 'yes' });
 
   const applicable = new Set(loadWorkspace(root).controls.filter((c) => c.data.applicable).map((c) => c.data.id));

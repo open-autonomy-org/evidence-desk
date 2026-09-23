@@ -7,6 +7,14 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Added the trust center and security questionnaires. A static trust center is built from the workspace, publishing
+  only what `trust.json` lists (categories, report availability, policy titles, subprocessors, documents on request),
+  with every value escaped and only email or http(s) contacts linked. Questionnaires import from CSV; each answer is reused
+  from reviewed answers whose cited facts are unchanged, or drafted by quoting and citing matching controls, exclusion
+  reasons and approved policy text, or left unanswered. A person replaces the draft and marks it reviewed; only reviewed,
+  current answers export, and a reviewed answer whose cited file changes returns to review. The Open Autonomy import now
+  records each known vendor's service. Verified on a synthetic company through the CLI and the Trust page in Chrome.
+
 - Added the audit cycle. An engagement (Type 1 as of a date, Type 2 over a period) imports the firm's request list;
   the client attaches evidence and populations, answers the samples the firm selects from them and submits; the firm
   marks exceptions and accepts or returns requests; every act is kept in each request's conversation. The system

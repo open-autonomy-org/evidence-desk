@@ -12,7 +12,7 @@ compliance SaaS, and the roadmap was rebuilt from scratch to reach parity with t
 
 Parity is measured against the whole buyer journey, from "we need SOC2" through a passed Type II audit and
 the security reviews that follow, for both the company and the CPA firm. It is not measured by integration
-count. The table below is the denominator. **Headline: 12 of 16 parity capabilities demonstrated** (rows 1–4 and 6–13).
+count. The table below is the denominator. **Headline: 14 of 16 parity capabilities demonstrated** (rows 1–4 and 6–15).
 A row counts only when its owning outcome demonstrates it in the running local product on synthetic data.
 
 | # | Capability (table stakes unless marked) | Owning outcome |
@@ -30,8 +30,8 @@ A row counts only when its owning outcome demonstrates it in the running local p
 | 11 | Populations with their generating query, sample evidence, exceptions | demonstrated |
 | 12 | DC 200 system description, management assertion, bridge letter | demonstrated |
 | 13 | CPA firm operating many client engagements | demonstrated |
-| 14 | Trust center | `trust-and-questionnaires` |
-| 15 | Security questionnaire answering from sourced facts | `trust-and-questionnaires` |
+| 14 | Trust center | demonstrated |
+| 15 | Security questionnaire answering from sourced facts | demonstrated |
 | 16 | Second framework (ISO 27001) reusing controls and evidence | `multi-framework` |
 
 Evidence behind the table (reviewed 2026-09-23; vendor statements, not operated products). Commercial table
@@ -87,9 +87,9 @@ the plan is done; the fleet resumes once the product works. Outcomes below are `
 does not duplicate that work.
 
 Sequence: `open-autonomy-soc2-ready` (the aim; Open Autonomy's `soc2` template is outstanding), then
-`evidence-automation` (further collectors wait on twins), `trust-and-questionnaires` and `multi-framework`. The workspace
+`evidence-automation` (further collectors wait on twins) and `multi-framework`. The workspace
 format, control library, policy templates, CLI and local app, the operation of the program, reading Open Autonomy
-projects, collectors and checks, and the audit cycle have landed; see [CHANGELOG.md](CHANGELOG.md) and
+projects, collectors and checks, the audit cycle, and the trust center and questionnaires have landed; see [CHANGELOG.md](CHANGELOG.md) and
 [docs/workspace-format.md](docs/workspace-format.md).
 
 ## open-autonomy-soc2-ready: A project on Open Autonomy's soc2 template is SOC2 ready out of the box
@@ -169,24 +169,6 @@ Completion:
 - Collectors for the startup core, each developed against a vendor twin: AWS, GitHub, Google Workspace, Okta, one HRIS and one MDM. Each has a check library covering the controls it evidences.
 - A scheduled-run template for the workspace repository's CI and a local on-demand run; failures, stale evidence and collector errors are visible per control.
 - Demonstrated end to end in the World against the twins, including a failing check, its remediation and the recorded history.
-
-## trust-and-questionnaires: Answer customers' security reviews from sourced facts
-
-Status: planned
-Dispatch: hold
-
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 14–15. 
-
-The company publishes a trust center generated from the workspace as a static site it hosts where it likes,
-and answers incoming security questionnaires (spreadsheet in, spreadsheet out) with answers drafted from
-workspace facts, each citing its source, reviewed before export. Drafting works without AI through
-retrieval over the folder, and better with the customer's own agent; no project-selected AI service.
-
-Completion:
-- A static trust center build: selected policies, controls, subprocessors and report availability, with documents gated behind the owner's own request process.
-- Questionnaire import, drafted answers with citations to workspace records, review states and export back to the original format.
-- A reusable answer library that updates when its cited facts change.
-- Demonstrated on synthetic questionnaires in the World.
 
 ## multi-framework: Reuse one program for ISO 27001
 

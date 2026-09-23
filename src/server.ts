@@ -11,6 +11,7 @@ import { importOpenAutonomy, seamFindings, type Snapshot } from './open-autonomy
 import { existsSync, readdirSync } from 'node:fs';
 import { COLLECTORS, checkTitle, configureCollector, readSettings, runChecks } from './automation.ts';
 import { actOnRequest, draft, exportPackage, importReturn, listRequests, readEngagement } from './audit.ts';
+import { buildTrustCenter, importQuestionnaireText, questionnaireCsv, reviewAnswer } from './trust.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { schema } from './schema.ts';
 import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
@@ -38,6 +39,9 @@ function state(root: string) {
     incidents: ws.incidents.map((r) => ({ ...r.data, version: r.version })),
     problems: ws.problems,
     gaps: computeGaps(ws),
+    trust: (() => { const t = readVersioned(root, 'trust.json'); return t ? JSON.parse(t.text) : null; })(),
+    questionnaires: (existsSync(join(root, 'questionnaires')) ? readdirSync(join(root, 'questionnaires')).filter((f) => f.endsWith('.json')).sort() : []).map((f) => {
+      const r = readVersioned(root, `questionnaires/${f}`)!; return { ...JSON.parse(r.text), version: r.version }; }),
     audits: (() => {
       const dir = join(root, 'audits');
       return (existsSync(dir) ? readdirSync(dir) : []).filter((d) => existsSync(join(dir, d, 'engagement.json'))).map((d) => ({
@@ -83,6 +87,10 @@ export function serve(root: string, port: number): void {
       const url = new URL(req.url ?? '/', origin);
       if (req.method === 'GET') {
         if (url.pathname === '/api/state') return send(res, 200, state(root));
+        if (url.pathname.startsWith('/questionnaire/')) {
+          res.setHeader('content-disposition', 'attachment; filename="answers.csv"');
+          return send(res, 200, questionnaireCsv(root, decodeURIComponent(url.pathname.slice('/questionnaire/'.length))), 'text/csv; charset=utf-8');
+        }
         if (url.pathname.startsWith('/files/')) {
           const rel = decodeURIComponent(url.pathname.slice('/files/'.length));
           return send(res, 200, readFileSync(inside(root, rel)), 'application/octet-stream');
@@ -131,6 +139,9 @@ export function serve(root: string, port: number): void {
         case '/api/audit/draft': draft(root, s('engagement'), s('kind') as 'description', s('to') || undefined); break;
         case '/api/audit/export': return send(res, 200, { result: exportPackage(root, s('engagement'), s('out')), state: state(root) });
         case '/api/audit/import-return': return send(res, 200, { result: importReturn(root, s('engagement'), s('dir')), state: state(root) });
+        case '/api/trust/build': return send(res, 200, { result: buildTrustCenter(root, s('out')), state: state(root) });
+        case '/api/questionnaire/import': return send(res, 200, { result: importQuestionnaireText(root, Buffer.from(s('data'), 'base64').toString('utf8'), s('filename'), s('name')), state: state(root) });
+        case '/api/questionnaire/answer': reviewAnswer(root, s('id'), s('version'), s('question'), { answer: s('answer'), by: s('by') }); break;
         case '/api/collectors': configureCollector(root, s('id'), { enabled: b.enabled as boolean, params: b.params as Record<string, string> }); break;
         case '/api/run': { const run = await runChecks(root, s('by')); return send(res, 200, { run, state: state(root) }); }
         case '/api/open-autonomy/import': return send(res, 200, { report: importOpenAutonomy(root, s('repo'), s('commit') || 'HEAD', s('by')), state: state(root) });
