@@ -19,6 +19,11 @@ allowed everywhere and kept when Evidence Desk writes a file, so other tools can
 | `registers/systems.csv` | systems: `id,name,kind,owner,description,data,in_scope` | `register-systems` |
 | `registers/vendors.csv` | vendors: `id,name,service,data_access,criticality,assurance,last_review,owner` | `register-vendors` |
 | `registers/risks.csv` | risks: `id,title,description,likelihood,impact,treatment,controls,owner,status,review_due` | `register-risks` |
+| `registers/vulnerabilities.csv` | vulnerabilities: `id,title,severity,system,source,found_on,due_on,fixed_on,owner` | `register-vulnerabilities` |
+| `forms/<id>.json` | a quiz, survey or acknowledgment people complete | `form` |
+| `forms/responses/<id>.json` | one person's graded response | `response` |
+| `reviews/access/<id>.json` | one access review of one system | `access-review` |
+| `incidents/<id>.json` | one incident from report to closing review | `incident` |
 | `evidence/records/<id>.json` | one evidence record | `evidence` |
 | `evidence/files/` | evidence files | any |
 | `AGENTS.md`, `CLAUDE.md` | instructions for a coding agent working in the folder | Markdown |
@@ -57,6 +62,28 @@ Evidence Desk reads a file, remembers the SHA-256 of what it read, and refuses t
 meantime. Writes go to a temporary file in the same folder and are renamed into place. Two people or tools editing
 the same file therefore never lose each other's work silently; the second writer is told to reload. This protects
 cooperating writers only; it is not a lock against a tool that ignores it.
+
+## Operating the program
+
+Forms are adopted with the controls they support. A response names the form version it answered (by SHA-256), the
+person, how the person was identified (`identity`), the answers, a quiz score and whether it passed; an acknowledgment
+of policies also records the approved version of every policy in force. A passing response is recorded as evidence for
+the form's controls with the person as `subject`. A failed response is kept but proves nothing.
+
+An access review starts from a user listing file in the workspace and says how the listing was produced, so its
+completeness can be checked. Every account gets a decision; removals and changes carry the date they were done; only
+the named reviewer signs off. A signed-off review becomes evidence for the access review controls (and privileged access
+when a privileged account was reviewed). An incident keeps a timeline; closing it requires a post-incident review and a
+record of who was notified or why no one needed to be. A closed incident becomes evidence for incident handling.
+
+Evidence about one person (a background check, an offboarding) names them as `subject`.
+
+`evidence-desk obligations` derives what is owed from the files: periodic controls one interval after their latest
+evidence; each current person's forms within the form's `due_within_days` of their start date and yearly after for
+annual forms; a background check by the start date when required; access removal the day after a person's `end_date`;
+yearly reviews of medium and high criticality vendors; risk `review_due` dates; vulnerability `due_on` dates; and open
+incidents. An overdue obligation is a gap on its controls. A vulnerability fixed after its due date is shown as done and
+flagged as an exception to report.
 
 ## Readiness
 

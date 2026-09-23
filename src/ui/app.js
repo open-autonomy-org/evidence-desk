@@ -55,7 +55,7 @@ function render() {
   document.getElementById('org').textContent = S.organization;
   for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('active', b.dataset.tab === tab);
   const view = document.getElementById('view');
-  view.replaceChildren(({ overview, scope, controls, policies, registers, evidence })[tab]?.() ?? overview());
+  view.replaceChildren(({ overview, scope, controls, policies, registers, evidence, people: peopleView, obligations, access, incidents })[tab]?.() ?? overview());
 }
 
 function statusPill(c) {
@@ -160,7 +160,7 @@ function controlDetail(c) {
     h('label', {}, 'Notes'), h('input', { type: 'text', name: 'notes', value: c.notes ?? '' }),
     h('div', { class: 'row' }, h('button', { class: 'primary', type: 'submit' }, 'Save')));
   return h('div', {},
-    h('a', { class: 'back', onclick: () => go('controls') }, '← All controls'),
+    h('a', { class: 'back', href: '#controls' }, '← All controls'),
     h('h1', {}, `${c.id} ${c.title}`),
     h('p', { class: 'lead' }, c.description),
     h('div', { class: 'card' },
@@ -199,7 +199,7 @@ function policyDetail(p) {
   const approver = personSelect('approver', '', 'Choose who approves');
   const last = p.versions.at(-1);
   return h('div', {},
-    h('a', { class: 'back', onclick: () => go('policies') }, '← All policies'),
+    h('a', { class: 'back', href: '#policies' }, '← All policies'),
     h('h1', {}, p.title),
     h('p', { class: 'lead' }, `policies/${p.id}.md`, last ? ` · version ${last.version} approved by ${personName(last.approved_by)} on ${last.approved_at.slice(0, 10)}${last.sha256 === p.textVersion ? '' : ' · the text has changed since'}` : ' · never approved'),
     h('div', { class: 'card' }, h('label', { style: 'margin-top:0' }, 'Owner'), ownerForm),
@@ -222,7 +222,7 @@ function policyDetail(p) {
           h('td', {}, h('a', { href: `/files/${encodeURIComponent(v.archived)}`, target: '_blank' }, v.archived)))))) : null);
 }
 
-const REG_TITLES = { people: 'People', systems: 'Systems', vendors: 'Vendors', risks: 'Risks' };
+const REG_TITLES = { people: 'People', systems: 'Systems', vendors: 'Vendors', risks: 'Risks', vulnerabilities: 'Vulnerabilities' };
 function registers() {
   const name = REG_TITLES[detail?.split(':')[0]] ? detail.split(':')[0] : 'people';
   const editing = detail?.split(':')[1];
@@ -251,7 +251,7 @@ function registers() {
     sub, form,
     h('table', {}, h('tr', {}, reg.columns.map((c) => h('th', {}, c))),
       reg.rows.map((r) => h('tr', { class: 'clickable', onclick: () => go('registers', `${name}:${r.id}`) }, reg.columns.map((c) => h('td', {}, r[c]))))),
-    editing ? null : h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => go('registers', `${name}:new`) }, `Add ${name === 'people' ? 'a person' : name === 'risks' ? 'a risk' : name.slice(0, -1)}`)));
+    editing ? null : h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => go('registers', `${name}:new`) }, `Add ${name === 'people' ? 'a person' : name === 'risks' ? 'a risk' : name === 'vulnerabilities' ? 'a vulnerability' : name.slice(0, -1)}`)));
 }
 
 function evidenceTable(list) {
@@ -297,6 +297,181 @@ function evidence() {
     form,
     S.evidence.length ? evidenceTable(S.evidence) : h('p', { class: 'muted' }, 'No evidence recorded yet.'),
     adding ? null : h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => go('evidence', 'new') }, 'Record evidence')));
+}
+
+const statePill = (st) => pill(st, st === 'done' ? 'ok' : st === 'overdue' ? 'bad' : 'warn');
+const fileToBase64 = async (file) => { const buf = new Uint8Array(await file.arrayBuffer()); let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000)); return btoa(bin); };
+
+function obligationTable(list, showWho = true) {
+  return h('table', {}, h('tr', {}, h('th', {}, 'State'), h('th', {}, 'Due'), showWho ? h('th', {}, 'Who') : null, h('th', {}, 'What'), h('th', {}, 'Controls')),
+    list.map((o) => h('tr', {}, h('td', {}, statePill(o.state)), h('td', {}, o.due, o.done_on ? h('div', { class: 'muted' }, `done ${o.done_on}`) : null),
+      showWho ? h('td', {}, o.who ? personName(o.who) : h('span', { class: 'muted' }, 'unassigned')) : null, h('td', {}, o.what),
+      h('td', {}, o.controls.map((c, i) => [i ? ', ' : '', h('a', { href: `#controls/${c}` }, c)])))));
+}
+
+function obligations() {
+  const list = S.gaps.obligations;
+  const open = list.filter((o) => o.state !== 'done');
+  return h('div', {},
+    h('h1', {}, 'Obligations'),
+    h('p', { class: 'lead' }, 'What is owed and when, derived from the controls, people, vendors, risks, vulnerabilities and incidents in the workspace.'),
+    h('div', { class: 'stats' },
+      h('div', { class: 'stat' }, h('b', {}, list.filter((o) => o.state === 'overdue').length), h('span', {}, 'overdue')),
+      h('div', { class: 'stat' }, h('b', {}, list.filter((o) => o.state === 'due').length), h('span', {}, 'due')),
+      h('div', { class: 'stat' }, h('b', {}, list.filter((o) => o.state === 'done').length), h('span', {}, 'done and current'))),
+    open.length ? obligationTable(open) : h('p', {}, 'Nothing is due.'),
+    h('h2', {}, 'Done and current'), obligationTable(list.filter((o) => o.state === 'done')));
+}
+
+function peopleView() {
+  if (detail?.startsWith('form:')) return formView(detail.split(':')[1], detail.split(':')[2]);
+  const rows = S.registers.people?.rows ?? [];
+  return h('div', {},
+    h('h1', {}, 'People'),
+    h('p', { class: 'lead' }, 'Each person\'s onboarding and recurring obligations. People are added in Registers → People.'),
+    rows.length ? rows.map((p) => {
+      const mine = S.gaps.obligations.filter((o) => o.who === p.id && ['person'].includes(o.kind));
+      const forms = S.forms.filter((f) => mine.some((o) => o.what === f.title));
+      return h('div', { class: 'card' },
+        h('h2', { style: 'margin-top:0' }, `${p.name} (${p.id})`, p.end_date ? h('span', { class: 'source' }, ` · left ${p.end_date}`) : p.start_date ? h('span', { class: 'source' }, ` · started ${p.start_date}`) : null),
+        mine.length ? obligationTable(mine, false) : h('p', { class: 'muted' }, 'Nothing owed.'),
+        forms.length ? h('div', { class: 'row' }, forms.map((f) => h('button', { class: 'secondary', onclick: () => go('people', `form:${f.id}:${p.id}`) }, `Complete: ${f.title}`))) : null);
+    }) : h('p', {}, 'No people yet.'));
+}
+
+function formView(id, person) {
+  const f = S.forms.find((x) => x.id === id);
+  if (!f) return h('p', {}, 'That form does not exist.');
+  const form = h('form', { class: 'card', onsubmit: async (e) => {
+    e.preventDefault();
+    const answers = {};
+    for (const q of f.questions) {
+      answers[q.id] = q.type === 'text' ? form.querySelector(`[name="${q.id}"]`).value : (form.querySelector(`input[name="${q.id}"]:checked`)?.value ?? '');
+    }
+    const r = await post('/api/respond', { form: f.id, person: form.person.value, answers, version: f.version }, null);
+    if (r) {
+      const mine = S.responses.filter((x) => x.form === f.id && x.person === form.person.value).sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)).at(-1);
+      notice(mine?.passed ? `Recorded and passed${mine.score !== undefined ? ` (${mine.score}%)` : ''}.` : `Recorded, but not passed${mine?.score !== undefined ? ` (${mine.score}%)` : ''}. Review and submit again.`, !!mine?.passed);
+      if (mine?.passed) go('people');
+    }
+  } },
+    h('label', { style: 'margin-top:0' }, 'Who is completing this?', h('small', {}, 'The response is recorded under this person.')), personSelect('person', person, 'Choose a person'),
+    f.questions.map((q, n) => h('div', {},
+      h('label', {}, `${n + 1}. ${q.prompt}`),
+      q.type === 'text' ? h('input', { type: 'text', name: q.id })
+        : h('div', { class: 'radio', style: 'flex-direction:column;gap:4px' }, (q.type === 'choice' ? q.options : ['yes', 'no']).map((o) => h('label', {}, h('input', { type: 'radio', name: q.id, value: o }), o === 'yes' ? 'Yes' : o === 'no' ? 'No' : o))))),
+    h('div', { class: 'row' }, h('button', { class: 'primary', type: 'submit' }, 'Submit'), h('button', { class: 'secondary', type: 'button', onclick: () => go('people') }, 'Cancel')));
+  return h('div', {},
+    h('a', { class: 'back', href: '#people' }, '← People'),
+    h('h1', {}, f.title),
+    h('p', { class: 'lead' }, f.intro ?? '', f.acknowledges_policies ? ` Policies in force: ${S.policies.filter((p) => p.versions.length).map((p) => `${p.title} v${p.versions.at(-1).version}`).join(', ') || 'none approved yet'}.` : ''),
+    form);
+}
+
+function access() {
+  const r = detail ? S.accessReviews.find((x) => x.id === detail) : null;
+  if (detail === 'new') {
+    const form = h('form', { class: 'card', onsubmit: async (e) => {
+      e.preventDefault();
+      const file = form.listing.files[0];
+      if (!file) return notice('Attach the user listing.', false);
+      const res = await post('/api/access-review/start', { system: form.system.value, reviewer: form.reviewer.value, start: form.start.value, end: form.end.value,
+        generated_by: form.generated_by.value, filename: file.name, data: await fileToBase64(file) }, 'Review started.');
+      if (res) go('access', res.id);
+    } },
+      h('h2', { style: 'margin-top:0' }, 'Start an access review'),
+      h('div', { class: 'grid2' },
+        h('div', {}, h('label', {}, 'System'), h('select', { name: 'system' }, (S.registers.systems?.rows ?? []).map((x) => h('option', { value: x.id }, x.name)))),
+        h('div', {}, h('label', {}, 'Reviewer'), personSelect('reviewer', '', 'Choose the reviewer'))),
+      h('div', { class: 'grid2' },
+        h('div', {}, h('label', {}, 'Period from'), h('input', { type: 'date', name: 'start' })),
+        h('div', {}, h('label', {}, 'to'), h('input', { type: 'date', name: 'end' }))),
+      h('label', {}, 'User listing', h('small', {}, 'A CSV export of the system\'s accounts with an "account" or "user" column, or one account per line.')), h('input', { type: 'file', name: 'listing' }),
+      h('label', {}, 'How was the listing produced?', h('small', {}, 'The query, export path or screen, so an auditor can check the listing is complete.')), h('input', { type: 'text', name: 'generated_by' }),
+      h('div', { class: 'row' }, h('button', { class: 'primary', type: 'submit' }, 'Start'), h('button', { class: 'secondary', type: 'button', onclick: () => go('access') }, 'Cancel')));
+    return h('div', {}, h('h1', {}, 'Access reviews'), form);
+  }
+  if (r) {
+    const done = r.status === 'signed-off';
+    const signer = personSelect('by', r.reviewer, 'Who signs off');
+    return h('div', {},
+      h('a', { class: 'back', href: '#access' }, '← All access reviews'),
+      h('h1', {}, `Access review: ${r.system}`),
+      h('p', { class: 'lead' }, `${r.period.start} to ${r.period.end} · reviewer ${personName(r.reviewer)} · listing ${r.listing.path} (${r.listing.generated_by})`),
+      h('table', {}, h('tr', {}, h('th', {}, 'Account'), h('th', {}, 'Person'), h('th', {}, 'Privileged'), h('th', {}, 'Decision'), h('th', {}, 'Done on')),
+        r.accounts.map((a) => {
+          const row = h('tr', {},
+            h('td', {}, a.account),
+            h('td', {}, personSelect('person', a.person ?? '', 'Not a person')),
+            h('td', {}, h('input', { type: 'checkbox', name: 'privileged', checked: !!a.privileged })),
+            h('td', {}, h('select', { name: 'decision' }, ['pending', 'keep', 'remove', 'modify'].map((d) => h('option', { value: d, selected: d === a.decision }, d)))),
+            h('td', {}, h('input', { type: 'date', name: 'done_on', value: a.done_on ?? '' })));
+          if (done) for (const el of row.querySelectorAll('select,input')) el.disabled = true;
+          else row.addEventListener('change', () => post('/api/access-review/decide', { id: r.id, version: r.version, account: a.account, patch: {
+            decision: row.querySelector('[name=decision]').value, person: row.querySelector('[name=person]').value || undefined,
+            privileged: row.querySelector('[name=privileged]').checked, done_on: row.querySelector('[name=done_on]').value || undefined } }, `${a.account} saved.`));
+          return row;
+        })),
+      done ? h('p', {}, pill('signed off', 'ok'), ` ${r.signed_off_at.replace('T', ' ').replace('Z', ' UTC')}`)
+        : h('div', { class: 'row' }, h('div', {}, signer), h('button', { class: 'primary', onclick: () => post('/api/access-review/sign-off', { id: r.id, version: r.version, by: signer.value }, 'Signed off and recorded as evidence.') }, 'Sign off')));
+  }
+  return h('div', {},
+    h('h1', {}, 'Access reviews'),
+    h('p', { class: 'lead' }, 'Review each in-scope system\'s accounts, decide which stay, remove the rest, and sign off. A signed-off review becomes evidence for the access review controls.'),
+    S.accessReviews.length ? h('table', {}, h('tr', {}, h('th', {}, 'System'), h('th', {}, 'Period'), h('th', {}, 'Reviewer'), h('th', {}, 'Status')),
+      S.accessReviews.map((x) => h('tr', { class: 'clickable', onclick: () => go('access', x.id) }, h('td', {}, x.system), h('td', {}, `${x.period.start} to ${x.period.end}`), h('td', {}, personName(x.reviewer)),
+        h('td', {}, x.status === 'signed-off' ? pill('signed off', 'ok') : pill(`${x.accounts.filter((a) => a.decision === 'pending').length} pending`, 'warn'))))) : h('p', { class: 'muted' }, 'No access reviews yet.'),
+    h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => go('access', 'new') }, 'Start an access review')));
+}
+
+function incidents() {
+  const inc = detail && detail !== 'new' ? S.incidents.find((x) => x.id === detail) : null;
+  if (detail === 'new') {
+    const form = h('form', { class: 'card', onsubmit: async (e) => {
+      e.preventDefault();
+      const r = await post('/api/incident/open', { title: form.title.value, severity: form.severity.value, by: form.by.value, owner: form.owner.value, note: form.note.value }, 'Incident opened.');
+      if (r) go('incidents', r.id);
+    } },
+      h('h2', { style: 'margin-top:0' }, 'Report an incident'),
+      h('label', {}, 'What happened?'), h('input', { type: 'text', name: 'title' }),
+      h('div', { class: 'grid2' },
+        h('div', {}, h('label', {}, 'Severity'), h('select', { name: 'severity' }, ['low', 'medium', 'high', 'critical'].map((x) => h('option', { value: x }, x)))),
+        h('div', {}, h('label', {}, 'Reported by'), personSelect('by', '', 'Choose a person'))),
+      h('label', {}, 'Owner'), personSelect('owner', ''),
+      h('label', {}, 'First note'), h('input', { type: 'text', name: 'note' }),
+      h('div', { class: 'row' }, h('button', { class: 'primary', type: 'submit' }, 'Open'), h('button', { class: 'secondary', type: 'button', onclick: () => go('incidents') }, 'Cancel')));
+    return h('div', {}, h('h1', {}, 'Incidents'), form);
+  }
+  if (inc) {
+    const closed = inc.status === 'closed';
+    const form = h('form', { class: 'card', onsubmit: async (e) => {
+      e.preventDefault();
+      await post('/api/incident/update', { id: inc.id, version: inc.version, by: form.by.value, note: form.note.value, status: form.status.value,
+        customer_impact: form.customer_impact.value, notification: form.notification.value, review: form.review.value }, 'Incident updated.');
+    } },
+      h('h2', { style: 'margin-top:0' }, 'Add an update'),
+      h('div', { class: 'grid2' }, h('div', {}, h('label', {}, 'By'), personSelect('by', inc.owner ?? '', 'Choose a person')),
+        h('div', {}, h('label', {}, 'Status'), h('select', { name: 'status' }, ['open', 'contained', 'resolved', 'closed'].map((x) => h('option', { value: x, selected: x === inc.status }, x))))),
+      h('label', {}, 'Update'), h('input', { type: 'text', name: 'note' }),
+      h('label', {}, 'Customer impact'), h('input', { type: 'text', name: 'customer_impact', value: inc.customer_impact ?? '' }),
+      h('label', {}, 'Notification', h('small', {}, 'Who was notified and when, or why no notification was required. Needed to close.')), h('input', { type: 'text', name: 'notification', value: inc.notification ?? '' }),
+      h('label', {}, 'Post-incident review', h('small', {}, 'Cause, what worked, follow-ups. Needed to close.')), h('textarea', { name: 'review', style: 'min-height:120px', value: inc.review ?? '' }),
+      h('div', { class: 'row' }, h('button', { class: 'primary', type: 'submit' }, 'Save update')));
+    return h('div', {},
+      h('a', { class: 'back', href: '#incidents' }, '← All incidents'),
+      h('h1', {}, inc.title),
+      h('p', { class: 'lead' }, `${inc.id} · ${inc.severity} · detected ${inc.detected_at.slice(0, 10)} · `, pill(inc.status, closed ? 'ok' : 'warn')),
+      h('table', {}, h('tr', {}, h('th', {}, 'When'), h('th', {}, 'Who'), h('th', {}, 'Note')),
+        inc.timeline.map((t) => h('tr', {}, h('td', {}, t.at.replace('T', ' ').replace('Z', '')), h('td', {}, personName(t.by)), h('td', {}, t.note)))),
+      closed ? h('div', { class: 'card', style: 'margin-top:16px' }, h('b', {}, 'Review: '), inc.review, h('div', {}, h('b', {}, 'Notification: '), inc.notification)) : form);
+  }
+  return h('div', {},
+    h('h1', {}, 'Incidents'),
+    h('p', { class: 'lead' }, 'Every security incident, from report to closing review. A closed incident becomes evidence for incident handling.'),
+    S.incidents.length ? h('table', {}, h('tr', {}, h('th', {}, 'Incident'), h('th', {}, 'Severity'), h('th', {}, 'Detected'), h('th', {}, 'Status')),
+      S.incidents.map((x) => h('tr', { class: 'clickable', onclick: () => go('incidents', x.id) }, h('td', {}, x.title), h('td', {}, x.severity), h('td', {}, x.detected_at.slice(0, 10)),
+        h('td', {}, pill(x.status, x.status === 'closed' ? 'ok' : 'warn'))))) : h('p', { class: 'muted' }, 'No incidents recorded.'),
+    h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => go('incidents', 'new') }, 'Report an incident')));
 }
 
 load();

@@ -6,7 +6,7 @@ import { randomBytes } from 'node:crypto';
 import { check, schema } from './schema.ts';
 import { writeCsv } from './csv.ts';
 import { fileHash, readVersioned, writeVersioned, inside } from './files.ts';
-import { categoryAnswer, criterionCategory, library, policyTemplates, questions } from './catalog.ts';
+import { categoryAnswer, criterionCategory, formTemplates, library, policyTemplates, questions } from './catalog.ts';
 import { loadWorkspace, MANIFEST, REGISTERS, type Control, type Evidence, type Policy, type RegisterName, type Scope } from './workspace.ts';
 
 const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -30,7 +30,7 @@ export function initWorkspace(root: string, organization: string): void {
   const guide = readFileSync(join(import.meta.dirname, '..', 'catalog', 'workspace-AGENTS.md'), 'utf8');
   writeVersioned(root, 'AGENTS.md', guide, null);
   writeVersioned(root, 'CLAUDE.md', 'Read AGENTS.md: it describes this Evidence Desk workspace and how to change it safely.\n', null);
-  for (const d of ['controls', 'policies/archive', 'evidence/records', 'evidence/files']) mkdirSync(join(root, d), { recursive: true });
+  for (const d of ['controls', 'policies/archive', 'evidence/records', 'evidence/files', 'forms/responses', 'reviews/access', 'incidents']) mkdirSync(join(root, d), { recursive: true });
 }
 
 export function setScope(root: string, answers: Record<string, unknown>, version: string, source?: string): void {
@@ -70,17 +70,18 @@ export const render = (text: string, answers: Scope['answers']): string =>
 
 // Brings the workspace in line with the library for the current scope. New controls and policies are created;
 // an existing control only has its applicability updated. Owners, statuses, notes and edited text are never touched.
-export function adopt(root: string): { created: string[]; changed: string[]; policies: string[] } {
+export function adopt(root: string): { created: string[]; changed: string[]; policies: string[]; forms: string[] } {
   const ws = loadWorkspace(root);
   if (!ws.scope) throw new Error('scope.json is missing or invalid');
   const missing = unanswered(ws.scope.data);
   if (missing.length) throw new Error(`answer the scoping questions first: ${missing.join(', ')}`);
   const answers = ws.scope.data.answers;
-  const out = { created: [] as string[], changed: [] as string[], policies: [] as string[] };
+  const out = { created: [] as string[], changed: [] as string[], policies: [] as string[], forms: [] as string[] };
+  const applicable = new Set<string>();
   const needed = new Set<string>();
   for (const lib of library) {
     const reason = exclusion(lib, answers);
-    if (!reason) lib.policies.forEach((p) => needed.add(p));
+    if (!reason) { lib.policies.forEach((p) => needed.add(p)); applicable.add(lib.id); }
     const rel = `controls/${lib.id}.json`;
     const existing = ws.controls.find((c) => c.data.id === lib.id);
     if (!existing) {
@@ -109,6 +110,11 @@ export function adopt(root: string): { created: string[]; changed: string[]; pol
     writeVersioned(root, `policies/${id}.md`, render(t.text, answers), null);
     writeVersioned(root, `policies/${id}.json`, pretty(rec), null);
     out.policies.push(id);
+  }
+  for (const f of formTemplates) {
+    if (!f.controls.some((c) => applicable.has(c)) || ws.forms.some((x) => x.data.id === f.id)) continue;
+    writeVersioned(root, `forms/${f.id}.json`, pretty(f), null);
+    out.forms.push(f.id);
   }
   return out;
 }
@@ -198,7 +204,7 @@ export function saveRegisterRow(root: string, name: RegisterName, row: Record<st
 // a copied file lands under evidence/files/<record id>/ and is never overwritten.
 export function addEvidence(root: string, input: {
   title: string; controls: string[]; files: string[]; recorded_by: string; period?: { start: string; end: string };
-  source?: Evidence['source']; notes?: string; collected_at?: string;
+  source?: Evidence['source']; notes?: string; collected_at?: string; subject?: string;
 }): string {
   const ws = loadWorkspace(root);
   const ids = new Set(ws.controls.map((c) => c.data.id));
@@ -221,6 +227,7 @@ export function addEvidence(root: string, input: {
     collected_at: input.collected_at ?? now(), files, recorded_by: input.recorded_by };
   if (input.period) rec.period = input.period;
   if (input.notes) rec.notes = input.notes;
+  if (input.subject) rec.subject = input.subject;
   valid('evidence', rec, 'the evidence record');
   writeVersioned(root, `evidence/records/${id}.json`, pretty(rec), null);
   return id;

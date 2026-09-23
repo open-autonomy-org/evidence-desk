@@ -22,7 +22,9 @@ bun src/cli.ts serve ~/acme-soc2                    # then open http://127.0.0.1
 ```
 
 In the app, answer the scoping questions and adopt the control set, then work through the Overview: assign owners,
-adapt and approve policies, fill the registers and record evidence. Everything the app does is also a command:
+adapt and approve policies, fill the registers and record evidence. People complete their onboarding quizzes,
+acknowledgments and attestations on the People page; Obligations shows what is owed by whom and when; access reviews
+and incidents each have their own page. Everything the app does is also a command:
 
 ```bash
 bun src/cli.ts scope ~/acme-soc2 --set services="Hosted webhook inbox" availability=true ...
@@ -31,6 +33,10 @@ bun src/cli.ts register ~/acme-soc2 people --add id=ana name="Ana Ortiz" role="S
 bun src/cli.ts control ~/acme-soc2 AC-03 --owner ana --status in-progress
 bun src/cli.ts policy ~/acme-soc2 access-control --approve --by ana
 bun src/cli.ts evidence ~/acme-soc2 --add --control AC-03 --file review.csv --title "Q3 access review" --by ana --period 2026-07-01..2026-09-30
+bun src/cli.ts respond ~/acme-soc2 code-of-conduct --person ana --answer read=yes
+bun src/cli.ts access-review ~/acme-soc2 start --system github --reviewer ana --period 2026-07-01..2026-09-30 --listing members.csv --generated-by "gh api orgs/acme/members"
+bun src/cli.ts incident ~/acme-soc2 new --title "Lost laptop" --severity medium --by ben --note "Reported at 09:10"
+bun src/cli.ts obligations ~/acme-soc2
 bun src/cli.ts gaps ~/acme-soc2
 bun src/cli.ts validate ~/acme-soc2
 ```
@@ -48,6 +54,8 @@ was read.
   by this project. The AICPA's criterion text and points of focus are not included.
 - [catalog/controls.json](catalog/controls.json): 58 controls in this project's own words, mapped to criteria, with
   frequency, policies, the evidence an auditor expects, and when each applies.
+- [catalog/forms/](catalog/forms): a security awareness quiz, policy and code-of-conduct acknowledgments, a
+  confidentiality agreement and a device and account attestation.
 - [catalog/policies/](catalog/policies): 18 policy templates, adapted from the CC0
   [Tailscale security policies](https://github.com/tailscale/security-policies) or written here.
 

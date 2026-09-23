@@ -7,6 +7,16 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Added the operation of the program. Forms (a security awareness quiz, policy and code-of-conduct acknowledgments, a
+  confidentiality agreement and a device and account attestation) are adopted with their controls; a person's response is
+  graded, recorded with the form version and the approved policy versions it acknowledges, and becomes evidence only when
+  it passes. Access reviews start from a user listing with how it was produced, need a decision per account and a done
+  date per removal, and are signed off only by their reviewer. Incidents keep a timeline and close only with a review and
+  a notification record. A vulnerability register tracks due and fixed dates. An obligations calendar derives what is owed
+  from periodic controls, people's start and end dates, vendors, risks, vulnerabilities and incidents, and overdue items
+  become gaps on their controls. The CLI and the local app (People, Obligations, Access reviews, Incidents) share the
+  same actions. Verified by hand in the World on a synthetic company through the CLI and the app's own controls in Chrome.
+
 - Added the SOC 2 program as a folder the organization owns.
   A scoping interview decides the categories in scope and adopts 58 controls written in this
   project's own words and mapped to Trust Services Criteria identifiers (no AICPA text), with justified exclusions, and

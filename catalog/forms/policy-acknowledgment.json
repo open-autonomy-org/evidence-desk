@@ -1,0 +1,21 @@
+{
+  "schema": "evidence-desk.form/1",
+  "id": "policy-acknowledgment",
+  "title": "Security policy acknowledgment",
+  "kind": "acknowledgment",
+  "controls": [
+    "GOV-05"
+  ],
+  "recurrence": "onboarding-and-annual",
+  "due_within_days": 30,
+  "acknowledges_policies": true,
+  "intro": "Read each approved security policy. Acknowledging records the exact version of every policy in force today.",
+  "questions": [
+    {
+      "id": "read",
+      "prompt": "I have read the security policies in force and will follow them.",
+      "type": "attest",
+      "required_answer": "yes"
+    }
+  ]
+}
