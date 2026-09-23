@@ -51,6 +51,18 @@ auditor package verifiable without the vendor's server. Rows 1–16 come from th
 requirements ([population completeness](https://keitercpa.com/blog/soc-2-challenges-population-completeness-va-cpa-firm/),
 [DC 200](https://linfordco.com/blog/what-are-soc-2-description-criteria/)).
 
+Open Autonomy is the second half of the direction: Evidence Desk works in conjunction with it, reading a
+company's controls out of the automation it already runs instead of surveying people about them
+([owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114)). Open Autonomy
+describes that automation in `autonomy.ir.v1` ([spec](https://github.com/volter-ai/open-autonomy-compiler/blob/931c53eb60b47178efa94db3a8bdac2e5d6a4c0c/docs/SPEC.md)): each actor is an agent or a
+human with a behavior, capabilities (its authority), triggers (cron, dispatch, event) and typed results, including
+the review result that records approvals and human-required work; proposing and blessing code are split across
+actors. Its compiler already ships a `soc2-baseline` profile that holds a SOC2 control register, an evidence ledger,
+policies and cadence workflows as files in the adopter's repository ([profile](https://github.com/volter-ai/open-autonomy-compiler/blob/931c53eb60b47178efa94db3a8bdac2e5d6a4c0c/profiles/soc2-baseline/ir.yml),
+[design](https://github.com/volter-ai/open-autonomy-compiler/blob/931c53eb60b47178efa94db3a8bdac2e5d6a4c0c/docs/SOC2-BASELINE-PROFILE.md)). This ingestion is optional: core use never requires Open Autonomy.
+**Differentiator D1, not counted in the parity headline:** controls, authority and operating evidence ingested
+from an Open Autonomy installation, owned by `open-autonomy-ingestion`.
+
 **Extrapolation starts here.** The outcome boundaries, sequence and the design choices inside each outcome
 are the owner-side agent's judgment, not measured user research. Differentiation hypothesis: the same
 capabilities, held as a Git-tracked folder the customer's own agent can operate, with evidence whose
@@ -62,8 +74,9 @@ licensed AICPA copy locally. Policy templates come from CC0/Apache sources
 ([Tailscale security-policies, CC0](https://github.com/tailscale/security-policies),
 [strongdm/comply, Apache-2.0](https://github.com/strongdm/comply)); SCF and CIS content are not redistributable.
 
-Sequence: `soc2-program` first (every other outcome writes into its formats), then `evidence-automation`
-and `program-operations`, then `audit-cycle`, then `trust-and-questionnaires` and `multi-framework`.
+Sequence: `soc2-program` first (every other outcome writes into its formats), then `open-autonomy-ingestion`
+(the differentiator, and the first source to exercise the evidence record), then `evidence-automation` and
+`program-operations`, then `audit-cycle`, then `trust-and-questionnaires` and `multi-framework`.
 
 ## soc2-program: A company's whole SOC2 program as a folder it owns
 
@@ -78,12 +91,35 @@ all as documented, versioned files. It sees what is missing per control, and edi
 or with its own coding agent, with the same validation either way. This replaces format 1 and its code.
 
 Completion:
+- The format reconciles with Open Autonomy's `soc2-baseline` register and ledger (`open-autonomy.soc2-control-register.v1`, `open-autonomy.soc2-evidence-ledger.v1`, [prior art](https://github.com/volter-ai/open-autonomy-compiler/blob/931c53eb60b47178efa94db3a8bdac2e5d6a4c0c/profiles/soc2-baseline/compliance/control-register.yml)): adopt or map each concept, documented, so an installation's records import without loss.
 - A versioned, documented workspace format with published JSON Schemas for scope, controls, policies, systems/assets, people, vendors, risks and evidence records; evidence records carry source, collection time, period and content hash. Every Security (CC) criterion ID is covered by at least one control in the project's own words.
 - A policy library of at least 15 policies adapted from CC0/Apache sources, each with owner, version, approval record and mapped controls; approving a new version preserves the previous one.
 - A local UI a nontechnical admin can drive end to end: scoping interview, control and policy review, registers, and a gap view per control and per criterion; the CLI reaches the same operations with JSON output.
 - The workspace ships its own agent instructions so the customer's Claude Code or Codex can operate it; an externally edited file is validated and conflicts are surfaced, never silently overwritten.
 - Format 1, its CLI, workbench, README sections, ADR0002, alpha.1 packaging and version metadata are removed entirely; README documents the new run command.
 - Demonstrated on a synthetic startup workspace in the World: create, scope, adopt controls and policies, fill registers, agent edit, gap view.
+
+## open-autonomy-ingestion: Read the program out of the automation that runs it
+
+Status: planned
+Dispatch: hold
+
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); [`autonomy.ir.v1`](https://github.com/volter-ai/open-autonomy-compiler/blob/931c53eb60b47178efa94db3a8bdac2e5d6a4c0c/docs/SPEC.md); differentiator D1. Waits on `soc2-program`.
+
+A company whose engineering runs on Open Autonomy points Evidence Desk at its installation's repository and gets,
+without a questionnaire, the facts the IR and its records already establish: which humans and agents exist and what
+authority each holds, how changes are proposed, reviewed and approved, which paths require a human, and which
+recurring actors run on what schedule. Over a period the same records become operating evidence: every merged
+change with its review result and human approval, every scheduled run, every task's verified completion,
+generated from Git with the query that produced it. Where the IR is silent (acts outside the automation),
+the ordinary interview and evidence paths remain, and the gap view says which facts came from where.
+
+Completion:
+- A read-only source that reads `autonomy.ir.v1` at a named commit and records design facts with that commit as provenance: actors by kind, capabilities, triggers and cadence, review edges, the proposer/reviewer split and human-required paths, each mapped to the controls and criteria it evidences.
+- Scoping answers the IR determines are filled from it and marked as such; a later IR change surfaces as a changed design fact, never a silent overwrite.
+- Period populations generated from the installation's records (merged changes with review results and human approvals, scheduled runs, task completions), each with its generating query and completeness basis, ready for `audit-cycle` sampling.
+- An installation carrying `soc2-baseline` has its control register, evidence ledger and policies imported with provenance rather than re-entered.
+- Demonstrated in the World on a synthetic repository compiled from the compiler's own profiles against the GitHub twin, with synthetic history spanning a period; no real installation is read.
 
 ## evidence-automation: Evidence collects itself, and controls are checked continuously
 
@@ -129,7 +165,7 @@ Completion:
 Status: planned
 Dispatch: hold
 
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 10–13. Waits on `soc2-program`, `evidence-automation`, `program-operations`.
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 10–13. Waits on `soc2-program`, `open-autonomy-ingestion`, `evidence-automation`, `program-operations`.
 
 A company and its CPA firm run an engagement: Type I as of a date or Type II over a period, the firm's request
 list, populations with the query or parameters that generated them, samples the auditor selects, evidence per
