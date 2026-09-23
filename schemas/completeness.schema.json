@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/completeness.schema.json",
+  "title": "Roster completeness check for one vendor account (sources/open-autonomy/completeness/<id>.json)",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "account",
+    "vendor",
+    "checked_at",
+    "query",
+    "admins",
+    "outside"
+  ],
+  "properties": {
+    "schema": {
+      "const": "evidence-desk.completeness/1"
+    },
+    "id": {
+      "type": "string"
+    },
+    "account": {
+      "type": "string"
+    },
+    "vendor": {
+      "type": "string"
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "query": {
+      "type": "string",
+      "description": "How the list of administrators was obtained."
+    },
+    "commit": {
+      "type": "string"
+    },
+    "admins": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "outside": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Administrators who are not on the project's roster."
+    }
+  }
+}

@@ -4,6 +4,10 @@ import { categories, categoryAnswer, criteria, questions } from './catalog.ts';
 import { placeholders, unanswered } from './actions.ts';
 import type { Workspace } from './workspace.ts';
 import { computeObligations, type Obligation } from './obligations.ts';
+import { seamFindings, type Snapshot } from './open-autonomy.ts';
+import { readVersioned } from './files.ts';
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 const INTERVAL_DAYS: Record<string, number> = { daily: 1, weekly: 7, monthly: 31, quarterly: 92, annual: 366 };
 
@@ -30,6 +34,18 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
   if (!(ws.registers.vendors?.data.rows ?? []).length) program.push('The vendor register is empty');
   if (!(ws.registers.risks?.data.rows ?? []).length) program.push('The risk register is empty');
   for (const r of ws.registers.risks?.data.rows ?? []) if (r.treatment === 'undecided' && r.status === 'open') program.push(`Risk ${r.id} has no treatment decision`);
+  const oa = readVersioned(ws.root, 'sources/open-autonomy/latest.json');
+  if (oa) {
+    const snap = JSON.parse(oa.text) as Snapshot;
+    program.push(...seamFindings(snap).map((f) => `Open Autonomy: ${f}`));
+    const dir = join(ws.root, 'sources/open-autonomy/completeness');
+    const checks = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readVersioned(ws.root, `sources/open-autonomy/completeness/${f}`)!.text) as { account: string; vendor: string; checked_at: string; outside: string[] }) : [];
+    for (const acct of snap.vendor_accounts) {
+      const last = checks.filter((c) => c.vendor === acct.vendor && c.account === acct.account).sort((a, b) => a.checked_at.localeCompare(b.checked_at)).at(-1);
+      if (!last) program.push(`Open Autonomy: the administrators of ${acct.vendor} ${acct.account} have not been compared with the roster`);
+      else for (const o of last.outside) program.push(`Open Autonomy: ${o} administers ${acct.vendor} ${acct.account} but is not on the roster`);
+    }
+  }
   const errors = ws.problems.filter((p) => p.severity === 'error');
   if (errors.length) program.push(`${errors.length} validation error(s): run validate to see them`);
 

@@ -55,7 +55,7 @@ function render() {
   document.getElementById('org').textContent = S.organization;
   for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('active', b.dataset.tab === tab);
   const view = document.getElementById('view');
-  view.replaceChildren(({ overview, scope, controls, policies, registers, evidence, people: peopleView, obligations, access, incidents })[tab]?.() ?? overview());
+  view.replaceChildren(({ overview, scope, controls, policies, registers, evidence, people: peopleView, obligations, access, incidents, oa: openAutonomy })[tab]?.() ?? overview());
 }
 
 function statusPill(c) {
@@ -472,6 +472,47 @@ function incidents() {
       S.incidents.map((x) => h('tr', { class: 'clickable', onclick: () => go('incidents', x.id) }, h('td', {}, x.title), h('td', {}, x.severity), h('td', {}, x.detected_at.slice(0, 10)),
         h('td', {}, pill(x.status, x.status === 'closed' ? 'ok' : 'warn'))))) : h('p', { class: 'muted' }, 'No incidents recorded.'),
     h('div', { class: 'row' }, h('button', { class: 'primary', onclick: () => go('incidents', 'new') }, 'Report an incident')));
+}
+
+function openAutonomy() {
+  const o = S.openAutonomy;
+  const form = h('form', { class: 'card', onsubmit: async (e) => {
+    e.preventDefault();
+    const r = await post('/api/open-autonomy/import', { repo: form.repo.value, commit: form.commit.value, by: form.by.value }, null);
+    if (r) notice(`Read ${r.report.commit.slice(0, 12)}. ${r.report.added.length ? `Filled: ${r.report.added.join(', ')}.` : 'Nothing new to fill.'} ${r.report.changed.concat(r.report.conflicts).join(' ')}`, true);
+  } },
+    h('h2', { style: 'margin-top:0' }, o ? 'Read the project again' : 'Read an Open Autonomy project'),
+    h('p', { class: 'muted' }, 'Evidence Desk reads the committed roster, agent setup, seams and deploy rules at one commit. What they establish fills empty answers and registers; anything that disagrees with what people entered is reported, never overwritten.'),
+    h('div', { class: 'grid2' },
+      h('div', {}, h('label', {}, 'Project checkout folder'), h('input', { type: 'text', name: 'repo', value: o?.snapshot.repository_path ?? '' })),
+      h('div', {}, h('label', {}, 'Commit', h('small', {}, 'Blank for the current commit')), h('input', { type: 'text', name: 'commit' }))),
+    h('label', {}, 'Recorded by'), personSelect('by', '', 'Choose a person'),
+    h('div', { class: 'row' }, h('button', { class: 'primary', type: 'submit' }, 'Read')));
+  if (!o) return h('div', {}, h('h1', {}, 'Open Autonomy'), form);
+  const s = o.snapshot;
+  const lastCheck = (a) => o.checks.filter((c) => c.vendor === a.vendor && c.account === a.account).sort((x, y) => x.checked_at.localeCompare(y.checked_at)).at(-1);
+  return h('div', {},
+    h('h1', {}, `Open Autonomy: ${s.account}`),
+    h('p', { class: 'lead' }, `Read at commit ${s.commit.slice(0, 12)} on ${s.read_at.slice(0, 10)}${s.kit ? ` · kit ${s.kit.skew} ${s.kit.version}` : ''}`),
+    o.findings.length ? h('div', { class: 'card' }, h('h2', { style: 'margin-top:0' }, 'Findings'), h('ul', { class: 'gaps' }, o.findings.map((f) => h('li', {}, f)))) : null,
+    h('h2', {}, 'Where people act'),
+    s.seams ? h('table', {}, h('tr', {}, h('th', {}, 'Seam'), h('th', {}, 'Who'), h('th', {}, 'Door'), h('th', {}, 'Record')),
+      s.seams.map((x) => h('tr', {}, h('td', {}, x.id), h('td', {}, x.scope), h('td', {}, ['commit', 'code-host-gate', 'platform-key'].includes(x.door) ? pill(x.door, 'ok') : pill(x.door, 'bad')), h('td', {}, x.record)))) : h('p', {}, 'No seams declared.'),
+    h('h2', {}, 'People and their authority'),
+    h('table', {}, h('tr', {}, h('th', {}, 'Person'), h('th', {}, 'Scopes'), h('th', {}, 'Accounts')),
+      s.team.map((m) => h('tr', {}, h('td', {}, `${m.name} (${m.id})`), h('td', {}, m.scopes.join(', ') || 'none'), h('td', {}, [m.github ? `GitHub ${m.github}` : '', m.discord ? `Discord ${m.discord}` : ''].filter(Boolean).join(' · '))))),
+    h('h2', {}, 'Is the roster everyone?'),
+    h('table', {}, h('tr', {}, h('th', {}, 'Account'), h('th', {}, 'Last checked'), h('th', {}, 'Administrators outside the roster')),
+      s.vendor_accounts.map((a) => { const c = lastCheck(a); return h('tr', {}, h('td', {}, `${a.vendor} ${a.account}`), h('td', {}, c ? c.checked_at.slice(0, 10) : pill('never', 'warn')),
+        h('td', {}, !c ? '' : c.outside.length ? pill(c.outside.join(', '), 'bad') : pill('none', 'ok'))); })),
+    h('h2', {}, 'Agents'),
+    h('table', {}, h('tr', {}, h('th', {}, 'Profile'), h('th', {}, 'Models'), h('th', {}, 'Scheduled work')),
+      s.agents.map((g) => h('tr', {}, h('td', {}, g.profile), h('td', {}, g.models.map((m) => `${m.model} (${m.provider}${m.credential ? `, key ${m.credential}` : ''})`).join('; ')), h('td', {}, g.jobs.map((j) => `${j.name}: ${j.schedule}`).join('; ') || 'none')))),
+    h('h2', {}, 'How changes reach production'),
+    h('div', { class: 'card' },
+      h('div', {}, 'Changes land through reviewed pull requests: ', s.rules.pr_landing ? pill('yes', 'ok') : pill('no', 'bad')),
+      s.rules.production_deploy ? h('div', {}, `Production deploys from ${s.rules.production_deploy.workflow}, triggered by ${s.rules.production_deploy.tag_trigger ?? 'no tag'} through the ${s.rules.production_deploy.environment} environment; egress limited to ${s.rules.production_deploy.egress.join(', ') || 'nothing declared'}.`) : h('div', {}, pill('no production deploy workflow found', 'warn'))),
+    form);
 }
 
 load();

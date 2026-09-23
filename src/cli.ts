@@ -11,6 +11,8 @@ import { questions } from './catalog.ts';
 import { serve } from './server.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { computeObligations } from './obligations.ts';
+import { collectRosterHistory, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
+import { checkCompleteness, collectChanges, collectDeployments } from './github.ts';
 
 const USAGE = `evidence-desk <command> <workspace> [options]
 
@@ -38,6 +40,15 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   incident <dir> <id> --by <person> --note <text> [--status open|contained|resolved|closed]
                      [--impact <text>] [--notification <text>] [--review <text>]
   incidents <dir>                         list incidents
+  open-autonomy <dir> import --repo <checkout> [--commit <sha>] --by <person>
+                                          read an Open Autonomy project's roster, agents, seams and rules at a commit
+  open-autonomy <dir> completeness --account <id> --by <person> [--file <export> --generated-by <how>]
+                                          compare a declared vendor account's administrators with the roster
+  collect <dir> github-changes --repo <owner/name> --period <start>..<end> --by <person>
+  collect <dir> github-deployments --repo <owner/name> --environment <name> --period <start>..<end> --by <person>
+                                          populations from GitHub with their queries (needs GITHUB_TOKEN)
+  collect <dir> roster-history --repo <checkout> --period <start>..<end> --by <person>
+                                          every change to the Open Autonomy roster, from git
   gaps <dir> [--as-of YYYY-MM-DD]         what stands between the workspace and readiness
   validate <dir>                          check every file against its schema and references
   serve <dir> [--port <n>]                open the local app on 127.0.0.1
@@ -74,7 +85,7 @@ function out(json: boolean, data: unknown, text: () => string): void {
   console.log(json ? JSON.stringify(data, null, 2) : text());
 }
 
-function main(argv: string[]): number {
+async function main(argv: string[]): Promise<number> {
   const a = parse(argv);
   const [cmd, dirArg, ...rest] = a.pos;
   if (!cmd || a.flags.has('help')) { console.log(USAGE); return cmd ? 0 : 2; }
@@ -279,6 +290,53 @@ function main(argv: string[]): number {
       out(json, rows, () => rows.map((r) => `${r.id}  ${r.severity.padEnd(8)} ${r.status.padEnd(9)} ${r.title}`).join('\n') || 'No incidents recorded.');
       return 0;
     }
+    case 'open-autonomy': {
+      if (rest[0] === 'import') {
+        const repo = one(a, 'repo');
+        if (!repo) throw new Error('import needs --repo <path to the project checkout>');
+        const r = importOpenAutonomy(dir, resolve(repo), one(a, 'commit') ?? 'HEAD', one(a, 'by') ?? '');
+        out(json, r, () => [`Read ${r.commit.slice(0, 12)} into ${r.snapshot}.`,
+          r.added.length ? `Filled: ${r.added.join(', ')}.` : 'Nothing new to fill.',
+          ...r.changed.map((c) => `Changed: ${c}`), ...r.conflicts.map((c) => `Differs: ${c}`), ...r.seams.map((c) => `Seam: ${c}`),
+          r.evidence ? `Recorded ${r.evidence}.` : ''].filter(Boolean).join('\n'));
+        return 0;
+      }
+      if (rest[0] === 'completeness') {
+        const r = await checkCompleteness(dir, { account: one(a, 'account') ?? '', by: one(a, 'by') ?? '', file: one(a, 'file'), generated_by: one(a, 'generated-by') });
+        out(json, r, () => r.outside.length ? `Outside the roster: ${r.outside.join(', ')} (${r.record}).` : `Every administrator is on the roster (${r.record}).`);
+        return 0;
+      }
+      if (rest[0] === 'show') {
+        const snap = readProject(resolve(one(a, 'repo') ?? '.'), one(a, 'commit') ?? 'HEAD');
+        out(json, snap, () => [`${snap.account} at ${snap.commit.slice(0, 12)}`, ...snap.team.map((m) => `  person ${m.id}: ${m.scopes.join(', ') || 'no scopes'}`),
+          ...snap.agents.map((g) => `  agent ${g.profile}: ${g.models.map((m) => m.model).join(', ')}; jobs ${g.jobs.map((j) => `${j.name} (${j.schedule})`).join(', ') || 'none'}`),
+          ...(snap.seams ?? []).map((x) => `  seam ${x.id}: ${x.scope} via ${x.door} → ${x.record}`), ...seamFindings(snap).map((f) => `  finding: ${f}`)].join('\n'));
+        return 0;
+      }
+      throw new Error('open-autonomy needs import, completeness or show');
+    }
+    case 'collect': {
+      const [start, end] = (one(a, 'period') ?? '').split('..');
+      if (!start || !end) throw new Error('collect needs --period <start>..<end>');
+      const by = one(a, 'by') ?? '';
+      const repo = one(a, 'repo') ?? '';
+      if (rest[0] === 'github-changes') {
+        const r = await collectChanges(dir, { repo, start, end, by });
+        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} merged changes; ${r.notIndependent} without an independent approval; independence unknown for ${r.unknown}.`);
+        return 0;
+      }
+      if (rest[0] === 'github-deployments') {
+        const r = await collectDeployments(dir, { repo, environment: one(a, 'environment') ?? 'production', start, end, by });
+        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} deployments.`);
+        return 0;
+      }
+      if (rest[0] === 'roster-history') {
+        const r = collectRosterHistory(dir, { repo: resolve(one(a, 'repo') ?? '.'), start, end, by });
+        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} roster changes.`);
+        return 0;
+      }
+      throw new Error('collect needs github-changes, github-deployments or roster-history');
+    }
     case 'gaps': {
       const asOf = one(a, 'as-of');
       const g = computeGaps(loadWorkspace(dir), asOf ? new Date(`${asOf}T23:59:59Z`) : new Date());
@@ -307,10 +365,7 @@ function main(argv: string[]): number {
   }
 }
 
-try {
-  const code = main(process.argv.slice(2));
-  if (code >= 0) process.exit(code);
-} catch (e) {
-  console.error(`evidence-desk: ${(e as Error).message}`);
+main(process.argv.slice(2)).then((code) => { if (code >= 0) process.exit(code); }, (e: Error) => {
+  console.error(`evidence-desk: ${e.message}`);
   process.exit(1);
-}
+});

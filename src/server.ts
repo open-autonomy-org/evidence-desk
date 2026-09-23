@@ -5,8 +5,10 @@ import { readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { addEvidenceUpload, adopt, approvePolicy, savePolicyText, saveRegisterRow, setPolicyOwner, setScope, updateControl } from './actions.ts';
 import { categories, criteria, questions } from './catalog.ts';
-import { ConflictError, inside, writeVersioned } from './files.ts';
+import { ConflictError, inside, readVersioned, writeVersioned } from './files.ts';
 import { computeGaps } from './gaps.ts';
+import { importOpenAutonomy, seamFindings, type Snapshot } from './open-autonomy.ts';
+import { existsSync, readdirSync } from 'node:fs';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { schema } from './schema.ts';
 import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
@@ -34,6 +36,14 @@ function state(root: string) {
     incidents: ws.incidents.map((r) => ({ ...r.data, version: r.version })),
     problems: ws.problems,
     gaps: computeGaps(ws),
+    openAutonomy: (() => {
+      const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
+      if (!latest) return null;
+      const snap = JSON.parse(latest.text) as Snapshot;
+      const dir = join(root, 'sources/open-autonomy/completeness');
+      const checks = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readVersioned(root, `sources/open-autonomy/completeness/${f}`)!.text)) : [];
+      return { snapshot: snap, findings: seamFindings(snap), checks };
+    })(),
   };
 }
 
@@ -101,6 +111,7 @@ export function serve(root: string, port: number): void {
         case '/api/incident/open': return send(res, 200, { id: openIncident(root, { title: s('title'), severity: s('severity'), by: s('by'), note: s('note'), owner: s('owner') || undefined }), state: state(root) });
         case '/api/incident/update': updateIncident(root, s('id'), s('version'), { by: s('by'), note: s('note'), status: (s('status') || undefined) as never,
           customer_impact: s('customer_impact') || undefined, notification: s('notification') || undefined, review: s('review') || undefined }); break;
+        case '/api/open-autonomy/import': return send(res, 200, { report: importOpenAutonomy(root, s('repo'), s('commit') || 'HEAD', s('by')), state: state(root) });
         default: return send(res, 404, { error: 'not found' });
       }
       return send(res, 200, { state: state(root) });
