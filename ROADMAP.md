@@ -4,218 +4,247 @@ Notable present/future intentions and outstanding outcomes, carefully maintained
 Sources support decisions and claims. Ideas and unanswered requests are not commitments or dispatch orders.
 See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliation cycle.
 
+## Direction
 
-## readiness-product: From a portable folder to a complete CPA/client workbench
+The owner zero-based this plan on 2026-09-23: Evidence Desk is to be the open-source alternative to the SOC2
+compliance SaaS, and the roadmap is rebuilt from scratch to reach parity with them
+([owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114)). Everything
+previously planned is retired, including the unpublished `0.1.0-alpha.1` proposal. The shipped workspace
+format 1 (generic items with evidence paths) is not a SOC2 domain model; the first outcome below replaces it
+and removes it from the product, its docs and its release tooling entirely.
 
-Dispatch: hold
-Decision: authorized strategy direction landed in PR #84; guided-readiness accepted, evidence-review-cycle next
+Parity is measured against the whole buyer journey, from "we need SOC2" through a passed Type II audit and
+the security reviews that follow, for both the company and the CPA firm. It is not measured by integration
+count. The table below is the denominator. **Headline: 0 of 16 parity capabilities demonstrated.**
+A row counts only when its owning outcome demonstrates it in the running local product on synthetic data.
 
-Authority: the owner's [autonomous competitive-parity mandate](hermes/skills/project-communications/SKILL.md#autonomous-strategy-mandate),
-committed in [PR #80](https://github.com/open-autonomy-org/evidence-desk/pull/80), authorizes strategy to
-select outcomes for the best SOC2 app across CPA and client workflows. This decision uses that delegation,
-not the constitution or an empty board as permission. It does not need per-feature human approval.
-The constitution still excludes audit opinions, mandatory hosting and compelled evidence/AI uploads.
+| # | Capability (table stakes unless marked) | Owning outcome |
+|---|---|---|
+| 1 | SOC2 control set mapped to the Trust Services Criteria, scoping, gap view | `soc2-program` |
+| 2 | Policy library: templates, editing, versioned approval | `soc2-program` |
+| 3 | Registers: systems/assets, people, vendors, risks with treatment | `soc2-program` |
+| 4 | Operable by the customer's own coding agent and by a nontechnical admin | `soc2-program` |
+| 5 | Automated evidence collection from cloud, identity, HRIS, code and devices | `evidence-automation` |
+| 6 | Continuous control checks with visible failures and alerting | `evidence-automation` |
+| 7 | Onboarding/offboarding, policy acknowledgment, training, background checks | `program-operations` |
+| 8 | Periodic access reviews with reviewer sign-off (near table stakes) | `program-operations` |
+| 9 | Vendor reviews, risk assessment, incidents, vulnerability SLAs | `program-operations` |
+| 10 | Audit engagement: Type I date / Type II period, auditor request lists | `audit-cycle` |
+| 11 | Populations with their generating query, sample evidence, exceptions | `audit-cycle` |
+| 12 | DC 200 system description, management assertion, bridge letter | `audit-cycle` |
+| 13 | CPA firm operating many client engagements | `audit-cycle` |
+| 14 | Trust center | `trust-and-questionnaires` |
+| 15 | Security questionnaire answering from sourced facts | `trust-and-questionnaires` |
+| 16 | Second framework (ISO 27001) reusing controls and evidence | `multi-framework` |
 
-Product judgment: prioritize a guided, local visual readiness workflow over successive standalone CLI
-reports. A client should be able to define scope, understand requested work, supply evidence, respond to
-review and hand over a bounded package; a CPA should be able to review that work and repeat it across
-engagements. The strategy baseline provided generic items and derived summaries, not this complete experience
-([baseline README](https://github.com/open-autonomy-org/evidence-desk/blob/dbb0427/README.md));
-PR #105 now supplies the guided local foundation, while evidence exchange and firm operation remain open.
-The hypothesis is that connected workflows provide more value to nontechnical participants than another
-isolated report. This is strategic inference, not observed customer research or a measured usability result.
+Evidence behind the table (reviewed 2026-09-23; vendor statements, not operated products). Commercial table
+stakes across Vanta, Drata, Secureframe, Sprinto, Thoropass and Hyperproof: built-in SOC2/ISO 27001 with
+cross-mapped controls, integrations that collect evidence automatically, continuous monitoring, policies,
+risk register, vendor questionnaires, trust center, AI questionnaire answering, an auditor workspace and
+an agent layer ([Vanta pricing](https://www.vanta.com/pricing), [Drata integrations](https://drata.com/products/integrations),
+[Secureframe pricing](https://secureframe.com/pricing), [Hyperproof](https://hyperproof.io/)). The
+open-source field ([Comp AI](https://github.com/trycompai/comp), [Probo](https://github.com/getprobo/probo),
+[CISO Assistant](https://github.com/intuitem/ciso-assistant-community), [Openlane](https://github.com/theopenlane/core))
+covers much of that as database-backed web servers; read from their source trees, none keeps its system of
+record as owner-held files, uses Git as the audit trail, runs as a local folder application, or produces an
+auditor package verifiable without the vendor's server. Rows 1–16 come from that evidence and from auditor-side
+requirements ([population completeness](https://keitercpa.com/blog/soc-2-challenges-population-completeness-va-cpa-firm/),
+[DC 200](https://linfordco.com/blog/what-are-soc-2-description-criteria/)).
 
-Primary competitive evidence reviewed 2026-09-10 (vendor statements, not independently operated products):
-- [Vanta Audit](https://www.vanta.com/products/audit): automated collection, scoped sharing, evidence
-  requests/statuses, contextual comments and evidence reuse across audits.
-- [Drata Audit Hub](https://drata.com/product/audit-hub): framework/period setup, auditor samples and
-  requests, threaded responses, point-in-time downloadable packages and agreed sample/package freezing.
-- [Secureframe Auditor Partner Console](https://support.secureframe.com/hc/en-us/articles/38955364460947-Auditor-Dashboard-Guide):
-  multiple client engagements, assigned auditors, customer-initiated linking/consent and unlinking.
-- [Sprinto](https://sprinto.com/): scoping, control mapping, ongoing monitoring/evidence refresh, risk,
-  vendor diligence, AI governance, trust center and questionnaire workflows.
-- [Hyperproof](https://hyperproof.io/): common controls linked to risks, request-linked evidence,
-  policy approvals, third-party risk, trust workflows and integrations.
-- [Fieldguide](https://www.fieldguide.io/): CPA engagement workflows, client requests, evidence review
-  and AI-assisted testing; [Thoropass](https://thoropass.com/): combined readiness, evidence management,
-  auditor interaction and audit services. Their audit execution/service claims are not authority for
-  Evidence Desk to issue opinions or replace professional judgment.
+Open Autonomy is the second half of the direction: Evidence Desk works in conjunction with it, reading a
+company's controls out of the automation it already runs instead of surveying people about them
+([owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114)). An Open Autonomy
+project declares that automation in its repository: `.open-autonomy/agent.json`, the agent-setup package in the
+Supercode IR, holds its profiles, scheduled jobs and models, with one manager per field and a live change the
+repository did not make reported as a conflict ([ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md));
+the `team` roster holds its humans, their verified accounts and authority scopes ([team codec](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/packages/sdk/src/team.ts)).
+Its operation leaves records: reviewed pull requests, production deployments with their approvals, candidate
+release reviews and metered model calls on public books.
 
-This discovery deliberately includes CPA practice software and broader GRC alternatives, not only the
-initial automation vendors. It is not an exhaustive competitor inventory or proof of parity. Integration
-breadth, permissions, accessibility, import/export fidelity, performance and real end-to-end operation
-remain unverified. Refresh discovery during daily strategy; research other relevant alternatives,
-including Optro/AuditBoard and open-source local/self-hosted tools, before claiming category coverage.
+The aim: Open Autonomy's `soc2` template is SOC2 ready out of the box, with Evidence Desk as its compliance program;
+other templates are not required to be ([owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114#issuecomment-5802291630)).
+The end state, locked by the owner: a project created from it can engage a CPA almost immediately, for a Type I
+once its policies, seams and onboarding exist, and with Type II observation running from launch. What remains
+outside the product is the CPA firm, a penetration tester, an independent second person for the few reviews the
+sole owner cannot perform on themselves, vendors' own assurance reports, and the observation period itself.
+Agents do the work; people act at a few controlled seams that Open Autonomy specifies exactly
+([ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/6e7a769f45236ac010f135695226dfa7f735fddd/docs/decisions/0008-human-seams.md)); the people at those seams complete onboarding quizzes and surveys. The template's
+declarations and seams supply the controls and evidence that automation can; the humans supply the rest. This
+integration is optional: core use never requires Open Autonomy.
+**Differentiator D1, not counted in the parity headline:** a project on Open Autonomy's `soc2` template reaches SOC2
+readiness out of the box, owned by `open-autonomy-soc2-ready`.
 
-Sequence and tradeoffs:
-1. `guided-readiness`: scoped controls and client-facing local visual workbench. Highest immediate
-   coherence/value; medium-to-high uncertainty in content rights, UX and compatibility. Deliver the whole
-   authorized outcome in one stream; no bundled catalog. Existing CLI remains a supported companion.
-2. `evidence-review-cycle`: requests, period-aware evidence and CPA feedback through a deliberate handoff.
-   Depends on scope/control identity; higher integrity/sharing complexity, but necessary to close the loop.
-3. `continuous-firm-readiness`: recurring readiness and multi-client practice operation, then optional
-   collection and trust workflows. High breadth/integration cost; keep later choices provisional rather
-   than treating a connector inventory or AI layer as the first milestone.
+**Extrapolation starts here.** The outcome boundaries, sequence and the design choices inside each outcome
+are the owner-side agent's judgment, not measured user research. Differentiation hypothesis: the same
+capabilities, held as a Git-tracked folder the customer's own agent can operate, with evidence whose
+provenance an auditor can check offline, beat hosted peers on trust, cost and lock-in.
 
+Content rule for every outcome: ship Trust Services Criteria IDs and category names with the project's own
+control wording; never ship AICPA criterion text or points of focus. A customer may import their own
+licensed AICPA copy locally. Policy templates come from CC0/Apache sources
+([Tailscale security-policies, CC0](https://github.com/tailscale/security-policies),
+[strongdm/comply, Apache-2.0](https://github.com/strongdm/comply)); SCF and CIS content are not redistributable.
 
-## guided-readiness: Scope a SOC2 engagement and work through it visually, locally
+Sequence: `soc2-program` first (every other outcome writes into its formats), then `program-operations`
+(the onboarding, acknowledgment and review machinery people use), then `open-autonomy-soc2-ready` (the aim),
+then `evidence-automation`, `audit-cycle`, `trust-and-questionnaires` and `multi-framework`.
 
-Dispatch: hold
-Decision: development outcome completed; retained only as a dependency/release boundary, not redispatchable work
+## soc2-program: A company's whole SOC2 program as a folder it owns
 
-[PR #105](https://github.com/open-autonomy-org/evidence-desk/pull/105) landed the whole authorized
-outcome at `ee67878dc953590b26a02b40a02068a0ae2767d5`, merged as
-`1175015970ea73a4cbcc04d90b00a273d900e724`. Native [t_8c1c52e4](hermes:task/t_8c1c52e4)
-run 13 completed after [independent exact-head approval](https://github.com/open-autonomy-org/evidence-desk/pull/105#pullrequestreview-5192776521)
-and observed merge. The [original full criteria](https://github.com/open-autonomy-org/evidence-desk/blob/a960d28011b79c365ceb8b340f63bcd6dcf870e3/ROADMAP.md#guided-readiness-scope-a-soc2-engagement-and-work-through-it-visually-locally)
-and [actual UI/CLI handoff](https://github.com/open-autonomy-org/evidence-desk/pull/105#issuecomment-5657103582)
-remain the acceptance record; completed implementation criteria are retired from the current plan.
-
-The accepted foundation is explicit, per-launch selection of a versioned readiness sidecar plus a local
-visual scope/control/item/evidence-reference workflow, with dual-source conflict refusal and preserved
-format-1 operation. Product ADR0002 was explicitly accepted by that independent review; PR88's runtime
-ADR0001 was not. README now records the actual graphical launch command and the verified owner's
-[current-host World instructions](https://github.com/open-autonomy-org/evidence-desk/issues/101#issuecomment-5656802952).
-All pre-migration cards remain cancelled, not completed or resumable, under owner issue #101.
-
-Remaining boundary: this is unreleased development and synthetic macOS arm64/Bun 1.3.10 acceptance,
-not customer adoption, cross-platform assurance, competitive parity or a newly approved archive.
-The fixed CLI-only alpha.1 proposal below excludes this work and stays unchanged. Subsequent product
-release selection needs its own concrete PM proposal and human gate; do not rebuild or move alpha.1.
-PR87/88 policy/runtime reconciliation remains with its existing native review cards, not a prerequisite
-to redispatch this completed product outcome. Preserve the landed current-host CONTRIBUTING examples.
-
-## evidence-review-cycle: Close client evidence requests with a traceable CPA handoff
-
+Status: planned
 Dispatch: fleet
-Decision: authorized outcome under `readiness-product`; guided-readiness dependency accepted in PR #105
 
-PM sequencing: execute this existing strategy outcome whole in one fleet stream, not successive CLI,
-export or review slices. [PR #84](https://github.com/open-autonomy-org/evidence-desk/pull/84) authorized
-this next outcome under the committed strategy mandate; PR #105 supplies the stable scope/control and
-preservation-safe explicit-sidecar foundation. This is dependency reconciliation, not new PM scope.
-Review the transport-independent exchange design against the constitution and ADR0002 with the actual
-diff before landing; preserve explicit activation, unknown data, source conflicts and local solo use.
-No accepted human implementation commitment exists. The alpha.1 human release hold does not block
-this separately authorized unreleased development.
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 1–4.
 
-Outcome: a firm requests evidence for a scoped control and period; a client supplies ordinary files;
-a reviewer records feedback, requests a revision and closes the readiness request with a visible record
-of who said what and which version was reviewed. The owner deliberately exports only selected records
-and evidence for another participant to inspect and return, without giving access to the entire folder.
-Why next: Vanta's contextual requests/reuse and Drata's period packages/freezing connect collection to
-review; the current Markdown status report is not an evidence package or collaborative review workflow.
+A startup with no compliance program creates a workspace, answers a scoping interview (services, systems,
+subservice providers, in-scope criteria) and gets a tailored SOC2 control set, a policy set and registers,
+all as documented, versioned files. It sees what is missing per control, and edits in the local UI, the CLI
+or with its own coding agent, with the same validation either way. This replaces format 1 and its code.
 
-Observable success:
-- Run a synthetic request, submission, return-for-change, replacement and closure cycle. Preserve prior
-  submission provenance and discussion, distinguish contributor declarations from reviewer dispositions,
-  and make shared evidence/control associations inspectable without claiming sufficiency from reuse.
-- Record evidence source, collection time and relevant period; expose missing or stale information with
-  explicit rules rather than infer dates from filenames. A changed file cannot silently retain a claim
-  that its current bytes are the reviewed version. Hashes detect change, not identity or truth.
-- Preview/export a point-in-time, documented portable package; the recipient can inspect its selected
-  scope, references and evidence offline. Demonstrate omission of unrelated synthetic client information,
-  missing-reference refusal and non-destructive reconciliation of returned work against intervening edits.
-- Retain local solo operation. Shared folders and authored reviewer names are not authenticated identities
-  or access-control enforcement. Define provenance/trust limits; no mandatory hosted portal or automatic
-  synchronization. Explicit sharing cannot revoke copies already delivered.
+Completion:
+- A versioned, documented workspace format with published JSON Schemas for scope, controls, policies, systems/assets, people, vendors, risks and evidence records; evidence records carry source, collection time, period and content hash. Every Security (CC) criterion ID is covered by at least one control in the project's own words.
+- A policy library of at least 15 policies adapted from CC0/Apache sources, each with owner, version, approval record and mapped controls; approving a new version preserves the previous one.
+- A local UI a nontechnical admin can drive end to end: scoping interview, control and policy review, registers, and a gap view per control and per criterion; the CLI reaches the same operations with JSON output.
+- The workspace ships its own agent instructions so the customer's Claude Code or Codex can operate it; an externally edited file is validated and conflicts are surfaced, never silently overwritten.
+- Format 1, its CLI, workbench, README sections, ADR0002, alpha.1 packaging and version metadata are removed entirely; README documents the new run command.
+- Demonstrated on a synthetic startup workspace in the World: create, scope, adopt controls and policies, fill registers, agent edit, gap view.
 
-Dependencies/fit: stable engagement/control identities, preservation-safe versioned records, selection
-and disclosure review, and a bounded transport-independent exchange design. Start with deliberate file
-handoff before live collaboration. This authorizes readiness review support, not audit testing conclusions,
-CPA sign-off automation, a tamper-proof ledger or publication. PM coordinates whole-outcome execution
-and operational verification; no phase or slice is a separate task.
-Sources and authority: `readiness-product`, Vanta Audit and Drata Audit Hub.
+## open-autonomy-soc2-ready: A project on Open Autonomy's soc2 template is SOC2 ready out of the box
 
-## continuous-firm-readiness: Sustain readiness across periods and client engagements
+Status: planned
+Dispatch: hold
+
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114#issuecomment-5802291630); [ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md); [ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/6e7a769f45236ac010f135695226dfa7f735fddd/docs/decisions/0008-human-seams.md); differentiator D1. Waits on `soc2-program`, `program-operations`, and Open Autonomy's `soc2` template implementing ADR 0008.
+
+A small project created from Open Autonomy's `soc2` template gets an Evidence Desk workspace as part of the project:
+agents do the work, and people act only at declared seams (direction, release and deploy approval, credential
+custody, roster changes, vendor account administration). Evidence Desk reads what the project's declarations
+establish, with no questionnaire: which humans hold which authority, which agents run on which schedules and
+models with which credentials by custody name, how a change to the automation is made and drift caught, which
+vendors it depends on, and where each seam's acts are recorded. Over a period the durable records (reviewed and
+merged changes, production deployments with their approvals, the roster's history) become populations with the
+query that produced them. Records are read through Open Autonomy's own interfaces (its SDK and the published
+Supercode orchestrator package the kit pins), never by parsing a harness's private state.
+
+The people at the seams are the people in scope, and the human controls apply to them: each completes onboarding
+through Evidence Desk (policy acknowledgment, a security-awareness quiz, attestations such as MFA on the accounts
+that reach their seam) and the recurring reviews that are a person's decision (access, risk, incidents). Each
+completion is recorded through a seam's own door, attributable to that person's verified account. The project's
+code states its design, including its commitments, SLA and escalation policy, data handling and infrastructure,
+and its durable records show the process operating. What neither can show stays on the ordinary evidence paths:
+state held in vendor consoles, whether production matches the code (stored data, backups and restores, retention),
+facts about people and their devices (including the host that runs the agents), judgment acts such as the risk
+assessment and the signed assertion, vendors' own assurance reports, external tests, and agreements executed with
+customers. The gap view says which facts came from where.
+
+Completion:
+- One command turns an Open Autonomy project into a workspace at a named commit: `agent.json` profiles, jobs and models, the `team` roster with scopes, the declared seams, the landing and production rules, and the vendors named by its dependencies and deploy egress; each fact carries that commit as provenance and maps to the controls and criteria it evidences. A later change surfaces as a changed design fact, never a silent overwrite.
+- A seam inventory: every place a human acts, who may act there, and where the act is recorded. Seams whose acts are not durably recorded are gaps, not evidence.
+- A completeness reconciliation: the roster compared with the people who actually hold admin or deploy rights in the declared vendor accounts; anyone with rights outside the roster is a finding.
+- Onboarding for each roster member: acknowledgments, quiz results and attestations recorded with the person's verified account as author; a member who has not completed it is a visible gap. Recurring human reviews are scheduled and their verdicts recorded the same way.
+- Period populations only from durable records (merged changes with reviews, production deployments with approvals, roster history), each with its generating query and completeness basis, ready for `audit-cycle` sampling.
+- Demonstrated in the World on a synthetic project created from the `soc2` template (or, until it exists, the current kit with ADR 0008's seams declared) against its twins: two synthetic roster members onboard, one out-of-roster admin is found, synthetic history spans a period, and the gap view ends with only items automation and onboarding cannot establish. No real project is read.
+
+## evidence-automation: Evidence collects itself, and controls are checked continuously
+
+Status: planned
+Dispatch: hold
+
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 5–6. Waits on `soc2-program` formats.
+
+Owner-operated collectors pull evidence from the company's systems with the company's own credentials,
+run on demand locally or on a schedule in the workspace repository's own CI, and write dated,
+provenance-bearing snapshots into the folder. Checks evaluate snapshots against controls and record
+pass/fail history; a failure is visible in the UI and fails the owner's scheduled run so their usual
+notification reaches them. No hosted control plane.
+
+Completion:
+- A collector contract (inputs, credential source, output snapshot format, provenance including the generating query) documented so a customer or their agent can write a new collector.
+- Collectors for the startup core, each developed against a vendor twin: AWS, GitHub, Google Workspace, Okta, one HRIS and one MDM. Each has a check library covering the controls it evidences.
+- A scheduled-run template for the workspace repository's CI and a local on-demand run; failures, stale evidence and collector errors are visible per control.
+- Demonstrated end to end in the World against the twins, including a failing check, its remediation and the recorded history.
+
+## program-operations: Run the recurring obligations auditors test
+
+Status: planned
+Dispatch: hold
+
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 7–9. Waits on `soc2-program`.
+
+The obligations that recur through an audit period become tracked, evidenced work: hires and leavers with
+onboarding/offboarding steps, policy acknowledgment and training, background checks, quarterly access
+reviews, vendor reviews, the annual risk assessment, incidents and vulnerability remediation SLAs.
+Acknowledgments and sign-offs arrive through channels the owner chooses (their identity provider, HRIS,
+e-signature export, Git), not a project-hosted portal; how employees without repository access
+acknowledge policies is a design decision this outcome must make and document.
+
+Completion:
+- Onboarding quizzes and surveys authored as files: a person completes one, the result (answers, score, pass/fail, date) is recorded as attributable to that person, and incomplete or failed onboarding is a visible gap.
+- A calendar of obligations derived from the adopted controls, with due, overdue and done states and the evidence each produced.
+- An access review cycle: user listings per system (from collectors or import), reviewer decisions, removals and sign-off, all recorded in the folder.
+- People lifecycle: synthetic hires and leavers reconcile to acknowledgment, training, background-check and access-removal evidence with timeliness shown.
+- Demonstrated over a simulated quarter in the World on a synthetic workspace.
+
+## audit-cycle: Take the program through a Type I and Type II audit
+
+Status: planned
+Dispatch: hold
+
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 10–13. Waits on `soc2-program`, `open-autonomy-soc2-ready`, `evidence-automation`, `program-operations`.
+
+A company and its CPA firm run an engagement: Type I as of a date or Type II over a period, the firm's request
+list, populations with the query or parameters that generated them, samples the auditor selects, evidence per
+sample, exceptions and responses. The company drafts its DC 200 system description, management assertion
+and later bridge letter from workspace facts. Exchange is a deliberate, point-in-time package the firm can
+verify offline and return, not shared access to the whole folder. A firm manages many client engagements.
+Evidence Desk never issues opinions or performs audit testing conclusions.
+
+Completion:
+- Engagement records for Type I and Type II with period boundaries; evidence outside the period is flagged, not silently used.
+- Population export per control with generating query and timestamp; auditor sample selection recorded; sample evidence and exceptions tracked to closure.
+- Generated DC 200 description covering DC1–DC9, management assertion and bridge letter drafts, each traceable to the facts they cite.
+- An exported package whose contents, hashes and omissions a recipient verifies offline; a returned package reconciles without discarding intervening edits.
+- A firm view across at least two isolated synthetic client engagements with no cross-client disclosure.
+- Demonstrated with a synthetic company and synthetic firm through a Type II request, sample, exception and closure cycle.
+
+## trust-and-questionnaires: Answer customers' security reviews from sourced facts
+
+Status: planned
+Dispatch: hold
+
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 14–15. Waits on `audit-cycle`.
+
+The company publishes a trust center generated from the workspace as a static site it hosts where it likes,
+and answers incoming security questionnaires (spreadsheet in, spreadsheet out) with answers drafted from
+workspace facts, each citing its source, reviewed before export. Drafting works without AI through
+retrieval over the folder, and better with the customer's own agent; no project-selected AI service.
+
+Completion:
+- A static trust center build: selected policies, controls, subprocessors and report availability, with documents gated behind the owner's own request process.
+- Questionnaire import, drafted answers with citations to workspace records, review states and export back to the original format.
+- A reusable answer library that updates when its cited facts change.
+- Demonstrated on synthetic questionnaires in the World.
+
+## multi-framework: Reuse one program for ISO 27001
+
+Status: planned
+Dispatch: hold
+
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity row 16. Waits on `soc2-program`.
+
+Add ISO 27001 as a second framework mapped onto the same controls and evidence, IDs with the project's own
+wording under the same content rule, with a statement of applicability and a cross-framework gap view.
+
+Completion:
+- ISO 27001 Annex A mapping onto existing controls; shared evidence counted once, gaps shown per framework.
+- A statement of applicability generated from the workspace.
+- Demonstrated on the synthetic startup workspace.
+
+## release-next: First release of the rebuilt product
 
 Dispatch: hold
-Decision: authorized later intention; specific implementation choices remain provisional
+Release decision: accumulate
+Readiness: pending
 
-Outcome: a firm can deliberately register separate client folders, see scoped follow-ups without accidental
-cross-client disclosure, roll readiness into a new period without silently accepting stale evidence, and
-maintain linked policies, risks, vendors and recurring people/access-review obligations. Later, optional
-owner-operated collectors reduce repeated evidence work, while reviewed disclosure/questionnaire outputs
-reuse sourced readiness facts instead of inventing assurances.
-Why later: Secureframe demonstrates the multi-client journey; Sprinto/Hyperproof expose ongoing control,
-risk, policy and trust breadth. Those gaps cannot be closed by polishing the initial CLI indefinitely,
-but integration automation before stable provenance would amplify unreliable records.
-
-Success direction: operate two isolated synthetic client engagements, a new-period review preserving
-history, and a recurring obligation through remediation. Subsequently demonstrate an explicitly enabled
-collector with reproducible provenance, visible failures and a manual/offline fallback, and a reviewed
-shareable answer linked to its sources. Collector/vendor selection and detailed acceptance require a
-later sourced strategy refinement, not a speculative connector backlog.
-
-Dependencies/constitutional boundaries: guided workflow and evidence review first; explicit storage/OS
-permission model before multi-user access claims; vendor twins and synthetic API seeds for development.
-Optional sync and customer-selected AI must leave portable records and non-AI core operation intact.
-Hosted trust-center convenience, enforced remote permissions and autonomous evidence testing are unresolved
-parity questions, not features claimed achieved. Research owner-controlled alternatives; any solution
-requiring proprietary storage, compelled uploads or audit opinions stays held for owner direction.
-No authorization to access customer systems, provide audit services, or expand into unrelated financial
-statement audit/AI-governance products merely because a competitor sells them.
-
-## release-next: First portable-workspace preview
-
-Dispatch: hold
-Release decision: request-review
-Target version: 0.1.0-alpha.1
-Target window: 2026-09-16 through 2026-09-18, America/New_York; provisional forecast
-Review by: 2026-09-15, America/New_York; proposed review target, subject to reviewer availability
-Candidate: 569fd47de242d20c47fccb89bb1caffdea4630a1
-Scope: portable-workspace create/open/validate and item create/update CLI, format 1, reproducible source archive; no GUI, sync, hosted service or bundled executable
-Readiness: ready-for-review
-Readiness evidence: https://github.com/open-autonomy-org/evidence-desk/pull/38 and hermes:task/t_669122cc establish create/open/validate; https://github.com/open-autonomy-org/evidence-desk/pull/57 and hermes:task/t_23847d50 review run 10 establish bounded item editing/conflict/preservation acceptance; https://github.com/open-autonomy-org/evidence-desk/pull/59 and hermes:task/t_4116639b review run 12 establish packaging. hermes:task/t_a488f630 independent run 15 verifies this exact full candidate; PM repeated its inspected World-attached rehearsal in cron_cbe439e4782f_20260910_032143, confirming identical artifacts and complete workflow/check acceptance.
-Rationale: Request review of the coherent first local folder workflow now that candidate-specific verification is complete, while retaining the existing forecast and human review lead time. The resolved filesystem prerequisite requires no product repair or isolation relaxation; this is a deliberate PM decision, not a merge/date trigger. Later planning/documentation commits accumulate independently and do not move this candidate.
-Version rationale: First experimental CLI source preview under the private 0.1.0-alpha.1 SemVer policy landed in PR #59; GitHub releases/tags were empty at this reconciliation. Workspace format 1 is distinct and unchanged. No stable API, npm publication or released version is implied.
-
-The completed `candidate-check` outcome is retired following [t_a488f630](hermes:task/t_a488f630),
-independent review run 15. The original extracted failures remain failed: `/tmp` is mounted `noexec`,
-and direct installed compiler launch raised EACCES. The operator authorized disposable extraction under
-`/opt/data/artifact-verification` outside Git checkouts; unchanged declared checks then passed without
-product/toolchain code changes, compiler substitution or runtime policy changes. Predecessor evidence is preserved.
-
-Fixed review asset: `evidence-desk-0.1.0-alpha.1-source.tar.gz` with adjacent `.tar.gz.sha256` and
-`.tar.gz.provenance.json`. SHA256: `6f5f46530a8e622f6edd374aeb3672afdc8a9bbb0375a96f21bd4f0e75e57b89`.
-Independent-review evidence and assets remain under `/opt/data/artifact-verification/t_a488f630-s4__iyfw/`;
-PM's fresh equivalent builds and exact command/output evidence are under
-`/opt/data/artifact-verification/t_a488f630-v4zb1tye/` (`evidence.json`, `commands.json`, `a/`, `b/`).
-These local paths are review evidence, not public download URLs or published assets.
-
-Verification: reviewer repository/extracted `bun run check` exited 0 in 2.538s/1.906s;
-PM's rerun exited 0 in 1.992s/0.959s. Two builds were byte-identical and matched the reviewer archive.
-Full allowlist, committed file bytes, tar commit header, checksum/provenance, frozen installation and
-extracted create/item-create/item-update/open/validate passed. Deterministic stale-write refusal
-preserved the exact external manifest, Markdown, binary evidence, unrelated file and unknown extensions.
-Only Linux aarch64, local ext4, Bun 1.3.10, Git 2.47.3 and gzip 1.13 were verified.
-
-Completion and remaining gates:
-- The fixed proposal landed in [PR #61](https://github.com/open-autonomy-org/evidence-desk/pull/61).
-  Native Discord history verifies delivery of the [candidate-specific request](https://discord.com/channels/1544906154868744202/1546981849979682916/1547449011466801202)
-  and [publication instructions](https://discord.com/channels/1544906154868744202/1546981849979682916/1547449012586545203)
-  to the authorized owner Aaron Yuan (GitHub `yueranyuan`, ID `2255943`; Discord ID `605505624226136074`).
-  Await the original human response in that conversation; no approval or accepted deadline is recorded.
-  Continued development is not candidate-specific approval and does not supersede this request.
-- The human reviews scope, full SHA, exact assets, verification and limitations; approves, rejects or
-  redirects this concrete proposal. Follow [human-only publication](CONTRIBUTING.md#human-only-publication)
-  and the [local-application procedure](.open-autonomy/PRODUCTION.md#packages-and-local-applications).
-  After approval, only a human creates `v0.1.0-alpha.1` at the fixed SHA, marks the GitHub Release a
-  prerelease, and uploads the reviewed archive and both sidecars. Verify required GitHub permissions/gates
-  at that step: [PR #82](https://github.com/open-autonomy-org/evidence-desk/pull/82) restored read-only
-  main-rule inspection, and PM observed one required approval, stale-approval dismissal and no code-owner
-  review. This verifies development review rules, not human publication permissions or release approval.
-  No service deployment or new publishing credentials are needed.
-- PM verifies the actual release record and downloaded version/provenance/checksum before moving
-  product changes out of Unreleased. A changed candidate, version or artifact needs renewed review.
-
-Risks and review notes: executable installation/extraction filesystem required; fleet `/tmp` remains
-unsuitable for the declared compiler check. The candidate's bundled docs predate the explicit executable-
-filesystem clarification now in main; provide that clarification in release notes, not by silently changing
-reviewed bytes. Registry/cache access and a separately installed Bun are needed. macOS, Windows,
-network/cloud filesystems are unverified. Existing-file association only, cooperating locks (not arbitrary-
-writer atomic compare-and-swap), quiescent reference topology, numeric/manifest-alias refusals and manual
-crash recovery remain limitations. Reviewer availability and publication permissions remain dependencies;
-unresolved gates move the forecast rather than waive review. No human implementation commitment is assumed.
-Optional cloud sync and customer AI integration remain future choices, not dependencies of core use.
-
+No candidate exists. PM proposes version, window and scope once `soc2-program` lands, under the
+[release procedure](.open-autonomy/PRODUCTION.md). Each release still requires candidate-specific human review.

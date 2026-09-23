@@ -1,7 +1,7 @@
 # Evidence Desk — constitution
 
-Evidence Desk is an open-source, local-first SOC2 readiness workbench for CPA firms and their clients.
-It helps them organize readiness work and supporting evidence in a folder they own, using documented
+Evidence Desk is the open-source, local-first alternative to SOC2 compliance SaaS, for companies pursuing
+SOC2 and the CPA firms that audit and advise them. It holds the whole compliance program in a folder they own, using documented
 JSON, CSV, Markdown and ordinary evidence files. Either the firm or the client can own that workspace.
 The ambition is the best SOC2 app in the world, matching or exceeding competing products while keeping
 the underlying information directly usable by people, other software and the customer's own AI tools.
@@ -72,5 +72,9 @@ The original conversation has no supplied public permalink. These product constr
 owner direction; the initial setup PR makes this distillation reviewable before fleet activation.
 The owner subsequently directed autonomous strategy toward the best SOC2 app in the world and parity
 with all competitors on 2026-09-10; the project-communications skill records that mandate and its source.
+On 2026-09-23 the owner named the benchmark as the SOC2 SaaS and zero-based the roadmap toward parity
+([issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114)).
+The same day the owner locked the aim: Open Autonomy's `soc2` template is SOC2 ready out of the box with
+Evidence Desk as its program, so a project created from it can engage a CPA almost immediately.
 Strategy owns product scope and priority under it. PM manages implementation, sequencing and release
 proposals, subject to this constitution and later sourced owner decisions.
