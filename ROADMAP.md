@@ -12,7 +12,7 @@ compliance SaaS, and the roadmap was rebuilt from scratch to reach parity with t
 
 Parity is measured against the whole buyer journey, from "we need SOC2" through a passed Type II audit and
 the security reviews that follow, for both the company and the CPA firm. It is not measured by integration
-count. The table below is the denominator. **Headline: 14 of 16 parity capabilities demonstrated** (rows 1–4 and 6–15).
+count. The table below is the denominator. **Headline: 15 of 16 parity capabilities demonstrated** (all but row 5, where only code collection has landed).
 A row counts only when its owning outcome demonstrates it in the running local product on synthetic data.
 
 | # | Capability (table stakes unless marked) | Owning outcome |
@@ -32,7 +32,7 @@ A row counts only when its owning outcome demonstrates it in the running local p
 | 13 | CPA firm operating many client engagements | demonstrated |
 | 14 | Trust center | demonstrated |
 | 15 | Security questionnaire answering from sourced facts | demonstrated |
-| 16 | Second framework (ISO 27001) reusing controls and evidence | `multi-framework` |
+| 16 | Second framework (ISO 27001) reusing controls and evidence | demonstrated |
 
 Evidence behind the table (reviewed 2026-09-23; vendor statements, not operated products). Commercial table
 stakes across Vanta, Drata, Secureframe, Sprinto, Thoropass and Hyperproof: built-in SOC2/ISO 27001 with
@@ -87,9 +87,9 @@ the plan is done; the fleet resumes once the product works. Outcomes below are `
 does not duplicate that work.
 
 Sequence: `open-autonomy-soc2-ready` (the aim; Open Autonomy's `soc2` template is outstanding), then
-`evidence-automation` (further collectors wait on twins) and `multi-framework`. The workspace
+`evidence-automation` (further collectors wait on twins). The workspace
 format, control library, policy templates, CLI and local app, the operation of the program, reading Open Autonomy
-projects, collectors and checks, the audit cycle, and the trust center and questionnaires have landed; see [CHANGELOG.md](CHANGELOG.md) and
+projects, collectors and checks, the audit cycle, the trust center and questionnaires, and ISO 27001 have landed; see [CHANGELOG.md](CHANGELOG.md) and
 [docs/workspace-format.md](docs/workspace-format.md).
 
 ## open-autonomy-soc2-ready: A project on Open Autonomy's soc2 template is SOC2 ready out of the box
@@ -169,21 +169,6 @@ Completion:
 - Collectors for the startup core, each developed against a vendor twin: AWS, GitHub, Google Workspace, Okta, one HRIS and one MDM. Each has a check library covering the controls it evidences.
 - A scheduled-run template for the workspace repository's CI and a local on-demand run; failures, stale evidence and collector errors are visible per control.
 - Demonstrated end to end in the World against the twins, including a failing check, its remediation and the recorded history.
-
-## multi-framework: Reuse one program for ISO 27001
-
-Status: planned
-Dispatch: hold
-
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity row 16.
-
-Add ISO 27001 as a second framework mapped onto the same controls and evidence, IDs with the project's own
-wording under the same content rule, with a statement of applicability and a cross-framework gap view.
-
-Completion:
-- ISO 27001 Annex A mapping onto existing controls; shared evidence counted once, gaps shown per framework.
-- A statement of applicability generated from the workspace.
-- Demonstrated on the synthetic startup workspace.
 
 ## release-next: First release of the rebuilt product
 

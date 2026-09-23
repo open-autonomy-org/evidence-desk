@@ -35,6 +35,7 @@ allowed everywhere and kept when Evidence Desk writes a file, so other tools can
 | `trust.json` | what the trust center may publish; nothing else is published | `trust` |
 | `questionnaires/<id>.json` | one security questionnaire, its answers, sources and review state | `questionnaire` |
 | `answers.json` | reviewed answers kept for reuse, with the facts they cite | `answer-library` |
+| `frameworks/<framework>.json` | the organization's exclusions and extra mappings for an additional framework | `framework-settings` |
 | `evidence/records/<id>.json` | one evidence record | `evidence` |
 | `evidence/files/` | evidence files | any |
 | `AGENTS.md`, `CLAUDE.md` | instructions for a coding agent working in the folder | Markdown |
@@ -168,6 +169,15 @@ approved policy text that match the question, each cited with its file and SHA-2
 left `unanswered`. A draft carries a marker and cannot be marked reviewed until a person replaces it with their answer.
 Only reviewed, current answers are exported. Drafting uses no AI service; a customer's own coding agent may refine
 drafts in the files.
+
+## Additional frameworks
+
+`evidence-desk frameworks <dir> enable iso27001` adds ISO/IEC 27001:2022 to the manifest's `frameworks`. Its clauses 4 to
+10 and 93 Annex A controls ([catalog/frameworks/iso27001.json](../catalog/frameworks/iso27001.json), identifiers with this
+project's titles and no ISO text) map onto the same controls, so one piece of evidence serves both frameworks. A
+requirement whose mapped controls are all excluded is excluded with their reasons; one no control addresses stays open
+until it is mapped to a control or excluded with a reason in `frameworks/iso27001.json`. `evidence-desk soa` writes the
+statement of applicability as CSV or Markdown.
 
 ## Readiness
 

@@ -110,6 +110,7 @@ export function loadWorkspace(root: string): Workspace {
   // Records no view needs loaded are still validated, so `validate` covers every file Evidence Desk defines.
   for (const [rel, name] of [['trust.json', 'trust'], ['answers.json', 'answer-library'], ['collectors.json', 'collectors']] as const) readJson(root, rel, name, problems);
   for (const f of list(root, 'questionnaires', '.json')) readJson(root, f, 'questionnaire', problems);
+  for (const f of list(root, 'frameworks', '.json')) readJson(root, f, 'framework-settings', problems);
   if (existsSync(join(root, 'audits'))) for (const d of readdirSync(join(root, 'audits'))) {
     if (!existsSync(join(root, 'audits', d, 'engagement.json'))) continue;
     readJson(root, `audits/${d}/engagement.json`, 'engagement', problems);

@@ -2,179 +2,1018 @@
   "schema": "evidence-desk.control-library/1",
   "note": "Controls written by this project. A control applies when at least one of its criteria's categories is in scope and every `when` condition matches the scoping answers.",
   "controls": [
-    { "id": "GOV-01", "title": "Security program ownership", "criteria": ["CC1.3", "CC5.3"], "frequency": "annual", "policies": ["information-security"],
+    {
+      "id": "GOV-01",
+      "title": "Security program ownership",
+      "criteria": [
+        "CC1.3",
+        "CC5.3"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "information-security"
+      ],
       "description": "A named person owns the security program. Roles, reporting lines and the authority to make security decisions are written down and reviewed each year.",
-      "evidence": ["Current record of security roles and who holds them"] },
-    { "id": "GOV-02", "title": "Code of conduct", "criteria": ["CC1.1", "CC1.5"], "frequency": "per-event", "policies": ["code-of-conduct"],
+      "evidence": [
+        "Current record of security roles and who holds them"
+      ]
+    },
+    {
+      "id": "GOV-02",
+      "title": "Code of conduct",
+      "criteria": [
+        "CC1.1",
+        "CC1.5"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "code-of-conduct"
+      ],
       "description": "Personnel acknowledge the code of conduct when they join and each year after. Violations are handled under a documented process.",
-      "evidence": ["Acknowledgment for each person in the period"] },
-    { "id": "GOV-03", "title": "Management oversight review", "criteria": ["CC1.2", "CC4.2", "CC5.1"], "frequency": "annual", "policies": ["information-security"],
+      "evidence": [
+        "Acknowledgment for each person in the period"
+      ]
+    },
+    {
+      "id": "GOV-03",
+      "title": "Management oversight review",
+      "criteria": [
+        "CC1.2",
+        "CC4.2",
+        "CC5.1"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "information-security"
+      ],
       "description": "Management, and someone independent of day-to-day operation where the organization is small, reviews the security program, open risks, deficiencies and exceptions at least once a year and records the outcome.",
-      "evidence": ["Dated record of the review, attendees and decisions"] },
-    { "id": "GOV-04", "title": "Approved security policies", "criteria": ["CC2.2", "CC5.3"], "frequency": "annual", "policies": ["information-security"],
+      "evidence": [
+        "Dated record of the review, attendees and decisions"
+      ]
+    },
+    {
+      "id": "GOV-04",
+      "title": "Approved security policies",
+      "criteria": [
+        "CC2.2",
+        "CC5.3"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "information-security"
+      ],
       "description": "Security policies are approved by management, versioned, available to personnel, and reviewed at least once a year.",
-      "evidence": ["Approval record for each policy version in force"] },
-    { "id": "GOV-05", "title": "Policy acknowledgment", "criteria": ["CC1.5", "CC2.2"], "frequency": "per-event", "policies": ["information-security", "acceptable-use"],
+      "evidence": [
+        "Approval record for each policy version in force"
+      ]
+    },
+    {
+      "id": "GOV-05",
+      "title": "Policy acknowledgment",
+      "criteria": [
+        "CC1.5",
+        "CC2.2"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "information-security",
+        "acceptable-use"
+      ],
       "description": "Personnel acknowledge the security policies when they join and whenever a policy changes materially.",
-      "evidence": ["Acknowledgment for each person and policy version"] },
-    { "id": "GOV-06", "title": "Reporting channel for security concerns", "criteria": ["CC2.1", "CC2.2"], "frequency": "annual", "policies": ["incident-response"],
+      "evidence": [
+        "Acknowledgment for each person and policy version"
+      ]
+    },
+    {
+      "id": "GOV-06",
+      "title": "Reporting channel for security concerns",
+      "criteria": [
+        "CC2.1",
+        "CC2.2"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "incident-response"
+      ],
       "description": "Personnel know how to report a security concern or incident, and the channel is described in the onboarding material.",
-      "evidence": ["Onboarding material naming the reporting channel"] },
-    { "id": "GOV-07", "title": "Commitments communicated to customers", "criteria": ["CC2.3"], "frequency": "annual", "policies": ["information-security"],
+      "evidence": [
+        "Onboarding material naming the reporting channel"
+      ]
+    },
+    {
+      "id": "GOV-07",
+      "title": "Commitments communicated to customers",
+      "criteria": [
+        "CC2.3"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "information-security"
+      ],
       "description": "Service commitments, security responsibilities and a security contact are published to customers, and changes are communicated.",
-      "evidence": ["Published terms, SLA or security page and its revision history"] },
-    { "id": "GOV-08", "title": "System description maintained", "criteria": ["CC2.1"], "frequency": "annual", "policies": ["information-security"],
+      "evidence": [
+        "Published terms, SLA or security page and its revision history"
+      ]
+    },
+    {
+      "id": "GOV-08",
+      "title": "System description maintained",
+      "criteria": [
+        "CC2.1"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "information-security"
+      ],
       "description": "A description of the services, commitments, system components, people and data is kept current and reviewed each year.",
-      "evidence": ["Current system description with its review date"] },
-    { "id": "RISK-01", "title": "Annual risk assessment", "criteria": ["CC3.1", "CC3.2", "CC3.3", "CC3.4", "CC5.1"], "frequency": "annual", "policies": ["risk-assessment"],
+      "evidence": [
+        "Current system description with its review date"
+      ]
+    },
+    {
+      "id": "RISK-01",
+      "title": "Annual risk assessment",
+      "criteria": [
+        "CC3.1",
+        "CC3.2",
+        "CC3.3",
+        "CC3.4",
+        "CC5.1"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "risk-assessment"
+      ],
       "description": "At least once a year the organization identifies risks to its objectives, including fraud and significant changes, rates likelihood and impact, and records them in the risk register.",
-      "evidence": ["Risk register as reviewed, with the review date and reviewer"] },
-    { "id": "RISK-02", "title": "Risk treatment tracked", "criteria": ["CC3.2", "CC5.1", "CC9.1"], "frequency": "quarterly", "policies": ["risk-assessment"],
+      "evidence": [
+        "Risk register as reviewed, with the review date and reviewer"
+      ]
+    },
+    {
+      "id": "RISK-02",
+      "title": "Risk treatment tracked",
+      "criteria": [
+        "CC3.2",
+        "CC5.1",
+        "CC9.1"
+      ],
+      "frequency": "quarterly",
+      "policies": [
+        "risk-assessment"
+      ],
       "description": "Every risk above tolerance has a treatment decision, an owner and a due date, and progress is reviewed.",
-      "evidence": ["Risk register entries with treatment, owner and status"] },
-    { "id": "MON-01", "title": "Control operation reviewed", "criteria": ["CC4.1", "CC4.2"], "frequency": "quarterly", "policies": ["information-security"],
+      "evidence": [
+        "Risk register entries with treatment, owner and status"
+      ]
+    },
+    {
+      "id": "MON-01",
+      "title": "Control operation reviewed",
+      "criteria": [
+        "CC4.1",
+        "CC4.2"
+      ],
+      "frequency": "quarterly",
+      "policies": [
+        "information-security"
+      ],
       "description": "The operation of controls is reviewed at least quarterly. Deficiencies are recorded with an owner and tracked to closure.",
-      "evidence": ["Quarterly review record and the deficiency list"] },
-    { "id": "MON-02", "title": "Independent penetration test", "criteria": ["CC4.1", "CC7.1"], "frequency": "annual", "policies": ["vulnerability-management"],
+      "evidence": [
+        "Quarterly review record and the deficiency list"
+      ]
+    },
+    {
+      "id": "MON-02",
+      "title": "Independent penetration test",
+      "criteria": [
+        "CC4.1",
+        "CC7.1"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "vulnerability-management"
+      ],
       "description": "An independent party tests the system at least once a year. Findings are rated and remediated on the schedule the policy sets.",
-      "evidence": ["Penetration test report", "Remediation record for each finding"] },
-    { "id": "MON-03", "title": "Vulnerability scanning and remediation", "criteria": ["CC7.1"], "frequency": "monthly", "policies": ["vulnerability-management"],
+      "evidence": [
+        "Penetration test report",
+        "Remediation record for each finding"
+      ]
+    },
+    {
+      "id": "MON-03",
+      "title": "Vulnerability scanning and remediation",
+      "criteria": [
+        "CC7.1"
+      ],
+      "frequency": "monthly",
+      "policies": [
+        "vulnerability-management"
+      ],
       "description": "Systems and dependencies are scanned for known vulnerabilities, and findings are fixed within the time the policy sets for their severity.",
-      "evidence": ["Scan results", "Remediation within the policy's deadlines"] },
-    { "id": "HR-01", "title": "Background checks", "criteria": ["CC1.4"], "frequency": "per-event", "policies": ["personnel-security"], "when": [{ "answer": "background_checks_required", "equals": true }],
+      "evidence": [
+        "Scan results",
+        "Remediation within the policy's deadlines"
+      ]
+    },
+    {
+      "id": "MON-04",
+      "title": "Internal audit of the program",
+      "criteria": [
+        "CC4.1",
+        "CC4.2"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "information-security"
+      ],
+      "description": "At least once a year someone independent of the work being checked audits the program against its policies and the frameworks it follows, and management receives the findings.",
+      "evidence": [
+        "Internal audit plan, report and management's response"
+      ]
+    },
+    {
+      "id": "HR-01",
+      "title": "Background checks",
+      "criteria": [
+        "CC1.4"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "personnel-security"
+      ],
+      "when": [
+        {
+          "answer": "background_checks_required",
+          "equals": true
+        }
+      ],
       "description": "Personnel with access to the system pass a background check before access is granted, as the personnel policy requires.",
-      "evidence": ["Check completion for each new person"] },
-    { "id": "HR-02", "title": "Security awareness training", "criteria": ["CC1.4", "CC2.2"], "frequency": "annual", "policies": ["personnel-security"],
+      "evidence": [
+        "Check completion for each new person"
+      ]
+    },
+    {
+      "id": "HR-02",
+      "title": "Security awareness training",
+      "criteria": [
+        "CC1.4",
+        "CC2.2"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "personnel-security"
+      ],
       "description": "Personnel complete security awareness training, with a knowledge check, when they join and each year after.",
-      "evidence": ["Training and quiz result for each person in the period"] },
-    { "id": "HR-03", "title": "Onboarding with approved access", "criteria": ["CC1.4", "CC6.2"], "frequency": "per-event", "policies": ["personnel-security", "access-control"],
+      "evidence": [
+        "Training and quiz result for each person in the period"
+      ]
+    },
+    {
+      "id": "HR-03",
+      "title": "Onboarding with approved access",
+      "criteria": [
+        "CC1.4",
+        "CC6.2"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "personnel-security",
+        "access-control"
+      ],
       "description": "Each new person follows an onboarding checklist, and the access they receive is approved for their role.",
-      "evidence": ["Completed onboarding checklist and access approval for each new person"] },
-    { "id": "HR-04", "title": "Timely offboarding", "criteria": ["CC6.2", "CC6.3"], "frequency": "per-event", "policies": ["personnel-security", "access-control"],
+      "evidence": [
+        "Completed onboarding checklist and access approval for each new person"
+      ]
+    },
+    {
+      "id": "HR-04",
+      "title": "Timely offboarding",
+      "criteria": [
+        "CC6.2",
+        "CC6.3"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "personnel-security",
+        "access-control"
+      ],
       "description": "When someone leaves, their access to every in-scope system is removed within the time the policy sets.",
-      "evidence": ["Removal record for each leaver with dates"] },
-    { "id": "HR-05", "title": "Confidentiality agreements", "criteria": ["CC1.1", "C1.1"], "frequency": "per-event", "policies": ["personnel-security"],
+      "evidence": [
+        "Removal record for each leaver with dates"
+      ]
+    },
+    {
+      "id": "HR-05",
+      "title": "Confidentiality agreements",
+      "criteria": [
+        "CC1.1",
+        "C1.1"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "personnel-security"
+      ],
       "description": "Personnel and contractors sign a confidentiality agreement before they receive access to confidential information.",
-      "evidence": ["Signed agreement for each person"] },
-    { "id": "HR-06", "title": "Defined responsibilities", "criteria": ["CC1.4"], "frequency": "annual", "policies": ["personnel-security"],
+      "evidence": [
+        "Signed agreement for each person"
+      ]
+    },
+    {
+      "id": "HR-06",
+      "title": "Defined responsibilities",
+      "criteria": [
+        "CC1.4"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "personnel-security"
+      ],
       "description": "Each role with security responsibilities has them written down, and the people holding those roles are competent for them.",
-      "evidence": ["Role descriptions with security responsibilities"] },
-    { "id": "AC-01", "title": "Unique accounts with strong authentication", "criteria": ["CC6.1", "CC5.2"], "frequency": "continuous", "policies": ["access-control", "authentication"],
+      "evidence": [
+        "Role descriptions with security responsibilities"
+      ]
+    },
+    {
+      "id": "AC-01",
+      "title": "Unique accounts with strong authentication",
+      "criteria": [
+        "CC6.1",
+        "CC5.2"
+      ],
+      "frequency": "continuous",
+      "policies": [
+        "access-control",
+        "authentication"
+      ],
       "description": "Every person uses their own account on in-scope systems, and multi-factor authentication is required where the system supports it.",
-      "evidence": ["Authentication settings for each in-scope system"] },
-    { "id": "AC-02", "title": "Least-privilege access provisioning", "criteria": ["CC6.2", "CC6.3"], "frequency": "per-event", "policies": ["access-control"],
+      "evidence": [
+        "Authentication settings for each in-scope system"
+      ]
+    },
+    {
+      "id": "AC-02",
+      "title": "Least-privilege access provisioning",
+      "criteria": [
+        "CC6.2",
+        "CC6.3"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "access-control"
+      ],
       "description": "Access is granted only with approval and only to what a role needs.",
-      "evidence": ["Approval for each access grant in the period"] },
-    { "id": "AC-03", "title": "Periodic access review", "criteria": ["CC6.2", "CC6.3"], "frequency": "quarterly", "policies": ["access-control"],
+      "evidence": [
+        "Approval for each access grant in the period"
+      ]
+    },
+    {
+      "id": "AC-03",
+      "title": "Periodic access review",
+      "criteria": [
+        "CC6.2",
+        "CC6.3"
+      ],
+      "frequency": "quarterly",
+      "policies": [
+        "access-control"
+      ],
       "description": "At least quarterly, a reviewer confirms that each account on each in-scope system is still needed, and removes what is not.",
-      "evidence": ["User listing per system, the reviewer's decisions and sign-off"] },
-    { "id": "AC-04", "title": "Privileged access restricted", "criteria": ["CC6.1", "CC6.3"], "frequency": "quarterly", "policies": ["access-control"],
+      "evidence": [
+        "User listing per system, the reviewer's decisions and sign-off"
+      ]
+    },
+    {
+      "id": "AC-04",
+      "title": "Privileged access restricted",
+      "criteria": [
+        "CC6.1",
+        "CC6.3"
+      ],
+      "frequency": "quarterly",
+      "policies": [
+        "access-control"
+      ],
       "description": "Administrative access is limited to named people who need it, used only for administration, and reviewed at least quarterly.",
-      "evidence": ["List of privileged accounts and its review"] },
-    { "id": "AC-05", "title": "Credential and secret management", "criteria": ["CC6.1"], "frequency": "continuous", "policies": ["access-control", "encryption"],
+      "evidence": [
+        "List of privileged accounts and its review"
+      ]
+    },
+    {
+      "id": "AC-05",
+      "title": "Credential and secret management",
+      "criteria": [
+        "CC6.1"
+      ],
+      "frequency": "continuous",
+      "policies": [
+        "access-control",
+        "encryption"
+      ],
       "description": "Secrets and credentials are held in managed custody, never in source code, and are rotated on schedule and revoked when their holder leaves.",
-      "evidence": ["Record of each credential's issue, rotation and revocation"] },
-    { "id": "AC-06", "title": "Physical access to facilities", "criteria": ["CC6.4"], "frequency": "quarterly", "policies": ["access-control"], "when": [{ "answer": "has_office", "equals": true }],
+      "evidence": [
+        "Record of each credential's issue, rotation and revocation"
+      ]
+    },
+    {
+      "id": "AC-06",
+      "title": "Physical access to facilities",
+      "criteria": [
+        "CC6.4"
+      ],
+      "frequency": "quarterly",
+      "policies": [
+        "access-control"
+      ],
+      "when": [
+        {
+          "answer": "has_office",
+          "equals": true
+        }
+      ],
       "description": "Physical access to facilities that house system components is restricted to authorized people and reviewed.",
-      "evidence": ["Physical access list and its review"] },
-    { "id": "AC-07", "title": "Secure disposal", "criteria": ["CC6.5", "C1.2"], "frequency": "per-event", "policies": ["data-retention"],
+      "evidence": [
+        "Physical access list and its review"
+      ]
+    },
+    {
+      "id": "AC-07",
+      "title": "Secure disposal",
+      "criteria": [
+        "CC6.5",
+        "C1.2"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "data-retention"
+      ],
       "description": "Devices and data are disposed of so that information cannot be recovered, and disposal is recorded.",
-      "evidence": ["Disposal records"] },
-    { "id": "AC-08", "title": "Network boundary protection", "criteria": ["CC6.6"], "frequency": "continuous", "policies": ["access-control"],
+      "evidence": [
+        "Disposal records"
+      ]
+    },
+    {
+      "id": "AC-08",
+      "title": "Network boundary protection",
+      "criteria": [
+        "CC6.6"
+      ],
+      "frequency": "continuous",
+      "policies": [
+        "access-control"
+      ],
       "description": "Inbound access to the system is restricted to the services that need to be reachable, and administrative interfaces are not exposed publicly.",
-      "evidence": ["Network or firewall configuration"] },
-    { "id": "AC-09", "title": "Encryption in transit and at rest", "criteria": ["CC6.1", "CC6.7"], "frequency": "continuous", "policies": ["encryption"],
+      "evidence": [
+        "Network or firewall configuration"
+      ]
+    },
+    {
+      "id": "AC-09",
+      "title": "Encryption in transit and at rest",
+      "criteria": [
+        "CC6.1",
+        "CC6.7"
+      ],
+      "frequency": "continuous",
+      "policies": [
+        "encryption"
+      ],
       "description": "Data is encrypted in transit over public networks and at rest in the system's data stores.",
-      "evidence": ["TLS and storage encryption configuration"] },
-    { "id": "AC-10", "title": "Endpoint protection", "criteria": ["CC6.8"], "frequency": "continuous", "policies": ["acceptable-use"],
+      "evidence": [
+        "TLS and storage encryption configuration"
+      ]
+    },
+    {
+      "id": "AC-10",
+      "title": "Endpoint protection",
+      "criteria": [
+        "CC6.8"
+      ],
+      "frequency": "continuous",
+      "policies": [
+        "acceptable-use"
+      ],
       "description": "Devices used to reach the system have disk encryption, screen lock, current updates and malware protection.",
-      "evidence": ["Device attestation or management report for each person"] },
-    { "id": "AC-11", "title": "Customer data access restricted", "criteria": ["CC6.1", "C1.1"], "frequency": "quarterly", "policies": ["access-control", "data-classification"], "when": [{ "answer": "hosts_customer_data", "equals": true }],
+      "evidence": [
+        "Device attestation or management report for each person"
+      ]
+    },
+    {
+      "id": "AC-11",
+      "title": "Customer data access restricted",
+      "criteria": [
+        "CC6.1",
+        "C1.1"
+      ],
+      "frequency": "quarterly",
+      "policies": [
+        "access-control",
+        "data-classification"
+      ],
+      "when": [
+        {
+          "answer": "hosts_customer_data",
+          "equals": true
+        }
+      ],
       "description": "Access to production customer data is limited to authorized people with a need, and is reviewed.",
-      "evidence": ["List of people with production data access and its review"] },
-    { "id": "OPS-01", "title": "Logging, monitoring and alerting", "criteria": ["CC7.2", "CC7.3"], "frequency": "continuous", "policies": ["logging-and-monitoring"],
+      "evidence": [
+        "List of people with production data access and its review"
+      ]
+    },
+    {
+      "id": "OPS-01",
+      "title": "Logging, monitoring and alerting",
+      "criteria": [
+        "CC7.2",
+        "CC7.3"
+      ],
+      "frequency": "continuous",
+      "policies": [
+        "logging-and-monitoring"
+      ],
       "description": "Security-relevant events are logged, retained and monitored, and alerts reach someone who responds.",
-      "evidence": ["Logging and alerting configuration", "Example alerts and their handling"] },
-    { "id": "OPS-02", "title": "Incident response plan tested", "criteria": ["CC7.3", "CC7.4", "CC7.5"], "frequency": "annual", "policies": ["incident-response"],
+      "evidence": [
+        "Logging and alerting configuration",
+        "Example alerts and their handling"
+      ]
+    },
+    {
+      "id": "OPS-02",
+      "title": "Incident response plan tested",
+      "criteria": [
+        "CC7.3",
+        "CC7.4",
+        "CC7.5"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "incident-response"
+      ],
       "description": "An incident response plan names roles and steps, and is exercised at least once a year.",
-      "evidence": ["Current plan", "Record of the annual exercise"] },
-    { "id": "OPS-03", "title": "Incidents recorded and reviewed", "criteria": ["CC7.3", "CC7.4", "CC7.5"], "frequency": "per-event", "policies": ["incident-response"],
+      "evidence": [
+        "Current plan",
+        "Record of the annual exercise"
+      ]
+    },
+    {
+      "id": "OPS-03",
+      "title": "Incidents recorded and reviewed",
+      "criteria": [
+        "CC7.3",
+        "CC7.4",
+        "CC7.5"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "incident-response"
+      ],
       "description": "Each security incident is recorded, assessed, contained, resolved and reviewed afterwards, with notification where commitments require it.",
-      "evidence": ["Incident records with timeline and review"] },
-    { "id": "OPS-04", "title": "Configuration managed and drift detected", "criteria": ["CC7.1", "CC5.2", "CC8.1"], "frequency": "continuous", "policies": ["change-management"],
+      "evidence": [
+        "Incident records with timeline and review"
+      ]
+    },
+    {
+      "id": "OPS-04",
+      "title": "Configuration managed and drift detected",
+      "criteria": [
+        "CC7.1",
+        "CC5.2",
+        "CC8.1"
+      ],
+      "frequency": "continuous",
+      "policies": [
+        "change-management"
+      ],
       "description": "System configuration is defined in reviewed source or baselines, and changes made outside that process are detected.",
-      "evidence": ["Configuration source and drift reports"] },
-    { "id": "OPS-05", "title": "Backups and restore tests", "criteria": ["CC7.5", "A1.2", "A1.3"], "frequency": "annual", "policies": ["business-continuity"], "when": [{ "answer": "hosts_customer_data", "equals": true }],
+      "evidence": [
+        "Configuration source and drift reports"
+      ]
+    },
+    {
+      "id": "OPS-05",
+      "title": "Backups and restore tests",
+      "criteria": [
+        "CC7.5",
+        "A1.2",
+        "A1.3"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "business-continuity"
+      ],
+      "when": [
+        {
+          "answer": "hosts_customer_data",
+          "equals": true
+        }
+      ],
       "description": "Data needed to restore the service is backed up on schedule, and a restore is tested at least once a year.",
-      "evidence": ["Backup configuration", "Record of the annual restore test"] },
-    { "id": "OPS-06", "title": "Capacity and availability monitoring", "criteria": ["A1.1"], "frequency": "continuous", "policies": ["business-continuity"],
+      "evidence": [
+        "Backup configuration",
+        "Record of the annual restore test"
+      ]
+    },
+    {
+      "id": "OPS-06",
+      "title": "Capacity and availability monitoring",
+      "criteria": [
+        "A1.1"
+      ],
+      "frequency": "continuous",
+      "policies": [
+        "business-continuity"
+      ],
       "description": "Capacity and availability are monitored against commitments, and shortfalls are acted on.",
-      "evidence": ["Availability monitoring and capacity reviews"] },
-    { "id": "OPS-07", "title": "Business continuity and disaster recovery", "criteria": ["CC7.5", "CC9.1", "A1.2", "A1.3"], "frequency": "annual", "policies": ["business-continuity"],
+      "evidence": [
+        "Availability monitoring and capacity reviews"
+      ]
+    },
+    {
+      "id": "OPS-07",
+      "title": "Business continuity and disaster recovery",
+      "criteria": [
+        "CC7.5",
+        "CC9.1",
+        "A1.2",
+        "A1.3"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "business-continuity"
+      ],
       "description": "A continuity and recovery plan covers the loss of key systems, providers and people, and is tested at least once a year.",
-      "evidence": ["Current plan", "Record of the annual test"] },
-    { "id": "CHG-01", "title": "Independent change approval", "criteria": ["CC8.1", "CC5.2"], "frequency": "per-event", "policies": ["change-management"], "when": [{ "answer": "develops_software", "equals": true }],
+      "evidence": [
+        "Current plan",
+        "Record of the annual test"
+      ]
+    },
+    {
+      "id": "CHG-01",
+      "title": "Independent change approval",
+      "criteria": [
+        "CC8.1",
+        "CC5.2"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "change-management"
+      ],
+      "when": [
+        {
+          "answer": "develops_software",
+          "equals": true
+        }
+      ],
       "description": "Each change to the production system is reviewed and approved by someone other than its author before it reaches production.",
-      "evidence": ["Population of production changes with their approvals"] },
-    { "id": "CHG-02", "title": "Changes verified before release", "criteria": ["CC8.1"], "frequency": "per-event", "policies": ["change-management", "secure-development"], "when": [{ "answer": "develops_software", "equals": true }],
+      "evidence": [
+        "Population of production changes with their approvals"
+      ]
+    },
+    {
+      "id": "CHG-02",
+      "title": "Changes verified before release",
+      "criteria": [
+        "CC8.1"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "change-management",
+        "secure-development"
+      ],
+      "when": [
+        {
+          "answer": "develops_software",
+          "equals": true
+        }
+      ],
       "description": "Each change is verified before release, and the verification performed is recorded with the change.",
-      "evidence": ["Verification record for each sampled change"] },
-    { "id": "CHG-03", "title": "Controlled production deployment", "criteria": ["CC8.1"], "frequency": "per-event", "policies": ["change-management"], "when": [{ "answer": "develops_software", "equals": true }],
+      "evidence": [
+        "Verification record for each sampled change"
+      ]
+    },
+    {
+      "id": "CHG-03",
+      "title": "Controlled production deployment",
+      "criteria": [
+        "CC8.1"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "change-management"
+      ],
+      "when": [
+        {
+          "answer": "develops_software",
+          "equals": true
+        }
+      ],
       "description": "Only approved releases reach production, and only people or processes authorized to deploy can do so.",
-      "evidence": ["Deployment records with their approvals", "List of who can deploy"] },
-    { "id": "CHG-04", "title": "Emergency changes", "criteria": ["CC8.1"], "frequency": "per-event", "policies": ["change-management"], "when": [{ "answer": "develops_software", "equals": true }],
+      "evidence": [
+        "Deployment records with their approvals",
+        "List of who can deploy"
+      ]
+    },
+    {
+      "id": "CHG-04",
+      "title": "Emergency changes",
+      "criteria": [
+        "CC8.1"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "change-management"
+      ],
+      "when": [
+        {
+          "answer": "develops_software",
+          "equals": true
+        }
+      ],
       "description": "A change made outside the normal flow in an emergency is recorded and approved afterwards, or the organization records that no such path exists.",
-      "evidence": ["Emergency change records, or the recorded absence of the path"] },
-    { "id": "CHG-05", "title": "Dependency and supply-chain management", "criteria": ["CC7.1", "CC8.1"], "frequency": "continuous", "policies": ["secure-development", "vulnerability-management"], "when": [{ "answer": "develops_software", "equals": true }],
+      "evidence": [
+        "Emergency change records, or the recorded absence of the path"
+      ]
+    },
+    {
+      "id": "CHG-05",
+      "title": "Dependency and supply-chain management",
+      "criteria": [
+        "CC7.1",
+        "CC8.1"
+      ],
+      "frequency": "continuous",
+      "policies": [
+        "secure-development",
+        "vulnerability-management"
+      ],
+      "when": [
+        {
+          "answer": "develops_software",
+          "equals": true
+        }
+      ],
       "description": "Third-party dependencies are pinned, their provenance is known, and they are scanned for known vulnerabilities.",
-      "evidence": ["Lockfiles and dependency scan results"] },
-    { "id": "VND-01", "title": "Vendor inventory", "criteria": ["CC9.2"], "frequency": "annual", "policies": ["vendor-management"],
+      "evidence": [
+        "Lockfiles and dependency scan results"
+      ]
+    },
+    {
+      "id": "VND-01",
+      "title": "Vendor inventory",
+      "criteria": [
+        "CC9.2"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "vendor-management"
+      ],
       "description": "Vendors that support the system are listed with the service they provide, the data they can reach and their criticality.",
-      "evidence": ["Vendor register"] },
-    { "id": "VND-02", "title": "Vendor due diligence", "criteria": ["CC9.2"], "frequency": "annual", "policies": ["vendor-management"],
+      "evidence": [
+        "Vendor register"
+      ]
+    },
+    {
+      "id": "VND-02",
+      "title": "Vendor due diligence",
+      "criteria": [
+        "CC9.2"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "vendor-management"
+      ],
       "description": "Critical vendors are assessed before use and each year after, using their assurance reports where available.",
-      "evidence": ["Assessment record and assurance report for each critical vendor"] },
-    { "id": "VND-03", "title": "Vendor commitments", "criteria": ["CC9.2", "C1.1"], "frequency": "per-event", "policies": ["vendor-management"],
+      "evidence": [
+        "Assessment record and assurance report for each critical vendor"
+      ]
+    },
+    {
+      "id": "VND-03",
+      "title": "Vendor commitments",
+      "criteria": [
+        "CC9.2",
+        "C1.1"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "vendor-management"
+      ],
       "description": "Agreements with vendors that handle confidential or personal data include security and confidentiality commitments.",
-      "evidence": ["Agreements or terms for each such vendor"] },
-    { "id": "CONF-01", "title": "Data classification and handling", "criteria": ["C1.1"], "frequency": "annual", "policies": ["data-classification"],
+      "evidence": [
+        "Agreements or terms for each such vendor"
+      ]
+    },
+    {
+      "id": "CONF-01",
+      "title": "Data classification and handling",
+      "criteria": [
+        "C1.1"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "data-classification"
+      ],
       "description": "Information is classified, and each class has handling rules that personnel follow.",
-      "evidence": ["Classification scheme and data inventory"] },
-    { "id": "CONF-02", "title": "Retention and deletion", "criteria": ["C1.2"], "frequency": "annual", "policies": ["data-retention"],
+      "evidence": [
+        "Classification scheme and data inventory"
+      ]
+    },
+    {
+      "id": "CONF-02",
+      "title": "Retention and deletion",
+      "criteria": [
+        "C1.2"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "data-retention"
+      ],
       "description": "Confidential information is retained only as long as commitments and law require, then deleted, and deletion is recorded.",
-      "evidence": ["Retention schedule and deletion records"] },
-    { "id": "PI-01", "title": "Processing specifications", "criteria": ["PI1.1", "PI1.2"], "frequency": "annual", "policies": ["secure-development"],
+      "evidence": [
+        "Retention schedule and deletion records"
+      ]
+    },
+    {
+      "id": "PI-01",
+      "title": "Processing specifications",
+      "criteria": [
+        "PI1.1",
+        "PI1.2"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "secure-development"
+      ],
       "description": "The inputs, processing and outputs the service commits to are specified and communicated.",
-      "evidence": ["Processing specifications"] },
-    { "id": "PI-02", "title": "Input and processing validation", "criteria": ["PI1.2", "PI1.3"], "frequency": "continuous", "policies": ["secure-development"],
+      "evidence": [
+        "Processing specifications"
+      ]
+    },
+    {
+      "id": "PI-02",
+      "title": "Input and processing validation",
+      "criteria": [
+        "PI1.2",
+        "PI1.3"
+      ],
+      "frequency": "continuous",
+      "policies": [
+        "secure-development"
+      ],
       "description": "Inputs are validated, processing errors are detected and corrected, and exceptions are tracked.",
-      "evidence": ["Validation design and error-handling records"] },
-    { "id": "PI-03", "title": "Output and storage integrity", "criteria": ["PI1.4", "PI1.5"], "frequency": "continuous", "policies": ["secure-development"],
+      "evidence": [
+        "Validation design and error-handling records"
+      ]
+    },
+    {
+      "id": "PI-03",
+      "title": "Output and storage integrity",
+      "criteria": [
+        "PI1.4",
+        "PI1.5"
+      ],
+      "frequency": "continuous",
+      "policies": [
+        "secure-development"
+      ],
       "description": "Outputs are complete, accurate and delivered on time, and stored inputs and outputs are protected from alteration.",
-      "evidence": ["Reconciliation or integrity checks and their results"] },
-    { "id": "PRIV-01", "title": "Privacy notice", "criteria": ["P1.1"], "frequency": "annual", "policies": ["privacy"],
+      "evidence": [
+        "Reconciliation or integrity checks and their results"
+      ]
+    },
+    {
+      "id": "PRIV-01",
+      "title": "Privacy notice",
+      "criteria": [
+        "P1.1"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "privacy"
+      ],
       "description": "A privacy notice describes what personal information is collected, why, and how individuals exercise their rights.",
-      "evidence": ["Published privacy notice and its revision history"] },
-    { "id": "PRIV-02", "title": "Consent and choice", "criteria": ["P2.1", "P3.2"], "frequency": "continuous", "policies": ["privacy"],
+      "evidence": [
+        "Published privacy notice and its revision history"
+      ]
+    },
+    {
+      "id": "PRIV-02",
+      "title": "Consent and choice",
+      "criteria": [
+        "P2.1",
+        "P3.2"
+      ],
+      "frequency": "continuous",
+      "policies": [
+        "privacy"
+      ],
       "description": "Individuals are given the choices the notice promises, and consent is obtained and recorded where required.",
-      "evidence": ["Consent records"] },
-    { "id": "PRIV-03", "title": "Collection and use limited to purpose", "criteria": ["P3.1", "P4.1"], "frequency": "annual", "policies": ["privacy"],
+      "evidence": [
+        "Consent records"
+      ]
+    },
+    {
+      "id": "PRIV-03",
+      "title": "Collection and use limited to purpose",
+      "criteria": [
+        "P3.1",
+        "P4.1"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "privacy"
+      ],
       "description": "Personal information is collected and used only for the purposes in the notice.",
-      "evidence": ["Data inventory mapped to stated purposes"] },
-    { "id": "PRIV-04", "title": "Retention and disposal of personal information", "criteria": ["P4.2", "P4.3"], "frequency": "annual", "policies": ["privacy", "data-retention"],
+      "evidence": [
+        "Data inventory mapped to stated purposes"
+      ]
+    },
+    {
+      "id": "PRIV-04",
+      "title": "Retention and disposal of personal information",
+      "criteria": [
+        "P4.2",
+        "P4.3"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "privacy",
+        "data-retention"
+      ],
       "description": "Personal information is kept only as long as needed for its purpose and then disposed of.",
-      "evidence": ["Retention schedule and disposal records"] },
-    { "id": "PRIV-05", "title": "Access and correction requests", "criteria": ["P5.1", "P5.2"], "frequency": "per-event", "policies": ["privacy"],
+      "evidence": [
+        "Retention schedule and disposal records"
+      ]
+    },
+    {
+      "id": "PRIV-05",
+      "title": "Access and correction requests",
+      "criteria": [
+        "P5.1",
+        "P5.2"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "privacy"
+      ],
       "description": "Requests from individuals to access or correct their information are recorded and answered within the committed time.",
-      "evidence": ["Request log with response times"] },
-    { "id": "PRIV-06", "title": "Disclosures and breach notification", "criteria": ["P6.1", "P6.2", "P6.3", "P6.4", "P6.5", "P6.6", "P6.7"], "frequency": "per-event", "policies": ["privacy", "incident-response"],
+      "evidence": [
+        "Request log with response times"
+      ]
+    },
+    {
+      "id": "PRIV-06",
+      "title": "Disclosures and breach notification",
+      "criteria": [
+        "P6.1",
+        "P6.2",
+        "P6.3",
+        "P6.4",
+        "P6.5",
+        "P6.6",
+        "P6.7"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "privacy",
+        "incident-response"
+      ],
       "description": "Disclosures of personal information to third parties are authorized and recorded, third parties are bound to protect it, and breaches are notified as required.",
-      "evidence": ["Disclosure records", "Third-party agreements", "Breach notification records"] },
-    { "id": "PRIV-07", "title": "Quality of personal information", "criteria": ["P7.1"], "frequency": "annual", "policies": ["privacy"],
+      "evidence": [
+        "Disclosure records",
+        "Third-party agreements",
+        "Breach notification records"
+      ]
+    },
+    {
+      "id": "PRIV-07",
+      "title": "Quality of personal information",
+      "criteria": [
+        "P7.1"
+      ],
+      "frequency": "annual",
+      "policies": [
+        "privacy"
+      ],
       "description": "Personal information is kept accurate, complete and relevant for its purpose.",
-      "evidence": ["Data quality procedure and its results"] },
-    { "id": "PRIV-08", "title": "Privacy inquiries and complaints", "criteria": ["P8.1"], "frequency": "per-event", "policies": ["privacy"],
+      "evidence": [
+        "Data quality procedure and its results"
+      ]
+    },
+    {
+      "id": "PRIV-08",
+      "title": "Privacy inquiries and complaints",
+      "criteria": [
+        "P8.1"
+      ],
+      "frequency": "per-event",
+      "policies": [
+        "privacy"
+      ],
       "description": "Privacy inquiries, complaints and disputes are recorded, addressed and monitored.",
-      "evidence": ["Inquiry and complaint log"] }
+      "evidence": [
+        "Inquiry and complaint log"
+      ]
+    }
   ]
 }

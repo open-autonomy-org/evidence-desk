@@ -1,0 +1,1041 @@
+{
+ "schema": "evidence-desk.framework/1",
+ "framework": "iso27001",
+ "title": "ISO/IEC 27001:2022",
+ "note": "Clause and Annex A identifiers with short titles written by this project, mapped onto the control library. ISO's requirement and control text is not included; use your own licensed copy.",
+ "requirements": [
+  {
+   "id": "clause-4.1",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Understanding the organization and its context",
+   "controls": [
+    "RISK-01"
+   ]
+  },
+  {
+   "id": "clause-4.2",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Interested parties and their requirements",
+   "controls": [
+    "GOV-07"
+   ]
+  },
+  {
+   "id": "clause-4.3",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Scope of the management system",
+   "controls": [
+    "GOV-08"
+   ]
+  },
+  {
+   "id": "clause-4.4",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "The information security management system",
+   "controls": [
+    "GOV-01"
+   ]
+  },
+  {
+   "id": "clause-5.1",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Leadership and commitment",
+   "controls": [
+    "GOV-03"
+   ]
+  },
+  {
+   "id": "clause-5.2",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Security policy",
+   "controls": [
+    "GOV-04"
+   ]
+  },
+  {
+   "id": "clause-5.3",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Roles, responsibilities and authorities",
+   "controls": [
+    "GOV-01"
+   ]
+  },
+  {
+   "id": "clause-6.1",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Addressing risks and opportunities",
+   "controls": [
+    "RISK-01",
+    "RISK-02"
+   ]
+  },
+  {
+   "id": "clause-6.2",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Security objectives",
+   "controls": [
+    "GOV-03"
+   ]
+  },
+  {
+   "id": "clause-6.3",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Planning changes to the system",
+   "controls": [
+    "GOV-03"
+   ]
+  },
+  {
+   "id": "clause-7.1",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Resources",
+   "controls": [
+    "GOV-03"
+   ]
+  },
+  {
+   "id": "clause-7.2",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Competence",
+   "controls": [
+    "HR-06",
+    "HR-02"
+   ]
+  },
+  {
+   "id": "clause-7.3",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Awareness",
+   "controls": [
+    "HR-02"
+   ]
+  },
+  {
+   "id": "clause-7.4",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Communication",
+   "controls": [
+    "GOV-06",
+    "GOV-07"
+   ]
+  },
+  {
+   "id": "clause-7.5",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Documented information",
+   "controls": [
+    "GOV-04"
+   ]
+  },
+  {
+   "id": "clause-8.1",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Operational planning and control",
+   "controls": [
+    "MON-01"
+   ]
+  },
+  {
+   "id": "clause-8.2",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Risk assessment",
+   "controls": [
+    "RISK-01"
+   ]
+  },
+  {
+   "id": "clause-8.3",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Risk treatment",
+   "controls": [
+    "RISK-02"
+   ]
+  },
+  {
+   "id": "clause-9.1",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Monitoring, measurement and evaluation",
+   "controls": [
+    "MON-01"
+   ]
+  },
+  {
+   "id": "clause-9.2",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Internal audit",
+   "controls": [
+    "MON-04"
+   ]
+  },
+  {
+   "id": "clause-9.3",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Management review",
+   "controls": [
+    "GOV-03"
+   ]
+  },
+  {
+   "id": "clause-10.1",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Continual improvement",
+   "controls": [
+    "MON-01"
+   ]
+  },
+  {
+   "id": "clause-10.2",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Nonconformity and corrective action",
+   "controls": [
+    "MON-01",
+    "OPS-03"
+   ]
+  },
+  {
+   "id": "A.5.1",
+   "group": "Annex A: Organizational controls",
+   "title": "Security policies",
+   "controls": [
+    "GOV-04"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.2",
+   "group": "Annex A: Organizational controls",
+   "title": "Security roles and responsibilities",
+   "controls": [
+    "GOV-01",
+    "HR-06"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.3",
+   "group": "Annex A: Organizational controls",
+   "title": "Separating conflicting duties",
+   "controls": [
+    "CHG-01",
+    "AC-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.4",
+   "group": "Annex A: Organizational controls",
+   "title": "Management's security responsibilities",
+   "controls": [
+    "GOV-03"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.5",
+   "group": "Annex A: Organizational controls",
+   "title": "Contact with authorities",
+   "controls": [
+    "OPS-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.6",
+   "group": "Annex A: Organizational controls",
+   "title": "Contact with security interest groups",
+   "controls": [],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.7",
+   "group": "Annex A: Organizational controls",
+   "title": "Threat intelligence",
+   "controls": [],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.8",
+   "group": "Annex A: Organizational controls",
+   "title": "Security in project management",
+   "controls": [
+    "CHG-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.9",
+   "group": "Annex A: Organizational controls",
+   "title": "Inventory of information and assets",
+   "controls": [
+    "CONF-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.10",
+   "group": "Annex A: Organizational controls",
+   "title": "Acceptable use of information and assets",
+   "controls": [
+    "AC-10",
+    "GOV-05"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.11",
+   "group": "Annex A: Organizational controls",
+   "title": "Return of assets on departure",
+   "controls": [
+    "HR-04"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.12",
+   "group": "Annex A: Organizational controls",
+   "title": "Classifying information",
+   "controls": [
+    "CONF-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.13",
+   "group": "Annex A: Organizational controls",
+   "title": "Labelling information",
+   "controls": [
+    "CONF-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.14",
+   "group": "Annex A: Organizational controls",
+   "title": "Transferring information",
+   "controls": [
+    "AC-09"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.15",
+   "group": "Annex A: Organizational controls",
+   "title": "Access control",
+   "controls": [
+    "AC-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.16",
+   "group": "Annex A: Organizational controls",
+   "title": "Identity management",
+   "controls": [
+    "AC-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.17",
+   "group": "Annex A: Organizational controls",
+   "title": "Authentication secrets",
+   "controls": [
+    "AC-05",
+    "AC-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.18",
+   "group": "Annex A: Organizational controls",
+   "title": "Access rights",
+   "controls": [
+    "AC-02",
+    "AC-03"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.19",
+   "group": "Annex A: Organizational controls",
+   "title": "Security with suppliers",
+   "controls": [
+    "VND-01",
+    "VND-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.20",
+   "group": "Annex A: Organizational controls",
+   "title": "Security in supplier agreements",
+   "controls": [
+    "VND-03"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.21",
+   "group": "Annex A: Organizational controls",
+   "title": "Supply chain security for technology",
+   "controls": [
+    "CHG-05",
+    "VND-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.22",
+   "group": "Annex A: Organizational controls",
+   "title": "Monitoring supplier services",
+   "controls": [
+    "VND-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.23",
+   "group": "Annex A: Organizational controls",
+   "title": "Security of cloud services",
+   "controls": [
+    "VND-02",
+    "AC-08"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.24",
+   "group": "Annex A: Organizational controls",
+   "title": "Planning for incidents",
+   "controls": [
+    "OPS-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.25",
+   "group": "Annex A: Organizational controls",
+   "title": "Assessing security events",
+   "controls": [
+    "OPS-01",
+    "OPS-03"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.26",
+   "group": "Annex A: Organizational controls",
+   "title": "Responding to incidents",
+   "controls": [
+    "OPS-03"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.27",
+   "group": "Annex A: Organizational controls",
+   "title": "Learning from incidents",
+   "controls": [
+    "OPS-03"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.28",
+   "group": "Annex A: Organizational controls",
+   "title": "Collecting evidence about incidents",
+   "controls": [
+    "OPS-03"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.29",
+   "group": "Annex A: Organizational controls",
+   "title": "Security during disruption",
+   "controls": [
+    "OPS-07"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.30",
+   "group": "Annex A: Organizational controls",
+   "title": "Technology readiness for continuity",
+   "controls": [
+    "OPS-07",
+    "OPS-05"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.31",
+   "group": "Annex A: Organizational controls",
+   "title": "Legal, regulatory and contractual requirements",
+   "controls": [
+    "GOV-07"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.32",
+   "group": "Annex A: Organizational controls",
+   "title": "Intellectual property",
+   "controls": [],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.33",
+   "group": "Annex A: Organizational controls",
+   "title": "Protecting records",
+   "controls": [
+    "CONF-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.34",
+   "group": "Annex A: Organizational controls",
+   "title": "Privacy and personal data",
+   "controls": [
+    "PRIV-01",
+    "CONF-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.35",
+   "group": "Annex A: Organizational controls",
+   "title": "Independent review of security",
+   "controls": [
+    "MON-02",
+    "MON-04"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.36",
+   "group": "Annex A: Organizational controls",
+   "title": "Compliance with policies and standards",
+   "controls": [
+    "MON-01",
+    "MON-04"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.37",
+   "group": "Annex A: Organizational controls",
+   "title": "Documented operating procedures",
+   "controls": [
+    "GOV-04"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.1",
+   "group": "Annex A: People controls",
+   "title": "Screening",
+   "controls": [
+    "HR-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.2",
+   "group": "Annex A: People controls",
+   "title": "Terms of employment",
+   "controls": [
+    "HR-05"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.3",
+   "group": "Annex A: People controls",
+   "title": "Security awareness and training",
+   "controls": [
+    "HR-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.4",
+   "group": "Annex A: People controls",
+   "title": "Disciplinary process",
+   "controls": [
+    "GOV-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.5",
+   "group": "Annex A: People controls",
+   "title": "Responsibilities after leaving",
+   "controls": [
+    "HR-04",
+    "HR-05"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.6",
+   "group": "Annex A: People controls",
+   "title": "Confidentiality agreements",
+   "controls": [
+    "HR-05",
+    "VND-03"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.7",
+   "group": "Annex A: People controls",
+   "title": "Remote working",
+   "controls": [
+    "AC-10"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.8",
+   "group": "Annex A: People controls",
+   "title": "Reporting security events",
+   "controls": [
+    "GOV-06"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.1",
+   "group": "Annex A: Physical controls",
+   "title": "Physical perimeters",
+   "controls": [
+    "AC-06"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.2",
+   "group": "Annex A: Physical controls",
+   "title": "Physical entry",
+   "controls": [
+    "AC-06"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.3",
+   "group": "Annex A: Physical controls",
+   "title": "Securing offices and facilities",
+   "controls": [
+    "AC-06"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.4",
+   "group": "Annex A: Physical controls",
+   "title": "Monitoring physical security",
+   "controls": [
+    "AC-06"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.5",
+   "group": "Annex A: Physical controls",
+   "title": "Physical and environmental threats",
+   "controls": [
+    "OPS-07"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.6",
+   "group": "Annex A: Physical controls",
+   "title": "Working in secure areas",
+   "controls": [
+    "AC-06"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.7",
+   "group": "Annex A: Physical controls",
+   "title": "Clear desk and screen",
+   "controls": [
+    "AC-10"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.8",
+   "group": "Annex A: Physical controls",
+   "title": "Siting and protecting equipment",
+   "controls": [
+    "AC-06"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.9",
+   "group": "Annex A: Physical controls",
+   "title": "Assets used off site",
+   "controls": [
+    "AC-10"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.10",
+   "group": "Annex A: Physical controls",
+   "title": "Storage media",
+   "controls": [
+    "AC-07"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.11",
+   "group": "Annex A: Physical controls",
+   "title": "Supporting utilities",
+   "controls": [
+    "OPS-07"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.12",
+   "group": "Annex A: Physical controls",
+   "title": "Cabling",
+   "controls": [
+    "AC-06"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.13",
+   "group": "Annex A: Physical controls",
+   "title": "Equipment maintenance",
+   "controls": [
+    "AC-10"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.14",
+   "group": "Annex A: Physical controls",
+   "title": "Disposing of or reusing equipment",
+   "controls": [
+    "AC-07"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.1",
+   "group": "Annex A: Technological controls",
+   "title": "Endpoint devices",
+   "controls": [
+    "AC-10"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.2",
+   "group": "Annex A: Technological controls",
+   "title": "Privileged access",
+   "controls": [
+    "AC-04"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.3",
+   "group": "Annex A: Technological controls",
+   "title": "Restricting access to information",
+   "controls": [
+    "AC-11",
+    "AC-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.4",
+   "group": "Annex A: Technological controls",
+   "title": "Access to source code",
+   "controls": [
+    "AC-02",
+    "CHG-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.5",
+   "group": "Annex A: Technological controls",
+   "title": "Secure authentication",
+   "controls": [
+    "AC-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.6",
+   "group": "Annex A: Technological controls",
+   "title": "Capacity management",
+   "controls": [
+    "OPS-06"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.7",
+   "group": "Annex A: Technological controls",
+   "title": "Protection against malware",
+   "controls": [
+    "AC-10"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.8",
+   "group": "Annex A: Technological controls",
+   "title": "Technical vulnerabilities",
+   "controls": [
+    "MON-03"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.9",
+   "group": "Annex A: Technological controls",
+   "title": "Configuration management",
+   "controls": [
+    "OPS-04"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.10",
+   "group": "Annex A: Technological controls",
+   "title": "Deleting information",
+   "controls": [
+    "CONF-02",
+    "AC-07"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.11",
+   "group": "Annex A: Technological controls",
+   "title": "Data masking",
+   "controls": [],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.12",
+   "group": "Annex A: Technological controls",
+   "title": "Preventing data leakage",
+   "controls": [
+    "AC-11"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.13",
+   "group": "Annex A: Technological controls",
+   "title": "Backups",
+   "controls": [
+    "OPS-05"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.14",
+   "group": "Annex A: Technological controls",
+   "title": "Redundancy",
+   "controls": [
+    "OPS-07"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.15",
+   "group": "Annex A: Technological controls",
+   "title": "Logging",
+   "controls": [
+    "OPS-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.16",
+   "group": "Annex A: Technological controls",
+   "title": "Monitoring activities",
+   "controls": [
+    "OPS-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.17",
+   "group": "Annex A: Technological controls",
+   "title": "Clock synchronization",
+   "controls": [],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.18",
+   "group": "Annex A: Technological controls",
+   "title": "Privileged utility programs",
+   "controls": [
+    "AC-04"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.19",
+   "group": "Annex A: Technological controls",
+   "title": "Installing software on production systems",
+   "controls": [
+    "CHG-03"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.20",
+   "group": "Annex A: Technological controls",
+   "title": "Network security",
+   "controls": [
+    "AC-08"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.21",
+   "group": "Annex A: Technological controls",
+   "title": "Security of network services",
+   "controls": [
+    "AC-08"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.22",
+   "group": "Annex A: Technological controls",
+   "title": "Separating networks",
+   "controls": [
+    "AC-08"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.23",
+   "group": "Annex A: Technological controls",
+   "title": "Web filtering",
+   "controls": [],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.24",
+   "group": "Annex A: Technological controls",
+   "title": "Cryptography",
+   "controls": [
+    "AC-09",
+    "AC-05"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.25",
+   "group": "Annex A: Technological controls",
+   "title": "Secure development life cycle",
+   "controls": [
+    "CHG-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.26",
+   "group": "Annex A: Technological controls",
+   "title": "Application security requirements",
+   "controls": [
+    "CHG-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.27",
+   "group": "Annex A: Technological controls",
+   "title": "Secure architecture and engineering",
+   "controls": [
+    "CHG-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.28",
+   "group": "Annex A: Technological controls",
+   "title": "Secure coding",
+   "controls": [
+    "CHG-02",
+    "CHG-05"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.29",
+   "group": "Annex A: Technological controls",
+   "title": "Security testing in development",
+   "controls": [
+    "CHG-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.30",
+   "group": "Annex A: Technological controls",
+   "title": "Outsourced development",
+   "controls": [
+    "VND-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.31",
+   "group": "Annex A: Technological controls",
+   "title": "Separating development, test and production",
+   "controls": [
+    "CHG-03"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.32",
+   "group": "Annex A: Technological controls",
+   "title": "Change management",
+   "controls": [
+    "CHG-01",
+    "CHG-03",
+    "CHG-04"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.33",
+   "group": "Annex A: Technological controls",
+   "title": "Test information",
+   "controls": [
+    "CONF-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.34",
+   "group": "Annex A: Technological controls",
+   "title": "Protecting systems during audit testing",
+   "controls": [],
+   "annex_a": true
+  }
+ ]
+}
