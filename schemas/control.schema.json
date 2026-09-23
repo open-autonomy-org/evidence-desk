@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/control.schema.json",
+  "title": "Control (controls/<id>.json)",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "title",
+    "description",
+    "criteria",
+    "frequency",
+    "policies",
+    "evidence_expected",
+    "applicable",
+    "owner",
+    "status"
+  ],
+  "properties": {
+    "schema": {
+      "const": "evidence-desk.control/1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(CC|A|C|PI|P)[0-9]+\\.[0-9]+$"
+      }
+    },
+    "frequency": {
+      "enum": [
+        "continuous",
+        "per-event",
+        "daily",
+        "weekly",
+        "monthly",
+        "quarterly",
+        "annual"
+      ]
+    },
+    "policies": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+      }
+    },
+    "evidence_expected": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "applicable": {
+      "type": "boolean"
+    },
+    "exclusion_reason": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string",
+      "description": "A person id from registers/people.csv, or empty when unassigned."
+    },
+    "status": {
+      "enum": [
+        "not-started",
+        "in-progress",
+        "implemented"
+      ]
+    },
+    "catalog": {
+      "type": "string",
+      "description": "The library control this was adopted from."
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

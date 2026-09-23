@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/policy.schema.json",
+  "title": "Policy record (policies/<id>.json); its text is policies/<id>.md",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "title",
+    "owner",
+    "versions"
+  ],
+  "properties": {
+    "schema": {
+      "const": "evidence-desk.policy/1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner": {
+      "type": "string"
+    },
+    "versions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "version",
+          "approved_by",
+          "approved_at",
+          "sha256",
+          "archived"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer"
+          },
+          "approved_by": {
+            "type": "string",
+            "minLength": 1
+          },
+          "approved_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "archived": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

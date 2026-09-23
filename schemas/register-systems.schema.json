@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/register-systems.schema.json",
+  "title": "Systems register (registers/systems.csv)",
+  "description": "One row of the CSV register. Columns: id, name, kind, owner, description, data, in_scope. Unknown columns are kept.",
+  "x-columns": [
+    "id",
+    "name",
+    "kind",
+    "owner",
+    "description",
+    "data",
+    "in_scope"
+  ],
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "in_scope"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "data": {
+      "type": "string"
+    },
+    "in_scope": {
+      "enum": [
+        "yes",
+        "no"
+      ]
+    }
+  }
+}

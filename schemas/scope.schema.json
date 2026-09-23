@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/scope.schema.json",
+  "title": "Scoping answers (scope.json)",
+  "type": "object",
+  "required": [
+    "schema",
+    "answers"
+  ],
+  "properties": {
+    "schema": {
+      "const": "evidence-desk.scope/1"
+    },
+    "answers": {
+      "type": "object",
+      "properties": {
+        "organization": {
+          "type": "string"
+        },
+        "services": {
+          "type": "string"
+        },
+        "infrastructure": {
+          "type": "string"
+        },
+        "security_contact": {
+          "type": "string"
+        },
+        "subservice_organizations": {
+          "type": "string"
+        },
+        "availability": {
+          "type": "boolean"
+        },
+        "confidentiality": {
+          "type": "boolean"
+        },
+        "processing_integrity": {
+          "type": "boolean"
+        },
+        "privacy": {
+          "type": "boolean"
+        },
+        "develops_software": {
+          "type": "boolean"
+        },
+        "hosts_customer_data": {
+          "type": "boolean"
+        },
+        "has_office": {
+          "type": "boolean"
+        },
+        "background_checks_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "sources": {
+      "type": "object",
+      "description": "Where an answer came from when it was not typed by a person, keyed by question id.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  }
+}

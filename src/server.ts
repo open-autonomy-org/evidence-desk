@@ -1,0 +1,95 @@
+// The local app: a loopback HTTP server over one workspace. It serves the page and a JSON API whose every change
+// goes through actions.ts. Requests must name this server as Host, and changes must come from its own page.
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { readFileSync } from 'node:fs';
+import { extname, join } from 'node:path';
+import { addEvidenceUpload, adopt, approvePolicy, savePolicyText, saveRegisterRow, setPolicyOwner, setScope, updateControl } from './actions.ts';
+import { categories, criteria, questions } from './catalog.ts';
+import { ConflictError, inside } from './files.ts';
+import { computeGaps } from './gaps.ts';
+import { schema } from './schema.ts';
+import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
+
+const UI = join(import.meta.dirname, 'ui');
+const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
+
+function state(root: string) {
+  const ws = loadWorkspace(root);
+  return {
+    root,
+    organization: ws.manifest?.data.organization ?? '',
+    scope: ws.scope ? { answers: ws.scope.data.answers, sources: ws.scope.data.sources ?? {}, version: ws.scope.version } : null,
+    questions, criteria, categories,
+    controls: ws.controls.map((c) => ({ ...c.data, version: c.version })),
+    policies: ws.policies.map((p) => ({ ...p.data, version: p.version, text: p.text?.body ?? '', textVersion: p.text?.version ?? null })),
+    registers: Object.fromEntries(REGISTERS.map((n) => [n, ws.registers[n] ? {
+      columns: ws.registers[n]!.data.columns, rows: ws.registers[n]!.data.rows, version: ws.registers[n]!.version,
+      required: schema(`register-${n}`).required ?? [], enums: Object.fromEntries(Object.entries(schema(`register-${n}`).properties ?? {}).filter(([, s]) => s.enum).map(([k, s]) => [k, s.enum])),
+    } : null])),
+    evidence: ws.evidence.map((e) => e.data),
+    problems: ws.problems,
+    gaps: computeGaps(ws),
+  };
+}
+
+async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const c of req) { size += (c as Buffer).length; if (size > 50 * 1024 * 1024) throw new Error('request is larger than 50 MB'); chunks.push(c as Buffer); }
+  return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+}
+
+const send = (res: ServerResponse, status: number, data: unknown, type = 'application/json') => {
+  res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
+  res.end(typeof data === 'string' || Buffer.isBuffer(data) ? data : JSON.stringify(data));
+};
+
+export function serve(root: string, port: number): void {
+  const origin = `http://127.0.0.1:${port}`;
+  const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
+  const server = createServer(async (req, res) => {
+    try {
+      if (!hosts.has(req.headers.host ?? '')) return send(res, 421, { error: 'unexpected Host' });
+      const url = new URL(req.url ?? '/', origin);
+      if (req.method === 'GET') {
+        if (url.pathname === '/api/state') return send(res, 200, state(root));
+        if (url.pathname.startsWith('/files/')) {
+          const rel = decodeURIComponent(url.pathname.slice('/files/'.length));
+          return send(res, 200, readFileSync(inside(root, rel)), 'application/octet-stream');
+        }
+        const file = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
+        if (!/^[a-z-]+\.(html|js|css)$/.test(file)) return send(res, 404, { error: 'not found' });
+        return send(res, 200, readFileSync(join(UI, file)), TYPES[extname(file)]);
+      }
+      if (req.method !== 'POST') return send(res, 405, { error: 'method not allowed' });
+      const from = req.headers.origin;
+      if (from !== `http://${req.headers.host}`) return send(res, 403, { error: 'changes must come from this app' });
+      if (!String(req.headers['content-type'] ?? '').startsWith('application/json')) return send(res, 415, { error: 'send JSON' });
+      const b = await body(req);
+      const s = (k: string) => String(b[k] ?? '');
+      switch (url.pathname) {
+        case '/api/scope': setScope(root, b.answers as Record<string, unknown>, s('version')); break;
+        case '/api/adopt': return send(res, 200, { result: adopt(root), state: state(root) });
+        case '/api/control': updateControl(root, s('id'), b.patch as Record<string, unknown>, s('version')); break;
+        case '/api/policy/text': savePolicyText(root, s('id'), s('text'), s('version')); break;
+        case '/api/policy/owner': setPolicyOwner(root, s('id'), s('owner'), s('version')); break;
+        case '/api/policy/approve': approvePolicy(root, s('id'), s('by'), s('textVersion'), s('version')); break;
+        case '/api/register': {
+          const name = s('name') as RegisterName;
+          saveRegisterRow(root, name, b.row as Record<string, string>, s('version'), b.replaceId === undefined ? undefined : s('replaceId'));
+          break;
+        }
+        case '/api/evidence': addEvidenceUpload(root, {
+          title: s('title'), controls: (b.controls as string[]) ?? [], recorded_by: s('by'), filename: s('filename'),
+          bytes: Buffer.from(s('data'), 'base64'), period: b.period as { start: string; end: string } | undefined, notes: s('notes') || undefined,
+        }); break;
+        default: return send(res, 404, { error: 'not found' });
+      }
+      return send(res, 200, { state: state(root) });
+    } catch (e) {
+      const conflict = e instanceof ConflictError || /changed (on disk )?since/.test((e as Error).message);
+      return send(res, conflict ? 409 : 400, { error: (e as Error).message, conflict });
+    }
+  });
+  server.listen(port, '127.0.0.1', () => console.log(`Evidence Desk is open at ${origin}/ for ${root}\nPress Ctrl-C to stop.`));
+}

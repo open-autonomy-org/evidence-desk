@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/workspace.schema.json",
+  "title": "Workspace manifest (evidence-desk.json)",
+  "type": "object",
+  "required": [
+    "schema",
+    "organization",
+    "created_at",
+    "frameworks"
+  ],
+  "properties": {
+    "schema": {
+      "const": "evidence-desk.workspace/1"
+    },
+    "organization": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "frameworks": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "soc2"
+        ]
+      }
+    }
+  }
+}

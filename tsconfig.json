@@ -1,4 +1,4 @@
 {
-  "compilerOptions": { "strict": true, "noEmit": true, "target": "ESNext", "module": "ESNext", "moduleResolution": "bundler", "skipLibCheck": true },
+  "compilerOptions": { "strict": true, "noEmit": true, "target": "ESNext", "module": "ESNext", "moduleResolution": "bundler", "allowImportingTsExtensions": true, "noUnusedLocals": true, "skipLibCheck": true, "types": ["node"] },
   "include": ["src/**/*.ts"]
 }

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/register-people.schema.json",
+  "title": "People register (registers/people.csv)",
+  "description": "One row of the CSV register. Columns: id, name, email, role, start_date, end_date, notes. Unknown columns are kept.",
+  "x-columns": [
+    "id",
+    "name",
+    "email",
+    "role",
+    "start_date",
+    "end_date",
+    "notes"
+  ],
+  "type": "object",
+  "required": [
+    "id",
+    "name"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "email": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "start_date": {
+      "type": "string",
+      "pattern": "^([0-9]{4}-[0-9]{2}-[0-9]{2})?$"
+    },
+    "end_date": {
+      "type": "string",
+      "pattern": "^([0-9]{4}-[0-9]{2}-[0-9]{2})?$"
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}
