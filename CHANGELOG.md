@@ -7,6 +7,14 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Added ISO/IEC 27001:2022 on the same program. Its clauses 4 to 10 and 93 Annex A controls map onto the control
+  library (identifiers with this project's titles, no ISO text), so controls, policies and evidence serve both
+  frameworks. Requirements are ready, have gaps, are excluded (with the reasons of excluded controls or the
+  organization's own) or are not addressed; the organization's exclusions and extra mappings live in
+  `frameworks/iso27001.json`. `soa` writes the statement of applicability, and the Overview switches between frameworks.
+  Added control MON-04, an annual internal audit of the program. Verified on a synthetic company through the CLI and the
+  Overview in Chrome.
+
 - Added the trust center and security questionnaires. A static trust center is built from the workspace, publishing
   only what `trust.json` lists (categories, report availability, policy titles, subprocessors, documents on request),
   with every value escaped and only email or http(s) contacts linked. Questionnaires import from CSV; each answer is reused

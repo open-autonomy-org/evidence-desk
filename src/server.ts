@@ -12,6 +12,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { COLLECTORS, checkTitle, configureCollector, readSettings, runChecks } from './automation.ts';
 import { actOnRequest, draft, exportPackage, importReturn, listRequests, readEngagement } from './audit.ts';
 import { buildTrustCenter, importQuestionnaireText, questionnaireCsv, reviewAnswer } from './trust.ts';
+import { frameworkState } from './frameworks.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { schema } from './schema.ts';
 import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
@@ -39,6 +40,8 @@ function state(root: string) {
     incidents: ws.incidents.map((r) => ({ ...r.data, version: r.version })),
     problems: ws.problems,
     gaps: computeGaps(ws),
+    frameworks: ws.manifest?.data.frameworks ?? ['soc2'],
+    iso27001: (ws.manifest?.data.frameworks ?? []).includes('iso27001') ? frameworkState(ws, 'iso27001') : null,
     trust: (() => { const t = readVersioned(root, 'trust.json'); return t ? JSON.parse(t.text) : null; })(),
     questionnaires: (existsSync(join(root, 'questionnaires')) ? readdirSync(join(root, 'questionnaires')).filter((f) => f.endsWith('.json')).sort() : []).map((f) => {
       const r = readVersioned(root, `questionnaires/${f}`)!; return { ...JSON.parse(r.text), version: r.version }; }),

@@ -63,12 +63,39 @@ function statusPill(c) {
   return pill(c.status.replace('-', ' '), c.status === 'implemented' ? 'ok' : c.status === 'in-progress' ? 'warn' : '');
 }
 
+let framework = 'soc2';
+function frameworkSwitch() {
+  if (!S.iso27001) return null;
+  return h('div', { class: 'row', style: 'margin:0 0 16px' }, [['soc2', 'SOC 2'], ['iso27001', 'ISO 27001']].map(([k, t]) => h('button', { class: k === framework ? 'primary' : 'secondary', onclick: () => { framework = k; render(); } }, t)));
+}
+
+function isoOverview() {
+  const st = S.iso27001, s = st.summary;
+  const groups = {};
+  for (const r of st.requirements) (groups[r.group] ??= []).push(r);
+  const kind = { ready: 'ok', gaps: 'warn', excluded: '', unaddressed: 'bad' };
+  return h('div', {},
+    h('h1', {}, 'Readiness'), frameworkSwitch(),
+    h('p', { class: 'lead' }, `${st.title}, mapped onto the same controls, policies and evidence as SOC 2. Excluding a requirement or mapping another control to it is recorded in frameworks/iso27001.json; download the statement of applicability with evidence-desk soa.`),
+    h('div', { class: 'stats' },
+      h('div', { class: 'stat' }, h('b', {}, `${s.ready} / ${s.requirements - s.excluded}`), h('span', {}, 'requirements ready')),
+      h('div', { class: 'stat' }, h('b', {}, s.excluded), h('span', {}, 'excluded, with reasons')),
+      h('div', { class: 'stat' }, h('b', {}, s.unaddressed), h('span', {}, 'not addressed by any control')),
+      h('div', { class: 'stat' }, h('b', {}, s.shared_evidence), h('span', {}, 'evidence records also serving SOC 2'))),
+    Object.entries(groups).map(([g, list]) => [h('h2', {}, `${g}: ${list.filter((r) => r.status === 'ready').length} of ${list.filter((r) => r.status !== 'excluded').length} ready`),
+      h('table', {}, h('tr', {}, h('th', {}, 'Requirement'), h('th', {}, 'Controls'), h('th', {}, 'State')),
+        list.map((r) => h('tr', {}, h('td', {}, h('b', {}, r.id.replace('clause-', 'Clause ')), ' ', r.title),
+          h('td', {}, r.controls.map((id, i) => [i ? ', ' : '', h('a', { href: `#controls/${id}` }, id)])),
+          h('td', {}, pill(r.status === 'unaddressed' ? 'not addressed' : r.status, kind[r.status]), r.reason ? h('div', { class: 'muted' }, r.reason) : null, r.gaps.length ? h('ul', { class: 'gaps' }, r.gaps.map((x) => h('li', {}, x))) : null))))]));
+}
+
 function overview() {
+  if (framework === 'iso27001' && S.iso27001) return isoOverview();
   const g = S.gaps, s = g.summary;
   const byCat = {};
   for (const c of g.criteria) (byCat[c.category] ??= []).push(c);
   return h('div', {},
-    h('h1', {}, 'Readiness'),
+    h('h1', {}, 'Readiness'), frameworkSwitch(),
     h('p', { class: 'lead' }, `As of ${g.as_of}. Everything here is read from the workspace folder ${S.root}.`),
     h('div', { class: 'stats' },
       h('div', { class: 'stat' }, h('b', {}, `${s.controls_ready} / ${s.controls_applicable}`), h('span', {}, 'controls ready')),

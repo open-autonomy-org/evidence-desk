@@ -79,6 +79,13 @@ bun src/cli.ts questionnaire ~/acme-soc2 import bigco.csv --name "BigCo vendor r
 bun src/cli.ts trust ~/acme-soc2 build --out ~/acme-trust
 ```
 
+The same program covers ISO 27001, reusing its controls and evidence:
+
+```bash
+bun src/cli.ts frameworks ~/acme-soc2 enable iso27001
+bun src/cli.ts soa ~/acme-soc2 --out soa.md
+```
+
 Add `--json` to any command for machine-readable output. `bun src/cli.ts --help` lists every command.
 
 The folder's structure is documented in [docs/workspace-format.md](docs/workspace-format.md) with JSON Schemas in
@@ -90,7 +97,9 @@ was read.
 
 - [catalog/criteria.json](catalog/criteria.json): SOC 2 Trust Services Criteria identifiers with short titles written
   by this project. The AICPA's criterion text and points of focus are not included.
-- [catalog/controls.json](catalog/controls.json): 58 controls in this project's own words, mapped to criteria, with
+- [catalog/frameworks/iso27001.json](catalog/frameworks/iso27001.json): ISO/IEC 27001:2022 clause and Annex A identifiers
+  mapped onto the controls.
+- [catalog/controls.json](catalog/controls.json): 59 controls in this project's own words, mapped to criteria, with
   frequency, policies, the evidence an auditor expects, and when each applies.
 - [catalog/forms/](catalog/forms): a security awareness quiz, policy and code-of-conduct acknowledgments, a
   confidentiality agreement and a device and account attestation.

@@ -2,7 +2,7 @@
 // The evidence-desk command. Each subcommand reads the workspace fresh, calls one action and prints the result,
 // as text for people or as JSON with --json for scripts and agents.
 import { basename, resolve } from 'node:path';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { addEvidence, adopt, approvePolicy, initWorkspace, saveRegisterRow, setPolicyOwner, setScope, unanswered, updateControl } from './actions.ts';
 import { computeGaps } from './gaps.ts';
 import { readVersioned, writeVersioned } from './files.ts';
@@ -10,6 +10,8 @@ import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
 import { questions } from './catalog.ts';
 import { serve } from './server.ts';
 import { serveFirm } from './firm-server.ts';
+import { decide, enableFramework, frameworkState, statementOfApplicability } from './frameworks.ts';
+import { writeCsv } from './csv.ts';
 import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, reviewAnswer, staleLibrary } from './trust.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { computeObligations } from './obligations.ts';
@@ -76,6 +78,10 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   questionnaire <dir> <id> answer <question> --answer <text> --by <person> [--source <path>,...]
   questionnaire <dir> <id> export --out <csv>   reviewed answers filled in, every row with its status
   answers <dir> [--stale]                 the library of reviewed answers (--stale: those whose facts changed)
+  frameworks <dir> [enable iso27001]      the frameworks the program follows
+  framework <dir> iso27001                each requirement: ready, with gaps, excluded, or not addressed
+  framework <dir> iso27001 exclude <requirement> --reason <text> | include <requirement> | map <requirement> --controls <id>,...
+  soa <dir> --out <file.csv|file.md>      the ISO 27001 statement of applicability
   gaps <dir> [--as-of YYYY-MM-DD]         what stands between the workspace and readiness
   validate <dir>                          check every file against its schema and references
   serve <dir> [--port <n>]                open the local app on 127.0.0.1
@@ -498,6 +504,43 @@ async function main(argv: string[]): Promise<number> {
       const stale = a.flags.has('stale') ? staleLibrary(dir) : null;
       const lib = stale ?? JSON.parse(readVersioned(dir, 'answers.json')?.text ?? '{"answers":[]}').answers;
       out(json, lib, () => lib.map((x: { id: string; question: string; reviewed_by: string; reviewed_at: string }) => `${x.id}  ${x.reviewed_at.slice(0, 10)} ${x.reviewed_by}  ${x.question}`).join('\n') || (stale ? 'No reviewed answer cites a fact that changed.' : 'No reviewed answers yet.'));
+      return 0;
+    }
+    case 'frameworks': {
+      if (rest[0] === 'enable') enableFramework(dir, rest[1] ?? '');
+      else if (rest[0]) throw new Error('frameworks takes: enable <framework>');
+      const m = loadWorkspace(dir).manifest?.data;
+      out(json, m?.frameworks ?? [], () => `Frameworks: ${(m?.frameworks ?? []).join(', ')}`);
+      return 0;
+    }
+    case 'framework': {
+      const [id, act, req] = rest;
+      if (!id) throw new Error('framework needs a framework id');
+      if (act) {
+        const known = loadWorkspace(dir).controls.map((c) => c.data.id);
+        if (act === 'exclude') decide(dir, id, req ?? '', { exclude: one(a, 'reason') ?? '' }, known);
+        else if (act === 'include') decide(dir, id, req ?? '', { include: true }, known);
+        else if (act === 'map') decide(dir, id, req ?? '', { controls: (one(a, 'controls') ?? '').split(',').map((x) => x.trim()).filter(Boolean) }, known);
+        else throw new Error('framework actions are exclude, include and map');
+      }
+      const ws = loadWorkspace(dir);
+      if (!(ws.manifest?.data.frameworks ?? []).includes(id)) throw new Error(`${id} is not enabled; run: evidence-desk frameworks ${dirArg} enable ${id}`);
+      const st = frameworkState(ws, id);
+      out(json, st, () => { const s = st.summary; return [`${st.title}: ${s.ready}/${s.requirements - s.excluded} requirements ready, ${s.excluded} excluded, ${s.unaddressed} not addressed; ${s.shared_evidence} evidence records also serve SOC 2.`,
+        ...st.requirements.filter((r) => r.status !== 'ready').map((r) => `  ${r.id.padEnd(11)} ${r.status.padEnd(11)} ${r.title}${r.reason ? ` (${r.reason.slice(0, 90)})` : ''}`)].join('\n'); });
+      return 0;
+    }
+    case 'soa': {
+      const o = one(a, 'out');
+      if (!o) throw new Error('soa needs --out <file.csv or file.md>');
+      const ws = loadWorkspace(dir);
+      if (!(ws.manifest?.data.frameworks ?? []).includes('iso27001')) throw new Error(`ISO 27001 is not enabled; run: evidence-desk frameworks ${dirArg} enable iso27001`);
+      const t = statementOfApplicability(ws);
+      const text = o.endsWith('.md') ? [`# Statement of applicability: ${ws.manifest?.data.organization ?? ''}`, '', `Generated ${new Date().toISOString().slice(0, 10)} from the workspace. ISO/IEC 27001:2022 Annex A identifiers with this project's titles.`, '',
+        '| Control | Title | Included | Justification | Implementation | Evidence |', '|---|---|---|---|---|---|', ...t.rows.map((r) => `| ${r.control} | ${r.title} | ${r.included} | ${r.justification.replaceAll('|', '/')} | ${r.implementation} | ${r.evidence.split(';').filter(Boolean).length} |`)].join('\n') + '\n'
+        : writeCsv(t);
+      writeFileSync(resolve(o), text);
+      out(json, { rows: t.rows.length }, () => `Wrote ${t.rows.length} Annex A controls to ${resolve(o)}.`);
       return 0;
     }
     case 'gaps': {

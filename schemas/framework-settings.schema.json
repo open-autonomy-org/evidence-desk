@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/framework-settings.schema.json",
+  "title": "The organization's decisions for one additional framework (frameworks/<framework>.json)",
+  "type": "object",
+  "required": [
+    "schema",
+    "framework"
+  ],
+  "properties": {
+    "schema": {
+      "const": "evidence-desk.framework-settings/1"
+    },
+    "framework": {
+      "enum": [
+        "iso27001"
+      ]
+    },
+    "exclusions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Requirement id to the reason it is excluded from the statement of applicability."
+    },
+    "mappings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "description": "Requirement id to additional control ids that address it."
+    }
+  }
+}
