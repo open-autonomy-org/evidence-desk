@@ -13,6 +13,7 @@ import { decideAccount, openIncident, signOffAccessReview, startAccessReview, su
 import { computeObligations } from './obligations.ts';
 import { collectRosterHistory, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
 import { checkCompleteness, collectChanges, collectDeployments } from './github.ts';
+import { COLLECTORS, checkTitle, ciWorkflow, configureCollector, readSettings, runChecks } from './automation.ts';
 
 const USAGE = `evidence-desk <command> <workspace> [options]
 
@@ -49,6 +50,11 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                                           populations from GitHub with their queries (needs GITHUB_TOKEN)
   collect <dir> roster-history --repo <checkout> --period <start>..<end> --by <person>
                                           every change to the Open Autonomy roster, from git
+  collectors <dir> [<id> [--enable|--disable] [--set key=value ...]]
+                                          show or configure the collectors (github)
+  run <dir> --by <person> [--collector <id>]  collect from each enabled collector and run its checks; exits 3 if a check fails
+  checks <dir>                            the latest result of every check
+  ci-template <dir>                       write .github/workflows/evidence-desk.yml to run the checks daily
   gaps <dir> [--as-of YYYY-MM-DD]         what stands between the workspace and readiness
   validate <dir>                          check every file against its schema and references
   serve <dir> [--port <n>]                open the local app on 127.0.0.1
@@ -66,7 +72,7 @@ function parse(argv: string[]): Args {
     const vals = flags.get(key) ?? [];
     if (['set', 'add', 'update'].includes(key)) {
       while (argv[i + 1] !== undefined && !argv[i + 1].startsWith('--')) vals.push(argv[++i]);
-    } else if (!['json', 'approve', 'include', 'help', 'sign-off'].includes(key)) {
+    } else if (!['json', 'approve', 'include', 'help', 'sign-off', 'enable', 'disable'].includes(key)) {
       if (i + 1 >= argv.length) throw new Error(`--${key} needs a value`);
       vals.push(argv[++i]);
     }
@@ -336,6 +342,33 @@ async function main(argv: string[]): Promise<number> {
         return 0;
       }
       throw new Error('collect needs github-changes, github-deployments or roster-history');
+    }
+    case 'collectors': {
+      if (rest[0]) configureCollector(dir, rest[0], { ...(a.flags.has('enable') ? { enabled: true } : a.flags.has('disable') ? { enabled: false } : {}), ...(a.flags.has('set') ? { params: pairs(a.flags.get('set')!) } : {}) });
+      const { settings } = readSettings(dir);
+      const rows = COLLECTORS.map((c) => ({ id: c.id, title: c.title, enabled: settings.find((s) => s.id === c.id)?.enabled ?? false, params: settings.find((s) => s.id === c.id)?.params ?? {},
+        takes: c.params.map((p) => p.name), credentials: c.credentials, checks: c.checks.map((k) => k.id) }));
+      out(json, rows, () => rows.map((r) => `${r.id.padEnd(8)} ${r.enabled ? 'enabled ' : 'disabled'} ${r.title}\n         params: ${r.takes.map((t) => `${t}=${r.params[t] ?? ''}`).join(' ')}\n         credentials: ${r.credentials.join(', ')}\n         checks: ${r.checks.join(', ')}`).join('\n'));
+      return 0;
+    }
+    case 'run': {
+      const r = await runChecks(dir, one(a, 'by') ?? '', one(a, 'collector'));
+      out(json, r, () => [`Run ${r.id}:`, ...r.collectors.map((c) => `  ${c.id}: ${c.status}${c.error ? ` (${c.error})` : ''}`), ...r.results.map((x) => `  ${x.status.padEnd(5)} ${checkTitle(x.check)}: ${x.detail}`)].join('\n'));
+      return r.results.some((x) => x.status === 'fail') ? 3 : 0;
+    }
+    case 'checks': {
+      const ws = loadWorkspace(dir);
+      const latest = new Map<string, { status: string; detail: string; at: string }>();
+      for (const run of [...ws.runs].sort((x, y) => x.data.started_at.localeCompare(y.data.started_at))) for (const x of run.data.results) latest.set(x.check, { status: x.status, detail: x.detail, at: run.data.started_at });
+      const rows = [...latest].map(([check, v]) => ({ check, title: checkTitle(check), ...v }));
+      out(json, rows, () => rows.map((r) => `${r.status.padEnd(5)} ${r.at.slice(0, 16)}  ${r.title}: ${r.detail}`).join('\n') || 'No checks have run.');
+      return 0;
+    }
+    case 'ci-template': {
+      const rel = '.github/workflows/evidence-desk.yml';
+      writeVersioned(dir, rel, ciWorkflow(readSettings(dir).settings), readVersioned(dir, rel)?.version ?? null);
+      out(json, { written: rel }, () => `Wrote ${rel}. Add the secrets it names to the workspace repository and set its EVIDENCE_DESK_RECORDER variable to a person id.`);
+      return 0;
     }
     case 'gaps': {
       const asOf = one(a, 'as-of');

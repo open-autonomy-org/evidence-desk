@@ -55,7 +55,7 @@ function render() {
   document.getElementById('org').textContent = S.organization;
   for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('active', b.dataset.tab === tab);
   const view = document.getElementById('view');
-  view.replaceChildren(({ overview, scope, controls, policies, registers, evidence, people: peopleView, obligations, access, incidents, oa: openAutonomy })[tab]?.() ?? overview());
+  view.replaceChildren(({ overview, scope, controls, policies, registers, evidence, people: peopleView, obligations, access, incidents, oa: openAutonomy, checks: checksView })[tab]?.() ?? overview());
 }
 
 function statusPill(c) {
@@ -513,6 +513,46 @@ function openAutonomy() {
       h('div', {}, 'Changes land through reviewed pull requests: ', s.rules.pr_landing ? pill('yes', 'ok') : pill('no', 'bad')),
       s.rules.production_deploy ? h('div', {}, `Production deploys from ${s.rules.production_deploy.workflow}, triggered by ${s.rules.production_deploy.tag_trigger ?? 'no tag'} through the ${s.rules.production_deploy.environment} environment; egress limited to ${s.rules.production_deploy.egress.join(', ') || 'nothing declared'}.`) : h('div', {}, pill('no production deploy workflow found', 'warn'))),
     form);
+}
+
+function checksView() {
+  const A = S.automation;
+  const latest = new Map();
+  for (const run of [...A.runs].reverse()) for (const r of run.results) latest.set(r.check, { ...r, at: run.started_at });
+  const statusPill = (st) => pill(st, st === 'pass' ? 'ok' : st === 'fail' ? 'bad' : 'warn');
+  const runner = personSelect('by', '', 'Who is running the checks');
+  return h('div', {},
+    h('h1', {}, 'Checks'),
+    h('p', { class: 'lead' }, 'Collectors read your systems with your own read-only credentials and check them against the controls. Every run is kept in checks/runs/, and what it collected is recorded as evidence.'),
+    A.collectors.map((c) => {
+      const form = h('form', { class: 'card', onsubmit: async (e) => {
+        e.preventDefault();
+        const params = Object.fromEntries(c.params.map((p) => [p.name, form.querySelector(`[name="${p.name}"]`).value.trim()]));
+        await post('/api/collectors', { id: c.id, enabled: form.enabled.checked, params }, `${c.title} saved.`);
+      } },
+        h('h2', { style: 'margin-top:0' }, c.title),
+        h('label', { style: 'font-weight:400' }, h('input', { type: 'checkbox', name: 'enabled', checked: !!c.settings?.enabled }), ' Enabled'),
+        h('div', { class: 'grid2' }, c.params.map((p) => h('div', {}, h('label', {}, p.prompt), h('input', { type: 'text', name: p.name, value: c.settings?.params?.[p.name] ?? '' })))),
+        h('p', { class: 'muted' }, `Credentials read from the environment: ${c.credentials.join(', ')} `, c.credentialsPresent ? pill('present', 'ok') : pill('missing', 'bad')),
+        h('div', { class: 'row' }, h('button', { class: 'primary', type: 'submit' }, 'Save')),
+        h('table', { style: 'margin-top:12px' }, h('tr', {}, h('th', {}, 'Check'), h('th', {}, 'Controls'), h('th', {}, 'Latest'), h('th', {}, 'Detail')),
+          c.checks.map((k) => { const r = latest.get(k.id); return h('tr', {}, h('td', {}, k.title), h('td', {}, k.controls.map((x, i) => [i ? ', ' : '', h('a', { href: `#controls/${x}` }, x)])),
+            h('td', {}, r ? [statusPill(r.status), h('div', { class: 'muted' }, r.at.slice(0, 16).replace('T', ' '))] : pill('never run', 'warn')), h('td', {}, r?.detail ?? '')); })));
+      return form;
+    }),
+    h('div', { class: 'card' },
+      h('h2', { style: 'margin-top:0' }, 'Run now'),
+      h('div', { class: 'row', style: 'margin-top:0' }, h('div', { style: 'flex:1' }, runner),
+        h('button', { class: 'primary', onclick: async () => {
+          if (!runner.value) return notice('Choose who is running the checks.', false);
+          notice('Running the checks… this reads each enabled system and can take a little while.', true);
+          const r = await post('/api/run', { by: runner.value }, null);
+          if (r) notice(`Run ${r.run.id}: ${r.run.results.filter((x) => x.status === 'pass').length} passed, ${r.run.results.filter((x) => x.status === 'fail').length} failed, ${r.run.results.filter((x) => x.status === 'error').length} could not decide.`, !r.run.results.some((x) => x.status === 'fail'));
+        } }, 'Run the checks'))),
+    h('h2', {}, 'Recent runs'),
+    A.runs.length ? h('table', {}, h('tr', {}, h('th', {}, 'Run'), h('th', {}, 'By'), h('th', {}, 'Passed'), h('th', {}, 'Failed'), h('th', {}, 'Could not decide')),
+      A.runs.map((r) => h('tr', {}, h('td', {}, r.started_at.slice(0, 16).replace('T', ' ')), h('td', {}, personName(r.by)),
+        ...['pass', 'fail', 'error'].map((st) => h('td', {}, String(r.results.filter((x) => x.status === st).length)))))) : h('p', { class: 'muted' }, 'No runs yet.'));
 }
 
 load();

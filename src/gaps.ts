@@ -8,6 +8,7 @@ import { seamFindings, type Snapshot } from './open-autonomy.ts';
 import { readVersioned } from './files.ts';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { checkTitle, readSettings, COLLECTORS } from './automation.ts';
 
 const INTERVAL_DAYS: Record<string, number> = { daily: 1, weekly: 7, monthly: 31, quarterly: 92, annual: 366 };
 
@@ -67,6 +68,23 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
   for (const o of obligations) if (o.state === 'overdue' && o.kind !== 'control') for (const c of o.controls) {
     (owed.get(c) ?? owed.set(c, []).get(c)!).push(`overdue since ${o.due}: ${o.what}${o.who ? ` (${o.who})` : ''}`);
   }
+  // The latest result of each check of an enabled collector: failing, erroring, never run or not run in two days.
+  const checkGaps = new Map<string, string[]>();
+  const addCheckGap = (controls: string[], text: string) => { for (const c of controls) (checkGaps.get(c) ?? checkGaps.set(c, []).get(c)!).push(text); };
+  let enabled: string[] = [];
+  try { enabled = readSettings(ws.root).settings.filter((x) => x.enabled).map((x) => x.id); } catch (e) { program.push((e as Error).message); }
+  const runs = [...ws.runs].sort((a, b) => a.data.started_at.localeCompare(b.data.started_at));
+  for (const col of COLLECTORS.filter((c) => enabled.includes(c.id))) for (const chk of col.checks) {
+    const history = runs.flatMap((r) => r.data.results.filter((x) => x.check === chk.id).map((x) => ({ ...x, at: r.data.started_at })));
+    const last = history.at(-1);
+    if (!last) { addCheckGap(chk.controls, `check "${chk.title}" has never run`); continue; }
+    if (last.status === 'fail') {
+      let since = last.at;
+      for (const h of [...history].reverse()) { if (h.status !== 'fail') break; since = h.at; }
+      addCheckGap(chk.controls, `check "${checkTitle(chk.id)}" failing since ${since.slice(0, 10)}: ${last.detail}`);
+    } else if (last.status === 'error') addCheckGap(chk.controls, `check "${checkTitle(chk.id)}" could not decide on ${last.at.slice(0, 10)}: ${last.detail}`);
+    else if (Date.parse(last.at) < asOf.getTime() - 2 * 864e5) addCheckGap(chk.controls, `check "${checkTitle(chk.id)}" last ran ${last.at.slice(0, 10)}`);
+  }
   const changedFiles = new Set(ws.problems.filter((p) => p.severity === 'warning' && p.file.startsWith('evidence/records/')).map((p) => p.file));
   const controls: ControlGaps[] = ws.controls.filter((c) => c.data.applicable).map((c) => {
     const d = c.data;
@@ -82,6 +100,7 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
     }
     for (const e of ev) if (changedFiles.has(e.path)) g.push(`evidence ${e.data.id} has a file that changed since it was recorded`);
     g.push(...(owed.get(d.id) ?? []));
+    g.push(...(checkGaps.get(d.id) ?? []));
     return { id: d.id, title: d.title, owner: d.owner, status: d.status, gaps: g, evidence: ev.length, last_evidence: last };
   });
   const byId = new Map(controls.map((c) => [c.id, c]));

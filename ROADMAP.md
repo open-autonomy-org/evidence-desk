@@ -12,7 +12,7 @@ compliance SaaS, and the roadmap was rebuilt from scratch to reach parity with t
 
 Parity is measured against the whole buyer journey, from "we need SOC2" through a passed Type II audit and
 the security reviews that follow, for both the company and the CPA firm. It is not measured by integration
-count. The table below is the denominator. **Headline: 7 of 16 parity capabilities demonstrated** (rows 1–4 and 7–9).
+count. The table below is the denominator. **Headline: 8 of 16 parity capabilities demonstrated** (rows 1–4, 6 and 7–9).
 A row counts only when its owning outcome demonstrates it in the running local product on synthetic data.
 
 | # | Capability (table stakes unless marked) | Owning outcome |
@@ -21,8 +21,8 @@ A row counts only when its owning outcome demonstrates it in the running local p
 | 2 | Policy library: templates, editing, versioned approval | demonstrated |
 | 3 | Registers: systems/assets, people, vendors, risks with treatment | demonstrated |
 | 4 | Operable by the customer's own coding agent and by a nontechnical admin | demonstrated (agent: shipped instructions and external edits; no agent run yet) |
-| 5 | Automated evidence collection from cloud, identity, HRIS, code and devices | `evidence-automation` |
-| 6 | Continuous control checks with visible failures and alerting | `evidence-automation` |
+| 5 | Automated evidence collection from cloud, identity, HRIS, code and devices | `evidence-automation` (code: GitHub landed) |
+| 6 | Continuous control checks with visible failures and alerting | demonstrated |
 | 7 | Onboarding/offboarding, policy acknowledgment, training, background checks | demonstrated |
 | 8 | Periodic access reviews with reviewer sign-off (near table stakes) | demonstrated |
 | 9 | Vendor reviews, risk assessment, incidents, vulnerability SLAs | demonstrated |
@@ -141,7 +141,7 @@ Completion:
 
 ## evidence-automation: Evidence collects itself, and controls are checked continuously
 
-Status: planned
+Status: active
 Dispatch: hold
 
 Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 5–6. 
@@ -151,6 +151,16 @@ run on demand locally or on a schedule in the workspace repository's own CI, and
 provenance-bearing snapshots into the folder. Checks evaluate snapshots against controls and record
 pass/fail history; a failure is visible in the UI and fails the owner's scheduled run so their usual
 notification reaches them. No hosted control plane.
+
+Landed: the collector and check framework (settings in `collectors.json`, runs and results in `checks/runs/`, collected
+data as evidence, failures and errors as gaps with their history, a daily GitHub Actions template pinned to a commit
+that gates nothing, a Checks page) and the GitHub collector with five checks, demonstrated against the GitHub twin
+through a failing run, remediation and a passing run.
+
+Outstanding, each blocked on a twin first: identity (Google Workspace directory, Okta), an HR system, a device manager,
+and cloud posture (the AWS twin covers S3 and data services but not IAM or CloudTrail; the Cloudflare twin covers the
+deploy plane but not account members or security settings). For a project on Open Autonomy's `soc2` template the next
+collector is Cloudflare, once its twin covers account members and security settings.
 
 Completion:
 - A collector contract (inputs, credential source, output snapshot format, provenance including the generating query) documented so a customer or their agent can write a new collector.

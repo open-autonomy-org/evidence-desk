@@ -9,6 +9,7 @@ import { ConflictError, inside, readVersioned, writeVersioned } from './files.ts
 import { computeGaps } from './gaps.ts';
 import { importOpenAutonomy, seamFindings, type Snapshot } from './open-autonomy.ts';
 import { existsSync, readdirSync } from 'node:fs';
+import { COLLECTORS, checkTitle, configureCollector, readSettings, runChecks } from './automation.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { schema } from './schema.ts';
 import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
@@ -36,6 +37,13 @@ function state(root: string) {
     incidents: ws.incidents.map((r) => ({ ...r.data, version: r.version })),
     problems: ws.problems,
     gaps: computeGaps(ws),
+    automation: (() => {
+      let settings: ReturnType<typeof readSettings>['settings'] = [];
+      try { settings = readSettings(root).settings; } catch { settings = []; }
+      const runs = [...ws.runs].sort((a, b) => b.data.started_at.localeCompare(a.data.started_at)).slice(0, 20).map((r) => r.data);
+      return { collectors: COLLECTORS.map((c) => ({ id: c.id, title: c.title, params: c.params, credentials: c.credentials, checks: c.checks.map((k) => ({ id: k.id, title: k.title, controls: k.controls })),
+        settings: settings.find((x) => x.id === c.id) ?? null, credentialsPresent: c.credentials.every((k) => !!process.env[k]) })), runs, titles: Object.fromEntries(COLLECTORS.flatMap((c) => c.checks.map((k) => [k.id, checkTitle(k.id)]))) };
+    })(),
     openAutonomy: (() => {
       const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
       if (!latest) return null;
@@ -111,6 +119,8 @@ export function serve(root: string, port: number): void {
         case '/api/incident/open': return send(res, 200, { id: openIncident(root, { title: s('title'), severity: s('severity'), by: s('by'), note: s('note'), owner: s('owner') || undefined }), state: state(root) });
         case '/api/incident/update': updateIncident(root, s('id'), s('version'), { by: s('by'), note: s('note'), status: (s('status') || undefined) as never,
           customer_impact: s('customer_impact') || undefined, notification: s('notification') || undefined, review: s('review') || undefined }); break;
+        case '/api/collectors': configureCollector(root, s('id'), { enabled: b.enabled as boolean, params: b.params as Record<string, string> }); break;
+        case '/api/run': { const run = await runChecks(root, s('by')); return send(res, 200, { run, state: state(root) }); }
         case '/api/open-autonomy/import': return send(res, 200, { report: importOpenAutonomy(root, s('repo'), s('commit') || 'HEAD', s('by')), state: state(root) });
         default: return send(res, 404, { error: 'not found' });
       }

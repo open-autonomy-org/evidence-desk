@@ -7,6 +7,15 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Added collectors and checks. Collectors read a vendor with the owner's own read-only credentials from the
+  environment; a run records what each read as evidence and every check's result in `checks/runs/`, and the gap view
+  shows failing checks (dated from the first failing run), checks that could not decide, never ran or went stale. The
+  GitHub collector checks two-factor enforcement, required approving review and protected history on default branches,
+  overdue critical and high Dependabot alerts and open secret-scanning alerts. `ci-template` writes a daily GitHub
+  Actions workflow for the workspace's repository, pinned to an Evidence Desk commit, that gates nothing. The local app
+  has a Checks page. Verified against the GitHub twin through a failing run, remediation and a passing run, from the CLI
+  and from the page.
+
 - Added reading an Open Autonomy project. `open-autonomy import` reads the committed roster, agent setup (ADR 0007),
   seams (ADR 0008), kit record and landing and production workflows at one commit, fills the scoping answers and
   registers they determine with the commit as source, reports what people entered that the project contradicts, and

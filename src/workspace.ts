@@ -33,6 +33,11 @@ export type Incident = {
   schema: string; id: string; title: string; severity: string; detected_at: string; status: 'open' | 'contained' | 'resolved' | 'closed'; owner?: string;
   timeline: { at: string; by: string; note: string }[]; customer_impact?: string; notification?: string; review?: string; closed_at?: string;
 };
+export type CheckRun = {
+  schema: string; id: string; started_at: string; finished_at: string; by: string;
+  collectors: { id: string; status: string; error?: string; snapshot?: string; evidence?: string }[];
+  results: { check: string; collector: string; controls: string[]; status: 'pass' | 'fail' | 'error'; detail: string }[];
+};
 export type Scope = { schema: string; answers: Record<string, string | boolean>; sources?: Record<string, string> };
 export type Manifest = { schema: string; organization: string; created_at: string; frameworks: string[] };
 export type Problem = { severity: 'error' | 'warning'; file: string; message: string };
@@ -52,6 +57,7 @@ export type Workspace = {
   responses: Versioned<Response>[];
   accessReviews: Versioned<AccessReview>[];
   incidents: Versioned<Incident>[];
+  runs: Versioned<CheckRun>[];
   registers: Record<RegisterName, Versioned<Table> | null>;
   problems: Problem[];
 };
@@ -85,6 +91,7 @@ export function loadWorkspace(root: string): Workspace {
   const responses = list(root, 'forms/responses', '.json').map((f) => readJson<Response>(root, f, 'response', problems)).filter((x) => x !== null);
   const accessReviews = list(root, 'reviews/access', '.json').map((f) => readJson<AccessReview>(root, f, 'access-review', problems)).filter((x) => x !== null);
   const incidents = list(root, 'incidents', '.json').map((f) => readJson<Incident>(root, f, 'incident', problems)).filter((x) => x !== null);
+  const runs = list(root, 'checks/runs', '.json').map((f) => readJson<CheckRun>(root, f, 'check-run', problems)).filter((x) => x !== null);
 
   const registers = {} as Workspace['registers'];
   for (const name of REGISTERS) {
@@ -100,7 +107,7 @@ export function loadWorkspace(root: string): Workspace {
     } catch (e) { registers[name] = null; problems.push({ severity: 'error', file: rel, message: (e as Error).message }); }
   }
 
-  const ws: Workspace = { root, manifest, scope, controls, policies, evidence, forms, responses, accessReviews, incidents, registers, problems };
+  const ws: Workspace = { root, manifest, scope, controls, policies, evidence, forms, responses, accessReviews, incidents, runs, registers, problems };
   crossCheck(ws);
   return ws;
 }
