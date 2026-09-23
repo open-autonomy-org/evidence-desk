@@ -69,7 +69,7 @@ Agents do the work; people act at a few controlled seams that Open Autonomy spec
 declarations and seams supply the controls and evidence that automation can; the humans supply the rest. This
 integration is optional: core use never requires Open Autonomy.
 **Differentiator D1, not counted in the parity headline:** a project on Open Autonomy's `soc2` template reaches SOC2
-readiness out of the box, owned by `open-autonomy-soc2-ready`.
+readiness out of the box, owned by `open-autonomy-soc2-ready` (Evidence Desk's side landed; the template is outstanding).
 
 **Extrapolation starts here.** The outcome boundaries, sequence and the design choices inside each outcome
 are the owner-side agent's judgment, not measured user research. Differentiation hypothesis: the same
@@ -86,13 +86,13 @@ Build mode (owner, 2026-09-23): the owner's coding session builds the outcomes h
 the plan is done; the fleet resumes once the product works. Outcomes below are `Dispatch: hold` so a fleet start
 does not duplicate that work.
 
-Sequence: `open-autonomy-soc2-ready` (the aim), then `evidence-automation`, `audit-cycle`, `trust-and-questionnaires` and
+Sequence: `open-autonomy-soc2-ready` (the aim; Open Autonomy's `soc2` template is outstanding), then `evidence-automation`, `audit-cycle`, `trust-and-questionnaires` and
 `multi-framework`. The workspace format, control library, policy templates, CLI and local app, and the operation of
 the program (forms, access reviews, incidents, vulnerabilities, obligations) have landed; see [CHANGELOG.md](CHANGELOG.md) and [docs/workspace-format.md](docs/workspace-format.md).
 
 ## open-autonomy-soc2-ready: A project on Open Autonomy's soc2 template is SOC2 ready out of the box
 
-Status: planned
+Status: active
 Dispatch: hold
 
 Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114#issuecomment-5802291630); [ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md); [ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/6e7a769f45236ac010f135695226dfa7f735fddd/docs/decisions/0008-human-seams.md); differentiator D1. Waits on Open Autonomy's `soc2` template implementing ADR 0008.
@@ -117,6 +117,19 @@ state held in vendor consoles, whether production matches the code (stored data,
 facts about people and their devices (including the host that runs the agents), judgment acts such as the risk
 assessment and the signed assertion, vendors' own assurance reports, external tests, and agreements executed with
 customers. The gap view says which facts came from where.
+
+Landed in Evidence Desk: reading a project at a commit (roster, agent setup, seams, landing and production rules,
+vendors) with scope and register filling that reports rather than overwrites; the seam inventory with its findings;
+roster completeness against a vendor account's administrators; populations of merged changes with approvals,
+production deployments and roster history; onboarding forms applying to roster members. Demonstrated in the World on a
+synthetic project created with kit 3.2.3, seams declared by hand as ADR 0008 describes, against the GitHub twin.
+
+Outstanding: Open Autonomy's `soc2` template and its seams codec (ADR 0008's first implementation), so seams are
+declared by the kit rather than by hand; a record for release approvals, incidents, break-glass changes, credential
+lifecycle and escalations kept in the repository by that template; and a synthetic project taken end to end to a gap
+view with only what neither automation nor onboarding can establish. The GitHub twin does not yet identify who authored
+a pull request or review, so approval independence reads as unknown against it, and it ignores the `role` filter on
+organization members; the published twin package (0.1.2) still serves a review's verb as its state.
 
 Completion:
 - One command turns an Open Autonomy project into a workspace at a named commit: `agent.json` profiles, jobs and models, the `team` roster with scopes, the declared seams, the landing and production rules, and the vendors named by its dependencies and deploy egress; each fact carries that commit as provenance and maps to the controls and criteria it evidences. A later change surfaces as a changed design fact, never a silent overwrite.

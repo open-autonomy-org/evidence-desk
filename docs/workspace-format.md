@@ -24,6 +24,8 @@ allowed everywhere and kept when Evidence Desk writes a file, so other tools can
 | `forms/responses/<id>.json` | one person's graded response | `response` |
 | `reviews/access/<id>.json` | one access review of one system | `access-review` |
 | `incidents/<id>.json` | one incident from report to closing review | `incident` |
+| `sources/open-autonomy/<commit>.json`, `latest.json` | what an Open Autonomy project declared at a commit | `open-autonomy` |
+| `sources/open-autonomy/completeness/<id>.json` | one vendor account's administrators compared with the roster | `completeness` |
 | `evidence/records/<id>.json` | one evidence record | `evidence` |
 | `evidence/files/` | evidence files | any |
 | `AGENTS.md`, `CLAUDE.md` | instructions for a coding agent working in the folder | Markdown |
@@ -84,6 +86,26 @@ annual forms; a background check by the start date when required; access removal
 yearly reviews of medium and high criticality vendors; risk `review_due` dates; vulnerability `due_on` dates; and open
 incidents. An overdue obligation is a gap on its controls. A vulnerability fixed after its due date is shown as done and
 flagged as an exception to report.
+
+## Open Autonomy projects
+
+`evidence-desk open-autonomy import` reads an Open Autonomy project's committed files at one commit (through
+`git show`; nothing else is read): the `team` roster and `seams` declaration in `.open-autonomy/config.yaml`, the agent
+setup in `.open-autonomy/agent.json`, the kit record, and the landing and production workflows. The snapshot names the
+commit. A scoping answer those files determine is filled when it is empty or was filled from the project before, and its
+`sources` entry names the project and commit; an answer a person gave that the project contradicts is reported, not
+changed. People, vendors and the repository are added to the registers when absent; a differing name is reported.
+Reading a later commit reports which declarations changed.
+
+A seam is expected to use one of ADR 0008's three doors (`commit`, `code-host-gate`, `platform-key`) and a scope some
+roster member holds; anything else is a finding in the gap view. Each declared vendor account's administrators are
+compared with the roster, from GitHub for a GitHub organization or from an exported list otherwise; an administrator
+outside the roster is a finding until a later check no longer finds them.
+
+`evidence-desk collect` writes populations under `evidence/files/populations/` with the requests that produced them:
+merged pull requests with their approvals and whether an approval came from someone other than the author (`unknown`
+when the source does not identify both), production deployments with their final state, and every change to the roster
+from git history.
 
 ## Readiness
 

@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/open-autonomy.schema.json",
+  "title": "Open Autonomy project snapshot (sources/open-autonomy/<commit>.json)",
+  "type": "object",
+  "required": [
+    "schema",
+    "repository",
+    "commit",
+    "read_at",
+    "account",
+    "team",
+    "agents",
+    "seams",
+    "vendor_accounts",
+    "rules",
+    "vendors"
+  ],
+  "properties": {
+    "schema": {
+      "const": "evidence-desk.open-autonomy/1"
+    },
+    "repository": {
+      "type": "string"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "read_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "account": {
+      "type": "string"
+    },
+    "team": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "scopes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "github": {
+            "type": "string"
+          },
+          "discord": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "profile",
+          "models",
+          "jobs"
+        ]
+      }
+    },
+    "vendor_accounts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "vendor",
+          "account"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "vendor": {
+            "type": "string"
+          },
+          "account": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "required": [
+        "pr_landing",
+        "production_deploy"
+      ]
+    },
+    "vendors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

@@ -7,6 +7,15 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Added reading an Open Autonomy project. `open-autonomy import` reads the committed roster, agent setup (ADR 0007),
+  seams (ADR 0008), kit record and landing and production workflows at one commit, fills the scoping answers and
+  registers they determine with the commit as source, reports what people entered that the project contradicts, and
+  names declarations that changed between commits. Seams outside the three doors, and administrators of declared vendor
+  accounts who are not on the roster, are gaps. `collect` records populations of merged pull requests with approvals and
+  their independence, production deployments and roster history, each with the requests that produced it. The local app
+  has an Open Autonomy page. Verified in the World on a synthetic kit 3.2.3 project against the GitHub twin; against the
+  twin, approval independence reads as unknown because it does not identify authors and reviewers.
+
 - Added the operation of the program. Forms (a security awareness quiz, policy and code-of-conduct acknowledgments, a
   confidentiality agreement and a device and account attestation) are adopted with their controls; a person's response is
   graded, recorded with the form version and the approved policy versions it acknowledges, and becomes evidence only when

@@ -41,6 +41,16 @@ bun src/cli.ts gaps ~/acme-soc2
 bun src/cli.ts validate ~/acme-soc2
 ```
 
+With an [Open Autonomy](https://github.com/open-autonomy-org/open-autonomy) project, much of the program is read from
+what the project already declares instead of asked:
+
+```bash
+bun src/cli.ts open-autonomy ~/acme-soc2 import --repo ~/acme-inbox --by ana
+bun src/cli.ts open-autonomy ~/acme-soc2 completeness --account github --by ana
+GITHUB_TOKEN=... bun src/cli.ts collect ~/acme-soc2 github-changes --repo acme/inbox --period 2026-07-01..2026-09-30 --by ana
+bun src/cli.ts collect ~/acme-soc2 roster-history --repo ~/acme-inbox --period 2026-07-01..2026-09-30 --by ana
+```
+
 Add `--json` to any command for machine-readable output. `bun src/cli.ts --help` lists every command.
 
 The folder's structure is documented in [docs/workspace-format.md](docs/workspace-format.md) with JSON Schemas in
