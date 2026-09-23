@@ -1,0 +1,50 @@
+{
+  "schema": "evidence-desk.form/1",
+  "id": "device-and-account-attestation",
+  "title": "Device and account security attestation",
+  "kind": "survey",
+  "controls": [
+    "AC-10",
+    "AC-01"
+  ],
+  "recurrence": "onboarding-and-annual",
+  "due_within_days": 14,
+  "intro": "Answer for every device you use to reach the organization's systems. A 'no' fails the attestation; fix it and submit again.",
+  "questions": [
+    {
+      "id": "disk",
+      "prompt": "Is full-disk encryption turned on?",
+      "type": "yes-no",
+      "required_answer": "yes"
+    },
+    {
+      "id": "lock",
+      "prompt": "Does the screen lock automatically after 15 minutes or less?",
+      "type": "yes-no",
+      "required_answer": "yes"
+    },
+    {
+      "id": "updates",
+      "prompt": "Are automatic operating system updates turned on?",
+      "type": "yes-no",
+      "required_answer": "yes"
+    },
+    {
+      "id": "mfa",
+      "prompt": "Is multi-factor authentication on for every work account that supports it?",
+      "type": "yes-no",
+      "required_answer": "yes"
+    },
+    {
+      "id": "pm",
+      "prompt": "Do you keep work passwords only in the approved password manager?",
+      "type": "yes-no",
+      "required_answer": "yes"
+    },
+    {
+      "id": "devices",
+      "prompt": "Which devices do you use for work (model and operating system)?",
+      "type": "text"
+    }
+  ]
+}

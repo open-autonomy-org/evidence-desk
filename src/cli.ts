@@ -1,13 +1,16 @@
 #!/usr/bin/env bun
 // The evidence-desk command. Each subcommand reads the workspace fresh, calls one action and prints the result,
 // as text for people or as JSON with --json for scripts and agents.
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 import { addEvidence, adopt, approvePolicy, initWorkspace, saveRegisterRow, setPolicyOwner, setScope, unanswered, updateControl } from './actions.ts';
 import { computeGaps } from './gaps.ts';
-import { readVersioned } from './files.ts';
+import { readVersioned, writeVersioned } from './files.ts';
 import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
 import { questions } from './catalog.ts';
 import { serve } from './server.ts';
+import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
+import { computeObligations } from './obligations.ts';
 
 const USAGE = `evidence-desk <command> <workspace> [options]
 
@@ -19,9 +22,22 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                      [--notes <text>] [--exclude <reason>] [--include]
   policies <dir>                          list policies and their approved versions
   policy <dir> <id> [--owner <person>] [--approve --by <person>]
-  register <dir> <people|systems|vendors|risks> [--add key=value ...] [--update <id> key=value ...]
+  register <dir> <people|systems|vendors|risks|vulnerabilities> [--add key=value ...] [--update <id> key=value ...]
   evidence <dir> [--add --control <id>[,<id>] --file <path> --title <text> --by <person>
-                 [--period <start>..<end>] [--source <kind>] [--source-name <name>] [--query <text>]]
+                 [--period <start>..<end>] [--subject <person>] [--source <kind>] [--source-name <name>] [--query <text>]]
+  forms <dir>                             list the forms people complete
+  form <dir> <id>                         show a form's questions
+  respond <dir> <form> --person <id> --answer <question>=<answer> ...
+                                          record a person's answers (graded; passing responses become evidence)
+  obligations <dir> [--person <id>] [--as-of YYYY-MM-DD]   what is owed, by whom and when
+  access-review <dir> start --system <id> --reviewer <person> --period <start>..<end> --listing <file> --generated-by <how>
+  access-review <dir> <id> [--decide <account>=keep|remove|modify ...] [--done <account>=<date> ...]
+                     [--person <account>=<person> ...] [--privileged <account>] [--sign-off --by <person>]
+  access-reviews <dir>                    list access reviews
+  incident <dir> new --title <text> --severity low|medium|high|critical --by <person> --note <text> [--owner <person>]
+  incident <dir> <id> --by <person> --note <text> [--status open|contained|resolved|closed]
+                     [--impact <text>] [--notification <text>] [--review <text>]
+  incidents <dir>                         list incidents
   gaps <dir> [--as-of YYYY-MM-DD]         what stands between the workspace and readiness
   validate <dir>                          check every file against its schema and references
   serve <dir> [--port <n>]                open the local app on 127.0.0.1
@@ -39,7 +55,7 @@ function parse(argv: string[]): Args {
     const vals = flags.get(key) ?? [];
     if (['set', 'add', 'update'].includes(key)) {
       while (argv[i + 1] !== undefined && !argv[i + 1].startsWith('--')) vals.push(argv[++i]);
-    } else if (!['json', 'approve', 'include', 'help'].includes(key)) {
+    } else if (!['json', 'approve', 'include', 'help', 'sign-off'].includes(key)) {
       if (i + 1 >= argv.length) throw new Error(`--${key} needs a value`);
       vals.push(argv[++i]);
     }
@@ -96,7 +112,7 @@ function main(argv: string[]): number {
     }
     case 'adopt': {
       const r = adopt(dir);
-      out(json, r, () => `Controls created: ${r.created.length}. Applicability changed: ${r.changed.length}${r.changed.length ? ` (${r.changed.join(', ')})` : ''}. Policies created: ${r.policies.length}.`);
+      out(json, r, () => `Controls created: ${r.created.length}. Applicability changed: ${r.changed.length}${r.changed.length ? ` (${r.changed.join(', ')})` : ''}. Policies created: ${r.policies.length}. Forms created: ${r.forms.length}.`);
       return 0;
     }
     case 'controls': {
@@ -172,7 +188,7 @@ function main(argv: string[]): number {
           title: one(a, 'title') ?? '', controls: (one(a, 'control') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
           files: a.flags.get('file') ?? [], recorded_by: one(a, 'by') ?? '', period: period ? { start, end } : undefined,
           source: { kind, ...(one(a, 'source-name') ? { name: one(a, 'source-name') } : {}), ...(one(a, 'query') ? { query: one(a, 'query') } : {}) },
-          notes: one(a, 'notes'),
+          notes: one(a, 'notes'), subject: one(a, 'subject'),
         });
         out(json, { id }, () => `Recorded ${id}.`);
         return 0;
@@ -180,6 +196,87 @@ function main(argv: string[]): number {
       const ws = loadWorkspace(dir);
       const rows = ws.evidence.map((e) => e.data);
       out(json, rows, () => rows.map((e) => `${e.id}  ${e.collected_at.slice(0, 10)}  ${e.controls.join(',').padEnd(16)} ${e.title}`).join('\n') || 'No evidence recorded.');
+      return 0;
+    }
+    case 'forms': {
+      const ws = loadWorkspace(dir);
+      const rows = ws.forms.map((f) => ({ id: f.data.id, title: f.data.title, kind: f.data.kind, recurrence: f.data.recurrence, controls: f.data.controls }));
+      out(json, rows, () => rows.map((f) => `${f.id.padEnd(32)} ${f.kind.padEnd(15)} ${f.recurrence.padEnd(22)} ${f.title}`).join('\n') || 'No forms yet. Adopt the control set first.');
+      return 0;
+    }
+    case 'form': {
+      const f = loadWorkspace(dir).forms.find((x) => x.data.id === rest[0]);
+      if (!f) throw new Error(`form ${rest[0]} does not exist`);
+      out(json, f.data, () => [f.data.title, f.data.intro ?? '', ...f.data.questions.map((q) => `  ${q.id}: ${q.prompt}${q.options ? `\n    options: ${q.options.join(' | ')}` : q.type === 'text' ? '' : ' (yes/no)'}`)].filter(Boolean).join('\n'));
+      return 0;
+    }
+    case 'respond': {
+      const form = rest[0];
+      const person = one(a, 'person');
+      if (!form || !person) throw new Error('respond needs a form id and --person');
+      const f = loadWorkspace(dir).forms.find((x) => x.data.id === form);
+      if (!f) throw new Error(`form ${form} does not exist`);
+      const r = submitResponse(dir, { form, person, answers: pairs(a.flags.get('answer') ?? []), formVersion: f.version, identity: 'cli' });
+      out(json, r, () => `Recorded ${r.id}: ${r.passed ? 'passed' : 'not passed'}${r.score !== undefined ? ` (${r.score}%)` : ''}.`);
+      return 0;
+    }
+    case 'obligations': {
+      const asOf = one(a, 'as-of');
+      const who = one(a, 'person');
+      const list = computeObligations(loadWorkspace(dir), asOf ? new Date(`${asOf}T23:59:59Z`) : new Date()).filter((o) => !who || o.who === who);
+      out(json, list, () => list.map((o) => `${o.state.padEnd(8)} ${o.due}  ${(o.who || '-').padEnd(10)} ${o.what}${o.controls.length ? ` [${o.controls.join(', ')}]` : ''}`).join('\n') || 'Nothing owed.');
+      return 0;
+    }
+    case 'access-review': {
+      if (rest[0] === 'start') {
+        const [start, end] = (one(a, 'period') ?? '').split('..');
+        let listing = one(a, 'listing') ?? '';
+        if (!start || !end || !listing) throw new Error('start needs --period <start>..<end> and --listing <file>');
+        if (!(one(a, 'generated-by') ?? '').trim()) throw new Error('say how the user listing was produced (--generated-by: a query, an export or a screenshot), so its completeness can be checked');
+        if (!existsSync(`${dir}/${listing}`)) {
+          const rel = `evidence/files/listings/${Date.now()}-${basename(listing)}`;
+          writeVersioned(dir, rel, readFileSync(resolve(listing)), null);
+          listing = rel;
+        }
+        const id = startAccessReview(dir, { system: one(a, 'system') ?? '', reviewer: one(a, 'reviewer') ?? '', start, end, listing, generated_by: one(a, 'generated-by') ?? '' });
+        out(json, { id }, () => `Started ${id}.`);
+        return 0;
+      }
+      const id = rest[0];
+      const rel = `reviews/access/${id}.json`;
+      const version = () => { const v = readVersioned(dir, rel); if (!v) throw new Error(`${rel} does not exist`); return v.version; };
+      for (const [acct, decision] of Object.entries(pairs(a.flags.get('decide') ?? []))) decideAccount(dir, id, version(), acct, { decision });
+      for (const [acct, done_on] of Object.entries(pairs((a.flags.get('done') ?? [])))) decideAccount(dir, id, version(), acct, { decision: JSON.parse(readVersioned(dir, rel)!.text).accounts.find((x: { account: string }) => x.account === acct)?.decision, done_on });
+      for (const [acct, person] of Object.entries(pairs(a.flags.get('person') ?? []))) decideAccount(dir, id, version(), acct, { decision: JSON.parse(readVersioned(dir, rel)!.text).accounts.find((x: { account: string }) => x.account === acct)?.decision, person });
+      for (const acct of a.flags.get('privileged') ?? []) decideAccount(dir, id, version(), acct, { decision: JSON.parse(readVersioned(dir, rel)!.text).accounts.find((x: { account: string }) => x.account === acct)?.decision, privileged: true });
+      if (a.flags.has('sign-off')) signOffAccessReview(dir, id, version(), one(a, 'by') ?? '');
+      const r = JSON.parse(readVersioned(dir, rel)!.text);
+      out(json, r, () => `${r.id} ${r.system} ${r.status}\n` + r.accounts.map((x: { account: string; decision: string; done_on?: string }) => `  ${x.account.padEnd(24)} ${x.decision}${x.done_on ? ` (done ${x.done_on})` : ''}`).join('\n'));
+      return 0;
+    }
+    case 'access-reviews': {
+      const rows = loadWorkspace(dir).accessReviews.map((r) => r.data);
+      out(json, rows, () => rows.map((r) => `${r.id}  ${r.system.padEnd(16)} ${r.period.start}..${r.period.end}  ${r.status}`).join('\n') || 'No access reviews yet.');
+      return 0;
+    }
+    case 'incident': {
+      if (rest[0] === 'new') {
+        const id = openIncident(dir, { title: one(a, 'title') ?? '', severity: one(a, 'severity') ?? '', by: one(a, 'by') ?? '', note: one(a, 'note') ?? '', owner: one(a, 'owner') });
+        out(json, { id }, () => `Opened ${id}.`);
+        return 0;
+      }
+      const id = rest[0];
+      const cur = readVersioned(dir, `incidents/${id}.json`);
+      if (!cur) throw new Error(`incidents/${id}.json does not exist`);
+      updateIncident(dir, id, cur.version, { by: one(a, 'by') ?? '', note: one(a, 'note') ?? '', status: one(a, 'status') as never,
+        customer_impact: one(a, 'impact'), notification: one(a, 'notification'), review: one(a, 'review') });
+      const r = JSON.parse(readVersioned(dir, `incidents/${id}.json`)!.text);
+      out(json, r, () => `${r.id} ${r.status}: ${r.title}`);
+      return 0;
+    }
+    case 'incidents': {
+      const rows = loadWorkspace(dir).incidents.map((r) => r.data);
+      out(json, rows, () => rows.map((r) => `${r.id}  ${r.severity.padEnd(8)} ${r.status.padEnd(9)} ${r.title}`).join('\n') || 'No incidents recorded.');
       return 0;
     }
     case 'gaps': {

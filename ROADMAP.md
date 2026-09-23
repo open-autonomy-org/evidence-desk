@@ -12,7 +12,7 @@ compliance SaaS, and the roadmap was rebuilt from scratch to reach parity with t
 
 Parity is measured against the whole buyer journey, from "we need SOC2" through a passed Type II audit and
 the security reviews that follow, for both the company and the CPA firm. It is not measured by integration
-count. The table below is the denominator. **Headline: 4 of 16 parity capabilities demonstrated** (rows 1–4).
+count. The table below is the denominator. **Headline: 7 of 16 parity capabilities demonstrated** (rows 1–4 and 7–9).
 A row counts only when its owning outcome demonstrates it in the running local product on synthetic data.
 
 | # | Capability (table stakes unless marked) | Owning outcome |
@@ -23,9 +23,9 @@ A row counts only when its owning outcome demonstrates it in the running local p
 | 4 | Operable by the customer's own coding agent and by a nontechnical admin | demonstrated (agent: shipped instructions and external edits; no agent run yet) |
 | 5 | Automated evidence collection from cloud, identity, HRIS, code and devices | `evidence-automation` |
 | 6 | Continuous control checks with visible failures and alerting | `evidence-automation` |
-| 7 | Onboarding/offboarding, policy acknowledgment, training, background checks | `program-operations` |
-| 8 | Periodic access reviews with reviewer sign-off (near table stakes) | `program-operations` |
-| 9 | Vendor reviews, risk assessment, incidents, vulnerability SLAs | `program-operations` |
+| 7 | Onboarding/offboarding, policy acknowledgment, training, background checks | demonstrated |
+| 8 | Periodic access reviews with reviewer sign-off (near table stakes) | demonstrated |
+| 9 | Vendor reviews, risk assessment, incidents, vulnerability SLAs | demonstrated |
 | 10 | Audit engagement: Type I date / Type II period, auditor request lists | `audit-cycle` |
 | 11 | Populations with their generating query, sample evidence, exceptions | `audit-cycle` |
 | 12 | DC 200 system description, management assertion, bridge letter | `audit-cycle` |
@@ -86,17 +86,16 @@ Build mode (owner, 2026-09-23): the owner's coding session builds the outcomes h
 the plan is done; the fleet resumes once the product works. Outcomes below are `Dispatch: hold` so a fleet start
 does not duplicate that work.
 
-Sequence: `program-operations` (the onboarding, acknowledgment and review machinery people use), then
-`open-autonomy-soc2-ready` (the aim), then `evidence-automation`, `audit-cycle`, `trust-and-questionnaires` and
-`multi-framework`. The workspace format, control library, policy templates, CLI and local app landed as the first
-outcome; see [CHANGELOG.md](CHANGELOG.md) and [docs/workspace-format.md](docs/workspace-format.md).
+Sequence: `open-autonomy-soc2-ready` (the aim), then `evidence-automation`, `audit-cycle`, `trust-and-questionnaires` and
+`multi-framework`. The workspace format, control library, policy templates, CLI and local app, and the operation of
+the program (forms, access reviews, incidents, vulnerabilities, obligations) have landed; see [CHANGELOG.md](CHANGELOG.md) and [docs/workspace-format.md](docs/workspace-format.md).
 
 ## open-autonomy-soc2-ready: A project on Open Autonomy's soc2 template is SOC2 ready out of the box
 
 Status: planned
 Dispatch: hold
 
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114#issuecomment-5802291630); [ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md); [ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/6e7a769f45236ac010f135695226dfa7f735fddd/docs/decisions/0008-human-seams.md); differentiator D1. Waits on `program-operations` and Open Autonomy's `soc2` template implementing ADR 0008.
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114#issuecomment-5802291630); [ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md); [ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/6e7a769f45236ac010f135695226dfa7f735fddd/docs/decisions/0008-human-seams.md); differentiator D1. Waits on Open Autonomy's `soc2` template implementing ADR 0008.
 
 A small project created from Open Autonomy's `soc2` template gets an Evidence Desk workspace as part of the project:
 agents do the work, and people act only at declared seams (direction, release and deploy approval, credential
@@ -109,8 +108,8 @@ query that produced them. Records are read through Open Autonomy's own interface
 Supercode orchestrator package the kit pins), never by parsing a harness's private state.
 
 The people at the seams are the people in scope, and the human controls apply to them: each completes onboarding
-through Evidence Desk (policy acknowledgment, a security-awareness quiz, attestations such as MFA on the accounts
-that reach their seam) and the recurring reviews that are a person's decision (access, risk, incidents). Each
+through Evidence Desk's forms (policy acknowledgment, a security-awareness quiz, attestations such as MFA on the
+accounts that reach their seam) and the recurring reviews that are a person's decision (access, risk, incidents). Each
 completion is recorded through a seam's own door, attributable to that person's verified account. The project's
 code states its design, including its commitments, SLA and escalation policy, data handling and infrastructure,
 and its durable records show the process operating. What neither can show stays on the ordinary evidence paths:
@@ -146,33 +145,12 @@ Completion:
 - A scheduled-run template for the workspace repository's CI and a local on-demand run; failures, stale evidence and collector errors are visible per control.
 - Demonstrated end to end in the World against the twins, including a failing check, its remediation and the recorded history.
 
-## program-operations: Run the recurring obligations auditors test
-
-Status: planned
-Dispatch: hold
-
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 7–9.
-
-The obligations that recur through an audit period become tracked, evidenced work: hires and leavers with
-onboarding/offboarding steps, policy acknowledgment and training, background checks, quarterly access
-reviews, vendor reviews, the annual risk assessment, incidents and vulnerability remediation SLAs.
-Acknowledgments and sign-offs arrive through channels the owner chooses (their identity provider, HRIS,
-e-signature export, Git), not a project-hosted portal; how employees without repository access
-acknowledge policies is a design decision this outcome must make and document.
-
-Completion:
-- Onboarding quizzes and surveys authored as files: a person completes one, the result (answers, score, pass/fail, date) is recorded as attributable to that person, and incomplete or failed onboarding is a visible gap.
-- A calendar of obligations derived from the adopted controls, with due, overdue and done states and the evidence each produced.
-- An access review cycle: user listings per system (from collectors or import), reviewer decisions, removals and sign-off, all recorded in the folder.
-- People lifecycle: synthetic hires and leavers reconcile to acknowledgment, training, background-check and access-removal evidence with timeliness shown.
-- Demonstrated over a simulated quarter in the World on a synthetic workspace.
-
 ## audit-cycle: Take the program through a Type I and Type II audit
 
 Status: planned
 Dispatch: hold
 
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 10–13. Waits on `open-autonomy-soc2-ready`, `evidence-automation`, `program-operations`.
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 10–13. Waits on `open-autonomy-soc2-ready`, `evidence-automation`.
 
 A company and its CPA firm run an engagement: Type I as of a date or Type II over a period, the firm's request
 list, populations with the query or parameters that generated them, samples the auditor selects, evidence per

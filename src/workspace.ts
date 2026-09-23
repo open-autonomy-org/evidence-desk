@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { check, schema } from './schema.ts';
 import { parseCsv, type Table } from './csv.ts';
 import { fileHash, readVersioned } from './files.ts';
-import { criterionCategory } from './catalog.ts';
+import { criterionCategory, type FormTemplate } from './catalog.ts';
 
 export type Versioned<T> = { path: string; version: string; data: T };
 export type Control = {
@@ -16,13 +16,28 @@ export type PolicyVersion = { version: number; approved_by: string; approved_at:
 export type Policy = { schema: string; id: string; title: string; owner: string; versions: PolicyVersion[] };
 export type Evidence = {
   schema: string; id: string; title: string; controls: string[]; source: { kind: string; name?: string; query?: string; commit?: string };
-  collected_at: string; period?: { start: string; end: string }; files: { path: string; sha256: string; bytes?: number }[]; recorded_by: string; notes?: string;
+  collected_at: string; period?: { start: string; end: string }; subject?: string; files: { path: string; sha256: string; bytes?: number }[]; recorded_by: string; notes?: string;
+};
+export type Form = FormTemplate;
+export type Response = {
+  schema: string; id: string; form: string; form_sha256: string; person: string; submitted_at: string; answers: Record<string, string>;
+  score?: number; passed: boolean; policies?: { id: string; version: number; sha256: string }[]; identity: string;
+};
+export type AccessReview = {
+  schema: string; id: string; system: string; period: { start: string; end: string }; reviewer: string;
+  listing: { path: string; sha256: string; generated_by: string };
+  accounts: { account: string; person?: string; privileged?: boolean; decision: 'pending' | 'keep' | 'remove' | 'modify'; note?: string; done_on?: string }[];
+  status: 'open' | 'signed-off'; signed_off_at?: string;
+};
+export type Incident = {
+  schema: string; id: string; title: string; severity: string; detected_at: string; status: 'open' | 'contained' | 'resolved' | 'closed'; owner?: string;
+  timeline: { at: string; by: string; note: string }[]; customer_impact?: string; notification?: string; review?: string; closed_at?: string;
 };
 export type Scope = { schema: string; answers: Record<string, string | boolean>; sources?: Record<string, string> };
 export type Manifest = { schema: string; organization: string; created_at: string; frameworks: string[] };
 export type Problem = { severity: 'error' | 'warning'; file: string; message: string };
 
-export const REGISTERS = ['people', 'systems', 'vendors', 'risks'] as const;
+export const REGISTERS = ['people', 'systems', 'vendors', 'risks', 'vulnerabilities'] as const;
 export type RegisterName = typeof REGISTERS[number];
 export const MANIFEST = 'evidence-desk.json';
 
@@ -33,6 +48,10 @@ export type Workspace = {
   controls: Versioned<Control>[];
   policies: (Versioned<Policy> & { text: { path: string; version: string; body: string } | null })[];
   evidence: Versioned<Evidence>[];
+  forms: Versioned<Form>[];
+  responses: Versioned<Response>[];
+  accessReviews: Versioned<AccessReview>[];
+  incidents: Versioned<Incident>[];
   registers: Record<RegisterName, Versioned<Table> | null>;
   problems: Problem[];
 };
@@ -62,6 +81,10 @@ export function loadWorkspace(root: string): Workspace {
     return { ...p, text: t ? { path: `policies/${p.data.id}.md`, version: t.version, body: t.text } : null };
   });
   const evidence = list(root, 'evidence/records', '.json').map((f) => readJson<Evidence>(root, f, 'evidence', problems)).filter((e) => e !== null);
+  const forms = list(root, 'forms', '.json').map((f) => readJson<Form>(root, f, 'form', problems)).filter((x) => x !== null);
+  const responses = list(root, 'forms/responses', '.json').map((f) => readJson<Response>(root, f, 'response', problems)).filter((x) => x !== null);
+  const accessReviews = list(root, 'reviews/access', '.json').map((f) => readJson<AccessReview>(root, f, 'access-review', problems)).filter((x) => x !== null);
+  const incidents = list(root, 'incidents', '.json').map((f) => readJson<Incident>(root, f, 'incident', problems)).filter((x) => x !== null);
 
   const registers = {} as Workspace['registers'];
   for (const name of REGISTERS) {
@@ -77,7 +100,7 @@ export function loadWorkspace(root: string): Workspace {
     } catch (e) { registers[name] = null; problems.push({ severity: 'error', file: rel, message: (e as Error).message }); }
   }
 
-  const ws: Workspace = { root, manifest, scope, controls, policies, evidence, registers, problems };
+  const ws: Workspace = { root, manifest, scope, controls, policies, evidence, forms, responses, accessReviews, incidents, registers, problems };
   crossCheck(ws);
   return ws;
 }
@@ -126,6 +149,28 @@ function crossCheck(ws: Workspace): void {
       else if (h.sha256 !== f.sha256) p.push({ severity: 'warning', file: e.path, message: `file ${f.path} changed since it was recorded; record it again if the new content is the evidence` });
     }
   }
+  const formIds = new Set(ws.forms.map((f) => f.data.id));
+  const systems = new Set((ws.registers.systems?.data.rows ?? []).map((r) => r.id));
+  const person = (file: string, id: string | undefined, what: string) => { if (id && !people.has(id)) p.push({ severity: 'error', file, message: `${what} ${id} is not in registers/people.csv` }); };
+  for (const f of ws.forms) {
+    same(f, 'forms');
+    for (const c of f.data.controls) if (!controlIds.has(c)) p.push({ severity: 'error', file: f.path, message: `control ${c} does not exist` });
+  }
+  for (const r of ws.responses) {
+    same(r, 'forms/responses');
+    if (!formIds.has(r.data.form)) p.push({ severity: 'error', file: r.path, message: `form ${r.data.form} does not exist` });
+    person(r.path, r.data.person, 'person');
+  }
+  for (const a of ws.accessReviews) {
+    same(a, 'reviews/access');
+    if (!systems.has(a.data.system)) p.push({ severity: 'error', file: a.path, message: `system ${a.data.system} is not in registers/systems.csv` });
+    person(a.path, a.data.reviewer, 'reviewer');
+    const h = (() => { try { return fileHash(ws.root, a.data.listing.path); } catch { return null; } })();
+    if (!h) p.push({ severity: 'error', file: a.path, message: `user listing ${a.data.listing.path} is missing` });
+    else if (h.sha256 !== a.data.listing.sha256) p.push({ severity: 'warning', file: a.path, message: `user listing ${a.data.listing.path} changed since the review started` });
+  }
+  for (const i of ws.incidents) { same(i, 'incidents'); person(i.path, i.data.owner, 'owner'); }
+  for (const e of ws.evidence) person(e.path, e.data.subject, 'subject');
   for (const r of ws.registers.risks?.data.rows ?? []) {
     for (const c of (r.controls ?? '').split(';').map((s) => s.trim()).filter(Boolean)) {
       if (!controlIds.has(c)) p.push({ severity: 'error', file: 'registers/risks.csv', message: `risk ${r.id} names control ${c}, which does not exist` });

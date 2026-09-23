@@ -1,0 +1,125 @@
+{
+  "schema": "evidence-desk.form/1",
+  "id": "security-awareness",
+  "title": "Security awareness training",
+  "kind": "quiz",
+  "controls": [
+    "HR-02"
+  ],
+  "recurrence": "onboarding-and-annual",
+  "due_within_days": 30,
+  "pass_score": 80,
+  "intro": "Read the information security and acceptable use policies, then answer these questions. You need 80% to pass; you can retake it.",
+  "questions": [
+    {
+      "id": "phish",
+      "prompt": "An email that looks like it is from a colleague asks you to sign in through a link to review a document. What do you do?",
+      "type": "choice",
+      "options": [
+        "Sign in, since it is from a colleague",
+        "Check the sender and the link's real address, and if in doubt ask the colleague through another channel",
+        "Forward it to everyone to warn them"
+      ],
+      "correct": "Check the sender and the link's real address, and if in doubt ask the colleague through another channel"
+    },
+    {
+      "id": "mfa",
+      "prompt": "Where should multi-factor authentication be turned on?",
+      "type": "choice",
+      "options": [
+        "Only on the email account",
+        "On every account that supports it",
+        "Only on accounts with admin rights"
+      ],
+      "correct": "On every account that supports it"
+    },
+    {
+      "id": "secrets",
+      "prompt": "Where may an API key for a production system be kept?",
+      "type": "choice",
+      "options": [
+        "In the source code, if the repository is private",
+        "In a chat message to the person who needs it",
+        "In the approved secret store or password manager"
+      ],
+      "correct": "In the approved secret store or password manager"
+    },
+    {
+      "id": "lost",
+      "prompt": "Your laptop is stolen. When do you report it?",
+      "type": "choice",
+      "options": [
+        "Immediately, through the incident reporting channel",
+        "At the next team meeting",
+        "Only if it had customer data on it"
+      ],
+      "correct": "Immediately, through the incident reporting channel"
+    },
+    {
+      "id": "customer-data",
+      "prompt": "May you paste customer data into an AI tool the company has not approved for that data?",
+      "type": "choice",
+      "options": [
+        "Yes, if it helps you work faster",
+        "No",
+        "Yes, if you delete the conversation afterwards"
+      ],
+      "correct": "No"
+    },
+    {
+      "id": "sharing",
+      "prompt": "A teammate asks to borrow your login for a system they do not have access to. What do you do?",
+      "type": "choice",
+      "options": [
+        "Share it for a few minutes",
+        "Decline, and point them to the access request process",
+        "Share it but change the password afterwards"
+      ],
+      "correct": "Decline, and point them to the access request process"
+    },
+    {
+      "id": "updates",
+      "prompt": "Your operating system reports a security update. What do you do?",
+      "type": "choice",
+      "options": [
+        "Install it promptly",
+        "Wait until something breaks",
+        "Turn off update notifications"
+      ],
+      "correct": "Install it promptly"
+    },
+    {
+      "id": "incident",
+      "prompt": "You notice unexpected admin activity in a production system. What is the first step?",
+      "type": "choice",
+      "options": [
+        "Investigate quietly on your own",
+        "Report it through the incident reporting channel",
+        "Ignore it unless it happens again"
+      ],
+      "correct": "Report it through the incident reporting channel"
+    },
+    {
+      "id": "classification",
+      "prompt": "Customer webhook payloads are which kind of information?",
+      "type": "choice",
+      "options": [
+        "Public",
+        "Confidential, handled under the data classification policy",
+        "Internal but freely shareable"
+      ],
+      "correct": "Confidential, handled under the data classification policy"
+    },
+    {
+      "id": "screen",
+      "prompt": "What should happen when you step away from your computer?",
+      "type": "choice",
+      "options": [
+        "Nothing, if the office is safe",
+        "Lock the screen",
+        "Close the browser"
+      ],
+      "correct": "Lock the screen"
+    }
+  ]
+}

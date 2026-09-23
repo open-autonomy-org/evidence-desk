@@ -29,3 +29,11 @@ export const policyTemplates: PolicyTemplate[] = readdirSync(join(dir, 'policies
 // The scope answer that brings each optional category into scope; Security (CC) is always in scope.
 export const categoryAnswer: Record<string, string> = { A: 'availability', C: 'confidentiality', PI: 'processing_integrity', P: 'privacy' };
 export const criterionCategory = new Map(criteria.map((c) => [c.id, c.category]));
+
+export type FormQuestion = { id: string; prompt: string; type: 'choice' | 'yes-no' | 'text' | 'attest'; options?: string[]; correct?: string; required_answer?: string };
+export type FormTemplate = {
+  schema: string; id: string; title: string; kind: 'quiz' | 'survey' | 'acknowledgment'; intro?: string; controls: string[];
+  recurrence: 'onboarding' | 'annual' | 'onboarding-and-annual'; due_within_days: number; pass_score?: number; acknowledges_policies?: boolean; questions: FormQuestion[];
+};
+export const formTemplates: FormTemplate[] = readdirSync(join(dir, 'forms')).filter((f) => f.endsWith('.json')).sort()
+  .map((f) => JSON.parse(readFileSync(join(dir, 'forms', f), 'utf8')) as FormTemplate);

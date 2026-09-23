@@ -3,6 +3,7 @@
 import { categories, categoryAnswer, criteria, questions } from './catalog.ts';
 import { placeholders, unanswered } from './actions.ts';
 import type { Workspace } from './workspace.ts';
+import { computeObligations, type Obligation } from './obligations.ts';
 
 const INTERVAL_DAYS: Record<string, number> = { daily: 1, weekly: 7, monthly: 31, quarterly: 92, annual: 366 };
 
@@ -10,6 +11,7 @@ export type ControlGaps = { id: string; title: string; owner: string; status: st
 export type CriterionGaps = { id: string; title: string; category: string; controls: string[]; excluded: { id: string; reason: string }[]; ready: boolean; gaps: string[] };
 export type Gaps = {
   as_of: string;
+  obligations: Obligation[];
   summary: { controls_applicable: number; controls_ready: number; controls_excluded: number; criteria_in_scope: number; criteria_ready: number; program_gaps: number; problems: number };
   program: string[];
   controls: ControlGaps[];
@@ -44,6 +46,11 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
     policyGaps.set(id, g);
   }
 
+  const obligations = computeObligations(ws, asOf);
+  const owed = new Map<string, string[]>();
+  for (const o of obligations) if (o.state === 'overdue' && o.kind !== 'control') for (const c of o.controls) {
+    (owed.get(c) ?? owed.set(c, []).get(c)!).push(`overdue since ${o.due}: ${o.what}${o.who ? ` (${o.who})` : ''}`);
+  }
   const changedFiles = new Set(ws.problems.filter((p) => p.severity === 'warning' && p.file.startsWith('evidence/records/')).map((p) => p.file));
   const controls: ControlGaps[] = ws.controls.filter((c) => c.data.applicable).map((c) => {
     const d = c.data;
@@ -58,6 +65,7 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
       g.push(`evidence is stale: last recorded ${last.slice(0, 10)}, expected ${d.frequency}`);
     }
     for (const e of ev) if (changedFiles.has(e.path)) g.push(`evidence ${e.data.id} has a file that changed since it was recorded`);
+    g.push(...(owed.get(d.id) ?? []));
     return { id: d.id, title: d.title, owner: d.owner, status: d.status, gaps: g, evidence: ev.length, last_evidence: last };
   });
   const byId = new Map(controls.map((c) => [c.id, c]));
@@ -80,6 +88,6 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
       controls_excluded: ws.controls.filter((c) => !c.data.applicable).length,
       criteria_in_scope: crit.length, criteria_ready: crit.filter((c) => c.ready).length, program_gaps: program.length, problems: errors.length,
     },
-    program, controls, criteria: crit,
+    program, obligations, controls, criteria: crit,
   };
 }

@@ -1,0 +1,19 @@
+{
+  "schema": "evidence-desk.form/1",
+  "id": "code-of-conduct",
+  "title": "Code of conduct acknowledgment",
+  "kind": "acknowledgment",
+  "controls": [
+    "GOV-02"
+  ],
+  "recurrence": "onboarding-and-annual",
+  "due_within_days": 30,
+  "questions": [
+    {
+      "id": "read",
+      "prompt": "I have read the code of conduct and will follow it.",
+      "type": "attest",
+      "required_answer": "yes"
+    }
+  ]
+}

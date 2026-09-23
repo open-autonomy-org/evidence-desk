@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/incident.schema.json",
+  "title": "Incident (incidents/<id>.json)",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "title",
+    "severity",
+    "detected_at",
+    "status",
+    "timeline"
+  ],
+  "properties": {
+    "schema": {
+      "const": "evidence-desk.incident/1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "severity": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "detected_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "open",
+        "contained",
+        "resolved",
+        "closed"
+      ]
+    },
+    "owner": {
+      "type": "string"
+    },
+    "timeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "at",
+          "by",
+          "note"
+        ],
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "by": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "customer_impact": {
+      "type": "string"
+    },
+    "notification": {
+      "type": "string",
+      "description": "Who was notified and when, or why no notification was required."
+    },
+    "review": {
+      "type": "string",
+      "description": "The post-incident review: cause, what worked, follow-ups."
+    },
+    "closed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

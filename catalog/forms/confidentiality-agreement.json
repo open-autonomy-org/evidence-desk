@@ -1,0 +1,20 @@
+{
+  "schema": "evidence-desk.form/1",
+  "id": "confidentiality-agreement",
+  "title": "Confidentiality agreement",
+  "kind": "acknowledgment",
+  "controls": [
+    "HR-05"
+  ],
+  "recurrence": "onboarding",
+  "due_within_days": 0,
+  "intro": "Confirm before you receive access to confidential information. A separately signed agreement can be recorded as evidence instead.",
+  "questions": [
+    {
+      "id": "agree",
+      "prompt": "I agree to keep the organization's and its customers' confidential information confidential, during and after my work here.",
+      "type": "attest",
+      "required_answer": "yes"
+    }
+  ]
+}

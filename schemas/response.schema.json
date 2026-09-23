@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/response.schema.json",
+  "title": "Form response (forms/responses/<id>.json)",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "form",
+    "form_sha256",
+    "person",
+    "submitted_at",
+    "answers",
+    "passed",
+    "identity"
+  ],
+  "properties": {
+    "schema": {
+      "const": "evidence-desk.response/1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "form": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "form_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "person": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "submitted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "answers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "score": {
+      "type": "integer"
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "policies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "sha256"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "identity": {
+      "type": "string",
+      "description": "How the person was identified, for example local-app-selection, cli or a verified account."
+    }
+  }
+}

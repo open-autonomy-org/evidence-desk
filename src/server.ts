@@ -5,8 +5,9 @@ import { readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { addEvidenceUpload, adopt, approvePolicy, savePolicyText, saveRegisterRow, setPolicyOwner, setScope, updateControl } from './actions.ts';
 import { categories, criteria, questions } from './catalog.ts';
-import { ConflictError, inside } from './files.ts';
+import { ConflictError, inside, writeVersioned } from './files.ts';
 import { computeGaps } from './gaps.ts';
+import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { schema } from './schema.ts';
 import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
 
@@ -27,6 +28,10 @@ function state(root: string) {
       required: schema(`register-${n}`).required ?? [], enums: Object.fromEntries(Object.entries(schema(`register-${n}`).properties ?? {}).filter(([, s]) => s.enum).map(([k, s]) => [k, s.enum])),
     } : null])),
     evidence: ws.evidence.map((e) => e.data),
+    forms: ws.forms.map((f) => ({ ...f.data, version: f.version })),
+    responses: ws.responses.map((r) => r.data),
+    accessReviews: ws.accessReviews.map((r) => ({ ...r.data, version: r.version })),
+    incidents: ws.incidents.map((r) => ({ ...r.data, version: r.version })),
     problems: ws.problems,
     gaps: computeGaps(ws),
   };
@@ -83,6 +88,19 @@ export function serve(root: string, port: number): void {
           title: s('title'), controls: (b.controls as string[]) ?? [], recorded_by: s('by'), filename: s('filename'),
           bytes: Buffer.from(s('data'), 'base64'), period: b.period as { start: string; end: string } | undefined, notes: s('notes') || undefined,
         }); break;
+        case '/api/respond': submitResponse(root, { form: s('form'), person: s('person'), answers: b.answers as Record<string, string>, formVersion: s('version'), identity: 'local-app-selection' }); break;
+        case '/api/access-review/start': {
+          const listing = `evidence/files/listings/${Date.now()}-${s('filename').replace(/[^A-Za-z0-9._-]/g, '_') || 'listing.csv'}`;
+          if (!s('generated_by').trim()) throw new Error('say how the user listing was produced, so its completeness can be checked');
+          writeVersioned(root, listing, Buffer.from(s('data'), 'base64'), null);
+          const id = startAccessReview(root, { system: s('system'), reviewer: s('reviewer'), start: s('start'), end: s('end'), listing, generated_by: s('generated_by') });
+          return send(res, 200, { id, state: state(root) });
+        }
+        case '/api/access-review/decide': decideAccount(root, s('id'), s('version'), s('account'), b.patch as { decision: string }); break;
+        case '/api/access-review/sign-off': signOffAccessReview(root, s('id'), s('version'), s('by')); break;
+        case '/api/incident/open': return send(res, 200, { id: openIncident(root, { title: s('title'), severity: s('severity'), by: s('by'), note: s('note'), owner: s('owner') || undefined }), state: state(root) });
+        case '/api/incident/update': updateIncident(root, s('id'), s('version'), { by: s('by'), note: s('note'), status: (s('status') || undefined) as never,
+          customer_impact: s('customer_impact') || undefined, notification: s('notification') || undefined, review: s('review') || undefined }); break;
         default: return send(res, 404, { error: 'not found' });
       }
       return send(res, 200, { state: state(root) });
