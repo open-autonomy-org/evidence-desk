@@ -29,6 +29,9 @@ allowed everywhere and kept when Evidence Desk writes a file, so other tools can
 | `collectors.json` | which collectors are enabled and their parameters (never credentials) | `collectors` |
 | `checks/runs/<id>.json` | one run of the enabled collectors and every check result | `check-run` |
 | `evidence/files/collected/<collector>/<run>.json` | what a collector read in a run, with the requests it made | JSON |
+| `audits/<id>/engagement.json` | one audit engagement: Type 1 as of a date or Type 2 over a period | `engagement` |
+| `audits/<id>/requests/<request>.json` | one of the firm's requests, its answers, samples and conversation | `audit-request` |
+| `audits/<id>/drafts/*.md` | the system description, management assertion and bridge letter drafts | Markdown |
 | `evidence/records/<id>.json` | one evidence record | `evidence` |
 | `evidence/files/` | evidence files | any |
 | `AGENTS.md`, `CLAUDE.md` | instructions for a coding agent working in the folder | Markdown |
@@ -125,6 +128,28 @@ gates nothing.
 The GitHub collector covers two-factor enforcement for the organization, a required approving review and protected
 history on each checked repository's default branch, overdue critical and high Dependabot alerts, and open
 secret-scanning alerts.
+
+## Audits
+
+An engagement's requests come from the firm's request list (CSV: `id`, `title`, `kind` of `document`, `population` or
+`sample`, and `controls` separated by semicolons). Each act on a request is recorded in its thread with who acted and on
+which side. The client attaches evidence, attaches the population a sample is drawn from, answers each sample and
+submits; the firm selects samples from the attached population, marks a sample an exception, and accepts or returns the
+request. A request cannot be submitted without evidence or with a sample unanswered.
+
+Drafts are generated once from the workspace (scope, registers, policies, controls, exclusions, incidents and approvals
+in the period), name their sources, and mark with brackets what only management can write. They are never
+regenerated over an existing file.
+
+`audit export` writes a package: `manifest.json` (schema `audit-package`) lists every file under `workspace/` with its
+SHA-256, and holds exactly what the engagement's requests point at, with the engagement, drafts, named controls and the
+approved text of their policies. It refuses when a referenced record or file is missing or changed. `audit verify`
+checks a package offline. The firm answers in the package's request files (by hand or with `audit package-serve`), and
+`audit import-return` brings its messages, samples, exceptions and statuses back; a request the client changed since the
+export keeps the client's status and the difference is reported. A hash shows that a file is unchanged, not who made it.
+
+A firm keeps `firm.json` (schema `firm`) listing its clients' workspace folders. `evidence-desk firm` reports each
+client's engagements, request counts, exceptions and readiness separately.
 
 ## Readiness
 

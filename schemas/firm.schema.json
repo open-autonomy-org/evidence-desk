@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/firm.schema.json",
+  "title": "A firm's list of client workspaces (firm.json, kept by the firm)",
+  "type": "object",
+  "required": [
+    "schema",
+    "firm",
+    "clients"
+  ],
+  "properties": {
+    "schema": {
+      "const": "evidence-desk.firm/1"
+    },
+    "firm": {
+      "type": "string",
+      "minLength": 1
+    },
+    "clients": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "path"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

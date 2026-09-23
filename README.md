@@ -60,6 +60,18 @@ GITHUB_TOKEN=... bun src/cli.ts run ~/acme-soc2 --by ana
 bun src/cli.ts ci-template ~/acme-soc2
 ```
 
+An audit runs between the workspace and the CPA firm without either side hosting anything:
+
+```bash
+bun src/cli.ts audit ~/acme-soc2 new q3 --type type2 --firm "Example & Co" --period 2026-07-01..2026-09-30
+bun src/cli.ts audit ~/acme-soc2 q3 requests --import requests.csv
+bun src/cli.ts audit ~/acme-soc2 q3 draft description
+bun src/cli.ts audit ~/acme-soc2 q3 export --out ~/q3-package          # send the folder to the firm
+bun src/cli.ts audit package-serve ~/q3-package                         # the firm answers in its browser
+bun src/cli.ts audit ~/acme-soc2 q3 import-return ~/q3-package         # bring the answers back
+bun src/cli.ts firm ~/firm/firm.json --serve                            # the firm's view across its clients
+```
+
 Add `--json` to any command for machine-readable output. `bun src/cli.ts --help` lists every command.
 
 The folder's structure is documented in [docs/workspace-format.md](docs/workspace-format.md) with JSON Schemas in

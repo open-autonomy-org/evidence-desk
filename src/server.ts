@@ -10,6 +10,7 @@ import { computeGaps } from './gaps.ts';
 import { importOpenAutonomy, seamFindings, type Snapshot } from './open-autonomy.ts';
 import { existsSync, readdirSync } from 'node:fs';
 import { COLLECTORS, checkTitle, configureCollector, readSettings, runChecks } from './automation.ts';
+import { actOnRequest, draft, exportPackage, importReturn, listRequests, readEngagement } from './audit.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { schema } from './schema.ts';
 import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
@@ -37,6 +38,12 @@ function state(root: string) {
     incidents: ws.incidents.map((r) => ({ ...r.data, version: r.version })),
     problems: ws.problems,
     gaps: computeGaps(ws),
+    audits: (() => {
+      const dir = join(root, 'audits');
+      return (existsSync(dir) ? readdirSync(dir) : []).filter((d) => existsSync(join(dir, d, 'engagement.json'))).map((d) => ({
+        engagement: readEngagement(root, d).data, requests: listRequests(root, d).map((r) => ({ ...r.data, version: r.version })),
+        drafts: existsSync(join(dir, d, 'drafts')) ? readdirSync(join(dir, d, 'drafts')).map((f) => `audits/${d}/drafts/${f}`) : [] }));
+    })(),
     automation: (() => {
       let settings: ReturnType<typeof readSettings>['settings'] = [];
       try { settings = readSettings(root).settings; } catch { settings = []; }
@@ -119,6 +126,11 @@ export function serve(root: string, port: number): void {
         case '/api/incident/open': return send(res, 200, { id: openIncident(root, { title: s('title'), severity: s('severity'), by: s('by'), note: s('note'), owner: s('owner') || undefined }), state: state(root) });
         case '/api/incident/update': updateIncident(root, s('id'), s('version'), { by: s('by'), note: s('note'), status: (s('status') || undefined) as never,
           customer_impact: s('customer_impact') || undefined, notification: s('notification') || undefined, review: s('review') || undefined }); break;
+        case '/api/audit/request': actOnRequest(root, s('engagement'), s('id'), s('version'), { by: s('by'), side: 'client', text: s('text') || undefined, status: (s('status') || undefined) as never,
+          evidence: (b.evidence as string[] | undefined)?.length ? b.evidence as string[] : undefined, population: s('population') || undefined, sample: b.sample as never }); break;
+        case '/api/audit/draft': draft(root, s('engagement'), s('kind') as 'description', s('to') || undefined); break;
+        case '/api/audit/export': return send(res, 200, { result: exportPackage(root, s('engagement'), s('out')), state: state(root) });
+        case '/api/audit/import-return': return send(res, 200, { result: importReturn(root, s('engagement'), s('dir')), state: state(root) });
         case '/api/collectors': configureCollector(root, s('id'), { enabled: b.enabled as boolean, params: b.params as Record<string, string> }); break;
         case '/api/run': { const run = await runChecks(root, s('by')); return send(res, 200, { run, state: state(root) }); }
         case '/api/open-autonomy/import': return send(res, 200, { report: importOpenAutonomy(root, s('repo'), s('commit') || 'HEAD', s('by')), state: state(root) });

@@ -12,7 +12,7 @@ compliance SaaS, and the roadmap was rebuilt from scratch to reach parity with t
 
 Parity is measured against the whole buyer journey, from "we need SOC2" through a passed Type II audit and
 the security reviews that follow, for both the company and the CPA firm. It is not measured by integration
-count. The table below is the denominator. **Headline: 8 of 16 parity capabilities demonstrated** (rows 1–4, 6 and 7–9).
+count. The table below is the denominator. **Headline: 12 of 16 parity capabilities demonstrated** (rows 1–4 and 6–13).
 A row counts only when its owning outcome demonstrates it in the running local product on synthetic data.
 
 | # | Capability (table stakes unless marked) | Owning outcome |
@@ -26,10 +26,10 @@ A row counts only when its owning outcome demonstrates it in the running local p
 | 7 | Onboarding/offboarding, policy acknowledgment, training, background checks | demonstrated |
 | 8 | Periodic access reviews with reviewer sign-off (near table stakes) | demonstrated |
 | 9 | Vendor reviews, risk assessment, incidents, vulnerability SLAs | demonstrated |
-| 10 | Audit engagement: Type I date / Type II period, auditor request lists | `audit-cycle` |
-| 11 | Populations with their generating query, sample evidence, exceptions | `audit-cycle` |
-| 12 | DC 200 system description, management assertion, bridge letter | `audit-cycle` |
-| 13 | CPA firm operating many client engagements | `audit-cycle` |
+| 10 | Audit engagement: Type I date / Type II period, auditor request lists | demonstrated |
+| 11 | Populations with their generating query, sample evidence, exceptions | demonstrated |
+| 12 | DC 200 system description, management assertion, bridge letter | demonstrated |
+| 13 | CPA firm operating many client engagements | demonstrated |
 | 14 | Trust center | `trust-and-questionnaires` |
 | 15 | Security questionnaire answering from sourced facts | `trust-and-questionnaires` |
 | 16 | Second framework (ISO 27001) reusing controls and evidence | `multi-framework` |
@@ -86,9 +86,11 @@ Build mode (owner, 2026-09-23): the owner's coding session builds the outcomes h
 the plan is done; the fleet resumes once the product works. Outcomes below are `Dispatch: hold` so a fleet start
 does not duplicate that work.
 
-Sequence: `open-autonomy-soc2-ready` (the aim; Open Autonomy's `soc2` template is outstanding), then `evidence-automation`, `audit-cycle`, `trust-and-questionnaires` and
-`multi-framework`. The workspace format, control library, policy templates, CLI and local app, and the operation of
-the program (forms, access reviews, incidents, vulnerabilities, obligations) have landed; see [CHANGELOG.md](CHANGELOG.md) and [docs/workspace-format.md](docs/workspace-format.md).
+Sequence: `open-autonomy-soc2-ready` (the aim; Open Autonomy's `soc2` template is outstanding), then
+`evidence-automation` (further collectors wait on twins), `trust-and-questionnaires` and `multi-framework`. The workspace
+format, control library, policy templates, CLI and local app, the operation of the program, reading Open Autonomy
+projects, collectors and checks, and the audit cycle have landed; see [CHANGELOG.md](CHANGELOG.md) and
+[docs/workspace-format.md](docs/workspace-format.md).
 
 ## open-autonomy-soc2-ready: A project on Open Autonomy's soc2 template is SOC2 ready out of the box
 
@@ -136,7 +138,7 @@ Completion:
 - A seam inventory: every place a human acts, who may act there, and where the act is recorded. Seams whose acts are not durably recorded are gaps, not evidence.
 - A completeness reconciliation: the roster compared with the people who actually hold admin or deploy rights in the declared vendor accounts; anyone with rights outside the roster is a finding.
 - Onboarding for each roster member: acknowledgments, quiz results and attestations recorded with the person's verified account as author; a member who has not completed it is a visible gap. Recurring human reviews are scheduled and their verdicts recorded the same way.
-- Period populations only from durable records (merged changes with reviews, production deployments with approvals, roster history), each with its generating query and completeness basis, ready for `audit-cycle` sampling.
+- Period populations only from durable records (merged changes with reviews, production deployments with approvals, roster history), each with its generating query and completeness basis, ready for audit sampling.
 - Demonstrated in the World on a synthetic project created from the `soc2` template (or, until it exists, the current kit with ADR 0008's seams declared) against its twins: two synthetic roster members onboard, one out-of-roster admin is found, synthetic history spans a period, and the gap view ends with only items automation and onboarding cannot establish. No real project is read.
 
 ## evidence-automation: Evidence collects itself, and controls are checked continuously
@@ -168,34 +170,12 @@ Completion:
 - A scheduled-run template for the workspace repository's CI and a local on-demand run; failures, stale evidence and collector errors are visible per control.
 - Demonstrated end to end in the World against the twins, including a failing check, its remediation and the recorded history.
 
-## audit-cycle: Take the program through a Type I and Type II audit
-
-Status: planned
-Dispatch: hold
-
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 10–13. Waits on `open-autonomy-soc2-ready`, `evidence-automation`.
-
-A company and its CPA firm run an engagement: Type I as of a date or Type II over a period, the firm's request
-list, populations with the query or parameters that generated them, samples the auditor selects, evidence per
-sample, exceptions and responses. The company drafts its DC 200 system description, management assertion
-and later bridge letter from workspace facts. Exchange is a deliberate, point-in-time package the firm can
-verify offline and return, not shared access to the whole folder. A firm manages many client engagements.
-Evidence Desk never issues opinions or performs audit testing conclusions.
-
-Completion:
-- Engagement records for Type I and Type II with period boundaries; evidence outside the period is flagged, not silently used.
-- Population export per control with generating query and timestamp; auditor sample selection recorded; sample evidence and exceptions tracked to closure.
-- Generated DC 200 description covering DC1–DC9, management assertion and bridge letter drafts, each traceable to the facts they cite.
-- An exported package whose contents, hashes and omissions a recipient verifies offline; a returned package reconciles without discarding intervening edits.
-- A firm view across at least two isolated synthetic client engagements with no cross-client disclosure.
-- Demonstrated with a synthetic company and synthetic firm through a Type II request, sample, exception and closure cycle.
-
 ## trust-and-questionnaires: Answer customers' security reviews from sourced facts
 
 Status: planned
 Dispatch: hold
 
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 14–15. Waits on `audit-cycle`.
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 14–15. 
 
 The company publishes a trust center generated from the workspace as a static site it hosts where it likes,
 and answers incoming security questionnaires (spreadsheet in, spreadsheet out) with answers drafted from

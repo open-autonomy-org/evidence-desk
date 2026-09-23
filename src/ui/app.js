@@ -55,7 +55,7 @@ function render() {
   document.getElementById('org').textContent = S.organization;
   for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('active', b.dataset.tab === tab);
   const view = document.getElementById('view');
-  view.replaceChildren(({ overview, scope, controls, policies, registers, evidence, people: peopleView, obligations, access, incidents, oa: openAutonomy, checks: checksView })[tab]?.() ?? overview());
+  view.replaceChildren(({ overview, scope, controls, policies, registers, evidence, people: peopleView, obligations, access, incidents, oa: openAutonomy, checks: checksView, audit: auditView })[tab]?.() ?? overview());
 }
 
 function statusPill(c) {
@@ -553,6 +553,66 @@ function checksView() {
     A.runs.length ? h('table', {}, h('tr', {}, h('th', {}, 'Run'), h('th', {}, 'By'), h('th', {}, 'Passed'), h('th', {}, 'Failed'), h('th', {}, 'Could not decide')),
       A.runs.map((r) => h('tr', {}, h('td', {}, r.started_at.slice(0, 16).replace('T', ' ')), h('td', {}, personName(r.by)),
         ...['pass', 'fail', 'error'].map((st) => h('td', {}, String(r.results.filter((x) => x.status === st).length)))))) : h('p', { class: 'muted' }, 'No runs yet.'));
+}
+
+function auditView() {
+  const [eid, rid] = (detail || '').split(':');
+  const A = S.audits.find((x) => x.engagement.id === eid) ?? (S.audits.length === 1 ? S.audits[0] : null);
+  if (!A) return h('div', {}, h('h1', {}, 'Audit'), S.audits.length ? h('table', {}, h('tr', {}, h('th', {}, 'Engagement'), h('th', {}, 'Firm'), h('th', {}, 'Status')),
+    S.audits.map((a) => h('tr', { class: 'clickable', onclick: () => go('audit', a.engagement.id) }, h('td', {}, a.engagement.id), h('td', {}, a.engagement.firm), h('td', {}, a.engagement.status))))
+    : h('p', { class: 'muted' }, 'No engagement yet. Create one with evidence-desk audit <folder> new <id> --type type1|type2 --firm <name>.'));
+  const e = A.engagement;
+  const statusKind = { open: 'warn', submitted: '', accepted: 'ok', returned: 'bad' };
+  const req = rid ? A.requests.find((r) => r.id === rid) : null;
+  if (req) {
+    const evOptions = S.evidence.map((x) => h('option', { value: x.id }, `${x.id} ${x.title}`));
+    const form = h('form', { class: 'card', onsubmit: async (ev) => {
+      ev.preventDefault();
+      const payload = { engagement: e.id, id: req.id, version: req.version, by: form.by.value, text: form.text.value, status: ev.submitter?.value === 'submit' ? 'submitted' : '',
+        evidence: [...form.evidence.selectedOptions].map((o) => o.value), population: form.population?.value || '' };
+      await post('/api/audit/request', payload, ev.submitter?.value === 'submit' ? 'Submitted to the firm.' : 'Saved.');
+    } },
+      h('h2', { style: 'margin-top:0' }, 'Respond'),
+      h('div', { class: 'grid2' }, h('div', {}, h('label', {}, 'You are'), personSelect('by', '', 'Choose a person')),
+        req.kind !== 'document' ? h('div', {}, h('label', {}, 'Population', h('small', {}, 'The evidence record holding the full list')), h('select', { name: 'population' }, h('option', { value: '' }, req.population ? `keep ${req.population}` : 'none'), evOptions.map((o) => o.cloneNode(true)))) : h('div', {})),
+      h('label', {}, 'Attach evidence', h('small', {}, 'Hold Ctrl or ⌘ to choose several.')), h('select', { name: 'evidence', multiple: true, size: 5 }, evOptions),
+      h('label', {}, 'Message to the firm'), h('input', { type: 'text', name: 'text' }),
+      h('div', { class: 'row' }, h('button', { class: 'secondary', type: 'submit', value: 'save' }, 'Save'), h('button', { class: 'primary', type: 'submit', value: 'submit' }, 'Submit to the firm')));
+    return h('div', {},
+      h('a', { class: 'back', href: `#audit/${e.id}` }, `← ${e.id}`),
+      h('h1', {}, `${req.id}: ${req.title}`),
+      h('p', { class: 'lead' }, `${req.kind} · controls ${req.controls.join(', ') || 'none'} · `, pill(req.status, statusKind[req.status])),
+      req.evidence.length || req.population ? h('div', { class: 'card' }, h('b', {}, 'Attached: '), [...(req.population ? [`population ${req.population}`] : []), ...req.evidence].join(', ')) : null,
+      req.kind === 'sample' ? h('div', {}, h('h2', {}, 'Samples the firm selected'), (req.samples ?? []).length ? h('table', {}, h('tr', {}, h('th', {}, 'Item'), h('th', {}, 'Status'), h('th', {}, 'Evidence'), h('th', {}, '')),
+        req.samples.map((sm) => { const sel = h('select', {}, S.evidence.map((x) => h('option', { value: x.id }, `${x.id} ${x.title}`)));
+          return h('tr', {}, h('td', {}, sm.item), h('td', {}, pill(sm.status, sm.status === 'exception' ? 'bad' : sm.status === 'provided' ? 'ok' : 'warn'), sm.note ? h('div', { class: 'muted' }, sm.note) : null), h('td', {}, (sm.evidence ?? []).join(', ') || sel),
+            h('td', {}, sm.status === 'pending' ? h('button', { class: 'secondary', onclick: () => { const by = document.querySelector('select[name=by]')?.value; if (!by) return notice('Choose who you are above.', false);
+              post('/api/audit/request', { engagement: e.id, id: req.id, version: req.version, by, sample: { item: sm.item, status: 'provided', evidence: [sel.value] } }, `Sample ${sm.item} answered.`); } }, 'Provide') : '')); }))
+        : h('p', { class: 'muted' }, 'The firm has not selected samples yet.')) : null,
+      h('h2', {}, 'Conversation'),
+      req.thread.length ? h('table', {}, req.thread.map((m) => h('tr', {}, h('td', { style: 'white-space:nowrap' }, m.at.slice(0, 16).replace('T', ' ')), h('td', {}, pill(m.side, m.side === 'firm' ? 'warn' : '')), h('td', {}, m.side === 'client' ? personName(m.by) : m.by), h('td', {}, m.text))))
+        : h('p', { class: 'muted' }, 'Nothing yet.'),
+      form);
+  }
+  const outInput = h('input', { type: 'text', placeholder: 'Folder to write the package to (new or empty)' });
+  const retInput = h('input', { type: 'text', placeholder: 'Folder of the package the firm returned' });
+  return h('div', {},
+    h('h1', {}, `Audit ${e.id}`),
+    h('p', { class: 'lead' }, `${e.type === 'type1' ? `Type 1 as of ${e.as_of}` : `Type 2, ${e.period.start} to ${e.period.end}`} · ${e.firm} · ${e.status}. Evidence Desk records requests, answers and exceptions; the opinion is the firm's.`),
+    h('table', {}, h('tr', {}, h('th', {}, 'Request'), h('th', {}, 'Kind'), h('th', {}, 'Status'), h('th', {}, 'Samples')),
+      A.requests.map((r) => h('tr', { class: 'clickable', onclick: () => go('audit', `${e.id}:${r.id}`) }, h('td', {}, h('b', {}, r.id), ' ', r.title), h('td', {}, r.kind), h('td', {}, pill(r.status, statusKind[r.status])),
+        h('td', {}, (r.samples ?? []).map((sm) => pill(`${sm.item}: ${sm.status}`, sm.status === 'exception' ? 'bad' : sm.status === 'provided' ? 'ok' : 'warn')))))),
+    h('h2', {}, 'Drafts'),
+    h('div', { class: 'card' },
+      A.drafts.length ? h('ul', {}, A.drafts.map((d) => h('li', {}, h('a', { href: `/files/${encodeURIComponent(d)}`, target: '_blank' }, d)))) : h('p', { class: 'muted' }, 'None yet.'),
+      h('div', { class: 'row' }, ['description', 'assertion', 'bridge'].filter((k) => !A.drafts.some((d) => d.endsWith(`/${k}.md`))).map((k) =>
+        h('button', { class: 'secondary', onclick: () => post('/api/audit/draft', { engagement: e.id, kind: k }, `Drafted the ${k}. Open it, fill every [bracketed] item and remove the drafting comment.`) }, `Draft the ${k === 'description' ? 'system description' : k === 'assertion' ? 'management assertion' : 'bridge letter'}`)))),
+    h('h2', {}, 'Exchange with the firm'),
+    h('div', { class: 'card' },
+      h('label', { style: 'margin-top:0' }, 'Export a package', h('small', {}, 'Exactly what the requests point at, with a SHA-256 for every file. Nothing else leaves the workspace.')),
+      h('div', { class: 'row', style: 'margin-top:0' }, h('div', { style: 'flex:1' }, outInput), h('button', { class: 'primary', onclick: async () => { const r = await post('/api/audit/export', { engagement: e.id, out: outInput.value }, null); if (r) notice(`Exported ${r.result.files} files.`, true); } }, 'Export')),
+      h('label', {}, 'Bring in the firm\'s responses', h('small', {}, 'Messages, samples and statuses are merged; anything that changed here since the export is reported, not overwritten.')),
+      h('div', { class: 'row', style: 'margin-top:0' }, h('div', { style: 'flex:1' }, retInput), h('button', { class: 'primary', onclick: async () => { const r = await post('/api/audit/import-return', { engagement: e.id, dir: retInput.value }, null); if (r) notice(`Updated ${r.result.updated.length}, added ${r.result.added.length}.${r.result.conflicts.length ? ` Kept for review: ${r.result.conflicts.join(' ')}` : ''}`, !r.result.conflicts.length); } }, 'Import'))));
 }
 
 load();

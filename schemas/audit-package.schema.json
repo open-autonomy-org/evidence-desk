@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/audit-package.schema.json",
+  "title": "Audit package manifest (manifest.json at the package root)",
+  "type": "object",
+  "required": [
+    "schema",
+    "engagement",
+    "organization",
+    "created_at",
+    "files",
+    "omitted"
+  ],
+  "properties": {
+    "schema": {
+      "const": "evidence-desk.audit-package/1"
+    },
+    "engagement": {
+      "type": "string"
+    },
+    "organization": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "bytes": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "omitted": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Records referenced by the selection but deliberately left out, with the reason."
+    },
+    "request_versions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "The version of each request file when it was exported, for reconciling a returned package."
+    }
+  }
+}
