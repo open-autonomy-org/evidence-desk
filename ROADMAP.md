@@ -104,7 +104,7 @@ Completion:
 Status: planned
 Dispatch: hold
 
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); [ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md); differentiator D1. Waits on `soc2-program`.
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); [ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md); differentiator D1. Waits on `soc2-program`, and on Open Autonomy specifying its human seams ([proposed ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/adr/0008-human-seams/docs/decisions/0008-human-seams.md)): the seam inventory reads that declaration once it exists.
 
 The target is a small project that runs on Open Autonomy: agents do the work, and people plug in at a few
 controlled seams (direction, release review, the production deploy approval and tag, credential custody,
