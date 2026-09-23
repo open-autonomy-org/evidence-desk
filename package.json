@@ -1,11 +1,12 @@
 {
   "name": "evidence-desk",
-  "version": "0.1.0-alpha.1",
   "private": true,
   "type": "module",
   "packageManager": "bun@1.3.10",
+  "bin": { "evidence-desk": "src/cli.ts" },
   "scripts": {
-    "check": "bunx tsc --noEmit"
+    "check": "bunx tsc --noEmit",
+    "evidence-desk": "bun src/cli.ts"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

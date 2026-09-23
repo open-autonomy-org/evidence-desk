@@ -7,22 +7,18 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
-- Added the complete local graphical scope/control/item/evidence-reference workbench and matching
-  explicitly selected readiness CLI. A user-selected, versioned sidecar records engagement, authored
-  mappings and due dates without claiming unknown format-1 fields; ordinary CLI behavior stays separate.
-  The UI shows owner/state/due follow-up, gaps, justified exclusions and shared recorded evidence paths.
-  Dual-source stale checks, cooperating locks and one-file actions protect edits; the loopback UI renders
-  hostile authored text inertly and refuses unexpected Host/Origin and unauthorized mutation requests.
-  README documents the actual launcher and current-host World setup. ADR0002 received explicit
-  independent constitutional acceptance with the implementation, not acceptance of PR88's runtime ADR.
-  Native review inspected the full developer UI/CLI/conflict/collision/relocation/preservation evidence,
-  independently sampled actual UI/CLI and refusal behavior, and passed the unchanged World typecheck.
-  Verification is synthetic macOS arm64/Bun 1.3.10, not adoption, parity or cross-platform assurance;
-  locks are not arbitrary-writer CAS and loopback is not multi-user RBAC. No tests or new dependencies.
-  This work is absent from the unchanged fixed alpha.1 candidate and has not been released.
-  ([PR #105](https://github.com/open-autonomy-org/evidence-desk/pull/105),
-  `ee67878dc953590b26a02b40a02068a0ae2767d5`, [native acceptance, run 13](hermes:task/t_8c1c52e4),
-  [exact-head review](https://github.com/open-autonomy-org/evidence-desk/pull/105#pullrequestreview-5192776521))
+- Added the SOC 2 program as a folder the organization owns.
+  A scoping interview decides the categories in scope and adopts 58 controls written in this
+  project's own words and mapped to Trust Services Criteria identifiers (no AICPA text), with justified exclusions, and
+  18 policy templates adapted from CC0 sources or written here. Controls, policies with versioned approvals frozen under
+  `policies/archive/`, CSV registers for people, systems, vendors and risks, and hash-bound evidence records are validated
+  against published JSON Schemas. The gap view derives readiness per control and criterion from ownership, status,
+  approved policy text, placeholders and evidence freshness. A CLI with JSON output and a loopback local app share one
+  set of actions; every write names the version it read and refuses a file changed on disk. The workspace ships its own
+  agent instructions. Verified by hand in the World on a synthetic company: CLI refusals, external edits (evidence file,
+  policy text, invalid and extended control records, tampered archive), staleness, re-scoping that keeps owners and
+  edits, and the app's own controls in Chrome, including a refused stale save. No coding-agent run yet; macOS arm64 and
+  Bun 1.3.10 only.
 
 - Adopted the shared host fleet entrypoint, separated SDK readiness from historical transcript replay,
   and excluded rehearsal cache links from dirty-checkout detection. Subscription forwarding now obtains
@@ -35,28 +31,6 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
   [PR #78](https://github.com/open-autonomy-org/evidence-desk/pull/78),
   [PR #79](https://github.com/open-autonomy-org/evidence-desk/pull/79),
   `3676a69b5d5079fe94c2cc16c8102f3fd9cd033c`)
-
-- Added ordered manual interrupted-write recovery guidance and a runnable synthetic demonstration:
-  account for writers, preserve an independent quiescent copy, inspect current data, validate/reopen,
-  and remove only confirmed-abandoned protocol paths before choosing a new edit. Independent native
-  review repeated the documented sequence in a fresh World folder, verifying live-writer refusal,
-  owned-child interruption, exact lock cleanup, unknown/external-value and evidence preservation,
-  backup independence and a deliberate successful edit. The unchanged check passed in 4.397 seconds.
-  This is documentation acceptance on Linux aarch64/local ext4 with Bun 1.3.10, not power-loss durability,
-  automatic repair, customer adoption or publication; the fixed preview assets are unchanged.
-  ([PR #74](https://github.com/open-autonomy-org/evidence-desk/pull/74),
-  `2f9a6f2cf95fc277fd40909557244f9bf9fa3fdc`, [native acceptance, run 30](hermes:task/t_366259d0),
-  [independent execution](hermes:session/20260910_121629_940590))
-
-- Consolidated README into an ordered fresh-source synthetic walkthrough: setup precedes summaries,
-  ordinary-user commands are separate from fleet prerequisites, and external editing, invalid-reference
-  correction and safe Markdown sharing form one runnable handoff. The fixed unpublished preview remains
-  explicitly distinct. Independent native review operated two fresh-clone World rehearsals, reconciled
-  report facts and full read/refusal preservation, and passed the unchanged check in 2.085 seconds.
-  This is documentation acceptance, not customer adoption or publication.
-  ([PR #71](https://github.com/open-autonomy-org/evidence-desk/pull/71),
-  `2a5dcc8caf2dedbd987e229aa699a5d80a29a815`, [native acceptance, run 26](hermes:task/t_f78cbdd0))
-
 - Corrected community source reads to pin current main and read committed documents without changing
   a preserved worker checkout. Active and committed community skills match at 2.3.1; independent native
   review verified full synthetic workspace preservation and an honest failed-fetch freshness gap.
@@ -66,54 +40,9 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
   `5e856eba9a6ce106bea340a4de351e3cc2d25958`, [native acceptance, run 22](hermes:task/t_2615f453),
   [observed run](hermes:session/cron_0538d914b691_20260910_075056),
   [delivery](https://discord.com/channels/1544906154868744202/1546981849979682916/1547514909796073512))
-
-- Added read-only `workspace summary` in human and deterministic JSON views: all status counts,
-  overlapping follow-up counts, item paths and warnings without context/evidence bodies or audit claims.
-  Invalid workspaces fail without partial totals; external edits are reread and workspace bytes preserved.
-  The report schema is independent of workspace format 1, and the source allowlist includes the new module.
-  Owner/status/follow-up selectors now intersect without hiding invalid excluded records. Unfiltered
-  schema 1 remains unchanged; filtered schema 2 labels whole-workspace and selected counts, including
-  empty/no-match results and safely quoted user strings. Native review accepted selection after its
-  independent 166-command rehearsal and separate 38-command probe; unchanged check passed in 1.667s.
-  Standalone `--markdown` now presents the same facts and selectors with inert, reversible authored
-  strings, explicit derived-report limitations and no partial document on workspace-validation failure.
-  Independent native review exercised 245 World invocations, 14 Markdown/JSON reconciliations and
-  12 refusal scenarios with source preservation; unchanged check passed in 1.649s.
-  These summary features are after, and absent from, the fixed `0.1.0-alpha.1` candidate and review assets.
-  ([PR #63](https://github.com/open-autonomy-org/evidence-desk/pull/63),
-  `89637675fa407946d32ac13ad66be3b76005c8be`, [native acceptance, run 18](hermes:task/t_1f2de365);
-  [PR #65](https://github.com/open-autonomy-org/evidence-desk/pull/65),
-  `e3745b560152c080e09a9515ef30715b8d16d686`, [native acceptance, run 20](hermes:task/t_5362d9cb);
-  [PR #69](https://github.com/open-autonomy-org/evidence-desk/pull/69),
-  `3c3d9ce1607dfdd9f55e7a1e01c48912db60f4ef`, [native acceptance, run 24](hermes:task/t_0f8efb43))
-
-- Added reproducible, allowlisted source-archive preparation from a full committed SHA, with checksum,
-  provenance and pinned toolchain metadata; documented extracted installation, experimental SemVer
-  compatibility and human-only publication. The private product version is proposed as `0.1.0-alpha.1`,
-  separate from workspace format 1. Native review reproduced the archive and extracted CLI/preservation
-  workflow. The extracted development-check discrepancy was subsequently resolved as a `noexec`
-  filesystem prerequisite, without product/check changes; candidate-specific executable-directory
-  verification passed in [native review run 15](hermes:task/t_a488f630). Historical failures remain failed;
-  human review/publication are still pending.
-  ([PR #59](https://github.com/open-autonomy-org/evidence-desk/pull/59),
-  `cbef9a2137908df60f298443cb4cebc340f5c3a1`, [native acceptance, run 12](hermes:task/t_4116639b))
-
-- Added local readiness-item creation/update with ID renaming and existing Markdown/evidence associations,
-  preserving unknown values and untouched files. A cooperating-writer lock and stale-manifest check
-  refuse detected external conflicts; this is not atomic compare-and-swap against arbitrary writers.
-  Writes also refuse manifest-alias references and lossy numeric reserialization without narrowing
-  read-only format version 1. Native review accepted the rework at
-  `af24783ee915d4371fe4432d206bb9b89610c1f0`, independently exercising workflow, conflict/failure recovery
-  and 60 byte-preserving refusals; its unchanged check passed in 1.641s. Crash leftovers require inspected
-  manual recovery. Source preparation subsequently landed as described above; human release review
-  and publication remain outstanding.
-  ([PR #56](https://github.com/open-autonomy-org/evidence-desk/pull/56),
-  [PR #57](https://github.com/open-autonomy-org/evidence-desk/pull/57),
-  [native acceptance, run 10](hermes:task/t_23847d50))
 - Enabled native file tools within the product checkout while retaining unrelated-path and credential
   restrictions. This setup/operator contribution unblocked the existing task; it was not a separate
   Hermes product execution. ([PR #55](https://github.com/open-autonomy-org/evidence-desk/pull/55))
-
 - Corrected first-poll GitHub discovery and activated the native Hermes Python environment in terminal
   shells; exposed World tooling to login shells and preserved project-owned runtime instructions across
   kit upgrades. Setup/operator acceptance records completed recurring PM/community runs and public
@@ -133,14 +62,6 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
   [PR #44](https://github.com/open-autonomy-org/evidence-desk/pull/44),
   [PR #45](https://github.com/open-autonomy-org/evidence-desk/pull/45),
   [PR #46](https://github.com/open-autonomy-org/evidence-desk/pull/46))
-
-- Added the first local workspace CLI and version 1 JSON/Markdown file contract: create a new or empty
-  workspace, reopen externally authored readiness items, inspect incomplete work, and validate records
-  and evidence references. Read operations preserve unknown data and evidence bytes; occupied destinations,
-  unsupported formats and unsafe references are rejected. Native review independently verified synthetic
-  workflows through the World and passed the check in 0.674s. Item editing and bounded stale-write
-  refusal subsequently landed as described above. ([PR #38](https://github.com/open-autonomy-org/evidence-desk/pull/38),
-  [native acceptance](hermes:task/t_669122cc))
 - Established the TypeScript/Bun development starter, portable-workspace product documentation and
   project branding. ([PR #1](https://github.com/open-autonomy-org/evidence-desk/pull/1))
 - Added the development runtime's host supervision, project-scoped Git forwarding and committed

@@ -7,23 +7,20 @@ See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliati
 ## Direction
 
 The owner zero-based this plan on 2026-09-23: Evidence Desk is to be the open-source alternative to the SOC2
-compliance SaaS, and the roadmap is rebuilt from scratch to reach parity with them
-([owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114)). Everything
-previously planned is retired, including the unpublished `0.1.0-alpha.1` proposal. The shipped workspace
-format 1 (generic items with evidence paths) is not a SOC2 domain model; the first outcome below replaces it
-and removes it from the product, its docs and its release tooling entirely.
+compliance SaaS, and the roadmap was rebuilt from scratch to reach parity with them
+([owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114)).
 
 Parity is measured against the whole buyer journey, from "we need SOC2" through a passed Type II audit and
 the security reviews that follow, for both the company and the CPA firm. It is not measured by integration
-count. The table below is the denominator. **Headline: 0 of 16 parity capabilities demonstrated.**
+count. The table below is the denominator. **Headline: 4 of 16 parity capabilities demonstrated** (rows 1–4).
 A row counts only when its owning outcome demonstrates it in the running local product on synthetic data.
 
 | # | Capability (table stakes unless marked) | Owning outcome |
 |---|---|---|
-| 1 | SOC2 control set mapped to the Trust Services Criteria, scoping, gap view | `soc2-program` |
-| 2 | Policy library: templates, editing, versioned approval | `soc2-program` |
-| 3 | Registers: systems/assets, people, vendors, risks with treatment | `soc2-program` |
-| 4 | Operable by the customer's own coding agent and by a nontechnical admin | `soc2-program` |
+| 1 | SOC2 control set mapped to the Trust Services Criteria, scoping, gap view | demonstrated |
+| 2 | Policy library: templates, editing, versioned approval | demonstrated |
+| 3 | Registers: systems/assets, people, vendors, risks with treatment | demonstrated |
+| 4 | Operable by the customer's own coding agent and by a nontechnical admin | demonstrated (agent: shipped instructions and external edits; no agent run yet) |
 | 5 | Automated evidence collection from cloud, identity, HRIS, code and devices | `evidence-automation` |
 | 6 | Continuous control checks with visible failures and alerting | `evidence-automation` |
 | 7 | Onboarding/offboarding, policy acknowledgment, training, background checks | `program-operations` |
@@ -85,36 +82,21 @@ licensed AICPA copy locally. Policy templates come from CC0/Apache sources
 ([Tailscale security-policies, CC0](https://github.com/tailscale/security-policies),
 [strongdm/comply, Apache-2.0](https://github.com/strongdm/comply)); SCF and CIS content are not redistributable.
 
-Sequence: `soc2-program` first (every other outcome writes into its formats), then `program-operations`
-(the onboarding, acknowledgment and review machinery people use), then `open-autonomy-soc2-ready` (the aim),
-then `evidence-automation`, `audit-cycle`, `trust-and-questionnaires` and `multi-framework`.
+Build mode (owner, 2026-09-23): the owner's coding session builds the outcomes here, one after the next, until
+the plan is done; the fleet resumes once the product works. Outcomes below are `Dispatch: hold` so a fleet start
+does not duplicate that work.
 
-## soc2-program: A company's whole SOC2 program as a folder it owns
-
-Status: planned
-Dispatch: fleet
-
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 1–4.
-
-A startup with no compliance program creates a workspace, answers a scoping interview (services, systems,
-subservice providers, in-scope criteria) and gets a tailored SOC2 control set, a policy set and registers,
-all as documented, versioned files. It sees what is missing per control, and edits in the local UI, the CLI
-or with its own coding agent, with the same validation either way. This replaces format 1 and its code.
-
-Completion:
-- A versioned, documented workspace format with published JSON Schemas for scope, controls, policies, systems/assets, people, vendors, risks and evidence records; evidence records carry source, collection time, period and content hash. Every Security (CC) criterion ID is covered by at least one control in the project's own words.
-- A policy library of at least 15 policies adapted from CC0/Apache sources, each with owner, version, approval record and mapped controls; approving a new version preserves the previous one.
-- A local UI a nontechnical admin can drive end to end: scoping interview, control and policy review, registers, and a gap view per control and per criterion; the CLI reaches the same operations with JSON output.
-- The workspace ships its own agent instructions so the customer's Claude Code or Codex can operate it; an externally edited file is validated and conflicts are surfaced, never silently overwritten.
-- Format 1, its CLI, workbench, README sections, ADR0002, alpha.1 packaging and version metadata are removed entirely; README documents the new run command.
-- Demonstrated on a synthetic startup workspace in the World: create, scope, adopt controls and policies, fill registers, agent edit, gap view.
+Sequence: `program-operations` (the onboarding, acknowledgment and review machinery people use), then
+`open-autonomy-soc2-ready` (the aim), then `evidence-automation`, `audit-cycle`, `trust-and-questionnaires` and
+`multi-framework`. The workspace format, control library, policy templates, CLI and local app landed as the first
+outcome; see [CHANGELOG.md](CHANGELOG.md) and [docs/workspace-format.md](docs/workspace-format.md).
 
 ## open-autonomy-soc2-ready: A project on Open Autonomy's soc2 template is SOC2 ready out of the box
 
 Status: planned
 Dispatch: hold
 
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114#issuecomment-5802291630); [ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md); [ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/6e7a769f45236ac010f135695226dfa7f735fddd/docs/decisions/0008-human-seams.md); differentiator D1. Waits on `soc2-program`, `program-operations`, and Open Autonomy's `soc2` template implementing ADR 0008.
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114#issuecomment-5802291630); [ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md); [ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/6e7a769f45236ac010f135695226dfa7f735fddd/docs/decisions/0008-human-seams.md); differentiator D1. Waits on `program-operations` and Open Autonomy's `soc2` template implementing ADR 0008.
 
 A small project created from Open Autonomy's `soc2` template gets an Evidence Desk workspace as part of the project:
 agents do the work, and people act only at declared seams (direction, release and deploy approval, credential
@@ -150,7 +132,7 @@ Completion:
 Status: planned
 Dispatch: hold
 
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 5–6. Waits on `soc2-program` formats.
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 5–6. 
 
 Owner-operated collectors pull evidence from the company's systems with the company's own credentials,
 run on demand locally or on a schedule in the workspace repository's own CI, and write dated,
@@ -169,7 +151,7 @@ Completion:
 Status: planned
 Dispatch: hold
 
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 7–9. Waits on `soc2-program`.
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 7–9.
 
 The obligations that recur through an audit period become tracked, evidenced work: hires and leavers with
 onboarding/offboarding steps, policy acknowledgment and training, background checks, quarterly access
@@ -190,7 +172,7 @@ Completion:
 Status: planned
 Dispatch: hold
 
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 10–13. Waits on `soc2-program`, `open-autonomy-soc2-ready`, `evidence-automation`, `program-operations`.
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 10–13. Waits on `open-autonomy-soc2-ready`, `evidence-automation`, `program-operations`.
 
 A company and its CPA firm run an engagement: Type I as of a date or Type II over a period, the firm's request
 list, populations with the query or parameters that generated them, samples the auditor selects, evidence per
@@ -230,7 +212,7 @@ Completion:
 Status: planned
 Dispatch: hold
 
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity row 16. Waits on `soc2-program`.
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity row 16.
 
 Add ISO 27001 as a second framework mapped onto the same controls and evidence, IDs with the project's own
 wording under the same content rule, with a statement of applicability and a cross-framework gap view.
@@ -246,5 +228,5 @@ Dispatch: hold
 Release decision: accumulate
 Readiness: pending
 
-No candidate exists. PM proposes version, window and scope once `soc2-program` lands, under the
+No candidate exists. PM proposes version, window and scope once the owner calls the product ready for a first release, under the
 [release procedure](.open-autonomy/PRODUCTION.md). Each release still requires candidate-specific human review.

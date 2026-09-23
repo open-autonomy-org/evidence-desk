@@ -1,0 +1,18 @@
+{
+  "schema": "evidence-desk.scope-questions/1",
+  "questions": [
+    { "id": "organization", "type": "text", "required": true, "prompt": "What is the organization's name?" },
+    { "id": "services", "type": "text", "required": true, "prompt": "What service does the organization provide to its customers?" },
+    { "id": "infrastructure", "type": "text", "required": true, "prompt": "Where does the system run (cloud providers, hosting, regions)?" },
+    { "id": "security_contact", "type": "text", "required": true, "prompt": "Where should people report a security issue (an email address or page)?" },
+    { "id": "subservice_organizations", "type": "text", "required": false, "prompt": "Which outside providers operate part of the system for you (for example a cloud host)? Separate them with semicolons." },
+    { "id": "availability", "type": "boolean", "required": true, "prompt": "Do customers rely on commitments about uptime or recovery (include Availability)?" },
+    { "id": "confidentiality", "type": "boolean", "required": true, "prompt": "Do you hold information customers expect you to keep confidential (include Confidentiality)?" },
+    { "id": "processing_integrity", "type": "boolean", "required": true, "prompt": "Do customers rely on your processing being complete and accurate, such as calculations or transactions (include Processing Integrity)?" },
+    { "id": "privacy", "type": "boolean", "required": true, "prompt": "Do you collect personal information directly from individuals and make privacy commitments to them (include Privacy)?" },
+    { "id": "develops_software", "type": "boolean", "required": true, "prompt": "Does the organization build or change the software that delivers the service?" },
+    { "id": "hosts_customer_data", "type": "boolean", "required": true, "prompt": "Does the system store customer data?" },
+    { "id": "has_office", "type": "boolean", "required": true, "prompt": "Does the organization operate an office or facility that houses system components or customer data?" },
+    { "id": "background_checks_required", "type": "boolean", "required": true, "prompt": "Will your personnel policy require background checks before granting access?" }
+  ]
+}
