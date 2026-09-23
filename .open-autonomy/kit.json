@@ -1,11 +1,9 @@
 {
   "kit": "hermes",
-  "version": "2.11.18",
+  "skew": "self-build",
+  "version": "3.2.1",
   "params": {
     "project": "evidence-desk",
     "account": "open-autonomy-org/evidence-desk"
-  },
-  "divergences": [
-    ".open-autonomy/PRODUCTION.md"
-  ]
+  }
 }
