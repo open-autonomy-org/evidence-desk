@@ -58,11 +58,17 @@ project declares that automation in its repository: `.open-autonomy/agent.json`,
 Supercode IR, holds its profiles, scheduled jobs and models, with one manager per field and a live change the
 repository did not make reported as a conflict ([ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md));
 the `team` roster holds its humans, their verified accounts and authority scopes ([team codec](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/packages/sdk/src/team.ts)).
-Its operation leaves records: board tasks with attempts, handoffs and review verdicts, reviewed pull requests,
-candidate-specific release reviews and metered model calls on public books. This ingestion is optional: core use
-never requires Open Autonomy.
-**Differentiator D1, not counted in the parity headline:** controls, authority and operating evidence ingested
-from an Open Autonomy project, owned by `open-autonomy-ingestion`.
+Its operation leaves records: reviewed pull requests, production deployments with their approvals, candidate
+release reviews and metered model calls on public books.
+
+The aim: an Open Autonomy project template that is SOC2 ready out of the box, with Evidence Desk as its compliance
+program ([owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114#issuecomment-5802291630)).
+Agents do the work; people act at a few controlled seams that Open Autonomy specifies exactly
+([proposed ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/adr/0008-human-seams/docs/decisions/0008-human-seams.md)); the people at those seams complete onboarding quizzes and surveys. The template's
+declarations and seams supply the controls and evidence that automation can; the humans supply the rest. This
+integration is optional: core use never requires Open Autonomy.
+**Differentiator D1, not counted in the parity headline:** a new Open Autonomy project reaches SOC2 readiness out
+of the box, owned by `open-autonomy-soc2-ready`.
 
 **Extrapolation starts here.** The outcome boundaries, sequence and the design choices inside each outcome
 are the owner-side agent's judgment, not measured user research. Differentiation hypothesis: the same
@@ -75,9 +81,9 @@ licensed AICPA copy locally. Policy templates come from CC0/Apache sources
 ([Tailscale security-policies, CC0](https://github.com/tailscale/security-policies),
 [strongdm/comply, Apache-2.0](https://github.com/strongdm/comply)); SCF and CIS content are not redistributable.
 
-Sequence: `soc2-program` first (every other outcome writes into its formats), then `open-autonomy-ingestion`
-(the differentiator, and the first source to exercise the evidence record), then `evidence-automation` and
-`program-operations`, then `audit-cycle`, then `trust-and-questionnaires` and `multi-framework`.
+Sequence: `soc2-program` first (every other outcome writes into its formats), then `program-operations`
+(the onboarding, acknowledgment and review machinery people use), then `open-autonomy-soc2-ready` (the aim),
+then `evidence-automation`, `audit-cycle`, `trust-and-questionnaires` and `multi-framework`.
 
 ## soc2-program: A company's whole SOC2 program as a folder it owns
 
@@ -99,35 +105,37 @@ Completion:
 - Format 1, its CLI, workbench, README sections, ADR0002, alpha.1 packaging and version metadata are removed entirely; README documents the new run command.
 - Demonstrated on a synthetic startup workspace in the World: create, scope, adopt controls and policies, fill registers, agent edit, gap view.
 
-## open-autonomy-ingestion: Read the program out of the automation that runs it
+## open-autonomy-soc2-ready: A new Open Autonomy project is SOC2 ready out of the box
 
 Status: planned
 Dispatch: hold
 
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); [ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md); differentiator D1. Waits on `soc2-program`, and on Open Autonomy specifying its human seams ([proposed ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/adr/0008-human-seams/docs/decisions/0008-human-seams.md)): the seam inventory reads that declaration once it exists.
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114#issuecomment-5802291630); [ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md); [proposed ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/adr/0008-human-seams/docs/decisions/0008-human-seams.md); differentiator D1. Waits on `soc2-program`, `program-operations`, and Open Autonomy declaring its seams.
 
-The target is a small project that runs on Open Autonomy: agents do the work, and people plug in at a few
-controlled seams (direction, release review, the production deploy approval and tag, credential custody,
-roster changes, moderation, and administration of the vendor accounts the project runs on). Evidence Desk points
-at the project's repository and reads, without a questionnaire, what its declarations establish: which humans
-hold which authority, which agents run on which schedules and models with which credentials by custody name,
-how a change to the automation is made and how drift from it is caught, and which vendors it depends on. Over a
-period its durable records (reviewed and merged changes, deployments with their approvals, the roster's history)
-become populations with the query that produced them. Records are read through Open Autonomy's own interfaces
-(its SDK and the published Supercode orchestrator package the kit pins), never by parsing a harness's private state.
+A small project created from an Open Autonomy template gets an Evidence Desk workspace as part of the project:
+agents do the work, and people act only at declared seams (direction, release and deploy approval, credential
+custody, roster changes, vendor account administration). Evidence Desk reads what the project's declarations
+establish, with no questionnaire: which humans hold which authority, which agents run on which schedules and
+models with which credentials by custody name, how a change to the automation is made and drift caught, which
+vendors it depends on, and where each seam's acts are recorded. Over a period the durable records (reviewed and
+merged changes, production deployments with their approvals, the roster's history) become populations with the
+query that produced them. Records are read through Open Autonomy's own interfaces (its SDK and the published
+Supercode orchestrator package the kit pins), never by parsing a harness's private state.
 
-For such a project the SOC2 program shrinks to the seams: every person at a seam is a person in scope, and the
-human controls (identity and MFA, onboarding and removal, policy acknowledgment, training, periodic access review,
-risk and incident review) apply to that small set. What the automation does not cover (the service's runtime,
-data handling, availability) stays on the ordinary evidence paths, and the gap view says which facts came from where.
+The people at the seams are the people in scope, and the human controls apply to them: each completes onboarding
+through Evidence Desk (policy acknowledgment, a security-awareness quiz, attestations such as MFA on the accounts
+that reach their seam) and the recurring reviews that are a person's decision (access, risk, incidents). Each
+completion is recorded through a seam's own door, attributable to that person's verified account. What automation
+does not cover (the service's runtime, data handling, availability) stays on the ordinary evidence paths, and the
+gap view says which facts came from where.
 
 Completion:
-- A read-only source that reads a project at a named commit: `agent.json` profiles, jobs and models, the `team` roster with scopes, the landing and production rules, and the vendors named by its dependencies and deploy egress; each fact carries that commit as provenance and maps to the controls and criteria it evidences.
-- A seam inventory: every place a human acts, who may act there, and where the act is recorded. Seams whose acts are not durably recorded (a release approval given in chat, a board verdict held only in an agent's home) are shown as gaps, not counted as evidence.
-- A completeness reconciliation: the roster compared with the people who actually hold admin or deploy rights in the vendor accounts the project runs on (imported or collected); anyone with rights outside the roster is a finding.
-- Scoping answers those declarations determine are filled from them and marked as such; a later change surfaces as a changed design fact, never a silent overwrite.
+- One command turns an Open Autonomy project into a workspace at a named commit: `agent.json` profiles, jobs and models, the `team` roster with scopes, the declared seams, the landing and production rules, and the vendors named by its dependencies and deploy egress; each fact carries that commit as provenance and maps to the controls and criteria it evidences. A later change surfaces as a changed design fact, never a silent overwrite.
+- A seam inventory: every place a human acts, who may act there, and where the act is recorded. Seams whose acts are not durably recorded are gaps, not evidence.
+- A completeness reconciliation: the roster compared with the people who actually hold admin or deploy rights in the declared vendor accounts; anyone with rights outside the roster is a finding.
+- Onboarding for each roster member: acknowledgments, quiz results and attestations recorded with the person's verified account as author; a member who has not completed it is a visible gap. Recurring human reviews are scheduled and their verdicts recorded the same way.
 - Period populations only from durable records (merged changes with reviews, production deployments with approvals, roster history), each with its generating query and completeness basis, ready for `audit-cycle` sampling.
-- Demonstrated in the World on a synthetic project created with the current Open Autonomy kit against its twins, with synthetic history spanning a period and at least one out-of-roster admin found; no real project is read.
+- Demonstrated in the World on a synthetic project created with the current Open Autonomy kit against its twins: two synthetic roster members onboard, one out-of-roster admin is found, synthetic history spans a period, and the gap view ends with only items automation and onboarding cannot establish. No real project is read.
 
 ## evidence-automation: Evidence collects itself, and controls are checked continuously
 
@@ -163,6 +171,7 @@ e-signature export, Git), not a project-hosted portal; how employees without rep
 acknowledge policies is a design decision this outcome must make and document.
 
 Completion:
+- Onboarding quizzes and surveys authored as files: a person completes one, the result (answers, score, pass/fail, date) is recorded as attributable to that person, and incomplete or failed onboarding is a visible gap.
 - A calendar of obligations derived from the adopted controls, with due, overdue and done states and the evidence each produced.
 - An access review cycle: user listings per system (from collectors or import), reviewer decisions, removals and sign-off, all recorded in the folder.
 - People lifecycle: synthetic hires and leavers reconcile to acknowledgment, training, background-check and access-removal evidence with timeliness shown.
@@ -173,7 +182,7 @@ Completion:
 Status: planned
 Dispatch: hold
 
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 10–13. Waits on `soc2-program`, `open-autonomy-ingestion`, `evidence-automation`, `program-operations`.
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 10–13. Waits on `soc2-program`, `open-autonomy-soc2-ready`, `evidence-automation`, `program-operations`.
 
 A company and its CPA firm run an engagement: Type I as of a date or Type II over a period, the firm's request
 list, populations with the query or parameters that generated them, samples the auditor selects, evidence per
