@@ -74,5 +74,7 @@ The owner subsequently directed autonomous strategy toward the best SOC2 app in 
 with all competitors on 2026-09-10; the project-communications skill records that mandate and its source.
 On 2026-09-23 the owner named the benchmark as the SOC2 SaaS and zero-based the roadmap toward parity
 ([issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114)).
+The same day the owner locked the aim: Open Autonomy's `soc2` template is SOC2 ready out of the box with
+Evidence Desk as its program, so a project created from it can engage a CPA almost immediately.
 Strategy owns product scope and priority under it. PM manages implementation, sequencing and release
 proposals, subject to this constitution and later sourced owner decisions.

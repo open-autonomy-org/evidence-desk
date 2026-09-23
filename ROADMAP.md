@@ -61,14 +61,18 @@ the `team` roster holds its humans, their verified accounts and authority scopes
 Its operation leaves records: reviewed pull requests, production deployments with their approvals, candidate
 release reviews and metered model calls on public books.
 
-The aim: an Open Autonomy project template that is SOC2 ready out of the box, with Evidence Desk as its compliance
-program ([owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114#issuecomment-5802291630)).
+The aim: Open Autonomy's `soc2` template is SOC2 ready out of the box, with Evidence Desk as its compliance program;
+other templates are not required to be ([owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114#issuecomment-5802291630)).
+The end state, locked by the owner: a project created from it can engage a CPA almost immediately, for a Type I
+once its policies, seams and onboarding exist, and with Type II observation running from launch. What remains
+outside the product is the CPA firm, a penetration tester, an independent second person for the few reviews the
+sole owner cannot perform on themselves, vendors' own assurance reports, and the observation period itself.
 Agents do the work; people act at a few controlled seams that Open Autonomy specifies exactly
-([proposed ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/adr/0008-human-seams/docs/decisions/0008-human-seams.md)); the people at those seams complete onboarding quizzes and surveys. The template's
+([ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/6e7a769f45236ac010f135695226dfa7f735fddd/docs/decisions/0008-human-seams.md)); the people at those seams complete onboarding quizzes and surveys. The template's
 declarations and seams supply the controls and evidence that automation can; the humans supply the rest. This
 integration is optional: core use never requires Open Autonomy.
-**Differentiator D1, not counted in the parity headline:** a new Open Autonomy project reaches SOC2 readiness out
-of the box, owned by `open-autonomy-soc2-ready`.
+**Differentiator D1, not counted in the parity headline:** a project on Open Autonomy's `soc2` template reaches SOC2
+readiness out of the box, owned by `open-autonomy-soc2-ready`.
 
 **Extrapolation starts here.** The outcome boundaries, sequence and the design choices inside each outcome
 are the owner-side agent's judgment, not measured user research. Differentiation hypothesis: the same
@@ -105,14 +109,14 @@ Completion:
 - Format 1, its CLI, workbench, README sections, ADR0002, alpha.1 packaging and version metadata are removed entirely; README documents the new run command.
 - Demonstrated on a synthetic startup workspace in the World: create, scope, adopt controls and policies, fill registers, agent edit, gap view.
 
-## open-autonomy-soc2-ready: A new Open Autonomy project is SOC2 ready out of the box
+## open-autonomy-soc2-ready: A project on Open Autonomy's soc2 template is SOC2 ready out of the box
 
 Status: planned
 Dispatch: hold
 
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114#issuecomment-5802291630); [ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md); [proposed ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/adr/0008-human-seams/docs/decisions/0008-human-seams.md); differentiator D1. Waits on `soc2-program`, `program-operations`, and Open Autonomy declaring its seams.
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114#issuecomment-5802291630); [ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md); [ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/6e7a769f45236ac010f135695226dfa7f735fddd/docs/decisions/0008-human-seams.md); differentiator D1. Waits on `soc2-program`, `program-operations`, and Open Autonomy's `soc2` template implementing ADR 0008.
 
-A small project created from an Open Autonomy template gets an Evidence Desk workspace as part of the project:
+A small project created from Open Autonomy's `soc2` template gets an Evidence Desk workspace as part of the project:
 agents do the work, and people act only at declared seams (direction, release and deploy approval, credential
 custody, roster changes, vendor account administration). Evidence Desk reads what the project's declarations
 establish, with no questionnaire: which humans hold which authority, which agents run on which schedules and
@@ -139,7 +143,7 @@ Completion:
 - A completeness reconciliation: the roster compared with the people who actually hold admin or deploy rights in the declared vendor accounts; anyone with rights outside the roster is a finding.
 - Onboarding for each roster member: acknowledgments, quiz results and attestations recorded with the person's verified account as author; a member who has not completed it is a visible gap. Recurring human reviews are scheduled and their verdicts recorded the same way.
 - Period populations only from durable records (merged changes with reviews, production deployments with approvals, roster history), each with its generating query and completeness basis, ready for `audit-cycle` sampling.
-- Demonstrated in the World on a synthetic project created with the current Open Autonomy kit against its twins: two synthetic roster members onboard, one out-of-roster admin is found, synthetic history spans a period, and the gap view ends with only items automation and onboarding cannot establish. No real project is read.
+- Demonstrated in the World on a synthetic project created from the `soc2` template (or, until it exists, the current kit with ADR 0008's seams declared) against its twins: two synthetic roster members onboard, one out-of-roster admin is found, synthetic history spans a period, and the gap view ends with only items automation and onboarding cannot establish. No real project is read.
 
 ## evidence-automation: Evidence collects itself, and controls are checked continuously
 
