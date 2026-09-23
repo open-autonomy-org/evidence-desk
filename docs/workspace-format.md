@@ -26,6 +26,7 @@ allowed everywhere and kept when Evidence Desk writes a file, so other tools can
 | `incidents/<id>.json` | one incident from report to closing review | `incident` |
 | `sources/open-autonomy/<commit>.json`, `latest.json` | what an Open Autonomy project declared at a commit | `open-autonomy` |
 | `sources/open-autonomy/completeness/<id>.json` | one vendor account's administrators compared with the roster | `completeness` |
+| `sources/open-autonomy/seam-records/<seam>.json` | the latest collection of one commit seam's records, with its findings | none |
 | `collectors.json` | which collectors are enabled and their parameters (never credentials) | `collectors` |
 | `checks/runs/<id>.json` | one run of the enabled collectors and every check result | `check-run` |
 | `evidence/files/collected/<collector>/<run>.json` | what a collector read in a run, with the requests it made | JSON |
@@ -111,6 +112,14 @@ A seam is expected to use one of ADR 0008's three doors (`commit`, `code-host-ga
 roster member holds; anything else is a finding in the gap view. Each declared vendor account's administrators are
 compared with the roster, from GitHub for a GitHub organization or from an exported list otherwise; an administrator
 outside the roster is a finding until a later check no longer finds them.
+
+A commit seam recorded under `records/<folder>/` whose id is `incidents`, `break-glass`, `credentials` or `escalations`
+(the layout of Open Autonomy's `soc2` template) is read by `collect seam-records` as a population per seam: every JSON
+record whose date (`detected_at` for incidents, `at` for break-glass and credentials, `received_at` for
+escalations) falls in the period, with the commit that added it and its
+author, recorded as evidence for the kind's controls. A closed incident without a review, a break-glass change without
+a later review and an escalation without a response are findings in the gap view until a later collection no longer
+finds them; a declared seam never collected is a finding too.
 
 `evidence-desk collect` writes populations under `evidence/files/populations/` with the requests that produced them:
 merged pull requests with their approvals and whether an approval came from someone other than the author (`unknown`

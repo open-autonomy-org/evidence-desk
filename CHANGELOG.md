@@ -7,6 +7,14 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Added `collect seam-records`: each commit seam an Open Autonomy project records under `records/` (the `soc2`
+  template's incidents, break-glass changes, credential lifecycle and escalations) becomes a period population with
+  the commit and author that added each record, as evidence for its controls. A closed incident without a review, a
+  break-glass change without a later review, an escalation without a response and a declared seam never collected are
+  gap findings. Importing a project now refreshes the people rows it wrote from the roster, and records the roster's
+  scopes and seams for HR-06 (defined responsibilities). Approving a policy version records it as evidence for GOV-04. Verified in the World against the GitHub twin on a synthetic
+  project created from Open Autonomy's `soc2` template
+  ([open-autonomy#715](https://github.com/open-autonomy-org/open-autonomy/pull/715)).
 - Added ISO/IEC 27001:2022 on the same program. Its clauses 4 to 10 and 93 Annex A controls map onto the control
   library (identifiers with this project's titles, no ISO text), so controls, policies and evidence serve both
   frameworks. Requirements are ready, have gaps, are excluded (with the reasons of excluded controls or the

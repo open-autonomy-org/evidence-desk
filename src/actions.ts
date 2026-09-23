@@ -178,6 +178,11 @@ export function approvePolicy(root: string, id: string, approvedBy: string, text
   const next = { ...rec.data, versions: [...rec.data.versions, { version, approved_by: approvedBy, approved_at: now(), sha256: text.version, archived }] };
   valid('policy', next, rel);
   writeVersioned(root, rel, pretty(next), rec.version);
+  // The approval is GOV-04's evidence, as a passed form response is its form's.
+  if (loadWorkspace(root).controls.some((c) => c.data.id === 'GOV-04' && c.data.applicable)) addEvidence(root, {
+    title: `Policy ${id} version ${version} approved by ${approvedBy}`, controls: ['GOV-04'], files: [archived], recorded_by: approvedBy,
+    source: { kind: 'evidence-desk', name: 'policy-approval' }, collected_at: next.versions.at(-1)!.approved_at,
+  });
   return version;
 }
 
