@@ -74,7 +74,7 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                      [--evidence <id>,...] [--population <evidence id>] [--select <item>,...]
                      [--sample <item>=provided|exception] [--sample-evidence <item>=<evidence id>]
   audit <dir> <id> draft description|assertion|bridge [--to <date>]
-  audit <dir> <id> exception <key> --response <text> --by <person>
+  audit <dir> <id> exception <key> --response <text> --by <person> [--cite <workspace file> ...]
                                           management's response to an exception the package lists
   audit <dir> <id> export --out <folder>  a package of exactly what the requests point at, with hashes
   audit <dir> <id> import-return <folder> bring the firm's responses in from a returned package
@@ -451,7 +451,7 @@ async function main(argv: string[]): Promise<number> {
       if (action === 'exception') {
         const key = rest[2];
         if (!key) throw new Error('exception needs the exception key from the package\'s review/exceptions.csv');
-        const r = respondToException(dir, id, key, one(a, 'response') ?? '', one(a, 'by') ?? '');
+        const r = respondToException(dir, id, key, one(a, 'response') ?? '', one(a, 'by') ?? '', a.flags.get('cite') ?? []);
         out(json, r, () => `Recorded management's response to ${key} in ${r.file}.`);
         return 0;
       }

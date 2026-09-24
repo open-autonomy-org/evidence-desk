@@ -107,7 +107,11 @@ const github: CollectorDef = {
         const ruled = (r.rulesets as any[]).some((rs) => rs.enforcement === 'active' && ['non_fast_forward', 'deletion'].every((t) => (rs.rules ?? []).some((x: any) => x.type === t)));
         return !classic && !ruled;
       }).map(([k]) => k);
-      return bad.length ? { status: 'fail', detail: `history of the default branch can be rewritten or deleted in ${bad.join(', ')}` } : { status: 'pass', detail: 'protected' };
+      // As with review, a rule someone may always bypass does not bind them.
+      const always = Object.entries(d.repos as Record<string, any>).flatMap(([k, r]) => (r.rulesets as any[]).filter((rs) => rs.enforcement === 'active' && (rs.rules ?? []).some((x: any) => x.type === 'non_fast_forward' || x.type === 'deletion'))
+        .flatMap((rs) => (rs.bypass_actors ?? []).filter((b: any) => (b.bypass_mode ?? 'always') === 'always').map((b: any) => `${k} ruleset ${rs.name}: ${b.actor_type}${b.actor_id != null ? ` ${b.actor_id}` : ''}`)));
+      return bad.length ? { status: 'fail', detail: `history of the default branch can be rewritten or deleted in ${bad.join(', ')}` }
+        : always.length ? { status: 'fail', detail: `force-push and deletion protection can always be bypassed by ${always.join('; ')}` } : { status: 'pass', detail: 'protected, with no one who may always bypass it' };
     } },
     { id: 'github-dependabot', title: 'No critical or high dependency alert is open for more than 30 days', controls: ['CHG-05', 'MON-03'], evaluate: (d) => {
       const late: string[] = [];

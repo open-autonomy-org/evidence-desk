@@ -32,6 +32,14 @@ manifest's `derived` list (the README too), and every line names the file it com
 - `review/description-lint.csv`: the system description's claims about incidents, reviewed changes and how deployments
   start, checked against the populations. A contradiction stops the export, so a package never carries one.
 
+- `review/workspace-history.txt`: the workspace repository's own history, so a register edit or an attribution row
+  traces to the commit that made it.
+
+Each population in `index.html` carries a test memo: how many items it holds and whether its completeness comes from
+the system of record or from records the organization keeps itself. A change merged without an independent approval
+that no break-glass record names is an exception of its own. A management response lists the workspace files it
+cites; one citing nothing says so.
+
 An exception's `closed_by` says what ended it: a later passing reading (which shows the condition stopped, not that
 anyone remediated it) or a later completeness check. A check that reports events, such as a bypass of the branch
 rules, is never closed by a quiet day.

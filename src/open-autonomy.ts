@@ -292,7 +292,7 @@ export function collectSeamRecords(root: string, input: { repo: string; start: s
     const evidence = !controls.length ? null : addEvidence(root, {
       title: `Population: ${rows.length} ${seam.id} records, ${input.start} to ${input.end}`, controls, files: [rel, `${stem}.history.txt`], recorded_by: input.by,
       period: { start: input.start, end: input.end }, source: { kind: 'open-autonomy', name: `${seam.id} seam`, commit: snap.commit, query: `git ls-tree ${snap.commit} -- ${folder}; each file's ${kind.date} in the period, with the commit that added it, and git log -p ${snap.commit} -- <file> for its full history` },
-      notes: `Complete by construction for ${folder} at ${snap.commit.slice(0, 12)}: every record file there is read. The seam is held by scope ${seam.scope}.${findings.length ? ` Findings: ${findings.join('; ')}.` : ''}`,
+      notes: `Complete for what ${folder} holds at ${snap.commit.slice(0, 12)}: every record file there is read, but an event no one recorded is not in it; the package's exceptions reconcile it against what the collectors saw (an unapproved change with no break-glass record is one). The seam is held by scope ${seam.scope}.${findings.length ? ` Findings: ${findings.join('; ')}.` : ''}`,
     });
     const latest = `sources/open-autonomy/seam-records/${seam.id}.json`;
     writeVersioned(root, latest, pretty({ seam: seam.id, commit: snap.commit, period: { start: input.start, end: input.end }, collected_at: now(), rows: rows.length, file: rel, evidence, findings }), readVersioned(root, latest)?.version ?? null);

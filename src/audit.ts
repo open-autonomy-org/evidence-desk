@@ -2,6 +2,7 @@
 // answers them; the company drafts its system description, assertion and bridge letter from workspace facts; and the two
 // sides exchange a point-in-time package the firm can verify offline and return. Evidence Desk never forms an opinion:
 // it records requests, answers, samples, exceptions and who said what.
+import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -375,12 +376,13 @@ function lintDescription(ws: Workspace, e: Engagement, text: string): { rule: st
     : { rule: 'incidents', status: 'pass', detail: `consistent with ${inc ? inc.data.id : 'no incidents population'}` });
   const c = e.period ? periodPopulation(ws, e, 'changes to') : null;
   const unapproved = (c?.rows ?? []).filter((r) => r.independent_approval !== 'yes').map((r) => r.number ? `#${r.number}` : r.commit.slice(0, 12));
-  const reviewClaim = /\b(only|always|every change|all changes)\b[^.\n]*\breview/i.exec(prose);
+  const reviewClaim = /\b(only|always|every change|all changes)\b(?:[^.\n]|\.(?=\S))*\breview/i.exec(prose);
   out.push(!reviewClaim || !c ? { rule: 'changes reviewed', status: 'not applicable', detail: reviewClaim ? 'no changes population for the period' : 'the description makes no claim that every change is reviewed' }
     : unapproved.every((x) => prose.includes(x)) ? { rule: 'changes reviewed', status: 'pass', detail: `"${reviewClaim[0]}"; ${unapproved.length ? `the description names ${unapproved.join(', ')}` : 'every change in the population was independently approved'} (${c.id})` }
     : { rule: 'changes reviewed', status: 'contradiction', detail: `"${reviewClaim[0]}", but ${unapproved.filter((x) => !prose.includes(x)).join(', ')} in ${c.id} had no independent approval and the description does not name them` });
   const d = e.period ? periodPopulation(ws, e, 'deployments of') : null;
-  const tagClaim = /\bdeploy(?:s|ed)?\b[^.\n]*\b(?:from|on) an? \S+ tag\b/i.exec(prose);
+  // A sentence runs to a full stop followed by a space; a path's dots (deploy.yml) stay inside it.
+  const tagClaim = /\bdeploy(?:s|ed)?\b(?:[^.\n]|\.(?=\S))*\b(?:from|on) an? \S+ tag\b/i.exec(prose);
   const other = [...new Set((d?.rows ?? []).map((r) => r.run_event).filter((x) => x && x !== 'push'))];
   out.push(!tagClaim || !d ? { rule: 'deployment trigger', status: 'not applicable', detail: tagClaim ? 'no deployments population for the period' : 'the description names no deploy trigger' }
     : !other.length || other.every((x) => prose.includes(x)) ? { rule: 'deployment trigger', status: 'pass', detail: `"${tagClaim[0]}"; runs in ${d.id}: ${tally(d.rows.map((r) => r.run_event))}` }
@@ -509,6 +511,12 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     ...[...absent].sort(([a], [b]) => a.localeCompare(b)).map(([ref, by]) => `${ref}: cited by ${by}, and not in the workspace`)];
   const views = buildViews(root, ws, e.data, reqs, paths, created);
   const described = existsSync(join(root, base(id), 'drafts', 'description.md')) ? readFileSync(join(root, base(id), 'drafts', 'description.md'), 'utf8') : null;
+  // The workspace's own history on its default line: who merged each change to the program's records and when, so a
+  // register edit or an attribution row can be traced to the commit and pull request that made it.
+  try {
+    const log = execFileSync('git', ['-C', root, 'log', '--first-parent', '--format=%H %cI %an <%ae>%n    %s', 'HEAD', '--', '.'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    views.set('review/workspace-history.txt', `git log --first-parent HEAD -- . in the workspace repository at ${created}\n\n${log}`);
+  } catch { /* a workspace that is not a Git repository has no history to ship */ }
   if (described) views.set('review/description-lint.csv', writeCsv({ columns: ['rule', 'status', 'detail'], rows: lintDescription(ws, e.data, described) }));
   views.set('README.md', readme(ws.manifest?.data.organization ?? '', e.data.id, created, id, omitted.length - 1));
   const derived = [...views].sort(([a], [b]) => a.localeCompare(b)).map(([p, text]) => {
@@ -669,7 +677,8 @@ export function packageState(dir: string) {
 
 // Management's response to an exception the package derives (review/exceptions.csv names each by key): what happened,
 // what was done and by when. It is a person's statement, kept beside the engagement and shown with the exception.
-export function respondToException(root: string, id: string, key: string, text: string, by: string): { file: string } {
+// A response names the workspace files behind its claims (--cite); each must exist, and it travels in the package.
+export function respondToException(root: string, id: string, key: string, text: string, by: string, cites: string[] = []): { file: string } {
   readEngagement(root, id);
   if (!text.trim()) throw new Error('the response needs --response <text>');
   const ws = loadWorkspace(root);
@@ -679,8 +688,9 @@ export function respondToException(root: string, id: string, key: string, text: 
   if (!(loadWorkspace(root).registers.people?.data.rows ?? []).some((r) => r.id === by)) throw new Error(`${by || '(none)'} is not in registers/people.csv`);
   const rel = `${base(id)}/exceptions.json`;
   const cur = readVersioned(root, rel);
-  const doc = cur ? JSON.parse(cur.text) as { responses: Record<string, { text: string; by: string; at: string }> } : { responses: {} };
-  doc.responses[key] = { text: text.trim(), by, at: now() };
+  for (const c of cites) { inside(root, c); if (!existsSync(join(root, c))) throw new Error(`${c} is not a file in the workspace`); }
+  const doc = cur ? JSON.parse(cur.text) as { responses: Record<string, { text: string; by: string; at: string; cites?: string[] }> } : { responses: {} };
+  doc.responses[key] = { text: text.trim(), by, at: now(), ...(cites.length ? { cites } : {}) };
   writeVersioned(root, rel, pretty(doc), cur?.version ?? null);
   return { file: rel };
 }
