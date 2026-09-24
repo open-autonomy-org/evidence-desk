@@ -42,7 +42,7 @@ for r in csv.DictReader(open(os.path.join(D,'review/exceptions.csv'))):
               "regression test in the CI test job and a rotation of the deploy service account's token; its record's history shows each step.",
               [inc_hist, one('evidence/files/populations/incidents-*.csv')])
     elif k.startswith('config-actor:') or k.startswith('weakened:'):
-        R[k]=("This change is in the collected change history; management reviewed it at the quarterly review of 2026-09-25.",[cf_changes if 'cloudflare' in k else rule_changes])
+        R[k]=("The vendor's log names no one for this change, and management has not identified who made it; it stays open as an exception.",[cf_changes if 'cloudflare' in k else rule_changes])
     else: print('UNHANDLED',k,file=sys.stderr)
 for k,(t,c) in R.items():
     args=['bun','src/cli.ts','audit',W,'q3','exception',k,'--response',t,'--by','maya']

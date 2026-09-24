@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { parseCsv, writeCsv } from './csv.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { addEvidence } from './actions.ts';
-import { loadWorkspace } from './workspace.ts';
+import { loadWorkspace, type Workspace } from './workspace.ts';
 import type { Snapshot } from './open-autonomy.ts';
 import { now } from './clock.ts';
 const API = 'https://api.cloudflare.com/client/v4';
@@ -53,6 +53,16 @@ export async function cfAccount(account: string, queries: string[]): Promise<{ i
 export const CF_ADMIN_ROLES = ['Super Administrator - All Privileges', 'Administrator'];
 export const cfIsAdmin = (m: any) => (m.roles ?? []).some((r: any) => CF_ADMIN_ROLES.includes(r.name)) || (!(m.roles ?? []).length && (m.policies ?? []).length > 0);
 
+// Who may change the account: the people on the roster (the Open Autonomy team, where the workspace reads one) by their
+// addresses, and the service accounts the systems register declares (kind "service account", named by the account's
+// email), which are known actors but not people: the deploy pipeline's credential acts as one.
+export function cloudflareRoster(root: string, ws: Workspace): { people: string[]; service_accounts: string[] } {
+  const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
+  const team = latest ? (JSON.parse(latest.text) as Snapshot).team.map((m) => m.id) : [];
+  return { people: (ws.registers.people?.data.rows ?? []).filter((p) => !team.length || team.includes(p.id)).map((p) => (p.email ?? '').toLowerCase()).filter(Boolean),
+    service_accounts: (ws.registers.systems?.data.rows ?? []).filter((x) => /service account/i.test(x.kind ?? '')).map((x) => (x.name ?? '').toLowerCase()).filter(Boolean) };
+}
+
 // Configuration changes to a Cloudflare account in the period, from its audit log: every entry, with who made it (the
 // user whose API token or session it was), what it changed and the old and new value. A change by someone not on the
 // roster, or by no one Cloudflare can name, is marked.
@@ -62,12 +72,8 @@ export async function collectCloudflareChanges(root: string, input: { account: s
   const account = await cfAccount(input.account, queries);
   const entries = await cfAll(`/accounts/${account.id}/audit_logs?since=${input.start}T00:00:00Z&before=${nextDay(input.end)}T00:00:00Z&direction=asc`, queries);
   const ws = loadWorkspace(root);
-  const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
-  const team = latest ? (JSON.parse(latest.text) as Snapshot).team.map((m) => m.id) : [];
-  const emails = new Set((ws.registers.people?.data.rows ?? []).filter((p) => !team.length || team.includes(p.id)).map((p) => (p.email ?? '').toLowerCase()).filter(Boolean));
-  // A service account the organization declares in its systems register (kind "service account", its name the
-  // account's email) is a known actor, not a person: the deploy pipeline's credential acts as it.
-  const services = new Set((ws.registers.systems?.data.rows ?? []).filter((x) => /service account/i.test(x.kind ?? '')).map((x) => (x.name ?? '').toLowerCase()).filter(Boolean));
+  const roster = cloudflareRoster(root, ws);
+  const emails = new Set(roster.people), services = new Set(roster.service_accounts);
   const val = (v: unknown) => v == null ? '' : typeof v === 'string' ? v : JSON.stringify(v);
   const rows = entries.map((x: any) => ({ at: String(x.when ?? ''), actor: String(x.actor?.email ?? ''), actor_on_roster: !x.actor?.email ? 'unknown' : emails.has(String(x.actor.email).toLowerCase()) ? 'yes' : services.has(String(x.actor.email).toLowerCase()) ? 'service account' : 'no',
     action: String(x.action?.type ?? ''), resource: `${x.resource?.type ?? ''} ${x.resource?.id ?? ''}`.trim(), zone: String(x.metadata?.zone_name ?? ''), old_value: val(x.oldValue), new_value: val(x.newValue), id: String(x.id ?? '') }));

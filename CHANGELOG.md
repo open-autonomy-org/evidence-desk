@@ -7,6 +7,13 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- A deploy outside the change path is found the day it happens: the daily Cloudflare check reads the last day of the
+  account's audit log and fails on a change by no one it can name or no one on the roster, and on a Worker deployed by
+  a person rather than the pipeline's service account. The package is not exported while an exception has no
+  management response. A Cloudflare token is paired with its revocation by the owner the vendor records on it, and an
+  incident's exception is dated by its record's detection. A response sentence that names nothing of its own is
+  evidenced only by a line naming its exception's subject, and an account the package names is a claim's subject.
+  Twin: volter-ai/twin a064847c.
 - Evidence is labelled by where it came from (vendor record, client record, client narrative) instead of
   "system-evidenced", and a claim needs a line naming its subject, not just its date. Access changes come from the
   daily snapshots of GitHub and Cloudflare membership. A recurring internal-audit finding is one exception. Changes

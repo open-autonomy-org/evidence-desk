@@ -460,10 +460,10 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
     [/restore tests?/, () => count('/restore-tests-')?.length ?? null],
     [/incidents?/, () => count('/incidents-')?.length ?? null],
   ];
-  const texts: { source: string; text: string }[] = [];
+  const texts: { source: string; text: string; about?: string[] }[] = [];
   for (const k of ['description', 'assertion']) { const f = join(root, base(id), 'drafts', `${k}.md`); if (existsSync(f)) texts.push({ source: k, text: readFileSync(f, 'utf8').replace(/```[\s\S]*?```/g, '') }); }
   const ex = join(root, base(id), 'exceptions.json');
-  if (existsSync(ex)) for (const [key, r] of Object.entries((JSON.parse(readFileSync(ex, 'utf8')) as { responses?: Record<string, { text: string }> }).responses ?? {})) texts.push({ source: `response to ${key}`, text: r.text });
+  if (existsSync(ex)) for (const [key, r] of Object.entries((JSON.parse(readFileSync(ex, 'utf8')) as { responses?: Record<string, { text: string }> }).responses ?? {})) texts.push({ source: `response to ${key}`, text: r.text, about: key.toLowerCase().split(':').slice(1) });
   const rank = { 'vendor record': 0, 'client record': 1, 'client narrative': 2 } as const;
   const out: Claim[] = [];
   // A sentence ends at a full stop or a line; a semicolon inside a line (the drafter's deviation lines) does not end one.
@@ -486,6 +486,11 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
     // (read-only) is not one.
     const ids = [...new Set([...low.matchAll(/\b[a-z0-9]+(?:-[a-z0-9]+)+\b|\bc\d{1,2}\b/g)].map((m) => m[0]))].filter((x) => !/^20\d\d-\d\d-\d\d$/.test(x) && !/^\d/.test(x) && !/^[a-z]{2,5}-\d+$/.test(x) && !ACT_WORDS.includes(x) && lines.some((l) => l.text.includes(x)));
     const people = names.filter((x) => new RegExp(`\\b${x.replace(/[.@+]/g, '\\$&')}\\b`).test(low));
+    // An account the package names (deploy@globex.test) is as specific as an id.
+    for (const m of low.matchAll(/[a-z0-9._+-]+@[a-z0-9.-]+\.[a-z]+/g)) if (!ids.includes(m[0]) && !names.includes(m[0]) && lines.some((l) => l.text.includes(m[0]))) ids.push(m[0]);
+    // A response's sentence that names nothing of its own ("this change") is about its exception: it is evidenced only
+    // by a line that names the exception's subject.
+    if (!ids.length && !people.length && t.about) ids.push(...t.about.filter((x) => lines.some((l) => l.text.includes(x))));
     const subjects = [...new Set([...ids, ...people, ...ACT_WORDS.filter((w) => low.includes(w))])];
     const found: string[] = []; let worst: Claim['status'] = 'vendor record'; const missing: string[] = [];
     for (const d of eventDates) {
@@ -653,6 +658,11 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   if (existsSync(draftDescription)) for (const l of lintDescription(ws, e.data, readFileSync(draftDescription, 'utf8'), assertionOf(root, id)).filter((x) => x.status === 'contradiction')) problems.push(`the description contradicts the evidence (${l.rule}): ${l.detail}`);
   // A packaged response travels with its form's definition (the questions and correct answers it was graded against).
   for (const r of ws.responses) if (paths.has(`forms/responses/${r.data.id}.json`)) { const f = ws.forms.find((x) => x.data.id === r.data.form); if (f) paths.add(f.path); }
+  // Every exception the package raises goes out with management's response: the firm should never receive a
+  // deviation the client has not answered.
+  const created = now();
+  const views = buildViews(root, ws, e.data, reqs, paths, created);
+  for (const x of parseCsv(views.get('review/exceptions.csv')!, 'exceptions.csv').rows.filter((x) => !x.response.trim())) problems.push(`exception ${x.key} (${x.item}) has no management response (record one: ed audit <workspace> ${id} exception ${x.key} --response <text> --by <person>)`);
   if (problems.length) throw new Error(`the package cannot be exported:\n  ${problems.join('\n  ')}`);
   mkdirSync(out, { recursive: true });
   const files = [...paths].sort().map((p) => {
@@ -662,10 +672,8 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     const h = fileHash(join(out, 'workspace'), p)!;
     return { path: p, sha256: h.sha256, bytes: h.bytes };
   });
-  const created = now();
   const omitted = ['Evidence outside the engagement window and evidence of excluded controls stay in the workspace; the control matrix lists every control with its evidence ids, and the firm may ask for any of it.',
     ...[...absent].sort(([a], [b]) => a.localeCompare(b)).map(([ref, by]) => `${ref}: cited by ${by}, and not in the workspace`)];
-  const views = buildViews(root, ws, e.data, reqs, paths, created);
   const described = existsSync(join(root, base(id), 'drafts', 'description.md')) ? readFileSync(join(root, base(id), 'drafts', 'description.md'), 'utf8') : null;
   // The workspace's own history on its default line: who merged each change to the program's records and when, so a
   // register edit or an attribution row can be traced to the commit and pull request that made it.

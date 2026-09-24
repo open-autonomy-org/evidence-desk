@@ -18,7 +18,7 @@ import type { AuditRequest, Engagement } from './audit.ts';
 export type PacketException = { key: string; source: string; controls: string; item: string; detail: string; occurred: string; detected: string; resolved: string; closed_by?: string; response: string; responded_by: string; response_cites?: string; file: string };
 // Checks that report events (something happened in the last day) rather than a standing state: a later passing reading
 // means only that it did not happen again, so it never closes the exception.
-const EVENT_CHECKS = new Set(['github-rule-bypass']);
+const EVENT_CHECKS = new Set(['github-rule-bypass', 'cloudflare-change-actors']);
 type Responses = Record<string, { text: string; by: string; at: string; cites?: string[] }>;
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -92,9 +92,11 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       // A token created in the period while the same owner's earlier token was never revoked: a rotation that left the
       // old credential live.
       if (f.path.includes('/cloudflare-changes-')) {
+        // A token's owner is the one the vendor records on the token, not whoever acted: a token can revoke itself.
+        const ownerOf = (r: Record<string, string>) => { try { return String(JSON.parse(r.action === 'delete' ? r.old_value : r.new_value)?.owner ?? '') || r.actor; } catch { return r.actor; } };
         const tokens = t.rows.filter((r) => /^token\b/.test(r.resource));
-        for (const owner of new Set(tokens.map((r) => r.actor))) {
-          const made = tokens.filter((r) => r.actor === owner && r.action === 'create'), gone = tokens.filter((r) => r.actor === owner && r.action === 'delete');
+        for (const owner of new Set(tokens.map(ownerOf))) {
+          const made = tokens.filter((r) => ownerOf(r) === owner && r.action === 'create'), gone = tokens.filter((r) => ownerOf(r) === owner && r.action === 'delete');
           const madeIn = made.filter((r) => inside(r.at, period)), goneIn = gone.filter((r) => inside(r.at, period));
           if (madeIn.length > goneIn.length)
             add({ ...base, key: `token-not-revoked:${owner}`, controls: 'AC-05', item: `${owner}: ${madeIn.length} token(s) created, ${goneIn.length} revoked in the period`, detail: `more tokens were created (${madeIn.map((r) => day(r.at)).join(', ')}) than revoked: a rotation that left an older token live, or a new token to account for`, occurred: day(madeIn.at(-1)!.at) });
@@ -130,7 +132,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       // A restore that did not pass, an internal audit's findings, and the audit's cadence across the period.
       // Every incident in the period is an exception in its own right, resolved when its record closed.
       if (f.path.includes('/incidents-')) for (const r of t.rows)
-        add({ ...base, key: `incident:${r.id}`, controls: ev.data.controls.join(';'), item: `incident ${r.id} (${r.severity})`, detail: r.summary, occurred: day(r.detected_at), resolved: r.status === 'closed' ? day(r.last_changed_at || r.detected_at) : '', closed_by: r.status === 'closed' ? `closed with its review (${r.file})` : '' });
+        add({ ...base, key: `incident:${r.id}`, controls: ev.data.controls.join(';'), item: `incident ${r.id} (${r.severity})`, detail: r.summary, occurred: day(r.detected_at), detected: day(r.detected_at), resolved: r.status === 'closed' ? day(r.last_changed_at || r.detected_at) : '', closed_by: r.status === 'closed' ? `closed with its review (${r.file})` : '' });
       if (t.columns.includes('result') && f.path.includes('/restore-tests-')) for (const r of t.rows.filter((r) => r.result !== 'passed'))
         add({ ...base, key: `restore-failed:${r.id}`, item: `restore test ${r.id} (${r.store})`, detail: `result ${r.result || 'not recorded'}`, occurred: day(r.at) });
       if (f.path.includes('/internal-audits-')) {

@@ -38,7 +38,7 @@ manifest's `derived` list (the README too), and every line names the file it com
 Each population in `index.html` carries a test memo: how many items it holds and whether its completeness comes from
 the system of record or from records the organization keeps itself. A change merged without an independent approval
 that no break-glass record names is an exception of its own. A management response lists the workspace files it
-cites; one citing nothing says so.
+cites; one citing nothing says so. The package is not exported while any exception has no response.
 
 - `review/claims.csv`: every dated claim in the description, the assertion and management's responses, tied to the
   packaged line that records its date and names its subject, and graded by where that line came from: a vendor's own
@@ -63,7 +63,7 @@ counts only what the package holds.
 
 An exception's `closed_by` says what ended it: a later passing reading (which shows the condition stopped, not that
 anyone remediated it) or a later completeness check. A check that reports events, such as a bypass of the branch
-rules, is never closed by a quiet day.
+rules or a Worker deployed by a person, is never closed by a quiet day.
 
 The manifest's `workspace` names the workspace repository's commit at export, its origin and the remote branches
 holding it: the hosted repository's history dates every record independently of the package. A file a packaged file
@@ -115,7 +115,9 @@ query that produced it (evidence a person added by hand says so).
 - **Seam records** (incidents, break-glass changes, credentials, escalations) are listed with each record's full git
   history (`*.history.txt`): a record edited after it was added shows every change with its author and dates.
 - **Continuous checks** (two-factor enforcement, required review and protected history, bypasses of the default
-  branch's rules, dependency and secret-scanning alerts, TLS and HTTPS settings) run daily in the workspace repository;
+  branch's rules, dependency and secret-scanning alerts, TLS and HTTPS settings, and who made each change in the
+  Cloudflare account's audit log, with every Worker deploy made by a service account) run daily in the workspace
+  repository;
   each result, the snapshot it was decided from and its first failure date are kept.
 
 ## What to test, and how
