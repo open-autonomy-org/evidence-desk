@@ -27,7 +27,8 @@ async function wrangler(tag: string, message: string) {
 }
 const T = token === '-' ? undefined : token;
 if (step === 'org') {
-  await call('PATCH', '/orgs/globex', { name: 'Globex' });
+  // Maya created the organization on github.com (the twin's door stands in for that page, which has no API).
+  await call('POST', '/_twin/orgs', { login: 'globex', name: 'Globex', owner: 'maya-gx' });
   for (const [login, role] of [['maya-gx', 'admin'], ['sam-gx', 'admin']]) await call('PUT', `/orgs/globex/memberships/${login}`, { role });
   for (const name of ['relay', 'compliance']) await call('POST', '/orgs/globex/repos', { name, private: name === 'compliance' });
   await call('PUT', '/_twin/orgs/globex/two-factor-requirement', { enabled: true });
