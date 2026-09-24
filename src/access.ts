@@ -9,6 +9,7 @@ import { writeVersioned } from './files.ts';
 import { addEvidence } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
 import { accessChanges } from './packet.ts';
+import { neededControls } from './targets.ts';
 
 export function collectAccessChanges(root: string, input: { start: string; end: string; by: string }): { evidence: string; rows: number } {
   const ws = loadWorkspace(root);
@@ -40,7 +41,7 @@ export function collectAccessChanges(root: string, input: { start: string; end: 
   });
   const rel = `evidence/files/populations/access-changes-${input.start}-${input.end}-${Date.now()}.csv`;
   writeVersioned(root, rel, writeCsv({ columns: ['seen_at', 'system', 'account', 'kind', 'change', 'role', 'audit_log_at', 'audit_log_actor', 'person_start', 'person_end', 'within_employment', 'snapshot'], rows }), null);
-  const applicable = new Set(ws.controls.filter((x) => x.data.applicable).map((x) => x.data.id));
+  const applicable = neededControls(ws);
   const evidence = addEvidence(root, {
     title: `Population: ${rows.length} access changes on GitHub and Cloudflare, ${input.start} to ${input.end}`, controls: ['AC-02', 'HR-03', 'HR-04'].filter((x) => applicable.has(x)), files: [rel], recorded_by: input.by,
     period: { start: input.start, end: input.end },

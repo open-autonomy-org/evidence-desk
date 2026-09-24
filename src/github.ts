@@ -10,6 +10,7 @@ import { addEvidence } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
 import type { Snapshot } from './open-autonomy.ts';
 import { clockDate, now } from './clock.ts';
+import { neededControls } from './targets.ts';
 
 const API = 'https://api.github.com';
 
@@ -46,7 +47,7 @@ async function all<T>(path: string): Promise<{ items: T[]; pages: number }> {
 }
 
 const inPeriod = (at: string | null | undefined, start: string, end: string) => !!at && at.slice(0, 10) >= start && at.slice(0, 10) <= end;
-const applicableOf = (root: string, ids: string[]) => { const a = new Set(loadWorkspace(root).controls.filter((c) => c.data.applicable).map((c) => c.data.id)); return ids.filter((c) => a.has(c)); };
+const applicableOf = (root: string, ids: string[]) => { const a = neededControls(loadWorkspace(root)); return ids.filter((c) => a.has(c)); };
 
 type Pull = { number: number; title: string; user?: { login?: string }; created_at?: string; merged_at: string | null; merged_by?: { login?: string } | null };
 type Review = { user?: { login?: string }; state: string; submitted_at?: string; commit_id?: string };

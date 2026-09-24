@@ -10,6 +10,7 @@ import { parseCsv, writeCsv } from './csv.ts';
 import type { Workspace } from './workspace.ts';
 import { categories, categoryAnswer, criteria } from './catalog.ts';
 import type { AuditRequest, Engagement } from './audit.ts';
+import { inSoc2Scope, isSoc2Control, soc2Exclusion } from './targets.ts';
 
 // occurred: when the deviation happened (a merge, a deployment, the first failing reading); detected: when a collector or
 // check found it.
@@ -347,8 +348,9 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     const seen = new Set(rows.map((r) => day(r.at)));
     coverage.set(check, { days: days.filter((d) => seen.has(d)).length, pass: rows.filter((r) => r.status === 'pass').length, fail: rows.filter((r) => r.status === 'fail').length, error: rows.filter((r) => r.status === 'error').length });
   }
-  // The control matrix: every control, whether it applies, where it is asked for and what evidence the package holds.
-  const matrix = ws.controls.map((c) => {
+  // The control matrix: every SOC 2 control, whether SOC 2's scope takes it, where it is asked for and what evidence the
+  // package holds. SOC 2's scope and its exclusions are worked out from the scoping answers (targets.ts).
+  const matrix = ws.controls.filter((c) => isSoc2Control(c.data)).map((c) => {
     const d = c.data;
     const ids = evidence.filter((x) => x.data.controls.includes(d.id)).map((x) => x.data.id);
     // How strong the packaged evidence is: a vendor's own answer (a collector, or a daily check decided from one), a
@@ -362,9 +364,9 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     const since = d.frequency === 'annual' ? new Date(Date.parse(`${period.end}T00:00:00Z`) - 365 * 864e5).toISOString().slice(0, 10) : period.start;
     const window = { start: since < period.start ? since : period.start, end: period.end };
     const held = ws.evidence.filter((x) => x.data.controls.includes(d.id) && (x.data.period ? x.data.period.start <= window.end && x.data.period.end >= window.start : inside(x.data.collected_at, window))).length;
-    return { control: d.id, title: d.title, criteria: d.criteria.join(';'), frequency: d.frequency, owner: d.owner, status: d.status, applicable: d.applicable ? 'yes' : 'no', exclusion_reason: d.exclusion_reason ?? '',
+    return { control: d.id, title: d.title, criteria: d.criteria.join(';'), frequency: d.frequency, owner: d.owner, status: d.status, applicable: inSoc2Scope(ws, d) ? 'yes' : 'no', exclusion_reason: soc2Exclusion(ws, d) ?? '',
       requests: reqs.filter((r) => r.data.controls.includes(d.id)).map((r) => r.data.id).join(';'), evidence_in_package: ids.join(';'), evidence_basis: ['vendor record', 'client record', 'client narrative'][Math.min(...kinds, checks.length ? 0 : 3)] ?? '', check_history: checks.join('; '),
-      workspace_evidence_in_window: d.applicable ? (held ? `${held} record(s)${window.start < period.start ? ` since ${window.start}` : ''}${checks.length ? ` and ${checks.length} check(s)` : ''}` : checks.length ? `check only (${checks.length}), no evidence record` : 'none') : '',
+      workspace_evidence_in_window: inSoc2Scope(ws, d) ? (held ? `${held} record(s)${window.start < period.start ? ` since ${window.start}` : ''}${checks.length ? ` and ${checks.length} check(s)` : ''}` : checks.length ? `check only (${checks.length}), no evidence record` : 'none') : '',
       records_in_window: String(held),
       exceptions: String(exceptions.filter((x) => x.controls.split(';').includes(d.id)).length) };
   });
@@ -375,7 +377,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   // any of them has evidence or a check in its window. A criterion in scope with none is the first thing a firm asks about.
   const inScope = new Set(['CC', ...Object.entries(categoryAnswer).filter(([, q]) => ws.scope?.data.answers?.[q] === true).map(([c]) => c)]);
   // A criterion whose every control the organization excluded, with its reason, is carved out rather than uncovered.
-  const excludedFor = (id: string) => ws.controls.filter((x) => x.data.criteria.includes(id) && !x.data.applicable && x.data.exclusion_reason).map((x) => `${x.data.id}: ${x.data.exclusion_reason}`);
+  const excludedFor = (id: string) => ws.controls.filter((x) => x.data.criteria.includes(id) && !inSoc2Scope(ws, x.data) && soc2Exclusion(ws, x.data)).map((x) => `${x.data.id}: ${soc2Exclusion(ws, x.data)}`);
   const byCriterion = criteria.filter((c) => inScope.has(c.category)).map((c) => {
     const ctl = matrix.filter((m) => m.applicable === 'yes' && m.criteria.split(';').includes(c.id));
     // A control counts as evidenced by a record in this package that names it; one covered only by an automated check is
@@ -538,7 +540,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
 <p>Controls: ${r.controls.map((c) => `<a href="#ctl-${esc(c)}">${esc(c)}</a>`).join(', ')} · Exceptions: ${exceptions.filter((x) => x.controls.split(';').some((c) => r.controls.includes(c))).length}</p>
 ${r.population ? `<p>Population: <b>${esc(r.population)}</b></p>${memo(r.population)}<ul>${evRow(r.population)}</ul>` : ''}${r.evidence.length ? `<p>Evidence</p><ul>${r.evidence.map(evRow).join('')}</ul>` : ''}
 ${r.thread.length ? `<details><summary>Thread (${r.thread.length})</summary><ul>${r.thread.map((m) => `<li><b>${esc(m.side)}</b> ${esc(m.by)} ${esc(m.at)}: ${esc(m.text)}</li>`).join('')}</ul></details>` : ''}</section>`).join('\n');
-  const excluded = ws.controls.filter((c) => !c.data.applicable);
+  const excluded = ws.controls.filter((c) => isSoc2Control(c.data) && !inSoc2Scope(ws, c.data));
   views.set('review/index.html', `<!doctype html><html><head><meta charset="utf-8"><title>${esc(ws.manifest?.data.organization)} — ${esc(e.id)}</title>
 <style>body{font:14px/1.45 system-ui,sans-serif;max-width:1100px;margin:24px auto;padding:0 16px;color:#1b1f24}table{border-collapse:collapse;width:100%;margin:8px 0 20px}th,td{border:1px solid #d0d7de;padding:4px 6px;text-align:left;vertical-align:top;font-size:13px}th{background:#f6f8fa}.pill{font-size:11px;border:1px solid #8c959f;border-radius:10px;padding:1px 7px;font-weight:normal}.none td{background:#ffebe9}.memo{background:#f6f8fa;border-left:3px solid #8c959f;padding:4px 8px}.warn{background:#fff8c5;border:1px solid #d4a72c;padding:8px 12px;margin:8px 0}code{font-size:12px}small{color:#57606a}</style></head><body>
 <h1>${esc(ws.manifest?.data.organization)}: SOC 2 ${e.type === 'type2' ? 'Type II' : 'Type I'}, engagement ${esc(e.id)}</h1>
@@ -551,7 +553,7 @@ ${interim ? `<div class="warn">This package was created on or before the last da
 <h2>Automated checks across the period</h2>${history.size ? `<table><tr><th>Check</th><th>Days with a reading</th><th>Pass</th><th>Fail</th><th>Could not decide</th><th>Latest</th></tr>${[...history.entries()].map(([k, rows]) => { const c = coverage.get(k)!; const last = rows.at(-1)!; return `<tr><td><a href="check-history/${esc(href(k))}.csv">${esc(k)}</a></td><td>${c.days} of ${days.length}</td><td>${c.pass}</td><td>${c.fail}</td><td>${c.error}</td><td>${esc(last.status)} ${esc(day(last.at))}: ${esc(last.detail)}</td></tr>`; }).join('')}</table>` : '<p>No check ran during the period.</p>'}
 <h2>Requests</h2>${reqHtml}
 <h2>Control matrix</h2>${(() => { const none = matrix.filter((m) => m.workspace_evidence_in_window === 'none'); return none.length ? `<div class="warn">${none.length} applicable control(s) have no evidence and no check in the period: ${none.map((m) => esc(m.control)).join(', ')}.</div>` : ''; })()}<table><tr><th>Control</th><th>Criteria</th><th>Frequency</th><th>Owner</th><th>Status</th><th>Requests</th><th>Evidence in package</th><th>Checks</th><th>In the period</th><th>Exceptions</th></tr>${matrix.filter((m) => m.applicable === 'yes').map((m) => `<tr id="ctl-${esc(m.control)}"${m.workspace_evidence_in_window === 'none' ? ' class="none"' : ''}><td>${controlLink(m.control)} ${esc(m.title)}</td><td>${esc(m.criteria)}</td><td>${esc(m.frequency)}</td><td>${esc(m.owner)}</td><td>${esc(m.status)}</td><td>${esc(m.requests)}</td><td>${esc(m.evidence_in_package)}</td><td>${esc(m.check_history)}</td><td>${esc(m.workspace_evidence_in_window)}</td><td>${esc(m.exceptions)}</td></tr>`).join('')}</table>
-<h2>Out of scope</h2>${excluded.length ? `<ul>${excluded.map((c) => `<li>${esc(c.data.id)} ${esc(c.data.title)}: ${esc(c.data.exclusion_reason ?? '')}</li>`).join('')}</ul>` : '<p>No control is excluded.</p>'}
+<h2>Out of scope</h2>${excluded.length ? `<ul>${excluded.map((c) => `<li>${esc(c.data.id)} ${esc(c.data.title)}: ${esc(soc2Exclusion(ws, c.data) ?? '')}</li>`).join('')}</ul>` : '<p>No control is excluded.</p>'}
 <p><small>Applicable controls no request names are in the matrix with their evidence; the firm may ask for any of them.</small></p>
 </body></html>
 `);

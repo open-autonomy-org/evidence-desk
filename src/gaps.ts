@@ -11,6 +11,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { checkTitle, readSettings, COLLECTORS } from './automation.ts';
 import { clockDate } from './clock.ts';
+import { inSoc2Scope, isSoc2Control, neededControls, soc2Exclusion } from './targets.ts';
 
 const INTERVAL_DAYS: Record<string, number> = { daily: 1, weekly: 7, monthly: 31, quarterly: 92, annual: 366 };
 
@@ -27,6 +28,8 @@ export type Gaps = {
 
 export function computeGaps(ws: Workspace, asOf = clockDate()): Gaps {
   const program: string[] = [];
+  // The program's work is on needed controls; SOC 2's criteria and counts on controls in SOC 2's scope (targets.ts).
+  const needed = neededControls(ws);
   const scope = ws.scope?.data;
   if (!scope) program.push('scope.json is missing or invalid');
   else for (const q of unanswered(scope)) program.push(`Scoping question not answered: ${questions.find((x) => x.id === q)!.prompt}`);
@@ -41,7 +44,7 @@ export function computeGaps(ws: Workspace, asOf = clockDate()): Gaps {
   if (oa) {
     const snap = JSON.parse(oa.text) as Snapshot;
     program.push(...seamFindings(snap).map((f) => `Open Autonomy: ${f}`));
-    const declared = DECLARATION_CONTROLS.filter((c) => ws.controls.some((x) => x.data.id === c && x.data.applicable));
+    const declared = DECLARATION_CONTROLS.filter((c) => needed.has(c));
     if (declared.length && !ws.evidence.some((e) => e.data.source?.kind === 'open-autonomy' && e.data.source?.commit === snap.commit && declared.some((c) => e.data.controls.includes(c))))
       program.push(`Open Autonomy: the declarations at ${snap.commit.slice(0, 12)} are not recorded as evidence (open-autonomy import again now that controls are adopted)`);
     const dir = join(ws.root, 'sources/open-autonomy/completeness');
@@ -117,7 +120,7 @@ export function computeGaps(ws: Workspace, asOf = clockDate()): Gaps {
     else if (Date.parse(last.at) < asOf.getTime() - 2 * 864e5) addCheckGap(chk.controls, `check "${checkTitle(chk.id)}" last ran ${last.at.slice(0, 10)}`);
   }
   const changedFiles = new Set(ws.problems.filter((p) => p.severity === 'warning' && p.file.startsWith('evidence/records/')).map((p) => p.file));
-  const controls: ControlGaps[] = ws.controls.filter((c) => c.data.applicable).map((c) => {
+  const controls: ControlGaps[] = ws.controls.filter((c) => needed.has(c.data.id)).map((c) => {
     const d = c.data;
     const g: string[] = [];
     if (!d.owner) g.push('no owner');
@@ -139,19 +142,20 @@ export function computeGaps(ws: Workspace, asOf = clockDate()): Gaps {
   const inScope = (cat: string) => cat === 'CC' || scope?.answers[categoryAnswer[cat]] === true;
   const crit: CriterionGaps[] = criteria.filter((c) => inScope(c.category)).map((c) => {
     const mapped = ws.controls.filter((x) => x.data.criteria.includes(c.id));
-    const applicable = mapped.filter((x) => x.data.applicable).map((x) => x.data.id);
-    const excluded = mapped.filter((x) => !x.data.applicable).map((x) => ({ id: x.data.id, reason: x.data.exclusion_reason ?? '' }));
+    const applicable = mapped.filter((x) => inSoc2Scope(ws, x.data)).map((x) => x.data.id);
+    const excluded = mapped.filter((x) => !inSoc2Scope(ws, x.data)).map((x) => ({ id: x.data.id, reason: soc2Exclusion(ws, x.data) ?? '' }));
     const g: string[] = [];
     if (!applicable.length) g.push(excluded.length ? 'every mapped control is excluded; confirm the exclusions are justified or carved out to a subservice organization' : 'no control addresses this criterion');
     for (const id of applicable) if (byId.get(id)!.gaps.length) g.push(`${id} is not ready`);
     return { id: c.id, title: c.title, category: categories[c.category], controls: applicable, excluded, ready: applicable.length > 0 && g.length === 0, gaps: g };
   });
 
+  const soc2 = controls.filter((c) => inSoc2Scope(ws, ws.controls.find((x) => x.data.id === c.id)!.data));
   return {
     as_of: asOf.toISOString().slice(0, 10),
     summary: {
-      controls_applicable: controls.length, controls_ready: controls.filter((c) => !c.gaps.length).length,
-      controls_excluded: ws.controls.filter((c) => !c.data.applicable).length,
+      controls_applicable: soc2.length, controls_ready: soc2.filter((c) => !c.gaps.length).length,
+      controls_excluded: ws.controls.filter((c) => isSoc2Control(c.data) && !inSoc2Scope(ws, c.data)).length,
       criteria_in_scope: crit.length, criteria_ready: crit.filter((c) => c.ready).length, program_gaps: program.length, problems: errors.length,
     },
     program, obligations, controls, criteria: crit,

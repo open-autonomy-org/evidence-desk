@@ -24,11 +24,14 @@
     "frameworks": {
       "type": "array",
       "items": {
-        "enum": [
-          "soc2",
-          "iso27001"
-        ]
-      }
+        "type": "string",
+        "pattern": "^[a-z0-9-]+$",
+        "description": "soc2, or the id of a catalog in catalog/frameworks/ (checked when the workspace is read)"
+      },
+      "contains": {
+        "const": "soc2"
+      },
+      "description": "The frameworks the program targets. SOC 2 is always one (docs/decisions/0002-frameworks-are-targets.md)."
     }
   }
 }

@@ -2,6 +2,7 @@
 // annual and offboarding obligations, vendor reviews, risk reviews, vulnerability deadlines and open incidents.
 import type { Workspace } from './workspace.ts';
 import { clockDate } from './clock.ts';
+import { neededControls } from './targets.ts';
 
 export type Obligation = { kind: 'control' | 'person' | 'vendor' | 'risk' | 'vulnerability' | 'incident'; what: string; controls: string[]; who: string; subject?: string; due: string; state: 'done' | 'due' | 'overdue'; done_on?: string };
 
@@ -14,7 +15,8 @@ export function computeObligations(ws: Workspace, asOf = clockDate()): Obligatio
   const today = asOf.getTime();
   const out: Obligation[] = [];
   const state = (due: number): Obligation['state'] => (due < today - DAY ? 'overdue' : 'due');
-  const applicable = new Map(ws.controls.filter((c) => c.data.applicable).map((c) => [c.data.id, c.data]));
+  const needed = neededControls(ws);
+  const applicable = new Map(ws.controls.filter((c) => needed.has(c.data.id)).map((c) => [c.data.id, c.data]));
   const byForm = new Map<string, typeof ws.responses>();
   for (const r of ws.responses) if (r.data.passed) (byForm.get(r.data.form) ?? byForm.set(r.data.form, []).get(r.data.form)!).push(r);
 

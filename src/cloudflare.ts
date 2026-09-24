@@ -8,6 +8,7 @@ import { addEvidence } from './actions.ts';
 import { loadWorkspace, type Workspace } from './workspace.ts';
 import type { Snapshot } from './open-autonomy.ts';
 import { now } from './clock.ts';
+import { neededControls } from './targets.ts';
 const API = 'https://api.cloudflare.com/client/v4';
 
 // Each answer's status, Date and cf-ray (Cloudflare's id for the request), for a caller that keeps them with what it read.
@@ -81,7 +82,7 @@ export async function collectCloudflareChanges(root: string, input: { account: s
   writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: cfAnswers.map(({ body: _, ...x }) => x) }, account, entries }, null, 2) + '\n', null);
   writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['at', 'actor', 'actor_on_roster', 'action', 'resource', 'zone', 'old_value', 'new_value', 'id'], rows }), null);
   const unnamed = rows.filter((r) => r.actor_on_roster === 'no' || r.actor_on_roster === 'unknown').length;
-  const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
+  const applicable = neededControls(ws);
   const evidence = addEvidence(root, {
     title: `Population: ${rows.length} configuration changes to Cloudflare account ${account.name}, ${input.start} to ${input.end}`, controls: ['OPS-04', 'CHG-04', 'AC-02'].filter((c) => applicable.has(c)), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'cloudflare', query: `${queries.join('; ')} (all pages)` },
@@ -116,7 +117,7 @@ export async function collectCloudflareTokens(root: string, input: { account: st
   writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: cfAnswers.map(({ body: _, ...x }) => x) }, account, entries: entries.filter((x: any) => x.resource?.type === 'token' || x.resource?.type === 'script') }, null, 2) + '\n', null);
   writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['token', 'owner', 'owner_kind', 'created_at', 'created_by', 'revoked_at', 'revoked_by', 'live_at_period_end', 'owner_worker_deploys_in_period'], rows }), null);
   const personal = rows.filter((r) => r.owner_kind !== 'service account' && r.live_at_period_end === 'yes').length;
-  const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
+  const applicable = neededControls(ws);
   const evidence = addEvidence(root, {
     title: `Population: ${rows.length} Cloudflare API tokens of account ${account.name}, to ${input.end}`, controls: ['AC-05', 'AC-04'].filter((c) => applicable.has(c)), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'cloudflare', query: `${queries.join('; ')} (all pages, from the log's first entry)` },
@@ -166,7 +167,7 @@ export async function collectWorkerDeployments(root: string, input: { account: s
   writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: cfAnswers.map(({ body: _, ...x }) => x) }, account, deployments, versions, github_population: gh?.data.id ?? null }, null, 2) + '\n', null);
   writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['deployment', 'at', 'author', 'source', 'version', 'commit', 'message', 'content', 'github_deployment', 'github_ref', 'github_approved', 'matched', 'same_content_as'], rows }), null);
   const unmatched = rows.filter((x) => x.matched !== 'yes').length;
-  const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
+  const applicable = neededControls(ws);
   const evidence = addEvidence(root, {
     title: `Population: ${rows.length} deployments of Worker ${input.script} on Cloudflare, ${input.start} to ${input.end}`, controls: ['CHG-03', 'CHG-04'].filter((c) => applicable.has(c)), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'cloudflare', query: `${queries.slice(0, 2).join('; ')}; GET .../versions/{version_id} for each deployed version` },

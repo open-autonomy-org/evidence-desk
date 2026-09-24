@@ -99,20 +99,22 @@ function statusPill(c) {
   return pill(c.status.replace('-', ' '), c.status === 'implemented' ? 'ok' : c.status === 'in-progress' ? 'warn' : '');
 }
 
+// The targets (SOC 2 always), each with its own readiness view.
 let framework = 'soc2';
 function frameworkSwitch() {
-  if (!S.iso27001) return null;
-  return h('div', { class: 'row', style: 'margin:0 0 16px' }, [['soc2', 'SOC 2'], ['iso27001', 'ISO 27001']].map(([k, t]) => h('button', { class: k === framework ? 'primary' : 'secondary', onclick: () => { framework = k; render(); } }, t)));
+  const others = Object.entries(S.frameworkStates ?? {});
+  if (!others.length) return null;
+  return h('div', { class: 'row', style: 'margin:0 0 16px' }, [['soc2', 'SOC 2'], ...others.map(([k, st]) => [k, st.title])].map(([k, t]) => h('button', { class: k === framework ? 'primary' : 'secondary', onclick: () => { framework = k; render(); } }, t)));
 }
 
-function isoOverview() {
-  const st = S.iso27001, s = st.summary;
+function frameworkOverview(id) {
+  const st = S.frameworkStates[id], s = st.summary;
   const groups = {};
   for (const r of st.requirements) (groups[r.group] ??= []).push(r);
   const kind = { ready: 'ok', gaps: 'warn', excluded: '', unaddressed: 'bad' };
   return h('div', {},
     h('h1', {}, 'Readiness'), frameworkSwitch(),
-    h('p', { class: 'lead' }, `${st.title}, mapped onto the same controls, policies and evidence as SOC 2. Excluding a requirement or mapping another control to it is recorded in frameworks/iso27001.json; download the statement of applicability with evidence-desk soa.`),
+    h('p', { class: 'lead' }, `${st.title}, mapped onto the same controls, policies and evidence as SOC 2. Excluding a requirement or mapping another control to it is recorded in frameworks/${id}.json.${id === 'iso27001' ? ' Download the statement of applicability with evidence-desk soa.' : ''}`),
     h('div', { class: 'stats' },
       h('div', { class: 'stat' }, h('b', {}, `${s.ready} / ${s.requirements - s.excluded}`), h('span', {}, 'requirements ready')),
       h('div', { class: 'stat' }, h('b', {}, s.excluded), h('span', {}, 'excluded, with reasons')),
@@ -126,7 +128,7 @@ function isoOverview() {
 }
 
 function overview() {
-  if (framework === 'iso27001' && S.iso27001) return isoOverview();
+  if (framework !== 'soc2' && S.frameworkStates?.[framework]) return frameworkOverview(framework);
   const g = S.gaps, s = g.summary;
   const byCat = {};
   for (const c of g.criteria) (byCat[c.category] ??= []).push(c);
@@ -176,7 +178,7 @@ function scope() {
     form,
     h('div', { class: 'card' },
       h('h2', { style: 'margin-top:0' }, 'Control set'),
-      h('p', { class: 'muted' }, S.controls.length ? `${S.controls.filter((c) => c.applicable).length} controls apply and ${S.controls.filter((c) => !c.applicable).length} are excluded with a reason. Adopt again after changing answers; owners, statuses and edited policies are kept.` : 'No controls adopted yet.'),
+      h('p', { class: 'muted' }, S.controls.length ? `${S.gaps.summary.controls_applicable} controls apply and ${S.gaps.summary.controls_excluded} are excluded with a reason. Adopt again after changing answers; owners, statuses and edited policies are kept.` : 'No controls adopted yet.'),
       missing.length ? h('p', { class: 'muted' }, `Answer ${missing.length} more question(s) to adopt the control set.`) : null,
       h('button', { class: 'primary', disabled: missing.length > 0, onclick: async () => {
         const r = await post('/api/adopt', {}, null);
@@ -195,7 +197,8 @@ function controls() {
     h('h1', {}, 'Controls'),
     h('p', { class: 'lead' }, 'Each control is a file in controls/. Select one to assign an owner, record its status or change whether it applies.'),
     S.controls.length ? h('table', {}, h('tr', {}, h('th', {}, 'Control'), h('th', {}, 'Owner'), h('th', {}, 'Status'), h('th', {}, 'Gaps')),
-      S.controls.map((c) => h('tr', { class: 'clickable', onclick: () => go('controls', c.id) },
+      // The program's controls, and those that do not apply (so one can be re-included); a control no target needs is not listed.
+      S.controls.filter((c) => S.needed.includes(c.id) || !c.applicable).map((c) => h('tr', { class: 'clickable', onclick: () => go('controls', c.id) },
         h('td', {}, h('b', {}, c.id), ' ', c.title),
         h('td', {}, c.owner ? personName(c.owner) : h('span', { class: 'muted' }, 'unassigned')),
         h('td', {}, statusPill(c)),
@@ -330,7 +333,7 @@ function evidenceTable(list) {
 function evidence() {
   const adding = detail?.startsWith('new');
   const preset = detail?.split(':')[1];
-  const applicable = S.controls.filter((c) => c.applicable);
+  const applicable = S.controls.filter((c) => S.needed.includes(c.id));
   const form = adding ? h('form', { class: 'card', onsubmit: async (e) => {
     e.preventDefault();
     const file = form.file.files[0];

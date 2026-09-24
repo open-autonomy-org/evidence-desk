@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { check, schema } from './schema.ts';
 import { parseCsv, type Table } from './csv.ts';
 import { fileHash, readVersioned } from './files.ts';
-import { criterionCategory, type FormTemplate } from './catalog.ts';
+import { criterionCategory, frameworkCatalogs, type FormTemplate } from './catalog.ts';
+import { neededControls } from './targets.ts';
 
 export type Versioned<T> = { path: string; version: string; data: T };
 export type Control = {
@@ -110,7 +111,10 @@ export function loadWorkspace(root: string): Workspace {
   // Records no view needs loaded are still validated, so `validate` covers every file Evidence Desk defines.
   for (const [rel, name] of [['trust.json', 'trust'], ['answers.json', 'answer-library'], ['collectors.json', 'collectors']] as const) readJson(root, rel, name, problems);
   for (const f of list(root, 'questionnaires', '.json')) readJson(root, f, 'questionnaire', problems);
-  for (const f of list(root, 'frameworks', '.json')) readJson(root, f, 'framework-settings', problems);
+  for (const f of list(root, 'frameworks', '.json')) {
+    const r = readJson<{ framework: string }>(root, f, 'framework-settings', problems);
+    if (r && (!frameworkCatalogs.has(r.data.framework) || f !== `frameworks/${r.data.framework}.json`)) problems.push({ severity: 'error', file: f, message: `${r.data.framework} is not a framework Evidence Desk maps with its own settings, or this file is not frameworks/${r.data.framework}.json` });
+  }
   if (existsSync(join(root, 'audits'))) for (const d of readdirSync(join(root, 'audits'))) {
     if (!existsSync(join(root, 'audits', d, 'engagement.json'))) continue;
     readJson(root, `audits/${d}/engagement.json`, 'engagement', problems);
@@ -147,6 +151,11 @@ function crossCheck(ws: Workspace): void {
   const people = new Set((ws.registers.people?.data.rows ?? []).map((r) => r.id));
   const policyIds = new Set(ws.policies.map((x) => x.data.id));
   const controlIds = new Set(ws.controls.map((x) => x.data.id));
+  // A control's policies must exist once the targets need it; one that is not needed yet has not been adopted into work.
+  const needed = neededControls(ws);
+  // Every target and every framework's settings name a framework Evidence Desk maps.
+  const known = new Set(['soc2', ...frameworkCatalogs.keys()]);
+  for (const f of ws.manifest?.data.frameworks ?? []) if (!known.has(f)) p.push({ severity: 'error', file: 'evidence-desk.json', message: `${f} is not a framework Evidence Desk maps; available: ${[...known].join(', ')}` });
   const same = (v: Versioned<{ id: string }>, dir: string) => {
     if (v.path !== `${dir}/${v.data.id}.json`) p.push({ severity: 'error', file: v.path, message: `id ${v.data.id} does not match the file name` });
   };
@@ -160,7 +169,7 @@ function crossCheck(ws: Workspace): void {
   for (const c of ws.controls) {
     same(c, 'controls');
     if (c.data.owner && !people.has(c.data.owner)) p.push({ severity: 'error', file: c.path, message: `owner ${c.data.owner} is not in registers/people.csv` });
-    if (c.data.applicable) for (const pol of c.data.policies ?? []) if (!policyIds.has(pol)) p.push({ severity: 'error', file: c.path, message: `policy ${pol} does not exist` });
+    if (needed.has(c.data.id)) for (const pol of c.data.policies ?? []) if (!policyIds.has(pol)) p.push({ severity: 'error', file: c.path, message: `policy ${pol} does not exist` });
     for (const cr of c.data.criteria ?? []) if (!criterionCategory.has(cr)) p.push({ severity: 'error', file: c.path, message: `criterion ${cr} is not a SOC 2 criterion` });
     if (c.data.applicable === false && !c.data.exclusion_reason?.trim()) p.push({ severity: 'error', file: c.path, message: 'an excluded control needs an exclusion_reason' });
   }
