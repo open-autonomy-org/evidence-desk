@@ -45,6 +45,10 @@ cites; one citing nothing says so.
   answer (vendor record), a record the organization made (client record: it shows what was recorded, not that it
   happened) or a document it wrote (client narrative). Sentences dated only by the period are judgments. A claim no
   line supports, or a count its population contradicts, stops the export.
+- `review/change-releases.csv`: change review in an Open Autonomy project is two-staged. Agents review and merge
+  each change, and a person's approval of a release covers every change it ships. The view lists each merged change
+  with the release that shipped it and who approved that release; a change shipped in a release no person on the
+  roster approved is an exception.
 - `review/access-changes.csv`: who was added to, removed from or given another role in the GitHub organization and
   the Cloudflare account, day by day, from the daily snapshots.
 - `review/evidence-provenance.csv`: each client document's and register's history in the workspace repository; a
