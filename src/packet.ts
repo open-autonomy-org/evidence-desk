@@ -102,6 +102,10 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
             add({ ...base, key: `token-not-revoked:${owner}`, controls: 'AC-05', item: `${owner}: ${madeIn.length} token(s) created, ${goneIn.length} revoked in the period`, detail: `more tokens were created (${madeIn.map((r) => day(r.at)).join(', ')}) than revoked: a rotation that left an older token live, or a new token to account for`, occurred: day(madeIn.at(-1)!.at) });
         }
       }
+      // A person's token still live at the period's end, whose owner deployed Workers in the period: a credential that
+      // reaches production outside the pipeline.
+      if (t.columns.includes('owner_worker_deploys_in_period')) for (const r of t.rows.filter((r) => r.owner_kind !== 'service account' && r.live_at_period_end === 'yes' && Number(r.owner_worker_deploys_in_period) > 0))
+        add({ ...base, key: `personal-deploy-token:${r.token}`, controls: 'AC-05;CHG-03', item: `${r.owner}'s token ${r.token}`, detail: `live at the period's end (created ${day(r.created_at)}); its owner deployed Workers ${r.owner_worker_deploys_in_period} time(s) in the period, outside the pipeline's service account`, occurred: day(r.created_at), resolved: '' });
       if (t.columns.includes('actor_on_roster')) for (const r of t.rows.filter((r) => r.actor_on_roster === 'no' || r.actor_on_roster === 'unknown'))
         add({ ...base, key: `config-actor:${f.path.split('/').pop()!.replace(/-\d+\.csv$/, '')}:${r.id || `${r.ruleset_id}:${r.version}`}`, item: r.change || `${r.resource} ${r.old_value} → ${r.new_value}`, detail: r.actor ? `changed by ${r.actor}, who is not on the roster` : 'changed by no one the vendor names (a token without a user)', occurred: day(r.at) });
       if (t.columns.includes('weakens')) for (const r of t.rows.filter((r) => r.weakens === 'yes'))
@@ -370,11 +374,18 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       const by = dep?.approved_by ?? '';
       const human = by.split(';').some((x) => rosterLogins.has(x.toLowerCase()));
       return { number: m.number, title: m.title, touches: m.touches ?? '', author: m.author, author_kind: m.author_kind ?? '', approvers: m.approvers, approver_kinds: m.approver_kinds ?? '', merged_at: m.merged_at,
-        released_in: shipped?.ref ?? '', released_at: shipped?.from ?? '', release_approved_by: by, release_approved_by_person: shipped ? (human ? 'yes' : 'no') : '' };
+        released_in: shipped?.ref ?? '', released_at: shipped?.from ?? '', release_approved_by: by, release_approved_by_person: shipped ? (human ? 'yes' : 'no') : '',
+        // A release approval is independent of a change only when its approver did not write it.
+        release_approver_wrote_it: shipped ? (by.split(';').some((x) => x && x.toLowerCase() === (m.author ?? '').toLowerCase()) ? 'yes' : 'no') : '' };
     });
-    views.set('review/change-releases.csv', writeCsv({ columns: ['number', 'title', 'touches', 'author', 'author_kind', 'approvers', 'approver_kinds', 'merged_at', 'released_in', 'released_at', 'release_approved_by', 'release_approved_by_person'], rows: releases }));
+    views.set('review/change-releases.csv', writeCsv({ columns: ['number', 'title', 'touches', 'author', 'author_kind', 'approvers', 'approver_kinds', 'merged_at', 'released_in', 'released_at', 'release_approved_by', 'release_approved_by_person', 'release_approver_wrote_it'], rows: releases }));
     for (const r of releases.filter((x) => x.release_approved_by_person === 'no'))
       add({ key: `release-without-person:#${r.number}`, source: 'change releases (review/change-releases.csv)', controls: 'CHG-01;CHG-03', item: `#${r.number} in ${r.released_in}`, detail: `shipped in a release no person on the roster approved (${r.release_approved_by || 'no approver'})`, occurred: day(r.released_at), detected: day(r.released_at), resolved: '', file: ghDep?.path ?? worker.path });
+    // A release whose approver wrote code or pipeline changes it ships approved their own work at the second stage.
+    const selfApproved = new Map<string, typeof releases>();
+    for (const r of releases.filter((x) => x.release_approver_wrote_it === 'yes' && /code|pipeline/.test(x.touches))) selfApproved.set(r.released_in, [...(selfApproved.get(r.released_in) ?? []), r]);
+    for (const [release, rs] of selfApproved)
+      add({ key: `release-self-approved:${release}`, source: 'change releases (review/change-releases.csv)', controls: 'CHG-01;CHG-03', item: `release ${release}`, detail: `approved by ${rs[0].release_approved_by}, who wrote ${rs.map((r) => `#${r.number}`).join(', ')} in it`, occurred: day(rs[0].released_at), detected: day(rs[0].released_at), resolved: '', file: ghDep?.path ?? worker.path });
     views.set('review/production-timeline.csv', writeCsv({ columns: ['from', 'until', 'days', 'deployment', 'author', 'commit', 'github_deployment', 'ref', 'approved', 'change_path', 'pull_requests'], rows: timeline }));
   }
   // One event, one exception: a deploy no approved GitHub deployment accounts for, which the daily change-actors check

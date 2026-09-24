@@ -66,7 +66,9 @@ An exception's `closed_by` says what ended it: a later passing reading (which sh
 anyone remediated it) or a later completeness check. A check that reports events, such as a bypass of the branch
 rules or a Worker deployed by a person, is never closed by a quiet day. Where the package holds the escalations
 population, a failing check that no escalation record names on or after its first failing reading is an exception of
-its own: the failure reached no one.
+its own: the failure reached no one. A release whose approver wrote code it ships is an exception (`review/change-releases.csv`,
+`release_approver_wrote_it`). `review/description-lint.csv` fails when the assertion does not name an exception open at
+the period's end by what identifies it, or does not say when a system created inside the period began operating.
 
 The manifest's `workspace` names the workspace repository's commit at export, its origin and the remote branches
 holding it: the hosted repository's history dates every record independently of the package. A file a packaged file
@@ -119,6 +121,9 @@ query that produced it (evidence a person added by hand says so).
   organization and the Cloudflare account, from the daily member snapshots compared day over day, with the Cloudflare
   audit log's exact time and actor where it records the event, and each person's register start and end dates beside
   the system's date. The roster's own history is a separate population of who holds authority in the project.
+- **Cloudflare API tokens** (`collect cloudflare-tokens`): every token the account's audit log records, from its first
+  entry to the period's end, with its owner, who created and revoked it, whether it was live at the end, and how many
+  Worker deploys its owner made in the period. A person's live token whose owner deployed Workers is an exception.
 - **Seam records** (incidents, break-glass changes, credentials, escalations) are listed with each record's full git
   history (`*.history.txt`): a record edited after it was added shows every change with its author and dates.
 - **Continuous checks** (two-factor enforcement, required review and protected history, bypasses of the default

@@ -31,6 +31,15 @@ for r in json.load(open(X)):
               "token; the Cloudflare deployments population lists the same deploy, and management's response to that deployment's exception "
               "gives what happened and what follows. No one acknowledged the failing reading before Sam's break-glass record of 2026-09-11.",
               [cf_changes,snap('2026-09-10','cloudflare'),glass])
+    elif k.startswith('release-self-approved:'):
+        R[k]=(f"The release approval of {r['item']} was {r['detail']}: the second stage was not independent of the author, although "
+              "each of those changes had an approving review by another person before it merged (review/change-releases.csv). We "
+              "accept it as a deviation. From Q4 a release is approved by someone who wrote none of its code.",[chg_csv,dep_csv])
+    elif k.startswith('personal-deploy-token:'):
+        R[k]=(f"{r['item']} is Sam's personal Cloudflare token, the one the laptop deploy was made with; it was still live at the "
+              "period's end, and Sam still held Cloudflare Administrator. We accept it as a deviation: revoking the token and reducing "
+              "Sam's personal access to read-only are Q4 actions, so that only the deploy service account can deploy.",
+              [one('evidence/files/populations/cloudflare-tokens-*.csv'),workers])
     elif k.startswith('unacknowledged:'):
         R[k]=("No escalation record answers the failing reading of 2026-09-10: no one acknowledged it, and Sam's break-glass record of "
               "2026-09-11 is the first record the organization made of the deploy. We accept it as a deviation from alert handling; from "

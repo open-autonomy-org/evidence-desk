@@ -34,6 +34,17 @@ t=open(a).read()
 t=re.sub(r'<!-- Drafted by Evidence Desk.*?-->\n\n', '', t, flags=re.S)
 qual=_sub(open(here+'/qualification.md').read().strip()) if os.path.exists(here+'/qualification.md') else None
 if qual: t=re.sub(r"\[The workspace found \d+ deviation\(s\).*?\]\n(- .*\n)+", qual+'\n', t, flags=re.S); t=t.replace('and they operated effectively throughout that period.', 'and they operated effectively throughout that period, except for the matters described in the following paragraph.') if qual else t
+# Management names each exception still open at the period's end that its matters do not already name, from the
+# register the package will carry, and says when the system began operating if that was inside the period.
+if len(sys.argv)>3 and os.path.exists(sys.argv[3]):
+    import json as _json
+    add=[x for x in _json.load(open(sys.argv[3])) if x.get('open_at_period_end')=='yes' and x['item'] not in t and not any(k in t for k in x['key'].split(':')[1:2])]
+    letters=re.findall(r'^\(([a-z])\) ', t, flags=re.M); n=ord(max(letters))+1 if letters else ord('a')
+    for x in add:
+        t=t.rstrip('\n')+f"\n\n({chr(n)}) {x['item']}: {x['detail']}. It was open at the period's end.\n"; n+=1
+born=re.search(r'Worker \S+ was created on (\d{4}-\d\d-\d\d)', s)
+if born and born.group(1) not in t:
+    t=t.replace('The matters are:', f"Relay began operating on {born.group(1)}, when its Worker was created; these statements cover it from then.\n\nThe matters are:")
 t=t.replace('[Name, title]','Maya Chen, Chief Executive Officer').replace('[Signature]','/s/ Maya Chen').replace('[Date]','2026-10-05')
 open(a,'w').write(t)
 left=re.findall(r'\[[^\]]{3,}\](?![(\[])', s+t)

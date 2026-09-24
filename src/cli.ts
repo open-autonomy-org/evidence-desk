@@ -18,7 +18,7 @@ import { computeObligations } from './obligations.ts';
 import { collectAccessChanges } from './access.ts';
 import { collectRosterHistory, collectSeamRecords, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
 import { checkCompleteness, collectChanges, collectDeployments, collectAttribution, collectNonHumanAccess, collectRuleChanges, syncReminders } from './github.ts';
-import { collectCloudflareChanges, collectWorkerDeployments } from './cloudflare.ts';
+import { collectCloudflareChanges, collectCloudflareTokens, collectWorkerDeployments } from './cloudflare.ts';
 import { COLLECTORS, checkTitle, ciWorkflow, configureCollector, readSettings, runChecks } from './automation.ts';
 import { exceptionsRegister, respondToException, actOnRequest, createEngagement, draft, exportPackage, firmSummary, importRequests, importReturn, listRequests, readEngagement, verifyPackage } from './audit.ts';
 import { clockDate } from './clock.ts';
@@ -59,6 +59,8 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   collect <dir> github-deployments --repo <owner/name> --environment <name> --period <start>..<end> --by <person>
   collect <dir> github-rule-changes --repo <owner/name> --period <start>..<end> --by <person>
                                           populations from GitHub with their queries (needs GITHUB_TOKEN)
+  collect <dir> cloudflare-tokens --account <id or name> --period <start>..<end> --by <person>
+                                          every API token the audit log records: owner, created, revoked, live at the end
   collect <dir> cloudflare-changes --account <id or name> --period <start>..<end> --by <person>
                                           the account's audit log: who changed what (needs CLOUDFLARE_API_TOKEN)
   collect <dir> cloudflare-deployments --account <id or name> --script <worker> --period <start>..<end> --by <person>
@@ -423,6 +425,11 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => `Recorded ${r.evidence}: ${r.rows} ruleset changes; ${r.weakening} weakened the rules.`);
         return 0;
       }
+      if (rest[0] === 'cloudflare-tokens') {
+        const r = await collectCloudflareTokens(dir, { account: one(a, 'account') ?? '', start, end, by });
+        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} Cloudflare API tokens; ${r.personal} live at the period's end belong to someone other than a service account.`);
+        return 0;
+      }
       if (rest[0] === 'cloudflare-changes') {
         const r = await collectCloudflareChanges(dir, { account: one(a, 'account') ?? '', start, end, by });
         out(json, r, () => `Recorded ${r.evidence}: ${r.rows} Cloudflare configuration changes; ${r.unnamed} by someone not on the roster or not named.`);
@@ -433,7 +440,7 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => `Recorded ${r.evidence}: ${r.rows} Worker deployments; ${r.unmatched} with no matching GitHub deployment.`);
         return 0;
       }
-      throw new Error('collect needs github-changes, github-deployments, github-rule-changes, cloudflare-changes, cloudflare-deployments, access-changes, roster-history, seam-records or attribution');
+      throw new Error('collect needs github-changes, github-deployments, github-rule-changes, cloudflare-changes, cloudflare-tokens, cloudflare-deployments, access-changes, roster-history, seam-records or attribution');
     }
     case 'collectors': {
       if (rest[0]) configureCollector(dir, rest[0], { ...(a.flags.has('enable') ? { enabled: true } : a.flags.has('disable') ? { enabled: false } : {}), ...(a.flags.has('set') ? { params: pairs(a.flags.get('set')!) } : {}) });

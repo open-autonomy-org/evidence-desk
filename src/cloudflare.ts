@@ -89,6 +89,41 @@ export async function collectCloudflareChanges(root: string, input: { account: s
   });
   return { evidence, rows: rows.length, unnamed };
 }
+// Every API token the account's audit log records, from the log's first entry to the period's end: whose it is, who
+// created and who revoked it, whether it was live at the period's end, and how many Worker deploys its owner made in the
+// period. A token belongs to a user, and Cloudflare attributes what it does to that user, so a person's live token and
+// a person's deploys are the credential that could reach production outside the pipeline.
+export async function collectCloudflareTokens(root: string, input: { account: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; personal: number }> {
+  const queries: string[] = [];
+  cfAnswers.length = 0;
+  const account = await cfAccount(input.account, queries);
+  const entries = await cfAll(`/accounts/${account.id}/audit_logs?before=${nextDay(input.end)}T00:00:00Z&direction=asc`, queries);
+  const ws = loadWorkspace(root);
+  const roster = cloudflareRoster(root, ws);
+  const kind = (email: string) => !email ? 'unknown' : roster.service_accounts.includes(email) ? 'service account' : roster.people.includes(email) ? 'person' : 'not on the roster';
+  const owner = (x: any) => String((x.action?.type === 'delete' ? x.oldValue : x.newValue)?.owner ?? x.actor?.email ?? '').toLowerCase();
+  const tokens = new Map<string, { token: string; owner: string; created_at: string; created_by: string; revoked_at: string; revoked_by: string }>();
+  for (const x of entries.filter((x: any) => x.resource?.type === 'token')) {
+    const id = String(x.resource.id);
+    const t = tokens.get(id) ?? { token: id, owner: owner(x), created_at: '', created_by: '', revoked_at: '', revoked_by: '' };
+    if (x.action?.type === 'create') { t.created_at = String(x.when); t.created_by = String(x.actor?.email ?? ''); }
+    if (x.action?.type === 'delete') { t.revoked_at = String(x.when); t.revoked_by = String(x.actor?.email ?? ''); }
+    tokens.set(id, t);
+  }
+  const deploys = (email: string) => entries.filter((x: any) => x.resource?.type === 'script' && String(x.actor?.email ?? '').toLowerCase() === email && String(x.when).slice(0, 10) >= input.start && String(x.when).slice(0, 10) <= input.end).length;
+  const rows = [...tokens.values()].map((t) => ({ ...t, owner_kind: kind(t.owner), live_at_period_end: t.revoked_at && t.revoked_at.slice(0, 10) <= input.end ? 'no' : 'yes', owner_worker_deploys_in_period: String(deploys(t.owner)) }));
+  const stem = `evidence/files/populations/cloudflare-tokens-${account.id.slice(0, 8)}-${input.start}-${input.end}-${Date.now()}`;
+  writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: [...cfAnswers] }, account, entries: entries.filter((x: any) => x.resource?.type === 'token' || x.resource?.type === 'script') }, null, 2) + '\n', null);
+  writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['token', 'owner', 'owner_kind', 'created_at', 'created_by', 'revoked_at', 'revoked_by', 'live_at_period_end', 'owner_worker_deploys_in_period'], rows }), null);
+  const personal = rows.filter((r) => r.owner_kind !== 'service account' && r.live_at_period_end === 'yes').length;
+  const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
+  const evidence = addEvidence(root, {
+    title: `Population: ${rows.length} Cloudflare API tokens of account ${account.name}, to ${input.end}`, controls: ['AC-05', 'AC-04'].filter((c) => applicable.has(c)), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
+    period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'cloudflare', query: `${queries.join('; ')} (all pages, from the log's first entry)` },
+    notes: `Complete as far as the account's audit log reaches: every token created or revoked in it. ${personal} live at the period's end belong to someone other than a service account. Raw responses: ${stem}.raw.json.`,
+  });
+  return { evidence, rows: rows.length, personal };
+}
 const nextDay = (d: string) => new Date(Date.parse(`${d}T00:00:00Z`) + 864e5).toISOString().slice(0, 10);
 
 // What reached production on Cloudflare: every deployment of a Worker in the period, with who made it and the commit its

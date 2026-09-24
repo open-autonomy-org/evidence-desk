@@ -9,6 +9,7 @@ asmaya collect $W github-rule-changes --repo globex/relay --period $Q --by maya
 ed collect $W cloudflare-deployments --account eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee --script relay --period $Q --by maya
 asmaya collect $W nonhuman-access --repo globex/relay --org globex --by maya
 ed collect $W cloudflare-changes --account eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee --period $Q --by maya
+ed collect $W cloudflare-tokens --account eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee --period $Q --by maya
 ed collect $W access-changes --period $Q --by maya
 ed collect $W roster-history --repo $D/relay --period $Q --by maya
 ed collect $W seam-records --repo $D/relay --period $Q --by maya
@@ -17,13 +18,14 @@ asmaya collect $W attribution --repo globex/compliance --by maya | head -6
 ed audit $W new q3 --type type2 --firm "Example & Co" --period $Q | tail -1
 ed audit $W q3 requests --import $S/requests/${REQUESTS:-pbc-r5}.csv | tail -1
 python3 $S/attach.py $W $S/requests/${REQUESTS:-pbc-r5}.csv > $STATE/attach.txt
-while read r kind ids; do
+while read r kind ids extra; do
   if [ "$kind" = none ]; then ed audit $W q3 request $r --side client --by maya --text "No evidence is recorded for these controls in the period; see the control matrix (review/controls-matrix.csv)." | grep -i error
-  elif [ "$kind" = population ]; then ed audit $W q3 request $r --side client --by maya --text "The population for the period, with the query that produced it and its raw responses." --population $ids | grep -i error
+  elif [ "$kind" = population ]; then ed audit $W q3 request $r --side client --by maya --text "The population for the period, with the query that produced it and its raw responses${extra:+, and the populations that reconcile it}." --population $ids ${extra:+--evidence $extra} | grep -i error
   else ed audit $W q3 request $r --side client --by maya --text "Attached from the workspace; review/index.html lists each item with its source." --evidence $ids | grep -i error; fi
   ed audit $W q3 request $r --side client --by maya --status submitted | grep -i error
 done < $STATE/attach.txt
 ed audit $W q3 draft description | tail -1; ed audit $W q3 draft assertion | tail -1
-python3 $S/fill.py $W/audits/q3/drafts/description.md $W/audits/q3/drafts/assertion.md
+ed audit $W q3 exceptions --json > $STATE/exceptions-draft.json
+python3 $S/fill.py $W/audits/q3/drafts/description.md $W/audits/q3/drafts/assertion.md $STATE/exceptions-draft.json
 git -C $W add -A; gcommit $W maya "Q3 engagement: collections, requests answered, drafts"; gpush $W main
 echo POST-DONE

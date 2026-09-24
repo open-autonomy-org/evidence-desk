@@ -7,6 +7,11 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- `collect cloudflare-tokens` lists every API token the account's audit log records, with its owner, creation,
+  revocation and whether it was live at the period's end; a person's live token whose owner deployed Workers is an
+  exception. A release approved by the author of code it ships is an exception. The assertion must name each exception
+  open at the period's end by what identifies it (a date no longer counts), and say when a system created inside the
+  period began operating.
 - Access changes are a population of their own (`collect access-changes`): every account added, removed or re-roled on
   GitHub and Cloudflare, from the daily member snapshots, with the audit log's exact time where it has one and each
   person's register dates beside the system's. One deployment outside the change path that the daily check already
