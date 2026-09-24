@@ -55,8 +55,8 @@ are separated:
   not applicable (whoever wrote it, adoption or a person), otherwise today's text for categories out of scope ("Its
   criteria (…) are outside the categories in scope."); and every SOC 2
   deliverable that prints an exclusion uses it: the packet's control matrix and out-of-scope list, the drafted system
-  description's excluded criteria, SOC 2's criteria in the gaps view. Their output for an existing workspace is
-  unchanged.
+  description's excluded criteria, SOC 2's criteria in the gaps view. For library controls, their output for an
+  existing workspace is unchanged.
 - Re-running adoption on an existing workspace rewrites the controls excluded only by a category answer as applicable,
   with their reason removed; that is the one visible file change, and SOC 2's deliverables still exclude them.
 
@@ -69,20 +69,25 @@ every call site that reads `applicable`:
 
 | kind | acts on | examples |
 |---|---|---|
-| SOC 2's deliverables | controls in SOC 2's scope | the audit packet and its control matrix, the drafted system description, SOC 2's criteria, excluded count and readiness in the gaps view and on the trust center, the "also serve SOC 2" evidence count of a framework's view |
-| the program's work | needed controls | adoption's control files, policies and forms; validation that a control's policies exist; the controls list in the CLI and the web app; checks and their runs; obligations and reminders; collectors; owners and statuses in the gaps view; the questionnaire library's passages |
+| SOC 2's deliverables | controls in SOC 2's scope | the audit packet and its control matrix, the drafted system description, the evidence `audit export` sends without a request, SOC 2's criteria and the `computeGaps` summary counts (applicable, ready, excluded) wherever they are read (the gaps view, the CLI, the web app, the trust center and its badge, the firm's portfolio), the "also serve SOC 2" evidence count of a framework's view |
+| the program's work | needed controls | adoption's policies and forms; validation that a control's policies exist; checks and their runs; obligations and reminders; collectors; owners and statuses in the gaps view; the Open Autonomy declarations gap; evidence tagged to controls by forms, access reviews, incidents and the security review, and the evidence form's control picker |
 | a framework's view | its own requirements' controls, through `frameworkState` | ISO/IEC 27001's view and statement of applicability, every new framework's readiness |
 
 `computeGaps` works out every needed control's gaps (not only SOC 2's), so `frameworkState` finds each control it
-asks about. The questionnaire library drafts from needed controls and from controls a scoping condition excluded,
-which it may truthfully say do not apply; a control that is merely not needed is not a passage at all. `target` and
-`drop` re-run adoption. Adoption creates a control's file only when the control is needed (so the AI family appears only
-once an AI target maps it), and creates the policies and forms needed controls name; it never deletes a file. A control
+asks about; its summary counts stay SOC 2's. The controls list in the CLI and the web app shows needed controls and
+controls that are not applicable (so a person can still re-include one); a control that is applicable but not needed
+is not listed. The questionnaire library drafts from needed controls and from controls that are not applicable, which
+it may truthfully say do not apply; a control that is merely not needed is not a passage at all. `target` and
+`drop` re-run adoption. Adoption creates a file for every library control that carries a SOC 2 criterion, as today
+(whether or not scoping excludes it, so SOC 2's deliverables can name it as excluded), and for a control with no SOC 2
+criterion only when it is needed (so the AI family appears only once an AI target maps it); it creates the policies
+and forms needed controls name, and it never deletes a file. A control
 file that exists but is not needed is not validated for its policies, is not listed as work, and is never shown as
 ready.
 
 For a workspace targeting only SOC 2, the needed library controls are exactly SOC 2's scope, which is exactly today's
-applicable set.
+applicable set. A control written by hand with no SOC 2 criterion (the schema allows it) is needed only if a target
+maps it, and is not part of SOC 2's deliverables.
 
 **Every framework has the same description.** `catalog/frameworks/<id>.json` has `id`, `title`, `version`, `outcome`,
 `issuer`, `source` and `requirements` (each an `id`, a `group`, a short `title` and the `controls` that address it);
@@ -172,8 +177,9 @@ only when targeted.
   27001 targeted the requirement is included and addressed by them, and their policies and obligations appear as the
   program's work.
 - Visible changes for an existing workspace on its next adoption: controls excluded only by a category answer are
-  rewritten applicable, with their reason removed; and the questionnaire library no longer offers them as "does not
-  apply" passages (they are not needed, so they are not passages at all). SOC 2's deliverables are unchanged.
+  rewritten applicable, with their reason removed; they leave the controls list (to bring one back, answer its
+  category in scope or target a framework that maps it), and the questionnaire library no longer offers them as "does
+  not apply" passages. For library controls, SOC 2's deliverables are unchanged.
 - Audit engagements, the system description and `audit export` are SOC 2's and are unchanged, since SOC 2 is always a
   target.
 
