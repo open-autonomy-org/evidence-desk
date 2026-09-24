@@ -182,9 +182,13 @@ Change review works in two stages: agents review and merge each change, and a pe
 ${(() => { const c = e.period ? periodPopulation(ws, e, 'changes to') : null; const d = e.period ? periodPopulation(ws, e, 'deployments of') : null; if (!c && !d) return '';
   const lines: string[] = [];
   if (c) { const prs = c.rows.filter((r) => r.kind === 'pull request'); const bad = c.rows.filter((r) => r.independent_approval !== 'yes');
-    lines.push(`- ${c.rows.length} change(s) reached the default branch (${c.id}): ${prs.length} through pull requests, opened by ${tally(prs.map((r) => r.author))}; ${c.rows.length - prs.length} pushed directly; ${bad.length ? `${bad.length} without an independent approval (${bad.map((r) => r.number ? `#${r.number}` : r.commit.slice(0, 12)).join(', ')})` : 'every one independently approved'}.`);
+    lines.push(`- ${c.rows.length} change(s) reached the default branch (${c.id}): ${prs.length} through pull requests, opened by ${tally(prs.map((r) => r.author))}; ${c.rows.length - prs.length} pushed directly; ${bad.length ? `${bad.length} without an independent approval (${bad.map((r) => r.number ? `#${r.number}` : r.commit.slice(0, 12)).join(', ')})` : prs.every((r) => (r.approver_kinds || '').split(';').includes('person')) ? 'each approved by a person other than its author' : 'each approved by an account other than its author\'s'}.`);
     if (prs.some((r) => r.approver_kinds)) lines.push(`- Approvals by kind of account: ${tally(prs.flatMap((r) => (r.approver_kinds || '').split(';').filter(Boolean)))}; ${prs.filter((r) => r.author_kind === 'agent' && (r.approver_kinds || '').split(';').every((k) => k === 'agent')).length} change(s) were written and approved only by agent accounts.`); }
-  if (d) { lines.push(`- ${d.rows.length} production deployment(s) (${d.id}), their runs started by ${tally(d.rows.map((r) => r.run_event))}${d.rows.some((r) => r.commit_match === 'no') ? `; ${d.rows.filter((r) => r.commit_match === 'no').length} approved on a run of another commit` : ''}; started by ${tally(d.rows.map((r) => r.started_by))}; ${d.rows.filter((r) => r.independent_approval === 'yes').length} approved by someone other than the starter.`); }
+  if (d) { lines.push(`- ${d.rows.length} production deployment(s) (${d.id}), their runs started by ${tally(d.rows.map((r) => r.run_event))}${d.rows.every((r) => /^deploy-v/.test(r.ref)) ? ' on a deploy-v* tag' : `, on ${tally(d.rows.map((r) => r.ref))}`}${d.rows.some((r) => r.commit_match === 'no') ? `; ${d.rows.filter((r) => r.commit_match === 'no').length} approved on a run of another commit` : ''}; started by ${tally(d.rows.map((r) => r.started_by))}; ${d.rows.filter((r) => r.independent_approval === 'yes').length} approved by someone other than the starter.`); }
+  // What the register shows operated differently from the design above.
+  const ex = knownExceptions(ws, e); const n = (k: string) => ex.filter((x) => x.key.startsWith(k)).length;
+  if (n('release-self-approved:')) lines.push(`- ${n('release-self-approved:')} of ${d?.rows.length ?? '?'} release(s) were approved by someone who wrote code they shipped (the exceptions register, release-self-approved)`);
+  if (n('unmatched-deploy:') || n('out-of-path-change:')) lines.push(`- ${n('unmatched-deploy:') + n('out-of-path-change:')} change(s) reached production outside the change path: ${n('unmatched-deploy:')} Worker deployment(s) no approved GitHub deployment accounts for, ${n('out-of-path-change:')} setting(s) changed by hand`);
   // A Worker created inside the period is a system that began operating then, not at the period's start.
   const cfg = e.period ? periodPopulation(ws, e, 'configuration of') : null;
   for (const r of cfg?.rows.filter((r) => r.action === 'create' && r.resource.startsWith('script ')) ?? []) lines.push(`- Worker ${r.resource.slice(7)} was created on ${r.at.slice(0, 10)} by ${r.actor || 'no one the log names'} (${cfg!.id}): it began operating within the period, not at its start`);
@@ -204,7 +208,7 @@ function projectIncidents(ws: Workspace, e: Engagement): string {
   const ev = latestPopulation(ws, 'incidents');
   if (!ev) return '';
   const rows = parseCsv(readFileSync(join(ws.root, ev.data.files[0].path), 'utf8'), ev.data.files[0].path).rows.filter((r) => inPeriod(r.detected_at, e));
-  return rows.length ? `\nIncidents the project recorded in its records/ during the period, every severity:\n${rows.map((r) => `- ${r.detected_at.slice(0, 10)} ${r.id} (${r.severity}, ${r.status}): ${r.summary}${r.notification ? `. Notification: ${r.notification}` : ''}${r.review ? `. Review: ${r.review}` : ''}`).join('\n')}\n` : '';
+  return rows.length ? `\nIncidents recorded during the period, every severity (the project's records/incidents/):\n${rows.map((r) => `- ${r.detected_at.slice(0, 10)} ${r.id} (${r.severity}, ${r.status}): ${r.summary}${r.notification ? `. Notification: ${r.notification}` : ''}${r.review ? `. Review: ${r.review}` : ''}`).join('\n')}\n` : '';
 }
 
 // Every file an exception can be derived from, as if the whole workspace were packaged.
@@ -266,7 +270,7 @@ Sources: scope.json, registers/systems.csv, registers/people.csv, policies/.
 ${openAutonomySection(ws, e)}
 ## DC4 System incidents
 
-${incidents.length ? incidents.map((i) => `- ${i.data.detected_at.slice(0, 10)} ${i.data.title} (${i.data.severity}, ${i.data.status})${i.data.review ? `: ${i.data.review}` : ''}`).join('\n') : projectIncidents(ws, e) ? 'The workspace records no incident of its own for this period; the project\'s are below.' : 'No incident is recorded for this period, in the workspace or in the project\'s records.'}
+${incidents.length ? incidents.map((i) => `- ${i.data.detected_at.slice(0, 10)} ${i.data.title} (${i.data.severity}, ${i.data.status})${i.data.review ? `: ${i.data.review}` : ''}`).join('\n') : projectIncidents(ws, e) ? '' : 'No incident is recorded for this period, in the workspace or in the project\'s records.'}
 ${projectIncidents(ws, e)}${(() => { const ex = knownExceptions(ws, e); return ex.length ? `
 Deviations the workspace found during the period (the package's review/exceptions.csv):
 ${deviationList(ex)}

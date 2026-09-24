@@ -11,7 +11,9 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
   break-glass record that day; an access review that kept an account an earlier exception names; a record under
   `records/` made by someone who does not hold its seam's scope. Every incident must be named in the assertion, closed
   or not. Coverage status text counts from the finished register, and an exception the package found is dated by the
-  collection that found it.
+  collection that found it. The drafted description states what operated: approvals by an account other than the
+  author's (not "independently"), deployments dispatched on a deploy-v* tag, releases approved by their own code's
+  author, and changes that reached production outside the change path.
 - The package ships the workspace's Git history (`review/workspace.bundle`), and `audit verify` checks it holds the
   commit the manifest names. Daily snapshots keep each vendor response's body. Worker deployments record Cloudflare's
   content hash, and a deployment outside the change path says which approved release ran identical code, or that none
