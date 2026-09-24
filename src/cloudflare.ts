@@ -2,11 +2,15 @@
 // Cloudflare but reads. Every request is recorded in the caller's query list so what was read can be shown.
 const API = 'https://api.cloudflare.com/client/v4';
 
+// Each answer's status, Date and cf-ray (Cloudflare's id for the request), for a caller that keeps them with what it read.
+export const cfAnswers: { path: string; status: number; date: string; cf_ray: string }[] = [];
+
 export async function cf(path: string, queries: string[]): Promise<{ status: number; result: any; info?: any }> {
   const token = process.env.CLOUDFLARE_API_TOKEN;
   if (!token) throw new Error('CLOUDFLARE_API_TOKEN is not set; export a read-only token for the account');
   queries.push(`GET ${path}`);
   const r = await fetch(`${API}${path}`, { headers: { authorization: `Bearer ${token}` } });
+  cfAnswers.push({ path, status: r.status, date: r.headers.get('date') ?? '', cf_ray: r.headers.get('cf-ray') ?? '' });
   const body = await r.json().catch(() => null) as { result?: unknown; result_info?: unknown } | null;
   return { status: r.status, result: body?.result ?? null, info: body?.result_info };
 }

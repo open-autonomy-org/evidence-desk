@@ -9,7 +9,7 @@ import { check as validate, schema } from './schema.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { addEvidence } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
-import { cf, cfAccount, cfAll, cfIsAdmin } from './cloudflare.ts';
+import { cf, cfAccount, cfAll, cfAnswers, cfIsAdmin } from './cloudflare.ts';
 import { clockDate, now } from './clock.ts';
 
 export type CollectorSettings = { id: 'github' | 'cloudflare'; enabled: boolean; params: Record<string, string> };
@@ -142,6 +142,7 @@ const cloudflare: CollectorDef = {
   params: [{ name: 'account', prompt: 'Account id or name' }, { name: 'zones', prompt: 'Zones to check, comma-separated names (all of the account\'s zones when empty)' }],
   async collect(p) {
     const queries: string[] = [];
+    cfAnswers.length = 0;
     if (!p.account) throw new Error('set the account parameter');
     const account = await cfAccount(p.account, queries);
     const members = (await cfAll(`/accounts/${account.id}/members`, queries)).map((m) => ({ email: m.user?.email ?? m.email, status: m.status, roles: (m.roles ?? []).map((r: any) => r.name), admin: cfIsAdmin(m), two_factor: m.user?.two_factor_authentication_enabled === true }));
@@ -154,7 +155,7 @@ const cloudflare: CollectorDef = {
       settings[z.name] = {};
       for (const s of ['min_tls_version', 'always_use_https']) { const r = await cf(`/zones/${z.id}/settings/${s}`, queries); settings[z.name][s] = r.status === 200 ? String(r.result?.value) : null; }
     }
-    return { data: { account: { id: account.id, name: account.name, enforce_twofactor: account.settings?.enforce_twofactor === true }, members, zones: settings }, queries };
+    return { data: { account: { id: account.id, name: account.name, enforce_twofactor: account.settings?.enforce_twofactor === true }, members, zones: settings }, queries, responses: cfAnswers.map((x) => ({ path: x.path, status: x.status, date: x.date, request_id: x.cf_ray })) };
   },
   checks: [
     { id: 'cloudflare-2fa', title: 'Every Cloudflare member uses two-factor authentication', controls: ['AC-01'], evaluate: (d) => {
