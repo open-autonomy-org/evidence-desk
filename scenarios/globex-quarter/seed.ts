@@ -1,0 +1,61 @@
+// Seeds the GitHub and Cloudflare twins for the Globex quarter, through each vendor's API (and the twins' constructs
+// for what vendors set only in their UI: personal tokens, the org two-factor setting, Cloudflare's bootstrap).
+// Usage: bun seed.ts <step> <token|-> [args...]
+const gh = 'https://api.github.com', cf = 'https://api.cloudflare.com/client/v4';
+const ACCOUNT = 'e'.repeat(32), ZONE = 'f'.repeat(32);
+async function call(method: string, path: string, body?: unknown, token = process.env.GITHUB_TOKEN) {
+  const r = await fetch(gh + path, { method, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', accept: 'application/vnd.github+json' }, body: body ? JSON.stringify(body) : undefined });
+  const t = await r.text();
+  if (!r.ok) throw new Error(`${method} ${path} ${r.status} ${t.slice(0, 200)}`);
+  return t ? JSON.parse(t) : null;
+}
+async function cfcall(method: string, path: string, body?: unknown) {
+  const r = await fetch(cf + path, { method, headers: { authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`, 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json() as any;
+  if (!r.ok) throw new Error(`${method} ${path} ${r.status} ${JSON.stringify(j.errors)}`);
+  return j.result;
+}
+const [step, token, a, b, c] = process.argv.slice(2);
+const T = token === '-' ? undefined : token;
+if (step === 'org') {
+  await call('PATCH', '/orgs/globex', { name: 'Globex' });
+  for (const [login, role] of [['maya-gx', 'admin'], ['sam-gx', 'admin']]) await call('PUT', `/orgs/globex/memberships/${login}`, { role });
+  for (const name of ['relay', 'compliance']) await call('POST', '/orgs/globex/repos', { name, private: name === 'compliance' });
+  await call('PUT', '/_twin/orgs/globex/two-factor-requirement', { enabled: true });
+  console.log('org globex');
+} else if (step === 'member') { // member <login> <role>
+  await call('PUT', `/orgs/globex/memberships/${a}`, { role: b }); console.log('member', a, b);
+} else if (step === 'token') {
+  console.log((await call('POST', `/_twin/users/${a}/tokens`, {})).token);
+} else if (step === 'protect') { // the ruleset and gated production environment the kit's setup would make
+  await call('POST', '/repos/globex/relay/rulesets', { name: 'main-protected', target: 'branch', enforcement: 'active', conditions: { ref_name: { include: ['~DEFAULT_BRANCH'], exclude: [] } },
+    bypass_actors: [{ actor_id: 1, actor_type: 'OrganizationAdmin', bypass_mode: 'always' }],
+    rules: [{ type: 'deletion' }, { type: 'non_fast_forward' }, { type: 'pull_request', parameters: { required_approving_review_count: 1, dismiss_stale_reviews_on_push: true, require_code_owner_review: false, require_last_push_approval: false, required_review_thread_resolution: false } }] }, T);
+  await call('PUT', '/repos/globex/relay/actions/workflows/deploy.yml', { name: 'Deploy relay', path: '.github/workflows/deploy.yml' }, T);
+  const env = await call('PUT', '/repos/globex/relay/environments/production', { reviewers: [{ type: 'User', reviewer: { login: 'maya-gx' } }, { type: 'User', reviewer: { login: 'sam-gx' } }] }, T);
+  console.log('env', env.id);
+} else if (step === 'pr') { // pr <token> <repo> <branch> <title>
+  const pr = await call('POST', `/repos/globex/${a}/pulls`, { title: c, head: b, base: 'main' }, T); console.log(pr.number);
+} else if (step === 'approve') { await call('POST', `/repos/globex/${a}/pulls/${b}/reviews`, { event: 'APPROVE' }, T); console.log('approved', b);
+} else if (step === 'merge') { console.log((await call('PUT', `/repos/globex/${a}/pulls/${b}/merge`, { merge_method: 'merge' }, T)).merged);
+} else if (step === 'deploy') { // deploy <token of starter> <ref> <approver token> <env id>: the tag's run, its approval, the deployment it makes
+  await call('POST', '/repos/globex/relay/actions/workflows/deploy.yml/dispatches', { ref: a }, T);
+  const runs = (await call('GET', '/repos/globex/relay/actions/runs')).workflow_runs as any[];
+  const run = runs.sort((x, y) => y.run_number - x.run_number)[0];
+  await call('POST', `/repos/globex/relay/actions/runs/${run.id}/pending_deployments`, { environment_ids: [Number(c)], state: 'approved', comment: 'candidate verified' }, b);
+  await call('POST', `/_twin/repos/globex/relay/actions/runs/${run.id}/complete`, { conclusion: 'success' });
+  const d = await call('POST', '/repos/globex/relay/deployments', { ref: a, environment: 'production', auto_merge: false, required_contexts: [] }, T);
+  await call('POST', `/repos/globex/relay/deployments/${d.id}/statuses`, { state: 'success', log_url: `https://github.com/globex/relay/actions/runs/${run.id}` }, T);
+  console.log('deploy', a, run.id, d.sha.slice(0, 12));
+} else if (step === 'cf') {
+  const r = await fetch(`${process.env.CLOUDFLARE_TWIN_URL}/client/v4/twin/bootstrap`, { method: 'POST', headers: { authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`, 'content-type': 'application/json' }, body: JSON.stringify({
+    accounts: [{ id: ACCOUNT, name: 'globex-cloudflare', settings: { enforce_twofactor: true } }], zones: [{ id: ZONE, account_id: ACCOUNT, name: 'relay.globex.test' }],
+    members: [{ account_id: ACCOUNT, email: 'maya@globex.test', roles: ['Super Administrator - All Privileges'], two_factor: true }, { account_id: ACCOUNT, email: 'sam@globex.test', roles: ['Administrator'], two_factor: true }] }) });
+  console.log('cloudflare', r.status);
+} else if (step === 'cfset') { console.log(a, (await cfcall('PATCH', `/zones/${ZONE}/settings/${a}`, { value: b })).value);
+} else if (step === 'cfmembers') { for (const m of await cfcall('GET', `/accounts/${ACCOUNT}/members?per_page=50`)) console.log(`${m.user.email},${m.roles.map((r: any) => r.name).join(' + ')}`);
+} else if (step === 'ghmembers') { const admins = new Set((await call('GET', '/orgs/globex/members?role=admin')).map((m: any) => m.login)); for (const m of await call('GET', '/orgs/globex/members?role=all')) console.log(`${m.login},${admins.has(m.login) ? 'admin' : 'member'}`);
+} else if (step === 'nobypass') { // the ruleset's bypass list emptied: no one merges past the required review
+  const rs = (await call('GET', '/repos/globex/relay/rulesets')).find((x: any) => x.name === 'main-protected');
+  await call('PUT', `/repos/globex/relay/rulesets/${rs.id}`, { bypass_actors: [] }, T); console.log('bypass removed', rs.id);
+} else throw new Error(`unknown step ${step}`);
