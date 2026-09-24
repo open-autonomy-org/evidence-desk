@@ -23,7 +23,8 @@
         "properties": {
           "id": {
             "enum": [
-              "github"
+              "github",
+              "cloudflare"
             ]
           },
           "enabled": {

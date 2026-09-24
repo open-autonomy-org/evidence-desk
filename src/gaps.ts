@@ -5,7 +5,7 @@ import { placeholders, unanswered } from './actions.ts';
 import type { Workspace } from './workspace.ts';
 import { computeObligations, type Obligation } from './obligations.ts';
 import { DECLARATION_CONTROLS, RECORD_KINDS, seamFindings, type Snapshot } from './open-autonomy.ts';
-import { actDigest, signedActs } from './github.ts';
+import { actDigest, readAct, signedActs } from './github.ts';
 import { readVersioned } from './files.ts';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -63,9 +63,9 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
     }
     const latestIds = new Set([...latestResponse.values()].map((x) => `response:${x.id}`));
     const acts = signedActs(ws.root).filter((a) => a.kind !== 'response' || latestIds.has(a.key));
-    if (acts.length && !record) program.push('Open Autonomy: signed acts (onboarding, access review sign-offs, policy approvals, incident closures) have not been checked against the people\'s GitHub accounts (collect attribution)');
+    if (acts.length && !record) program.push('Open Autonomy: signed acts (onboarding, access review sign-offs, policy approvals, incident closures, risk decisions, vendor reviews) have not been checked against the people\'s GitHub accounts (collect attribution)');
     else for (const a of acts) {
-      const value = actDigest(a.extract(JSON.parse(readVersioned(ws.root, a.file)!.text)));
+      const value = actDigest(a.extract(readAct(a.file, readVersioned(ws.root, a.file)?.text)));
       const row = record!.rows.find((x) => x.key === a.key && x.value_sha256 === value);
       if (!row) program.push(`Open Autonomy: ${a.person}'s ${a.label} has not been checked against their GitHub account`);
       else if (row.status !== 'verified') program.push(`Open Autonomy: ${a.person}'s ${a.label} is not recorded by their own GitHub account: ${row.status}${row.author ? ` (${row.author})` : ''}`);

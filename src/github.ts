@@ -3,7 +3,8 @@
 // established, then recorded as evidence. Nothing is sent to GitHub but reads.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { writeCsv } from './csv.ts';
+import { parseCsv, writeCsv } from './csv.ts';
+import { CF_ADMIN_ROLES, cfAccount, cfAll, cfIsAdmin } from './cloudflare.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { addEvidence } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
@@ -63,24 +64,40 @@ export async function collectChanges(root: string, input: { repo: string; start:
 }
 
 type Deployment = { id: number; ref: string; sha: string; environment: string; created_at: string; creator?: { login?: string } };
-type Status = { state: string; created_at: string; creator?: { login?: string } };
+type Status = { state: string; created_at: string; creator?: { login?: string }; log_url?: string; target_url?: string };
+type Approval = { state: string; user?: { login?: string }; environments?: { name?: string }[] };
 
-export async function collectDeployments(root: string, input: { repo: string; environment: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number }> {
+// Production deployments with the gate that let each through: a deployment made by an Actions run links to it from
+// its statuses, and the run's approvals are the environment's required reviewers acting. An approval by someone other
+// than the person who started the run is independent.
+export async function collectDeployments(root: string, input: { repo: string; environment: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; unapproved: number }> {
   const deps = await all<Deployment>(`/repos/${input.repo}/deployments?environment=${encodeURIComponent(input.environment)}`);
   const rows: Record<string, string>[] = [];
   for (const d of deps.items.filter((x) => inPeriod(x.created_at, input.start, input.end))) {
     const statuses = (await all<Status>(`/repos/${input.repo}/deployments/${d.id}/statuses`)).items;
     const last = statuses[0];
-    rows.push({ id: String(d.id), ref: d.ref, sha: d.sha, created_at: d.created_at, creator: d.creator?.login ?? '', final_state: last?.state ?? 'none', final_at: last?.created_at ?? '' });
+    const runID = statuses.map((x) => /\/actions\/runs\/(\d+)/.exec(x.log_url ?? x.target_url ?? '')?.[1]).find(Boolean) ?? '';
+    let startedBy = '', approvedBy = '';
+    if (runID) {
+      const run = await get(`/repos/${input.repo}/actions/runs/${runID}`) as { actor?: { login?: string } | null };
+      startedBy = run.actor?.login ?? '';
+      approvedBy = [...new Set((await get(`/repos/${input.repo}/actions/runs/${runID}/approvals`) as Approval[])
+        .filter((a) => a.state === 'approved' && (a.environments ?? []).some((e) => e.name === input.environment)).map((a) => a.user?.login ?? ''))].join(';');
+    }
+    const approvers = approvedBy ? approvedBy.split(';') : [];
+    const independent = !runID ? 'unknown' : !approvers.length ? 'no' : !startedBy || approvers.some((a) => !a) ? 'unknown' : approvers.some((a) => a !== startedBy) ? 'yes' : 'no';
+    rows.push({ id: String(d.id), ref: d.ref, sha: d.sha, created_at: d.created_at, creator: d.creator?.login ?? '', final_state: last?.state ?? 'none', final_at: last?.created_at ?? '',
+      run: runID, started_by: startedBy, approved_by: approvedBy, independent_approval: independent });
   }
   const rel = `evidence/files/populations/github-deployments-${input.repo.replace('/', '-')}-${input.environment}-${input.start}-${input.end}-${Date.now()}.csv`;
-  writeVersioned(root, rel, writeCsv({ columns: ['id', 'ref', 'sha', 'created_at', 'creator', 'final_state', 'final_at'], rows }), null);
+  writeVersioned(root, rel, writeCsv({ columns: ['id', 'ref', 'sha', 'created_at', 'creator', 'final_state', 'final_at', 'run', 'started_by', 'approved_by', 'independent_approval'], rows }), null);
+  const unapproved = rows.filter((r) => r.independent_approval !== 'yes').length;
   const evidence = addEvidence(root, {
     title: `Population: ${rows.length} deployments of ${input.repo} to ${input.environment}, ${input.start} to ${input.end}`, controls: applicableOf(root, ['CHG-03']), files: [rel], recorded_by: input.by,
-    period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'github', query: `GET /repos/${input.repo}/deployments?environment=${input.environment} (all ${deps.pages} page(s)); GET /repos/${input.repo}/deployments/{id}/statuses for each` },
-    notes: 'Complete: every page of deployments to the environment was read.',
+    period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'github', query: `GET /repos/${input.repo}/deployments?environment=${input.environment} (all ${deps.pages} page(s)); GET /repos/${input.repo}/deployments/{id}/statuses for each; GET /repos/${input.repo}/actions/runs/{run} and /approvals for the run each status links` },
+    notes: `Complete: every page of deployments to the environment was read. ${unapproved} without an independent approval of the ${input.environment} environment (no linked run, no approval, or approved only by the person who started it).`,
   });
-  return { evidence, rows: rows.length };
+  return { evidence, rows: rows.length, unapproved };
 }
 
 // Compares a vendor account's administrators with the project's roster. The list comes from GitHub for a GitHub
@@ -105,6 +122,11 @@ export async function checkCompleteness(root: string, input: { account: string; 
   } else if (acct.vendor === 'github') {
     admins = (await all<{ login: string }>(`/orgs/${acct.account}/members?role=admin`)).items.map((m) => m.login);
     query = `GET /orgs/${acct.account}/members?role=admin (all pages)`;
+  } else if (acct.vendor === 'cloudflare') {
+    const queries: string[] = [];
+    const account = await cfAccount(acct.account, queries);
+    admins = (await cfAll(`/accounts/${account.id}/members`, queries)).filter(cfIsAdmin).map((m) => String(m.user?.email ?? m.email));
+    query = `${queries.join('; ')} (all pages), keeping members with ${CF_ADMIN_ROLES.join(' or ')}`;
   } else throw new Error(`${acct.vendor} administrators cannot be read automatically yet; export the list and pass --file`);
   const known = new Set(snap.team.flatMap((m) => [m.github, m.discord, m.id].filter(Boolean).map((x) => String(x).toLowerCase())));
   const emails = new Set((loadWorkspace(root).registers.people?.data.rows ?? []).filter((p) => snap.team.some((m) => m.id === p.id)).map((p) => p.email.toLowerCase()).filter(Boolean));
@@ -127,7 +149,13 @@ export async function checkCompleteness(root: string, input: { account: string; 
 // content must come from a pull request merged into that branch and opened by the person's GitHub account on the Open
 // Autonomy roster, and the working file must hold the act as merged. Residual: a collaborator who pushes to a person's
 // open pull request branch is not told apart from them.
-export type Act = { key: string; kind: 'response' | 'access-review' | 'policy-approval' | 'incident-closure'; file: string; person: string; label: string; extract: (record: any) => unknown };
+export type Act = { key: string; kind: 'response' | 'access-review' | 'policy-approval' | 'incident-closure' | 'risk-decision' | 'vendor-review'; file: string; person: string; label: string; extract: (record: any) => unknown };
+// A file as an act reads it: JSON records parsed, CSV registers as their rows; unreadable is null.
+export const readAct = (file: string, text: string | null | undefined): unknown => {
+  if (text == null) return null;
+  try { return file.endsWith('.csv') ? parseCsv(text, file).rows : JSON.parse(text); } catch { return null; }
+};
+const rowOf = (rows: any, id: string) => (Array.isArray(rows) ? rows.find((r: any) => r.id === id) : undefined);
 export function signedActs(root: string): Act[] {
   const ws = loadWorkspace(root);
   const titles = new Map(ws.forms.map((f) => [f.data.id, f.data.title]));
@@ -141,6 +169,11 @@ export function signedActs(root: string): Act[] {
   const closer = (x: any) => (x?.timeline ?? []).find((t: any) => t.at === x?.closed_at) ?? (x?.timeline ?? []).at(-1) ?? null;
   for (const i of ws.incidents) if (i.data.status === 'closed') acts.push({ key: `incident-closure:${i.data.id}`, kind: 'incident-closure', file: `incidents/${i.data.id}.json`, person: closer(i.data)?.by ?? '', label: `closing review of incident ${i.data.id}`,
     extract: (x) => x?.status === 'closed' ? { status: x.status, review: x.review, closed_at: x.closed_at, closed_by: closer(x) } : null });
+  // Register rows a person decides: a risk's treatment (its owner decides it) and a vendor's review (its owner records it).
+  for (const r of ws.registers.risks?.data.rows ?? []) if (r.treatment && r.treatment !== 'undecided') acts.push({ key: `risk-decision:${r.id}`, kind: 'risk-decision', file: 'registers/risks.csv', person: r.owner ?? '', label: `treatment of risk ${r.id} (${r.title})`,
+    extract: (rows) => { const x = rowOf(rows, r.id); return x && x.treatment && x.treatment !== 'undecided' ? { treatment: x.treatment, likelihood: x.likelihood, impact: x.impact, status: x.status, owner: x.owner } : null; } });
+  for (const v of ws.registers.vendors?.data.rows ?? []) if (v.last_review) acts.push({ key: `vendor-review:${v.id}`, kind: 'vendor-review', file: 'registers/vendors.csv', person: v.owner ?? '', label: `review of vendor ${v.id} on ${v.last_review}`,
+    extract: (rows) => { const x = rowOf(rows, v.id); return x?.last_review ? { last_review: x.last_review, owner: x.owner } : null; } });
   return acts;
 }
 export type AttributionStatus = 'verified' | 'no GitHub account on the roster' | 'not on the default branch' | 'changed since merged'
@@ -160,14 +193,14 @@ export async function collectAttribution(root: string, input: { repo: string; by
   const ref = `origin/${branch}`;
   try { git('rev-parse', '--verify', '--quiet', ref); } catch { throw new Error(`${ref} is not in the workspace; fetch it (git fetch origin ${branch})`); }
   const prefix = git('rev-parse', '--show-prefix');
-  const at = (commit: string, file: string): unknown => { try { return JSON.parse(execFileSync('git', ['-C', root, 'show', `${commit}:${prefix}${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })); } catch { return null; } };
+  const at = (commit: string, file: string): unknown => { try { return readAct(file, execFileSync('git', ['-C', root, 'show', `${commit}:${prefix}${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })); } catch { return null; } };
   const pullsOf = async (sha: string): Promise<(Pull & { base?: { ref?: string } })[] | null> => {
     try { return await get(`/repos/${input.repo}/commits/${sha}/pulls`) as (Pull & { base?: { ref?: string } })[]; }
     catch (e) { if (/answered (404|422)/.test((e as Error).message)) return null; throw e; }
   };
   const rows: Attribution[] = [];
   for (const act of signedActs(root)) {
-    const current = act.extract(JSON.parse(readVersioned(root, act.file)!.text));
+    const current = act.extract(readAct(act.file, readVersioned(root, act.file)?.text));
     const expected = snap.team.find((m) => m.id === act.person)?.github ?? '';
     const row: Attribution = { key: act.key, kind: act.kind, file: act.file, person: act.person, label: act.label, value_sha256: actDigest(current), commit: '', pull: '', author: '', expected, status: 'verified' };
     rows.push(row);
@@ -227,7 +260,8 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
   const marker = (o: { kind: string; what: string; who: string }) => `<!-- evidence-desk:obligation ${createHash('sha256').update(`${o.kind}|${o.what}|${o.who}`).digest('hex').slice(0, 16)} -->`;
   // Only an overdue item carries its date: one never done is due as of each day, and a daily date would retitle it daily.
   const title = (o: (typeof owed)[number]) => `${o.state === 'overdue' ? `Overdue since ${o.due}` : 'Due'}: ${o.what} (${o.who})`;
-  const open = (await all<{ number: number; title: string; body?: string | null }>(`/repos/${input.repo}/issues?state=open&labels=${LABEL}`)).items;
+  // Every open issue, not only labelled ones: an issue someone unlabelled still carries its marker and must not be doubled.
+  const open = (await all<{ number: number; title: string; body?: string | null; pull_request?: unknown }>(`/repos/${input.repo}/issues?state=open`)).items.filter((i) => !i.pull_request && /<!-- evidence-desk:obligation [0-9a-f]{16} -->/.test(i.body ?? ''));
   const result = { opened: [] as string[], retitled: [] as string[], closed: [] as string[], kept: 0 };
   const unowned = owed.filter((o) => !o.who);
   const unownedMarker = marker({ kind: 'unowned', what: '', who: '' });

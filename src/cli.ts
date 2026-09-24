@@ -380,7 +380,7 @@ async function main(argv: string[]): Promise<number> {
       }
       if (rest[0] === 'github-deployments') {
         const r = await collectDeployments(dir, { repo, environment: one(a, 'environment') ?? 'production', start, end, by });
-        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} deployments.`);
+        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} deployments; ${r.unapproved} without an independent approval of the environment.`);
         return 0;
       }
       if (rest[0] === 'roster-history') {
