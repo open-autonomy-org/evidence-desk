@@ -19,6 +19,8 @@ agents such as Claude Code or Codex can all edit it. These instructions are for 
 | `evidence/records/<id>.json` | one evidence record each: controls, source, period, file hashes | JSON, schema `evidence` |
 | `evidence/files/` | the evidence files themselves | any |
 | `sources/` | what was read from an Open Autonomy project, GitHub and other vendors | JSON |
+| `checks/runs/`, `collectors.json` | collector settings and every check run | JSON |
+| `audits/<id>/`, `questionnaires/`, `frameworks/` | audit engagements, security questionnaires, framework settings | JSON |
 
 The schemas are published at https://github.com/open-autonomy-org/evidence-desk/tree/main/schemas and the full
 format at https://github.com/open-autonomy-org/evidence-desk/blob/main/docs/workspace-format.md.

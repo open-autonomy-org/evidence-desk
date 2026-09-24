@@ -126,9 +126,10 @@ export function loadWorkspace(root: string): Workspace {
 // beside a record when two people change it at once. The copy is never read, so its changes would be silently lost: each
 // is an error naming the record it copies. Only names beside an existing original count, so an ordinary file is not
 // mistaken for one. Evidence files and audit packages are not records and are left alone.
-const CONFLICT = [/^(.*) \([^)]*conflicted copy[^)]*\)(\.[^.]+)$/i, /^(.*) \(\d+\)(\.[^.]+)$/, /^(.*) \d+(\.[^.]+)$/, /^(.*)\.sync-conflict-[0-9-]+-[A-Za-z0-9]+(\.[^.]+)$/, /^(.*)[-_ ]conflict(?:ed)?[-_ ].*?(\.[^.]+)$/i];
+const CONFLICT = [/^(.*) \([^)]*conflicted copy[^)]*\)(\.[^.]+)$/i, /^(.*) \(\d+\)(\.[^.]+)$/, /^(.*) \d+(\.[^.]+)$/, /^(.*)\.sync-conflict-[0-9-]+-[A-Za-z0-9]+(\.[^.]+)$/];
 function syncConflicts(root: string, problems: Problem[]): void {
-  const dirs = ['', 'controls', 'policies', 'registers', 'forms', 'forms/responses', 'reviews/access', 'incidents', 'evidence/records', 'checks/runs', 'questionnaires', 'frameworks', 'sources', 'sources/open-autonomy', 'sources/github'];
+  const audits = existsSync(join(root, 'audits')) ? readdirSync(join(root, 'audits')).flatMap((d) => [`audits/${d}`, `audits/${d}/requests`]) : [];
+  const dirs = ['', 'controls', 'policies', 'registers', 'forms', 'forms/responses', 'reviews/access', 'incidents', 'evidence/records', 'checks/runs', 'questionnaires', 'frameworks', 'sources', 'sources/open-autonomy', 'sources/github', ...audits];
   for (const dir of dirs) {
     if (!existsSync(join(root, dir))) continue;
     const names = new Set(readdirSync(join(root, dir)));

@@ -29,6 +29,9 @@ async function load() {
   render();
 }
 async function post(path, payload, okText) {
+  const view = document.getElementById('view');
+  const holder = document.activeElement?.closest?.('form, .card');
+  const box = holder && view.contains(holder) ? [...view.querySelectorAll('form, .card')].indexOf(holder) : -1;
   let r, j;
   try {
     r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
@@ -44,6 +47,7 @@ async function post(path, payload, okText) {
   }
   S = j.state;
   if (okText) notice(okText, true);
+  savedBox = box;
   render();
   return j;
 }
@@ -57,8 +61,9 @@ document.getElementById('tabs').addEventListener('click', (e) => { const t = e.t
 function fieldsOf(view) {
   const seen = new Map();
   return [...view.querySelectorAll('input, textarea, select')].filter((el) => el.type !== 'file').map((el) => {
-    const form = el.form ? [...view.querySelectorAll('form')].indexOf(el.form) : -1;
-    const base = `${form}|${el.name || el.id || el.tagName}`;
+    const holder = el.closest('form, .card');
+    const box = holder ? [...view.querySelectorAll('form, .card')].indexOf(holder) : -1;
+    const base = `${box}|${el.name || el.id || el.tagName}`;
     const n = seen.get(base) ?? 0; seen.set(base, n + 1);
     return { key: `${base}|${n}`, el };
   });
@@ -67,6 +72,8 @@ const initial = (el) => el.type === 'checkbox' || el.type === 'radio' ? el.defau
 const current = (el) => el.type === 'checkbox' || el.type === 'radio' ? el.checked : el.tagName === 'SELECT' ? [...el.options].map((o) => o.selected).join() : el.value;
 const apply = (el, v) => { if (el.type === 'checkbox' || el.type === 'radio') el.checked = v; else if (el.tagName === 'SELECT') v.split(',').forEach((x, i) => { if (el.options[i]) el.options[i].selected = x === 'true'; }); else el.value = v; };
 let rendered = '';
+// The form (or card) whose save caused the next render: its fields show what was saved, never the text just sent.
+let savedBox = null;
 
 function render() {
   if (!S) return;
@@ -74,7 +81,8 @@ function render() {
   for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('active', b.dataset.tab === tab);
   const view = document.getElementById('view');
   const page = `${tab}/${detail}`;
-  const edits = page === rendered ? fieldsOf(view).filter(({ el }) => current(el) !== initial(el)).map(({ key, el }) => ({ key, from: initial(el), value: current(el) })) : [];
+  const edits = page === rendered ? fieldsOf(view).filter(({ key, el }) => current(el) !== initial(el) && !key.startsWith(`${savedBox}|`)).map(({ key, el }) => ({ key, from: initial(el), value: current(el) })) : [];
+  savedBox = null;
   rendered = page;
   view.replaceChildren(({ overview, scope, controls, policies, registers, evidence, people: peopleView, obligations, access, incidents, oa: openAutonomy, checks: checksView, audit: auditView, trust: trustView })[tab]?.() ?? overview());
   if (edits.length) { const now = new Map(fieldsOf(view).map((f) => [f.key, f.el])); for (const e of edits) { const el = now.get(e.key); if (el && initial(el) === e.from) apply(el, e.value); } }
