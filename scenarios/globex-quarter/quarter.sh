@@ -26,7 +26,7 @@ Cloudflare: SOC 2 Type II report for 2025-04-01 to 2026-03-31 reviewed, no excep
       evdoc maya maya-gx sam-gx GOV-07,GOV-06 customer-commitments.md "Customer commitments and the security reporting channel" "# Customer commitments
 Terms of Service and the Data Processing Addendum (published at relay.globex.test/legal): TLS 1.2+ and HTTPS only; payloads kept 30 days; 99.9% monthly availability; incident notification within 72 hours of confirmation. Reporting channel: security@globex.test and SECURITY.md in the relay repository, answered through the community bot and recorded under records/escalations/."
       evdoc maya maya-gx sam-gx HR-06 roles-and-responsibilities.md "Security roles and responsibilities" "# Roles
-Maya Chen, owner: security program, policies, production deploys, access and vendor reviews. Sam Okafor, engineer: release review, change review, access review of Maya's accounts. Lee Park (from 2026-08-03), engineer: direction. Agents: development and the weekly internal audit, through reviewed pull requests only." ;;
+Maya Chen, owner: security program, policies, production deploys, access and vendor reviews. Sam Okafor, engineer: release review, change review, access review of Maya's accounts. Agents: development and the weekly internal audit, through reviewed pull requests only." ;;
     2026-07-10) clock ${1}T14:00:00Z; git -C $W checkout -q main && git -C $W checkout -q -b maya/risk-assessment-q3
       ed evidence $W --add --control RISK-01,RISK-02 --file registers/risks.csv --title "Quarterly risk assessment: register reviewed, treatments confirmed" --by maya --period 2026-07-01..2026-09-30 | grep -i error
       git -C $W add -A; gcommit $W maya "Q3 risk assessment"; wspr maya-gx maya/risk-assessment-q3 "Q3 risk assessment" sam-gx ;;
@@ -37,7 +37,7 @@ Participants: Maya Chen, Sam Okafor. Scenario: a customer's API key is posted pu
     2026-07-29) clock ${1}T11:00:00Z; evdoc maya maya-gx sam-gx CONF-01,CONF-02 data-handling.md "Data classification and retention for Relay" "# Data classification and retention
 Customer webhook payloads and their headers: confidential; stored in Durable Objects, encrypted at rest by Cloudflare; retained 30 days, then deleted by the expiry alarm (payload-store ADR). Inbox configuration: internal. API keys: stored hashed. Account contact emails: confidential, kept while the account is open and deleted 30 days after closure." ;;
     2026-07-31) clock ${1}T18:00:00Z; evdoc maya maya-gx sam-gx OPS-06 uptime-2026-07.csv "Relay availability, July 2026 (external monitor export)" "month,checks,failed,availability,longest_outage_minutes
-2026-07,44640,4,99.991%,2" ;;
+2026-07-03 to 2026-07-31 (the Worker went live 2026-07-03),41760,4,99.990%,2" ;;
     2026-08-03) clock ${1}T09:30:00Z
       git -C $D/relay checkout -q main && git -C $D/relay checkout -q -b roster/lee
       python3 - $D/relay/.open-autonomy/config.yaml <<'PY'
@@ -51,14 +51,17 @@ PY
     2026-08-07) clock ${1}T10:00:00Z; evdoc sam sam-gx maya-gx AC-08,AC-07 network-and-disposal.md "Network boundary and disposal" "# Network boundary and disposal
 Relay has no servers or office network: requests reach it only through Cloudflare's edge (zone relay.globex.test), where TLS 1.2+ and HTTPS-only are enforced and checked daily. Outbound calls from the deploy workflow are limited to its egress allow-list. There is no company hardware holding customer data; engineers' laptops hold none (device attestations). Customer data is disposed of by the 30-day expiry and on account closure." ;;
     2026-08-05) zsh $S/onboard.sh lee lee-gx maya-gx ${1}T13:00:00Z "MacBook Air 13 (macOS 26)" | tail -1
-      # GitHub access once the agreements are signed.
-      clock ${1}T14:00:00Z; seed - member lee-gx member ;;
+      # GitHub access once the agreements are signed, and the roles record updated for the new engineer.
+      clock ${1}T14:00:00Z; seed - member lee-gx member
+      clock ${1}T15:00:00Z; evdoc maya maya-gx sam-gx HR-06 roles-and-responsibilities-2026-08-05.md "Security roles and responsibilities (Lee Park joins)" "# Roles, from 2026-08-05
+Maya Chen, owner: security program, policies, production deploys, access and vendor reviews. Sam Okafor, engineer: release review, change review, access review of Maya's accounts. Lee Park, engineer (joined 2026-08-03, GitHub access 2026-08-05 after the agreements): direction. Agents: development and the weekly internal audit, through reviewed pull requests only." ;;
     2026-08-12) clock ${1}T22:40:00Z; change sam fix/signature-header "Hotfix: accept the legacy signature header"; clock ${1}T22:50:00Z; pr_relay sam-gx fix/signature-header "Hotfix: accept the legacy signature header" maya-gx
       clock ${1}T23:05:00Z; deploy maya maya-gx sam-gx ;;
     2026-08-14) clock ${1}T10:00:00Z; evdoc maya maya-gx sam-gx AC-11 customer-data-access.md "Who can read customer data" "# Customer data access, 2026-08-14
 Customer payloads are readable only through Relay's API with the customer's own key, and by the two engineers with Cloudflare account access (Maya Chen, Sam Okafor) for support and incident response. The deploy service account (deploy@globex.test) can deploy Workers but has no data access. Agents have no Cloudflare access." ;;
     2026-08-19) clock ${1}T16:00:00Z; cfas sam@globex.test always_use_https off ;;
-    2026-08-20) clock ${1}T15:00:00Z; record maya maya-gx sam-gx restore-tests/2026-08-20-payload-store.json '{"kind":"restore-test","id":"payload-store-2026-08-20","at":"2026-08-20T15:00:00Z","by":"maya","store":"payload Durable Objects","backup_taken_at":"2026-08-20T00:00:00Z","restored_to":"a scratch namespace","result":"passed","duration_minutes":34,"notes":"1,000 sampled payloads compared byte for byte"}' "Restore test: payload store" ;;
+    2026-08-20) clock ${1}T08:30:00Z; record maya maya-gx sam-gx escalations/2026-08-20-https-check.json '{"kind":"escalation","id":"https-check-2026-08-19","received_at":"2026-08-20T08:00:00Z","responded_at":"2026-08-20T08:30:00Z","channel":"daily check failure (cloudflare-https)","summary":"The daily check found Always Use HTTPS off; Maya acknowledged and asked Sam, who had turned it off to test a redirect loop; the setting to be restored once the loop is fixed"}' "Escalation: HTTPS check failure acknowledged"
+      clock ${1}T15:00:00Z; record maya maya-gx sam-gx restore-tests/2026-08-20-payload-store.json '{"kind":"restore-test","id":"payload-store-2026-08-20","at":"2026-08-20T15:00:00Z","by":"maya","store":"payload Durable Objects","backup_taken_at":"2026-08-20T00:00:00Z","restored_to":"a scratch namespace","result":"passed","duration_minutes":34,"notes":"1,000 sampled payloads compared byte for byte"}' "Restore test: payload store" ;;
     2026-08-21) clock ${1}T10:00:00Z; cfas maya@globex.test always_use_https on ;;
     2026-08-26) clock ${1}T08:40:00Z
       record maya maya-gx sam-gx incidents/2026-08-26-replay-headers.json '{"kind":"incident","id":"replay-headers","detected_at":"2026-08-26T08:10:00Z","severity":"high","status":"open","summary":"Replay requests can return another customer'"'"'s request headers (never bodies): the replay cache key omits the tenant","notification":"","review":""}' "Incident replay-headers: opened"
@@ -78,7 +81,10 @@ Customer payloads are readable only through Relay's API with the customer's own 
     2026-09-02) clock ${1}T11:00:00Z; change lee feat/replay-filter "Filter replays by status code"; pr_relay lee-gx feat/replay-filter "Filter replays by status code" sam-gx ;;
     2026-09-03) clock ${1}T10:00:00Z; deploy maya maya-gx sam-gx ;;
     2026-09-05) clock ${1}T16:00:00Z; evdoc maya maya-gx sam-gx MON-02 pentest-2026-09.md "Penetration test of Relay, September 2026 (summary)" "# Penetration test summary
-Tester: Northwind Security (independent). Window: 2026-08-31 to 2026-09-04. Scope: Relay API and webhook intake at relay.globex.test. Findings: 0 critical, 0 high, 1 medium (verbose error on malformed signature header; fixed before the retest), 2 low (accepted: rate-limit headers disclose limits; missing security.txt expiry). Retest of the medium finding passed 2026-09-12." ;;
+Tester: Northwind Security (independent). Window: 2026-08-31 to 2026-09-04. Scope: Relay API and webhook intake at relay.globex.test. Findings: 0 critical, 0 high, 1 medium (verbose error on malformed signature header; to be fixed and retested), 2 low (accepted: rate-limit headers disclose limits; missing security.txt expiry)." ;;
+    2026-09-12) clock ${1}T15:00:00Z; change sam fix/signature-error "Uniform error for malformed signature headers (pen-test medium finding)"; pr_relay sam-gx fix/signature-error "Uniform error for malformed signature headers (pen-test medium finding)" maya-gx
+      evdoc maya maya-gx sam-gx MON-02 pentest-retest-2026-09-12.md "Penetration test retest: the medium finding is fixed" "# Retest, 2026-09-12
+Northwind Security retested the medium finding (verbose error on a malformed signature header) against the change merged today: the error is now uniform. Closed." ;;
     2026-09-08) clock ${1}T14:00:00Z; evdoc sam sam-gx maya-gx OPS-07 dr-exercise-2026-09-08.md "Disaster recovery exercise: loss of the payload namespace" "# Disaster recovery exercise, 2026-09-08
 Scenario: the payload Durable Objects namespace is deleted. Steps: restore from the latest backup into a new namespace (per the 2026-08-20 restore test), point a scratch copy of the Worker at it and replay a day of test traffic; production was not touched. Recovery time 48 minutes against a 4-hour objective; data loss up to the last backup (objective 24 hours). Follow-up: none." ;;
     2026-09-10) clock ${1}T18:20:00Z; (cd $ED && timeout 60 $V attach evidence-desk-oa --root $RT -- env CF_AS=$(cat $STATE/cftok-sam@globex.test) bun $S/seed.ts wrangler - "raise the replay limit (from Sam's laptop)" 2>&1 | grep -v WARN) ;;
@@ -102,10 +108,12 @@ Scenario: the payload Durable Objects namespace is deleted. Steps: restore from 
       # Each reviewer's sign-offs land in their own pull request.
       wspr sam-gx sam/access-review-q3 "Q3 access reviews by sam" maya-gx; wspr maya-gx maya/access-review-q3 "Q3 access review of sam's accounts" sam-gx ;;
     2026-09-25) clock ${1}T15:00:00Z; evdoc maya maya-gx sam-gx GOV-03,MON-01 management-review-2026-09-25.md "Quarterly management review of the security program" "# Management review, 2026-09-25
-Attendees: Maya Chen (owner), Sam Okafor. Reviewed: the thirteen internal audits of the quarter and their one finding (C6, closed by the 2026-08-20 restore test); incident replay-headers and its corrective actions; the break-glass deploy of 2026-09-10; daily check failures (HTTPS-only off 2026-08-19 to 2026-08-21); availability 99.98%; the penetration test. Decisions for Q4: Sam's personal Cloudflare access to be reduced to read-only, so that only the deploy service account can deploy; next restore test due by 2026-11-20." ;;
+Attendees: Maya Chen (owner), Sam Okafor. Reviewed: the thirteen internal audits of the quarter and their one recurring finding (C6: no restore test, raised weekly until the 2026-08-20 restore test); incident replay-headers and its corrective actions; the break-glass deploy of 2026-09-10; daily check failures (HTTPS-only off 2026-08-19 to 2026-08-21); availability 99.98%; the penetration test. Independence: Globex has two people with security duties, and no reviewer independent of both exists this period; the auditor's testing is the independent check. Decisions for Q4: Sam's personal Cloudflare access to be reduced to read-only, so that only the deploy service account can deploy; next restore test due by 2026-11-20." ;;
     2026-09-29) clock ${1}T11:00:00Z; evdoc maya maya-gx sam-gx GOV-08 description-review-2026-09-29.md "System description reviewed against the system" "# System description review, 2026-09-29
 The owner read the draft description against the repository at main, the accepted ADRs and the vendor list; changes since the last review: the deploy service account, the tenant-isolation test, the restore-test seam." ;;
-    2026-09-30) clock ${1}T18:00:00Z; evdoc maya maya-gx sam-gx OPS-06 uptime-2026-09.csv "Relay availability, September 2026 (external monitor export)" "month,checks,failed,availability,longest_outage_minutes
+    2026-09-30) clock ${1}T16:00:00Z; evdoc maya maya-gx sam-gx VND-02 bridge-letters-2026-09-30.md "Vendor bridge letters covering the period" "# Bridge letters, 2026-09-30
+Cloudflare: bridge letter dated 2026-09-30 covering 2026-04-01 to 2026-09-30, no material changes to its controls. GitHub: bridge letter dated 2026-09-30 covering the same span, no material changes. Both carry the period until their next SOC 2 reports."
+      clock ${1}T18:00:00Z; evdoc maya maya-gx sam-gx OPS-06 uptime-2026-09.csv "Relay availability, September 2026 (external monitor export)" "month,checks,failed,availability,longest_outage_minutes
 2026-09,43200,3,99.993%,1" ;;
   esac
 }
@@ -114,7 +122,7 @@ while [ "$d" != "2026-10-01" ]; do
   day_events $d
   # The internal audit runs every Monday; the 2026-08-17 run finds no restore test yet this quarter.
   if [ "$(python3 -c "import datetime;print(datetime.date.fromisoformat('$d').weekday())")" = 0 ]; then
-    [ $d = 2026-08-17 ] && audit $d '["C6: no restore test is recorded this quarter for the payload store"]' || audit $d '[]'; fi
+    [[ $d < 2026-08-20 ]] && audit $d '["C6: no restore test is recorded this quarter for the payload store"]' || audit $d '[]'; fi
   clock ${d}T23:30:00Z; (cd $ED && timeout 120 $V attach evidence-desk-oa --root $RT -- env GITHUB_TOKEN=$(tok maya-gx) bun src/cli.ts run $W --by maya 2>&1 | grep -v WARN | grep -E "fail|error" | sed "s/^/$d /")
   # The daily workflow commits each run to the workspace's main on its day, as the workspace's scheduled job does.
   git -C $W checkout -q main; git -C $W add checks evidence; gcommit $W maya "Daily checks $d" && gpush $W main

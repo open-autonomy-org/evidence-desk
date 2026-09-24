@@ -28,8 +28,8 @@ for r in csv.DictReader(open(os.path.join(D,'review/exceptions.csv'))):
               "2026-09-25), not yet done.",[workers,glass_csv,glass])
     elif k.startswith('check:cloudflare-https'):
         R[k]=("Sam turned Always Use HTTPS off on relay.globex.test at 16:00 UTC on 2026-08-19 while testing a redirect, and Maya turned it back "
-              "on at 10:00 UTC on 2026-08-21 (the account audit log in the configuration-changes population). The daily check found it on 08-19; "
-              "the minimum TLS version stayed 1.2 throughout. The change went through no change record, which we accept as a deviation. We have "
+              "on at 10:00 UTC on 2026-08-21 (the account audit log in the configuration-changes population). The daily check found it on 08-19, and Maya "
+              "acknowledged the alert at 08:30 UTC on 2026-08-20 (escalation record); the minimum TLS version stayed 1.2 throughout. The change went through no change record, which we accept as a deviation. We have "
               "no evidence either way about plain-HTTP traffic in the window.",[cf_changes,snap('2026-08-19','cloudflare'),snap('2026-08-21','cloudflare')])
     elif k.startswith('audit-finding:'):
         R[k]=("The internal audit of 2026-08-17 found no restore test recorded yet this quarter for the payload store. Maya ran and recorded one on "

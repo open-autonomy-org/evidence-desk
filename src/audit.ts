@@ -13,7 +13,7 @@ import { categories, categoryAnswer, criteria } from './catalog.ts';
 import { computeGaps } from './gaps.ts';
 import type { Snapshot } from './open-autonomy.ts';
 import { loadWorkspace, type Workspace } from './workspace.ts';
-import { buildViews } from './packet.ts';
+import { accessChanges, buildViews } from './packet.ts';
 import { now } from './clock.ts';
 
 export type Engagement = { schema: string; id: string; type: 'type1' | 'type2'; as_of?: string; period?: { start: string; end: string }; firm: string; contact?: string; status: string; created_at: string };
@@ -418,21 +418,36 @@ function lintDescription(ws: Workspace, e: Engagement, text: string, assertionTe
   return out;
 }
 
-// Every dated claim in the drafts and in management's responses, against the package. A claim's dates must each be the
-// date of something the package records (a population row, a record, an evidence file): the daily check runs and their
-// snapshots, which exist for every day, do not count. A future date is a plan, not a claim. A count ("thirteen internal
-// audits") must match the population it names.
+// Every dated claim in the drafts and in management's responses, against the package, line by line. A claim is
+// evidenced only by a packaged line that carries one of its dates and names one of its subjects (an id such as
+// deploy-v6 or replay-headers, a person, an account, a kind of act); the line's file says what kind of evidence it is: a
+// collector's or the project's own records (system), a workspace record a person made (access review, form, approval),
+// or a document the client wrote (client document). Daily check runs and their snapshots, which exist for every day,
+// are not evidence of a particular day's act. A sentence whose only dates bound the period is a judgment, left to the
+// firm. A future date is a plan. A count must match the population it names.
 const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20 };
-export type Claim = { source: string; claim: string; status: 'supported' | 'unsupported' | 'contradiction'; detail: string };
+const ACT_WORDS = ['told', 'notified', 'customer', 'joined', 'left', 'restore', 'audit', 'incident', 'deploy', 'deployment', 'rotat', 'token', 'review', 'test', 'merge', 'approv', 'break-glass', 'escalation', 'notif', 'backup', 'onboard', 'access', 'https', 'tls', 'bypass', 'ruleset', 'monitor', 'uptime', 'tabletop', 'exercise', 'penetration'];
+export type Claim = { source: string; claim: string; status: 'system-evidenced' | 'workspace record' | 'client document' | 'unsupported' | 'contradiction' | 'judgment'; detail: string };
 function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, packaged: Set<string>, today: string): Claim[] {
-  const dated = new Map<string, Set<string>>();
-  for (const p of packaged) {
-    if (/^(checks\/runs|evidence\/files\/collected|audits)\//.test(p) || !/\.(csv|json|md|txt)$/.test(p)) continue;
-    const rec = ws.evidence.find((x) => x.path === p);
-    if (rec && /collected by run/.test(rec.data.title)) continue;
-    for (const m of readFileSync(join(root, p), 'utf8').matchAll(/\b(20\d\d-\d\d-\d\d)/g)) (dated.get(m[1]) ?? dated.set(m[1], new Set()).get(m[1])!).add(p);
+  const kindOfFile = new Map<string, 'system-evidenced' | 'workspace record' | 'client document'>();
+  for (const x of ws.evidence.filter((y) => packaged.has(y.path) && !/collected by run/.test(y.data.title))) {
+    const k = x.data.source?.kind === 'collector' || x.data.source?.kind === 'open-autonomy' ? 'system-evidenced' : x.data.source?.kind === 'evidence-desk' ? 'workspace record' : 'client document';
+    for (const f of x.data.files) if (!kindOfFile.has(f.path)) kindOfFile.set(f.path, k);
+  }
+  for (const p of packaged) if (!kindOfFile.has(p) && /^(sources\/|reviews\/|policies\/|forms\/responses\/|registers\/)/.test(p)) kindOfFile.set(p, p.startsWith('sources/') ? 'system-evidenced' : 'workspace record');
+  const lines: { file: string; n: number; text: string; kind: 'system-evidenced' | 'workspace record' | 'client document' }[] = [];
+  for (const [p, kind] of kindOfFile) {
+    if (!/\.(csv|json|md|txt)$/.test(p) || p.endsWith('.raw.json') || !existsSync(join(root, p))) continue;
+    // A table's unit is its row; a document's (and a record's history) is the whole file, whose date may sit in its
+    // heading and its facts below.
+    const body = readFileSync(join(root, p), 'utf8');
+    if (/\.(md|txt)$/.test(p)) { if (/20\d\d-\d\d-\d\d/.test(body)) lines.push({ file: p, n: 1, text: body.toLowerCase(), kind }); }
+    else body.split('\n').forEach((text, i) => { if (/20\d\d-\d\d-\d\d/.test(text)) lines.push({ file: p, n: i + 1, text: text.toLowerCase(), kind }); });
   }
   const period = e.period ?? { start: e.as_of ?? '', end: e.as_of ?? '' };
+  // The access changes the daily snapshots show are system evidence of their day.
+  for (const c of accessChanges(root, ws, period)) lines.push({ file: `review/access-changes.csv (${c.snapshot})`, n: 0, text: `${c.at} ${c.system} ${c.account} ${c.change} ${c.role} access`.toLowerCase(), kind: 'system-evidenced' });
+  const names = (ws.registers.people?.data.rows ?? []).flatMap((p) => [p.id, (p.name ?? '').split(' ')[0], p.email].filter(Boolean).map((x) => String(x).toLowerCase()));
   const count = (stem: string) => { const ev = ws.evidence.filter((x) => packaged.has(x.path) && x.data.files.some((f) => f.path.includes(stem) && f.path.endsWith('.csv'))).at(-1);
     const f = ev?.data.files.find((x) => x.path.includes(stem) && x.path.endsWith('.csv')); return f ? parseCsv(readFileSync(join(root, f.path), 'utf8'), f.path).rows : null; };
   const counted: [RegExp, () => number | null][] = [
@@ -445,10 +460,11 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
   for (const k of ['description', 'assertion']) { const f = join(root, base(id), 'drafts', `${k}.md`); if (existsSync(f)) texts.push({ source: k, text: readFileSync(f, 'utf8').replace(/```[\s\S]*?```/g, '') }); }
   const ex = join(root, base(id), 'exceptions.json');
   if (existsSync(ex)) for (const [key, r] of Object.entries((JSON.parse(readFileSync(ex, 'utf8')) as { responses?: Record<string, { text: string }> }).responses ?? {})) texts.push({ source: `response to ${key}`, text: r.text });
+  const rank = { 'system-evidenced': 0, 'workspace record': 1, 'client document': 2 } as const;
   const out: Claim[] = [];
-  for (const t of texts) for (const sentence of t.text.split(/(?<=[.;])\s+|\n+/).map((x) => x.trim()).filter(Boolean)) {
+  // A sentence ends at a full stop or a line; a semicolon inside a line (the drafter's deviation lines) does not end one.
+  for (const t of texts) for (const sentence of t.text.split(/(?<=\.)\s+|\n+/).map((x) => x.trim()).filter(Boolean)) {
     if (/^Sources?:/i.test(sentence)) continue;
-    const dates = [...new Set([...sentence.matchAll(/\b(20\d\d-\d\d-\d\d)\b/g)].map((m) => m[1]))].filter((d) => d <= today);
     for (const [re, n] of counted) {
       // A count stands alone: the 17 of 2026-08-17 or the 04 of MON-04 is not one.
       const m = new RegExp(`(?<![\\w-])(\\d+|${Object.keys(NUMBER_WORDS).join('|')})\\s+(?:${re.source})\\b`, 'i').exec(sentence);
@@ -457,9 +473,35 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
       const is = n();
       if (is !== null && said !== is) out.push({ source: t.source, claim: sentence, status: 'contradiction', detail: `says ${said} ${m[0].slice(m[1].length).trim()}; the package's population holds ${is}` });
     }
+    const dates = [...new Set([...sentence.matchAll(/\b(20\d\d-\d\d-\d\d)\b/g)].map((m) => m[1]))].filter((d) => d <= today);
     if (!dates.length) continue;
-    const missing = dates.filter((d) => !dated.has(d) && d !== period.start && d !== period.end);
-    out.push({ source: t.source, claim: sentence, status: missing.length ? 'unsupported' : 'supported', detail: missing.length ? `nothing in the package records ${missing.join(', ')}` : dates.filter((d) => dated.has(d)).map((d) => `${d}: ${[...dated.get(d)!].slice(0, 2).join(', ')}`).join('; ') || 'the period itself' });
+    const eventDates = dates.filter((d) => d !== period.start && d !== period.end);
+    if (!eventDates.length) { out.push({ source: t.source, claim: sentence, status: 'judgment', detail: 'its only dates bound the period: a statement for the firm to judge, not a dated fact' }); continue; }
+    const low = sentence.toLowerCase();
+    // An id is a hyphenated token the package itself uses (replay-headers, deploy-v6); an ordinary hyphenated word
+    // (read-only) is not one.
+    const ids = [...new Set([...low.matchAll(/\b[a-z0-9]+(?:-[a-z0-9]+)+\b|\bc\d{1,2}\b/g)].map((m) => m[0]))].filter((x) => !/^20\d\d-\d\d-\d\d$/.test(x) && !/^\d/.test(x) && !/^[a-z]{2,5}-\d+$/.test(x) && !ACT_WORDS.includes(x) && lines.some((l) => l.text.includes(x)));
+    const people = names.filter((x) => new RegExp(`\\b${x.replace(/[.@+]/g, '\\$&')}\\b`).test(low));
+    const subjects = [...new Set([...ids, ...people, ...ACT_WORDS.filter((w) => low.includes(w))])];
+    const found: string[] = []; let worst: Claim['status'] = 'system-evidenced'; const missing: string[] = [];
+    for (const d of eventDates) {
+      // Among qualifying lines, the strongest kind wins (a system record over a client's own document, whose length
+      // lets it name many subjects), then the line naming most of the claim's subjects.
+      const score = (l: typeof lines[number]) => ids.filter((x) => l.text.includes(x)).length * 3 + subjects.filter((x) => l.text.includes(x)).length;
+      // Lines with the date that name one of the claim's ids; failing those, lines naming at least two of its subjects.
+      const onDay = lines.filter((l) => l.text.includes(d));
+      const withId = ids.length ? onDay.filter((l) => ids.some((x) => l.text.includes(x))) : [];
+      // A person named on the day is as specific as an id.
+      const withPerson = people.length ? onDay.filter((l) => people.some((x) => l.text.includes(x))) : [];
+      const hits = (withId.length ? withId : withPerson.length ? withPerson : onDay.filter((l) => subjects.filter((x) => l.text.includes(x)).length >= Math.min(2, subjects.length || 2)))
+        .sort((a, b) => rank[a.kind] - rank[b.kind] || score(b) - score(a));
+      if (!hits.length) { missing.push(d); continue; }
+
+      found.push(`${d}: ${hits[0].file}:${hits[0].n} (${hits[0].kind})`);
+      if (rank[hits[0].kind] > rank[worst as keyof typeof rank]) worst = hits[0].kind;
+    }
+    out.push(missing.length ? { source: t.source, claim: sentence, status: 'unsupported', detail: `no packaged line records ${missing.join(', ')} together with ${subjects.slice(0, 6).join(', ') || 'any subject of the claim'}` }
+      : { source: t.source, claim: sentence, status: worst, detail: found.join('; ') });
   }
   return out;
 }
@@ -602,7 +644,7 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   }
   // A dated claim nothing in the package records, or a count its population contradicts, stops the export: the firm
   // should never be the first to find it.
-  for (const c of claimsLedger(root, ws, e.data, id, paths, now().slice(0, 10)).filter((x) => x.status !== 'supported')) problems.push(`${c.source} makes a claim the package does not support (${c.status}): "${c.claim.slice(0, 160)}" — ${c.detail}`);
+  for (const c of claimsLedger(root, ws, e.data, id, paths, now().slice(0, 10)).filter((x) => x.status === 'unsupported' || x.status === 'contradiction')) problems.push(`${c.source} makes a claim the package does not support (${c.status}): "${c.claim.slice(0, 160)}" — ${c.detail}`);
   const draftDescription = join(root, base(id), 'drafts', 'description.md');
   if (existsSync(draftDescription)) for (const l of lintDescription(ws, e.data, readFileSync(draftDescription, 'utf8'), assertionOf(root, id)).filter((x) => x.status === 'contradiction')) problems.push(`the description contradicts the evidence (${l.rule}): ${l.detail}`);
   // A packaged response travels with its form's definition (the questions and correct answers it was graded against).
@@ -617,7 +659,7 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     return { path: p, sha256: h.sha256, bytes: h.bytes };
   });
   const created = now();
-  const omitted = ['Evidence outside the engagement window, evidence of excluded controls, and the daily collector records (whose snapshots travel with the check runs) stay in the workspace; the control matrix lists every control with its evidence ids, and the firm may ask for any of it.',
+  const omitted = ['Evidence outside the engagement window and evidence of excluded controls stay in the workspace; the control matrix lists every control with its evidence ids, and the firm may ask for any of it.',
     ...[...absent].sort(([a], [b]) => a.localeCompare(b)).map(([ref, by]) => `${ref}: cited by ${by}, and not in the workspace`)];
   const views = buildViews(root, ws, e.data, reqs, paths, created);
   const described = existsSync(join(root, base(id), 'drafts', 'description.md')) ? readFileSync(join(root, base(id), 'drafts', 'description.md'), 'utf8') : null;

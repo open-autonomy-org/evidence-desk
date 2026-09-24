@@ -60,6 +60,8 @@ const github: CollectorDef = {
     if (!p.org) throw new Error('set the org parameter');
     const org = (await gh(`/orgs/${p.org}`, queries)).body;
     const admins = (await ghAll(`/orgs/${p.org}/members?role=admin`, queries)).map((m) => m.login);
+    // Every member with their role, day by day: the population of access changes is the difference between days.
+    const members = (await ghAll(`/orgs/${p.org}/members?role=all`, queries)).map((m) => ({ login: m.login, role: admins.includes(m.login) ? 'admin' : 'member' }));
     const repos: Record<string, unknown> = {};
     for (const repo of list(p.repos)) {
       const meta = await gh(`/repos/${repo}`, queries);
@@ -77,7 +79,7 @@ const github: CollectorDef = {
         rule_bypasses: bypasses.status === 200 ? bypasses.body : { unavailable: bypasses.status },
         dependabot: dependabot.status === 200 ? dependabot.body : { unavailable: dependabot.status }, secret_scanning: secrets.status === 200 ? secrets.body : { unavailable: secrets.status } };
     }
-    return { data: { org: { login: org?.login, two_factor_requirement_enabled: org?.two_factor_requirement_enabled }, admins, repos }, queries, responses: ghAnswers };
+    return { data: { org: { login: org?.login, two_factor_requirement_enabled: org?.two_factor_requirement_enabled }, admins, members, repos }, queries, responses: ghAnswers };
   },
   checks: [
     { id: 'github-org-2fa', title: 'The organization requires two-factor authentication', controls: ['AC-01'], evaluate: (d) =>

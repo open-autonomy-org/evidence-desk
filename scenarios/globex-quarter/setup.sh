@@ -77,7 +77,7 @@ ed adopt $W | tail -1; ed open-autonomy $W import --repo $D/relay --by maya | ta
 ed register $W people --update maya email=maya@globex.test start_date=2026-06-01 | grep -i error; ed register $W people --update sam email=sam@globex.test start_date=2026-06-01 | grep -i error
 ed register $W systems --add id=agent-dev name="globex-dev" kind="agent account" description="The development agent's GitHub account: opens pull requests, never merges without an independent review" data="none" in_scope=yes | grep -i error
 ed register $W systems --add id=agent-review name="globex-review" kind="agent account" description="The review agent's GitHub account: reviews and lands pull requests" data="none" in_scope=yes | grep -i error
-ed register $W systems --add id=deploy-account name="deploy@globex.test" kind="service account" description="The Cloudflare account the deploy workflow's token belongs to (Workers Admin); no person holds it" data="none" in_scope=yes | grep -i error
+ed register $W systems --add id=deploy-account name="deploy@globex.test" kind="service account" description="The Cloudflare account the deploy workflow's token belongs to (Workers Admin): its login is kept in the owner's password manager, used only to issue the token the deploy workflow holds" data="none" in_scope=yes | grep -i error
 ed register $W systems --add id=cloudflare-account name="Cloudflare account (globex-cloudflare)" kind="hosting and edge" description="Runs the Relay workers and holds customer payloads" data="customer webhook payloads" in_scope=yes | grep -i error
 git -C $W init -q -b main && git -C $W add -A && gcommit $W maya "Globex compliance workspace: scoped and adopted"
 git -C $W remote add origin $U/globex/compliance.git && gpush $W main
