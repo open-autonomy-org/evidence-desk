@@ -31,11 +31,12 @@ for r in json.load(open(X)):
               "token; the Cloudflare deployments population lists the same deploy, and management's response to that deployment's exception "
               "gives what happened and what follows. No one acknowledged the failing reading before Sam's break-glass record of 2026-09-11.",
               [cf_changes,snap('2026-09-10','cloudflare'),glass])
-    elif k.startswith('release-self-approved:'):
-        R[k]=(f"The release approval of {r['item']} was {r['detail']}: the second stage was not independent of the author. Each of "
-              "those changes had an approving review by an account other than its author's before it merged, a person's or the review "
-              "agent's (review/change-releases.csv lists which). We "
-              "accept it as a deviation. From Q4 a release is approved by someone who wrote none of its code.",[chg_csv,dep_csv])
+    elif k=='release-self-approved':
+        R[k]=(f"{r['item']}: {r['detail']}. With two release approvers and Maya starting every deployment, a release carrying "
+              "Sam's code could only be approved by Sam: release approval was not independent of the author by design. Each of those "
+              "changes had an approving review by an account other than its author's before it merged, a person's or the review "
+              "agent's (review/change-releases.csv lists which). We accept it as a design deviation; from Q4 Maya approves any release "
+              "carrying Sam's code, and Lee holds release-review for releases carrying Maya's.",[chg_csv,dep_csv])
     elif k.startswith('personal-token:'):
         R[k]=(f"{r['item']} is a personal Cloudflare token, live at the period's end, that made no deploy in the period. We accept "
               "that a person held a live token on the production account; reviewing every personal token in the quarterly access "
@@ -61,10 +62,11 @@ for r in json.load(open(X)):
               "recorded break-glass change.",[cf_changes,glass_csv])
     elif k.startswith('kept-after-exception:'):
         R[k]=(f"{r['item']}: {r['detail']}. The reviewer kept the access without recording a reason. We accept it as a deviation "
-              "from the access review; reducing Sam's personal Cloudflare access to read-only is a Q4 action.",[r['file']])
+              "from the access review; from Q4 an access review records a reason for keeping any account an open exception names.",[r['file']])
     elif k.startswith('seam-authority:'):
-        R[k]=(f"{r['item']}: {r['detail']}. Sam recorded the break-glass change himself; the owner did not approve it before or "
-              "after. We accept it as a deviation from the break-glass procedure.",[glass_csv])
+        R[k]=(f"{r['item']}: {r['detail']}. Sam recorded the break-glass change himself; Maya, who holds the seam, approved the pull "
+              "request that added the record the next day, after the change had run in production. We accept it as a deviation from the "
+              "break-glass procedure, which reserves the change to the owner.",[glass_csv,chg_csv])
     elif k.startswith('audit-finding:'):
         on=k.split(':')[1][:10]
         R[k]=(f"The internal audit of {on} found no restore test recorded yet this quarter for the payload store, as each weekly audit did "

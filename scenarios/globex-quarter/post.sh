@@ -28,4 +28,7 @@ ed audit $W q3 draft description | tail -1; ed audit $W q3 draft assertion | tai
 ed audit $W q3 exceptions --json > $STATE/exceptions-draft.json
 python3 $S/fill.py $W/audits/q3/drafts/description.md $W/audits/q3/drafts/assertion.md $STATE/exceptions-draft.json
 git -C $W add -A; gcommit $W maya "Q3 engagement: collections, requests answered, drafts"; gpush $W main
+# The owner reviews the drafted description against the system before it goes to the firm.
+clock 2026-10-03T10:00:00Z; evdoc maya maya-gx sam-gx GOV-08 description-review-2026-10-03.md "System description reviewed against the system" "# System description review, 2026-10-03
+The owner read the drafted description (audits/q3/drafts/description.md) against the repository at main, the accepted ADRs and the vendor list; changes since the last review: the deploy service account, the tenant-isolation test, the restore-test seam."
 echo POST-DONE

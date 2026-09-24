@@ -33,15 +33,17 @@ open(d,'w').write(s)
 t=open(a).read()
 t=re.sub(r'<!-- Drafted by Evidence Desk.*?-->\n\n', '', t, flags=re.S)
 qual=_sub(open(here+'/qualification.md').read().strip()) if os.path.exists(here+'/qualification.md') else None
-if qual: t=re.sub(r"\[The workspace found \d+ deviation\(s\).*?\]\n((?:- |Of design:|Of operation:).*\n)+", qual+'\n', t, flags=re.S); t=t.replace('and they operated effectively throughout that period.', 'and they operated effectively throughout that period, except for the matters described in the following paragraph.') if qual else t
+if qual: t=re.sub(r"\[The workspace found \d+ deviation\(s\)[^\]]*\]\n((?:- |Of design:|Of operation:)[^\n]*\n)+", qual+'\n', t); t=t.replace('and they operated effectively throughout that period.', 'and they operated effectively throughout that period, except for the matters described in the following paragraph.') if qual else t
 # Management names each exception still open at the period's end that its matters do not already name, from the
 # register the package will carry, and says when the system began operating if that was inside the period.
 if len(sys.argv)>3 and os.path.exists(sys.argv[3]):
     import json as _json
-    add=[x for x in _json.load(open(sys.argv[3])) if (x.get('open_at_period_end')=='yes' or x['key'].startswith('incident:')) and x['item'] not in t]
+    add=[x for x in _json.load(open(sys.argv[3])) if x['item'] not in t]
     letters=re.findall(r'^\(([a-z])\) ', t, flags=re.M); n=ord(max(letters))+1 if letters else ord('a')
     for x in add:
-        t=t.rstrip('\n')+f"\n\n({chr(n)}) {x['item']}: {x['detail']}{' (of design: it stood through the period)' if x.get('nature')=='design' else ''}.\n"; n+=1
+        # A matter goes with the others, before the signature.
+        sig=t.find('\nSigned by:'); sig=len(t) if sig<0 else sig
+        t=t[:sig].rstrip('\n')+f"\n\n({chr(n)}) {x['item']}: {x['detail']}{' (of design: it stood through the period)' if x.get('nature')=='design' else ''}.\n\n"+t[sig:].lstrip('\n'); n+=1
     # A matter of design qualifies the design statement as well as the operating one.
     if any(x.get('nature')=='design' for x in _json.load(open(sys.argv[3]))) and 'except for the matters of design' not in t:
         t=t.replace('to provide reasonable assurance that our', 'to provide reasonable assurance, except for the matters of design described below, that our',1)

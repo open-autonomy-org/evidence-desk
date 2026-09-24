@@ -187,7 +187,8 @@ ${(() => { const c = e.period ? periodPopulation(ws, e, 'changes to') : null; co
   if (d) { lines.push(`- ${d.rows.length} production deployment(s) (${d.id}), their runs started by ${tally(d.rows.map((r) => r.run_event))}${d.rows.every((r) => /^deploy-v/.test(r.ref)) ? ' on a deploy-v* tag' : `, on ${tally(d.rows.map((r) => r.ref))}`}${d.rows.some((r) => r.commit_match === 'no') ? `; ${d.rows.filter((r) => r.commit_match === 'no').length} approved on a run of another commit` : ''}; started by ${tally(d.rows.map((r) => r.started_by))}; ${d.rows.filter((r) => r.independent_approval === 'yes').length} approved by someone other than the starter.`); }
   // What the register shows operated differently from the design above.
   const ex = knownExceptions(ws, e); const n = (k: string) => ex.filter((x) => x.key.startsWith(k)).length;
-  if (n('release-self-approved:')) lines.push(`- ${n('release-self-approved:')} of ${d?.rows.length ?? '?'} release(s) were approved by someone who wrote code they shipped (the exceptions register, release-self-approved)`);
+  const selfApproved = ex.find((x) => x.key === 'release-self-approved');
+  if (selfApproved) lines.push(`- ${selfApproved.item} (the exceptions register, release-self-approved)`);
   if (n('unmatched-deploy:') || n('out-of-path-change:')) lines.push(`- ${n('unmatched-deploy:') + n('out-of-path-change:')} change(s) reached production outside the change path: ${n('unmatched-deploy:')} Worker deployment(s) no approved GitHub deployment accounts for, ${n('out-of-path-change:')} setting(s) changed by hand`);
   // A Worker created inside the period is a system that began operating then, not at the period's start.
   const cfg = e.period ? periodPopulation(ws, e, 'configuration of') : null;
@@ -337,9 +338,9 @@ the matters described in the following paragraph" and describe them there. A dev
 the period) qualifies "suitably designed"; one of operation qualifies "operated effectively".]
 ${ex.some((x) => x.nature === 'design') ? `Of design:\n${deviationList(ex.filter((x) => x.nature === 'design'))}\nOf operation:\n${deviationList(ex.filter((x) => x.nature !== 'design'))}` : deviationList(ex)}
 ` : ''; })()}
-[Name, title]
-[Signature]
-[Date]
+Signed by: [Name, title]
+Signature: [Signature]
+Date: [Date]
 `;
 }
 
@@ -362,9 +363,9 @@ For the period from ${from} to ${to}, management confirms that:
 
 This letter is management's statement and is not an opinion of ${e.firm}.
 
-[Name, title]
-[Signature]
-[Date]
+Signed by: [Name, title]
+Signature: [Signature]
+Date: [Date]
 `;
 }
 
@@ -421,15 +422,15 @@ function lintDescription(ws: Workspace, e: Engagement, text: string, assertionTe
   // Every exception still open at the period's end is named in the assertion management signs, by what identifies it:
   // a date alone names whatever else happened that day.
   const ident = (x: Record<string, string>) => /#\d+|deploy-v\d+|\b[0-9a-f]{8}(?=[0-9a-f-]*\b)|\bR-\d+\b|[\w.+-]+@[\w-]+\.[\w.-]+|AR-\d{8}-[0-9a-f]{6}/.exec(x.item)?.[0] ?? x.key.split(':')[1] ?? x.key;
-  // Open at the period's end, or an incident: an incident is material whether or not it closed within the period.
-  const open = knownExceptions(ws, e).filter((x) => !x.resolved || (e.period && x.resolved > e.period.end) || x.key.startsWith('incident:'));
+  // Every deviation the register holds, resolved or not: the assertion's "except for" is management's account of each.
+  const open = knownExceptions(ws, e);
   const signed = assertionText || both;
   // Named means the row's own item (release deploy-v6, sam@globex.test's token cf-…): an id alone can appear in another
   // matter about something else.
   const missing = open.filter((x) => !signed.includes(x.item));
-  out.push(!open.length ? { rule: 'open exceptions disclosed', status: 'not applicable', detail: 'no exception is open at the period end' }
-    : missing.length ? { rule: 'open exceptions disclosed', status: 'contradiction', detail: `${missing.length} open exception(s) or incident(s) the assertion does not name: ${missing.map((x) => `${ident(x)} (${x.key})`).join('; ')}` }
-    : { rule: 'open exceptions disclosed', status: 'pass', detail: `the assertion names each of the ${open.length} open exception(s) and incident(s)` });
+  out.push(!open.length ? { rule: 'open exceptions disclosed', status: 'not applicable', detail: 'the register holds no deviation' }
+    : missing.length ? { rule: 'open exceptions disclosed', status: 'contradiction', detail: `${missing.length} deviation(s) the assertion does not name: ${missing.map((x) => `${ident(x)} (${x.key})`).join('; ')}` }
+    : { rule: 'open exceptions disclosed', status: 'pass', detail: `the assertion names each of the ${open.length} deviation(s) in the register` });
   // A system created inside the period did not operate from its start: the assertion says when it began.
   const cfg = e.period ? periodPopulation(ws, e, 'configuration of') : null;
   const born = (cfg?.rows ?? []).filter((r) => r.action === 'create' && r.resource.startsWith('script ')).map((r) => r.at.slice(0, 10)).sort()[0];
@@ -701,6 +702,10 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   if (existsSync(draftDescription)) for (const l of lintDescription(ws, e.data, readFileSync(draftDescription, 'utf8'), assertionOf(root, id)).filter((x) => x.status === 'contradiction')) problems.push(`the description contradicts the evidence (${l.rule}): ${l.detail}`);
   // A packaged response travels with its form's definition (the questions and correct answers it was graded against).
   for (const r of ws.responses) if (paths.has(`forms/responses/${r.data.id}.json`)) { const f = ws.forms.find((x) => x.data.id === r.data.form); if (f) paths.add(f.path); }
+  // The assertion goes out signed: a signer, a signature and a date, not left to the firm to chase.
+  const assertionFile = join(root, base(id), 'drafts', 'assertion.md');
+  if (existsSync(assertionFile)) { const a = readFileSync(assertionFile, 'utf8');
+    if (!/^Signed by: \S/m.test(a) || !/^Signature: \S/m.test(a) || !/^Date: 20\d\d-\d\d-\d\d\b/m.test(a)) problems.push(`${base(id)}/drafts/assertion.md is not signed (Signed by, Signature and Date lines)`); }
   // Every request goes out answered: an open one the client never responded to is the firm's to chase, not to receive.
   for (const r of reqs.filter((x) => x.data.status === 'open')) problems.push(`request ${r.data.id} (${r.data.title}) has no response from the client`);
   // Every exception the package raises goes out with management's response: the firm should never receive a
@@ -934,6 +939,9 @@ export function respondToException(root: string, id: string, key: string, text: 
   const cur = readVersioned(root, rel);
   for (const c of cites) { inside(root, c); if (!existsSync(join(root, c))) throw new Error(`${c} is not a file in the workspace`); }
   const doc = cur ? JSON.parse(cur.text) as { responses: Record<string, { text: string; by: string; at: string; cites?: string[] }> } : { responses: {} };
+  // The same response recorded again keeps when and by whom it was first given: a response's date is evidence too.
+  const prev = doc.responses[key];
+  if (prev && prev.text === text.trim() && prev.by === by && (prev.cites ?? []).join(';') === cites.join(';')) return { file: rel };
   doc.responses[key] = { text: text.trim(), by, at: now(), ...(cites.length ? { cites } : {}) };
   writeVersioned(root, rel, pretty(doc), cur?.version ?? null);
   return { file: rel };

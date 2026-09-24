@@ -127,8 +127,11 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       if (t.columns.includes('actor_on_roster')) {
         const bgFile = evidence.flatMap((x) => x.data.files).find((x) => x.path.includes('/break-glass-') && x.path.endsWith('.csv'));
         const glass = bgFile ? parseCsv(readFileSync(join(root, bgFile.path), 'utf8'), bgFile.path).rows : [];
-        for (const r of t.rows.filter((r) => r.actor_on_roster === 'yes' && r.resource.startsWith('zone_setting') && !glass.some((g) => day(g.at) === day(r.at))))
-          add({ ...base, key: `out-of-path-change:${r.id}`, controls: 'CHG-01;CHG-04', item: `${r.resource}${r.zone ? ` on ${r.zone}` : ''} changed ${r.old_value || '(unset)'} → ${r.new_value} by ${r.actor}`, detail: `a production setting changed by hand at ${r.at}, outside the reviewed change path, with no break-glass record that day${bgFile ? ` (${bgFile.path})` : ''}`, occurred: day(r.at) });
+        // A change that puts back the value an earlier hand-made change took away is its remedy, not a second deviation.
+        const byHand = t.rows.filter((r) => r.actor_on_roster === 'yes' && r.resource.startsWith('zone_setting') && !glass.some((g) => day(g.at) === day(r.at)));
+        const restores = (r: Record<string, string>) => byHand.some((x) => x.at < r.at && x.resource === r.resource && x.zone === r.zone && x.old_value === r.new_value);
+        for (const r of byHand.filter((r) => !restores(r)))
+          add({ ...base, key: `out-of-path-change:${r.id}`, controls: 'OPS-04;CHG-04', item: `${r.resource}${r.zone ? ` on ${r.zone}` : ''} changed ${r.old_value || '(unset)'} → ${r.new_value} by ${r.actor}`, detail: `a production setting changed by hand at ${r.at}, outside the reviewed change path, with no break-glass record that day${bgFile ? ` (${bgFile.path})` : ''}`, occurred: day(r.at) });
       }
       if (t.columns.includes('actor_on_roster')) for (const r of t.rows.filter((r) => r.actor_on_roster === 'no' || r.actor_on_roster === 'unknown'))
         add({ ...base, key: `config-actor:${f.path.split('/').pop()!.replace(/-\d+\.csv$/, '')}:${r.id || `${r.ruleset_id}:${r.version}`}`, item: r.change || `${r.resource} ${r.old_value} → ${r.new_value}`, detail: r.actor ? `changed by ${r.actor}, who is not on the roster` : 'changed by no one the vendor names (a token without a user)', occurred: day(r.at) });
@@ -410,11 +413,13 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     views.set('review/change-releases.csv', writeCsv({ columns: ['number', 'title', 'touches', 'author', 'author_kind', 'approvers', 'approver_kinds', 'merged_at', 'released_in', 'released_at', 'release_approved_by', 'release_approved_by_person', 'release_approver_wrote_it'], rows: releases }));
     for (const r of releases.filter((x) => x.release_approved_by_person === 'no'))
       add({ key: `release-without-person:#${r.number}`, source: 'change releases (review/change-releases.csv)', controls: 'CHG-01;CHG-03', item: `#${r.number} in ${r.released_in}`, detail: `shipped in a release no person on the roster approved (${r.release_approved_by || 'no approver'})`, occurred: day(r.released_at), detected: day(r.released_at), resolved: '', file: ghDep?.path ?? worker.path });
-    // A release whose approver wrote code or pipeline changes it ships approved their own work at the second stage.
+    // Releases whose approver wrote code or pipeline changes they ship: the second stage approved its own work. One
+    // exception for the pattern, listing each release: it is how release approval was designed, not a lapse per release.
     const selfApproved = new Map<string, typeof releases>();
     for (const r of releases.filter((x) => x.release_approver_wrote_it === 'yes' && /code|pipeline/.test(x.touches))) selfApproved.set(r.released_in, [...(selfApproved.get(r.released_in) ?? []), r]);
-    for (const [release, rs] of selfApproved)
-      add({ key: `release-self-approved:${release}`, source: 'change releases (review/change-releases.csv)', controls: 'CHG-01;CHG-03', item: `release ${release}`, detail: `approved by ${rs[0].release_approved_by}, who wrote ${rs.map((r) => `#${r.number}`).join(', ')} in it`, occurred: day(rs[0].released_at), detected: collectedOf(ghDep?.path ?? worker.path), resolved: '', found_by: `this package, comparing each release's approver with the authors of the changes it ships`, file: ghDep?.path ?? worker.path });
+    const shipped = new Set(releases.map((r) => r.released_in).filter(Boolean));
+    if (selfApproved.size) { const first = [...selfApproved.values()].map((rs) => rs[0]).sort((a, b) => a.released_at.localeCompare(b.released_at))[0];
+      add({ key: 'release-self-approved', source: 'change releases (review/change-releases.csv)', controls: 'CHG-03', item: `${selfApproved.size} of ${shipped.size} releases approved by an author of their code`, detail: [...selfApproved].map(([rel, rs]) => `${rel} approved by ${rs[0].release_approved_by}, who wrote ${rs.map((r) => `#${r.number}`).join(', ')}`).join('; '), occurred: day(first.released_at), detected: collectedOf(ghDep?.path ?? worker.path), resolved: '', found_by: `this package, comparing each release's approver with the authors of the changes it ships`, file: ghDep?.path ?? worker.path }); }
     views.set('review/production-timeline.csv', writeCsv({ columns: ['from', 'until', 'days', 'deployment', 'author', 'commit', 'github_deployment', 'ref', 'approved', 'change_path', 'pull_requests'], rows: timeline }));
   }
   // One event, one exception: a deploy no approved GitHub deployment accounts for, which the daily change-actors check
@@ -430,7 +435,8 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   // An access review that kept an account an earlier exception names: the review saw the account and let it stand.
   for (const a of ws.accessReviews.filter((x) => packaged.has(`reviews/access/${x.data.id}.json`) && x.data.status === 'signed-off' && inside(x.data.signed_off_at ?? '', period)))
     for (const acct of a.data.accounts.filter((x) => x.decision === 'keep')) {
-      const named = exceptions.filter((x) => x.occurred && x.occurred <= day(a.data.signed_off_at ?? '') && `${x.item} ${x.detail}`.toLowerCase().includes(acct.account.toLowerCase()));
+      // Only what the organization knew by the review: an exception found later could not have informed the decision.
+      const named = exceptions.filter((x) => x.detected && x.detected <= day(a.data.signed_off_at ?? '') && `${x.item} ${x.detail}`.toLowerCase().includes(acct.account.toLowerCase()));
       if (named.length) add({ key: `kept-after-exception:${a.data.id}:${acct.account}`, source: `access review ${a.data.id} (${a.data.system})`, controls: 'AC-03;AC-04', item: `${acct.account} kept by ${a.data.reviewer}`, detail: `kept on ${day(a.data.signed_off_at ?? '')}, after ${named.map((x) => x.key).join(', ')} named the account`, occurred: day(a.data.signed_off_at ?? ''), detected: collectedOf(`reviews/access/${a.data.id}.json`), resolved: '', found_by: 'this package, comparing each access review with the exceptions before it', file: `reviews/access/${a.data.id}.json` });
     }
   // The matrix and coverage count what the register holds once every view has raised its exceptions.
@@ -444,8 +450,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   // A deviation is of design when what it shows stood through the period (a person's live credential, a ruleset
   // weakened, a declared trigger never used, the same self-approval release after release), and of operation when a
   // designed control failed on an occasion. The assertion qualifies the two separately.
-  const selfApprovedReleases = exceptions.filter((x) => x.key.startsWith('release-self-approved:')).length;
-  const natureOf = (x: PacketException) => /^(personal-token|personal-deploy-token|weakened|trigger):/.test(x.key) || (x.key.startsWith('release-self-approved:') && selfApprovedReleases > 1) ? 'design' : 'operating';
+  const natureOf = (x: PacketException) => /^(personal-token|personal-deploy-token|weakened|trigger):/.test(x.key) || x.key === 'release-self-approved' ? 'design' : 'operating';
   // Written after every view that can raise an exception.
   views.set('review/exceptions.csv', writeCsv({ columns: ['key', 'nature', 'source', 'controls', 'item', 'detail', 'occurred', 'detected', 'resolved', 'closed_by', 'open_at_period_end', 'found_by', 'response', 'responded_by', 'response_cites', 'file'], rows: exceptions.map((x) => ({ ...x, nature: natureOf(x), closed_by: x.closed_by ?? '', open_at_period_end: !x.resolved || x.resolved > period.end ? 'yes' : 'no',
       found_by: x.found_by ?? (x.key.startsWith('check:') ? `the organization's daily check, on ${x.detected}` : x.key.startsWith('audit-finding:') ? `the organization's internal audit, on ${x.occurred}` : x.key.startsWith('incident:') ? 'the organization (its incident record)' : `this package's collection, on ${x.detected}`), response_cites: x.response_cites ?? '' })) }));

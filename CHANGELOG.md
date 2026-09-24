@@ -7,6 +7,11 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- The package is not exported without a signed assertion (Signed by, Signature and Date lines). A response recorded
+  again unchanged keeps its first date. The assertion must name every deviation the register holds. Self-approved
+  releases are one design exception listing each release, against release approval (CHG-03). A hand-made setting change
+  is configuration drift (OPS-04), and the change that restores it is its remedy, not another deviation. An access
+  review is judged only on exceptions known by its date.
 - Each exception says whether it is a deviation of design (what stood through the period: a person's live credential,
   a weakened ruleset, an unused declared trigger, repeated self-approved releases) or of operation, and the drafted
   assertion groups them so management qualifies "suitably designed" and "operated effectively" separately.
