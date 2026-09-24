@@ -16,6 +16,7 @@ import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, reviewAnswe
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { computeObligations } from './obligations.ts';
 import { collectAccessChanges } from './access.ts';
+import { certifications, claimOf, recordCertification } from './certifications.ts';
 import { recollect } from './recollect.ts';
 import { collectRosterHistory, collectSeamRecords, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
 import { checkCompleteness, collectChanges, collectDeployments, collectAttribution, collectNonHumanAccess, collectRuleChanges, syncReminders } from './github.ts';
@@ -105,6 +106,10 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   questionnaire <dir> <id> answer <question> --answer <text> --by <person> [--source <path>,...]
   questionnaire <dir> <id> export --out <csv>   reviewed answers filled in, every row with its status
   answers <dir> [--stale]                 the library of reviewed answers (--stale: those whose facts changed)
+  certifications <dir> [add --framework <name> --kind "audit report"|certificate|self-attestation --issuer <name>
+                 --issued-on <date> [--period <start>..<end>] [--valid-until <date>] --file <document> --by <person>]
+                                          the attested documents the organization holds: the only ground for
+                                          saying it was audited or certified
   frameworks <dir> [enable iso27001]      the frameworks the program follows
   framework <dir> iso27001                each requirement: ready, with gaps, excluded, or not addressed
   framework <dir> iso27001 exclude <requirement> --reason <text> | include <requirement> | map <requirement> --controls <id>,...
@@ -566,7 +571,7 @@ async function main(argv: string[]): Promise<number> {
     case 'trust': {
       if (rest[0] !== 'build' || !one(a, 'out')) throw new Error('trust needs build --out <folder>');
       const r = buildTrustCenter(dir, resolve(one(a, 'out')!));
-      out(json, r, () => `Built ${resolve(one(a, 'out')!)}/index.html publishing: ${r.published.join(', ') || 'only the headline and contact'}.`);
+      out(json, r, () => `Built ${resolve(one(a, 'out')!)}/index.html publishing: ${r.published.join(', ') || 'only the headline and contact'}.${r.badges.map((b) => `\n  badges/${b.id}.svg  ${b.label}: ${b.message}`).join('')}`);
       return 0;
     }
     case 'questionnaire': {
@@ -597,6 +602,22 @@ async function main(argv: string[]): Promise<number> {
       const stale = a.flags.has('stale') ? staleLibrary(dir) : null;
       const lib = stale ?? JSON.parse(readVersioned(dir, 'answers.json')?.text ?? '{"answers":[]}').answers;
       out(json, lib, () => lib.map((x: { id: string; question: string; reviewed_by: string; reviewed_at: string }) => `${x.id}  ${x.reviewed_at.slice(0, 10)} ${x.reviewed_by}  ${x.question}`).join('\n') || (stale ? 'No reviewed answer cites a fact that changed.' : 'No reviewed answers yet.'));
+      return 0;
+    }
+    case 'certifications': {
+      if (rest[0] === 'add') {
+        const kind = one(a, 'kind') ?? '';
+        if (!['audit report', 'certificate', 'self-attestation'].includes(kind)) throw new Error('--kind is "audit report", "certificate" or "self-attestation"');
+        const pr = one(a, 'period');
+        const period = pr ? { start: pr.split('..')[0], end: pr.split('..')[1] } : undefined;
+        const c = recordCertification(dir, { framework: one(a, 'framework') ?? '', kind: kind as 'audit report', issuer: one(a, 'issuer') ?? '', issued_on: one(a, 'issued-on') ?? '',
+          ...(period ? { period } : {}), ...(one(a, 'valid-until') ? { valid_until: one(a, 'valid-until') } : {}), file: resolve(one(a, 'file') ?? ''), by: one(a, 'by') ?? '' });
+        out(json, c, () => `Recorded ${c.id}: ${claimOf(c)}.`);
+        return 0;
+      }
+      if (rest[0]) throw new Error('certifications takes: add --framework <name> --kind <kind> --issuer <name> --issued-on <date> --file <document> --by <person>');
+      const list = certifications(dir);
+      out(json, list, () => list.map((c) => `${c.current ? 'current  ' : c.intact ? 'expired  ' : 'ALTERED  '} ${c.id}: ${claimOf(c)}`).join('\n') || 'No audit report, certificate or self-attestation is held.');
       return 0;
     }
     case 'frameworks': {

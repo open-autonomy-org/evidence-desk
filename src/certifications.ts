@@ -1,0 +1,82 @@
+// What the organization may claim. A claim of being audited or certified rests on the document an independent auditor or
+// certifying body issued (a SOC 2 report, an ISO/IEC 27001 or 42001 certificate, an AIUC-1 certificate), uploaded and
+// held here with its hash; a self-attestation is the organization's own and is always shown as such. Without a
+// document, what the organization shows is its readiness.
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { join } from 'node:path';
+import { check, schema } from './schema.ts';
+import { readVersioned, writeVersioned } from './files.ts';
+import { loadWorkspace } from './workspace.ts';
+import { now } from './clock.ts';
+
+export type Certification = { schema: string; id: string; framework: string; kind: 'audit report' | 'certificate' | 'self-attestation'; issuer: string; issued_on: string;
+  period?: { start: string; end: string }; valid_until?: string; file: string; sha256: string; recorded_by: string; recorded_at: string };
+
+const DIR = 'certifications';
+
+export function recordCertification(root: string, input: { framework: string; kind: Certification['kind']; issuer: string; issued_on: string; period?: { start: string; end: string }; valid_until?: string; file: string; by: string }): Certification {
+  if (!(loadWorkspace(root).registers.people?.data.rows ?? []).some((r) => r.id === input.by)) throw new Error(`${input.by || '(none)'} is not in registers/people.csv`);
+  if (!existsSync(input.file)) throw new Error(`${input.file} does not exist`);
+  if (input.kind === 'certificate' && !input.valid_until) throw new Error('a certificate needs --valid-until, the date it expires');
+  const bytes = readFileSync(input.file);
+  const sha256 = createHash('sha256').update(bytes).digest('hex');
+  const id = `${input.framework.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${input.issued_on}`;
+  const ext = (/\.[a-z0-9]+$/i.exec(input.file)?.[0] ?? '.pdf').toLowerCase();
+  const file = `${DIR}/${id}${ext}`;
+  writeVersioned(root, file, bytes, readVersioned(root, file)?.version ?? null);
+  const record: Certification = { schema: 'evidence-desk.certification/1', id, framework: input.framework, kind: input.kind, issuer: input.issuer, issued_on: input.issued_on,
+    ...(input.period ? { period: input.period } : {}), ...(input.valid_until ? { valid_until: input.valid_until } : {}), file, sha256, recorded_by: input.by, recorded_at: now() };
+  const errs = check(schema('certification'), record);
+  if (errs.length) throw new Error(`the certification record is invalid: ${errs.join('; ')}`);
+  const rel = `${DIR}/${id}.json`;
+  writeVersioned(root, rel, JSON.stringify(record, null, 2) + '\n', readVersioned(root, rel)?.version ?? null);
+  return record;
+}
+
+// Every record whose document is still the file it was recorded with; a document dated after today, or a certificate past its date, is not current.
+export function certifications(root: string, today = now().slice(0, 10)): (Certification & { current: boolean; intact: boolean })[] {
+  const dir = join(root, DIR);
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')) as Certification).map((c) => {
+    const intact = existsSync(join(root, c.file)) && createHash('sha256').update(readFileSync(join(root, c.file))).digest('hex') === c.sha256;
+    return { ...c, intact, current: intact && c.issued_on <= today && (!c.valid_until || c.valid_until >= today) };
+  }).sort((a, b) => b.issued_on.localeCompare(a.issued_on));
+}
+
+// How one record may be stated publicly.
+export function claimOf(c: Certification): string {
+  if (c.kind === 'self-attestation') return `${c.framework}: self-attested by ${c.issuer} on ${c.issued_on}`;
+  if (c.kind === 'certificate') return `${c.framework} certificate issued by ${c.issuer} on ${c.issued_on}, valid until ${c.valid_until}`;
+  return `${c.framework} report${c.period ? ` for ${c.period.start} to ${c.period.end}` : ''}, issued by ${c.issuer} on ${c.issued_on}; available on request under a confidentiality agreement`;
+}
+
+// ── Badges ──────────────────────────────────────────────────────────────────────────────────────────────────────
+// The same statements as images, for a README or a project page: one per document held, and a readiness badge for a
+// framework no auditor's document covers. A badge never says more than the trust center does.
+export type Badge = { id: string; label: string; message: string; color: string; basis: string };
+
+// A readiness entry names what an auditor's document for its framework would be called, so a held report or certificate
+// replaces it.
+export function badgesOf(held: Certification[], readiness: { framework: string; matches: RegExp; ready: number; of: number; unit: string }[]): Badge[] {
+  const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const out: Badge[] = held.map((c) => ({ id: slug(`${c.framework}-${c.kind}`), label: c.framework,
+    message: c.kind === 'certificate' ? `certified until ${c.valid_until}` : c.kind === 'audit report' ? `audited by ${c.issuer}, ${c.issued_on}` : `self-attested ${c.issued_on}`,
+    color: c.kind === 'self-attestation' ? '#2b6cb0' : '#2f855a', basis: c.file }));
+  for (const r of readiness) {
+    if (held.some((c) => c.kind !== 'self-attestation' && r.matches.test(c.framework))) continue;
+    out.push({ id: slug(`${r.framework}-readiness`), label: r.framework, color: r.ready === r.of ? '#b7791f' : '#718096', basis: 'readiness',
+      message: `readiness ${r.ready}/${r.of} ${r.unit}` });
+  }
+  return out;
+}
+
+// A flat badge in the common shields style; widths follow the text's length.
+export function badgeSvg(b: Badge): string {
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+  const w = (s: string) => Math.round(s.length * 6.2 + 12);
+  const lw = w(b.label), mw = w(b.message), total = lw + mw;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${total}" height="20" role="img" aria-label="${esc(`${b.label}: ${b.message}`)}"><title>${esc(`${b.label}: ${b.message}`)}</title>`
+    + `<rect width="${lw}" height="20" fill="#555"/><rect x="${lw}" width="${mw}" height="20" fill="${b.color}"/>`
+    + `<g fill="#fff" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11"><text x="${lw / 2}" y="14" text-anchor="middle">${esc(b.label)}</text><text x="${lw + mw / 2}" y="14" text-anchor="middle">${esc(b.message)}</text></g></svg>\n`;
+}

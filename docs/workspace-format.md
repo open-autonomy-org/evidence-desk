@@ -35,6 +35,7 @@ allowed everywhere and kept when Evidence Desk writes a file, so other tools can
 | `audits/<id>/requests/<request>.json` | one of the firm's requests, its answers, samples and conversation | `audit-request` |
 | `audits/<id>/drafts/*.md` | the system description, management assertion and bridge letter drafts | Markdown |
 | `trust.json` | what the trust center may publish; nothing else is published | `trust` |
+| `certifications/<id>.json` and the document beside it | an audit report, certificate or self-attestation the organization holds, with the document's SHA-256 | `certification` |
 | `questionnaires/<id>.json` | one security questionnaire, its answers, sources and review state | `questionnaire` |
 | `answers.json` | reviewed answers kept for reuse, with the facts they cite | `answer-library` |
 | `frameworks/<framework>.json` | the organization's exclusions and extra mappings for an additional framework | `framework-settings` |
@@ -207,9 +208,23 @@ client's engagements, request counts, exceptions and readiness separately.
 ## Trust center and questionnaires
 
 `evidence-desk trust build` writes a static `index.html` from the workspace, publishing only what `trust.json` lists:
-the categories in scope, whether a SOC 2 report is available (from the latest closed engagement), titles and approval
-dates of named policies, high-criticality vendors as subprocessors, and documents offered on request through the
+the categories in scope, the organization's audits and certifications, titles and approval dates of named policies, high-criticality vendors as subprocessors, and documents offered on request through the
 security contact. The organization hosts the folder wherever it likes.
+
+**Audited or certified only with the document.** The page says the organization was audited or certified only where
+`certifications/` holds the document that says so: an independent auditor's report (SOC 2, SOC 3) or a certifying
+body's certificate (ISO/IEC 27001, ISO/IEC 42001, AIUC-1), uploaded with `evidence-desk certifications <dir> add` and
+held with its SHA-256. A document whose hash no longer matches, or a certificate past its `valid_until`, is not
+claimed. A self-attestation (such as CSA STAR Level 1) is the organization's own and is always shown as self-attested.
+Without an auditor's document the page shows readiness instead: evidence for how many applicable controls, how many
+criteria in scope are ready, and an audit under way only where an engagement records one.
+
+**Badges.** The same statements are written as images for a README or a project page: `badges/<id>.svg`, one per
+current document (green for an auditor's report or certificate, blue and labelled self-attested for a
+self-attestation), and a grey readiness badge for each framework in `evidence-desk.json` that no auditor's document
+covers ("SOC 2: readiness 23/46 controls", ISO/IEC 27001 counted in requirements). `badges.json` lists them with
+their message, colour, the document each rests on and the date built. They are written only when `trust.json`
+publishes the report section, and say nothing the page does not.
 
 A questionnaire is imported from a CSV, or the first worksheet of an Excel (.xlsx) workbook, with a question column. Each question is first matched against the answer
 library; a reviewed answer whose cited files are unchanged is reused as reviewed, and one whose facts changed is marked
