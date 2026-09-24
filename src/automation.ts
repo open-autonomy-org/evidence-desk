@@ -146,7 +146,9 @@ const cloudflare: CollectorDef = {
     { id: 'cloudflare-https', title: 'Zones redirect every request to HTTPS', controls: ['AC-09'], evaluate: (d) => {
       const zones = Object.entries(d.zones as Record<string, any>);
       if (!zones.length) return { status: 'error', detail: 'no zone was read' };
-      const off = zones.filter(([, s]) => s.always_use_https !== 'on').map(([z, s]) => `${z} (${s.always_use_https ?? 'unreadable'})`);
+      const unread = zones.filter(([, s]) => s.always_use_https === null).map(([z]) => z);
+      if (unread.length) return { status: 'error', detail: `the HTTPS redirect of ${unread.join(', ')} could not be read` };
+      const off = zones.filter(([, s]) => s.always_use_https !== 'on').map(([z, s]) => `${z} (${s.always_use_https})`);
       return off.length ? { status: 'fail', detail: `plain HTTP served by ${off.join(', ')}` } : { status: 'pass', detail: 'always HTTPS' };
     } },
   ],
@@ -227,7 +229,9 @@ export function ciWorkflow(settings: CollectorSettings[]): string {
 # Runs the workspace's enabled collectors and checks every day and commits the results. A failing check fails this
 # run so GitHub notifies you; it gates nothing. Store each credential below as a repository secret with read-only access
 # (a GitHub token as EVIDENCE_DESK_GITHUB_TOKEN: GitHub reserves the GITHUB_ prefix). With an imported Open Autonomy
-# project it reads the project's public repository again, so a changed roster, seam or vendor shows the next day. It checks who recorded each
+# project it reads the project's public repository again (the repository named in sources/open-autonomy/latest.json;
+# whoever can change this repository can change which project is read), so a changed roster, seam or vendor shows the next
+# day, and a project that cannot be read fails the run. It checks who recorded each
 # signed act (with an imported Open Autonomy roster) and keeps one issue per due or overdue obligation, assigned to the
 # person who owes it, using this repository's own workflow token.
 on:
@@ -258,6 +262,7 @@ jobs:
         continue-on-error: true
 ${secrets.length ? `        env:\n${secrets.map((s) => `          ${s}: \${{ secrets.${secretName(s)} }}`).join('\n')}\n` : ''}        run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" run . --by "\${{ vars.EVIDENCE_DESK_RECORDER }}"
       - name: Read the Open Autonomy project again
+        id: reread
         if: hashFiles('sources/open-autonomy/latest.json') != ''
         continue-on-error: true
         run: |
@@ -281,8 +286,8 @@ ${secrets.length ? `        env:\n${secrets.map((s) => `          ${s}: \${{ sec
         env:
           GITHUB_TOKEN: \${{ github.token }}
         run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" remind . --repo "\${{ github.repository }}" --within 30
-      - name: Fail when a check failed
-        if: steps.run.outcome == 'failure'
+      - name: Fail when a check failed or the project could not be read
+        if: steps.run.outcome == 'failure' || steps.reread.outcome == 'failure'
         run: exit 1
 `;
 }

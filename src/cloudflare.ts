@@ -18,7 +18,8 @@ export async function cfAll(path: string, queries: string[]): Promise<any[]> {
     const r = await cf(`${path}${path.includes('?') ? '&' : '?'}per_page=50&page=${page}`, queries);
     if (r.status !== 200 || !Array.isArray(r.result)) throw new Error(`GET ${path} answered ${r.status}`);
     out.push(...r.result);
-    if (r.result.length < 50) return out;
+    const pages = Number(r.info?.total_pages);
+    if (Number.isInteger(pages) ? page >= pages : r.result.length < 50) return out;
   }
   throw new Error(`${path} has more than 5,000 results`);
 }
@@ -35,6 +36,7 @@ export async function cfAccount(account: string, queries: string[]): Promise<{ i
   return found[0];
 }
 
-// Roles that administer the account: they can change its configuration or its members.
+// Roles that administer the account: they can change its configuration or its members. A member granted access through
+// member policies instead of roles is counted too: the policies' scope is not read, so completeness errs toward naming them.
 export const CF_ADMIN_ROLES = ['Super Administrator - All Privileges', 'Administrator'];
-export const cfIsAdmin = (m: any) => (m.roles ?? []).some((r: any) => CF_ADMIN_ROLES.includes(r.name));
+export const cfIsAdmin = (m: any) => (m.roles ?? []).some((r: any) => CF_ADMIN_ROLES.includes(r.name)) || (!(m.roles ?? []).length && (m.policies ?? []).length > 0);

@@ -77,15 +77,22 @@ export async function collectDeployments(root: string, input: { repo: string; en
     const statuses = (await all<Status>(`/repos/${input.repo}/deployments/${d.id}/statuses`)).items;
     const last = statuses[0];
     const runID = statuses.map((x) => /\/actions\/runs\/(\d+)/.exec(x.log_url ?? x.target_url ?? '')?.[1]).find(Boolean) ?? '';
-    let startedBy = '', approvedBy = '';
+    let startedBy = '', approvedBy = '', runFound = false;
     if (runID) {
-      const run = await get(`/repos/${input.repo}/actions/runs/${runID}`) as { actor?: { login?: string } | null };
-      startedBy = run.actor?.login ?? '';
-      approvedBy = [...new Set((await get(`/repos/${input.repo}/actions/runs/${runID}/approvals`) as Approval[])
-        .filter((a) => a.state === 'approved' && (a.environments ?? []).some((e) => e.name === input.environment)).map((a) => a.user?.login ?? ''))].join(';');
+      // A run deleted or past retention is not an error for the population: its approval is unknown.
+      type RunDoc = { actor?: { login?: string } | null; triggering_actor?: { login?: string } | null };
+      const run = await (get(`/repos/${input.repo}/actions/runs/${runID}`) as Promise<RunDoc>).catch((e: Error): RunDoc | null => { if (/answered 404/.test(e.message)) return null; throw e; });
+      if (run) {
+        runFound = true;
+        startedBy = [...new Set([run.actor?.login, run.triggering_actor?.login].filter(Boolean))].join(';');
+        approvedBy = [...new Set((await get(`/repos/${input.repo}/actions/runs/${runID}/approvals`) as Approval[])
+          .filter((a) => a.state === 'approved' && (a.environments ?? []).some((e) => e.name === input.environment)).map((a) => a.user?.login ?? ''))].join(';');
+      }
     }
     const approvers = approvedBy ? approvedBy.split(';') : [];
-    const independent = !runID ? 'unknown' : !approvers.length ? 'no' : !startedBy || approvers.some((a) => !a) ? 'unknown' : approvers.some((a) => a !== startedBy) ? 'yes' : 'no';
+    const starters = startedBy ? startedBy.split(';') : [];
+    // Independent when someone other than whoever started or re-ran the run approved it.
+    const independent = !runFound ? 'unknown' : !approvers.length ? 'no' : !starters.length || approvers.some((a) => !a) ? 'unknown' : approvers.some((a) => !starters.includes(a)) ? 'yes' : 'no';
     rows.push({ id: String(d.id), ref: d.ref, sha: d.sha, created_at: d.created_at, creator: d.creator?.login ?? '', final_state: last?.state ?? 'none', final_at: last?.created_at ?? '',
       run: runID, started_by: startedBy, approved_by: approvedBy, independent_approval: independent });
   }
@@ -149,11 +156,12 @@ export async function checkCompleteness(root: string, input: { account: string; 
 // content must come from a pull request merged into that branch and opened by the person's GitHub account on the Open
 // Autonomy roster, and the working file must hold the act as merged. Residual: a collaborator who pushes to a person's
 // open pull request branch is not told apart from them.
-export type Act = { key: string; kind: 'response' | 'access-review' | 'policy-approval' | 'incident-closure' | 'risk-decision' | 'vendor-review'; file: string; person: string; label: string; extract: (record: any) => unknown };
+export type Act = { key: string; kind: 'response' | 'access-review' | 'policy-approval' | 'incident-closure' | 'risk-decision' | 'vendor-review'; file: string; person: string; label: string; extract: (record: any) => unknown; personAt?: (record: any) => string };
 // A file as an act reads it: JSON records parsed, CSV registers as their rows; unreadable is null.
+export const UNREADABLE = Symbol('unreadable');
 export const readAct = (file: string, text: string | null | undefined): unknown => {
   if (text == null) return null;
-  try { return file.endsWith('.csv') ? parseCsv(text, file).rows : JSON.parse(text); } catch { return null; }
+  try { return file.endsWith('.csv') ? parseCsv(text, file).rows : JSON.parse(text); } catch { return UNREADABLE; }
 };
 const rowOf = (rows: any, id: string) => (Array.isArray(rows) ? rows.find((r: any) => r.id === id) : undefined);
 export function signedActs(root: string): Act[] {
@@ -169,15 +177,17 @@ export function signedActs(root: string): Act[] {
   const closer = (x: any) => (x?.timeline ?? []).find((t: any) => t.at === x?.closed_at) ?? (x?.timeline ?? []).at(-1) ?? null;
   for (const i of ws.incidents) if (i.data.status === 'closed') acts.push({ key: `incident-closure:${i.data.id}`, kind: 'incident-closure', file: `incidents/${i.data.id}.json`, person: closer(i.data)?.by ?? '', label: `closing review of incident ${i.data.id}`,
     extract: (x) => x?.status === 'closed' ? { status: x.status, review: x.review, closed_at: x.closed_at, closed_by: closer(x) } : null });
-  // Register rows a person decides: a risk's treatment (its owner decides it) and a vendor's review (its owner records it).
+  // Register rows a person decides: a risk's treatment and a vendor's review. The act is the decision alone (a re-score
+  // or a new owner is not a new decision), and the person who made it is the row's owner as the row stood when the
+  // decision was made, so reassigning the row later neither takes the decision over nor asks the new owner to remake it.
   for (const r of ws.registers.risks?.data.rows ?? []) if (r.treatment && r.treatment !== 'undecided') acts.push({ key: `risk-decision:${r.id}`, kind: 'risk-decision', file: 'registers/risks.csv', person: r.owner ?? '', label: `treatment of risk ${r.id} (${r.title})`,
-    extract: (rows) => { const x = rowOf(rows, r.id); return x && x.treatment && x.treatment !== 'undecided' ? { treatment: x.treatment, likelihood: x.likelihood, impact: x.impact, status: x.status, owner: x.owner } : null; } });
+    extract: (rows) => { const x = rowOf(rows, r.id); return x && x.treatment && x.treatment !== 'undecided' ? { treatment: x.treatment } : null; }, personAt: (rows) => rowOf(rows, r.id)?.owner ?? '' });
   for (const v of ws.registers.vendors?.data.rows ?? []) if (v.last_review) acts.push({ key: `vendor-review:${v.id}`, kind: 'vendor-review', file: 'registers/vendors.csv', person: v.owner ?? '', label: `review of vendor ${v.id} on ${v.last_review}`,
-    extract: (rows) => { const x = rowOf(rows, v.id); return x?.last_review ? { last_review: x.last_review, owner: x.owner } : null; } });
+    extract: (rows) => { const x = rowOf(rows, v.id); return x?.last_review ? { last_review: x.last_review } : null; }, personAt: (rows) => rowOf(rows, v.id)?.owner ?? '' });
   return acts;
 }
 export type AttributionStatus = 'verified' | 'names no one' | 'no GitHub account on the roster' | 'not on the default branch' | 'changed since merged'
-  | 'not on GitHub' | 'no merged pull request' | 'recorded by someone else';
+  | 'not on GitHub' | 'no merged pull request' | 'recorded by someone else' | 'history unreadable';
 export type Attribution = { key: string; kind: Act['kind']; file: string; person: string; label: string; value_sha256: string; commit: string; pull: string; author: string; expected: string; status: AttributionStatus };
 export const actDigest = (v: unknown) => createHash('sha256').update(JSON.stringify(v ?? null)).digest('hex');
 const writeCsvFile = (root: string, rel: string, rows: Attribution[]) => writeVersioned(root, rel, writeCsv({ columns: ['key', 'kind', 'file', 'person', 'label', 'value_sha256', 'commit', 'pull', 'author', 'expected', 'status'], rows }), null);
@@ -200,29 +210,44 @@ export async function collectAttribution(root: string, input: { repo: string; by
   };
   const rows: Attribution[] = [];
   for (const act of signedActs(root)) {
-    const current = act.extract(readAct(act.file, readVersioned(root, act.file)?.text));
-    const expected = snap.team.find((m) => m.id === act.person)?.github ?? '';
-    const row: Attribution = { key: act.key, kind: act.kind, file: act.file, person: act.person, label: act.label, value_sha256: actDigest(current), commit: '', pull: '', author: '', expected, status: 'verified' };
+    const now = readAct(act.file, readVersioned(root, act.file)?.text);
+    const current = now === UNREADABLE ? null : act.extract(now);
+    const row: Attribution = { key: act.key, kind: act.kind, file: act.file, person: act.person, label: act.label, value_sha256: actDigest(current), commit: '', pull: '', author: '', expected: '', status: 'verified' };
     rows.push(row);
-    if (!act.person) { row.status = 'names no one'; continue; }
-    if (!expected) { row.status = 'no GitHub account on the roster'; continue; }
+    const holds = (c: string): boolean | undefined => { const v = at(c, act.file); return v === UNREADABLE ? undefined : actDigest(act.extract(v)) === row.value_sha256; };
     // The default branch's own line (first parents), newest first: the act was introduced by the newest commit whose
     // first parent did not hold it. A merge commit maps to the pull request it merged; a pull request's branch commits
-    // are never walked, so another pull request touching the same file cannot be mistaken for the act's.
+    // are never walked, so another pull request touching the same file cannot be mistaken for the act's. A version of
+    // the file that cannot be read ends the walk: whether it held the act is unknown, so nothing is concluded past it.
     const commits = git('log', '--first-parent', '--no-renames', '--format=%H', ref, '--', act.file).split('\n').filter(Boolean);
-    const same = (c: string) => actDigest(act.extract(at(c, act.file))) === row.value_sha256;
-    if (!commits.length || actDigest(act.extract(at(ref, act.file))) === actDigest(null)) { row.status = 'not on the default branch'; continue; }
-    if (!same(ref)) { row.status = 'changed since merged'; continue; }
-    let intro = '';
-    for (const c of commits) { if (!same(c)) break; intro = c; if (!same(`${c}^1`)) break; }
+    const tip = at(ref, act.file);
+    if (!commits.length || tip === null || (tip !== UNREADABLE && actDigest(act.extract(tip)) === actDigest(null))) { row.status = 'not on the default branch'; continue; }
+    if (holds(ref) === undefined) { row.status = 'history unreadable'; continue; }
+    if (!holds(ref)) { row.status = 'changed since merged'; continue; }
+    let intro = '', unreadable = false;
+    for (const c of commits) {
+      const here = holds(c);
+      if (here === undefined) { unreadable = true; break; }
+      if (!here) break;
+      intro = c;
+      const before = holds(`${c}^1`);
+      if (before === undefined) { unreadable = true; break; }
+      if (!before) break;
+    }
+    if (unreadable) { row.status = 'history unreadable'; continue; }
     row.commit = intro;
+    // Who the act names: for a register row, its owner as the row stood at the commit that made the decision.
+    if (act.personAt) { const v = at(intro, act.file); row.person = v === UNREADABLE ? '' : act.personAt(v); }
+    row.expected = snap.team.find((m) => m.id === row.person)?.github ?? '';
+    if (!row.person) { row.status = 'names no one'; continue; }
+    if (!row.expected) { row.status = 'no GitHub account on the roster'; continue; }
     const found = await pullsOf(intro);
     if (!found) { row.status = 'not on GitHub'; continue; }
     const into = found.filter((p) => p.merged_at && p.base?.ref === branch);
-    const pr = into.find((p) => (p.user?.login ?? '').toLowerCase() === expected.toLowerCase()) ?? into[0];
+    const pr = into.find((p) => (p.user?.login ?? '').toLowerCase() === row.expected.toLowerCase()) ?? into[0];
     if (!pr) { row.status = 'no merged pull request'; continue; }
     row.pull = String(pr.number); row.author = pr.user?.login ?? '';
-    if (row.author.toLowerCase() !== expected.toLowerCase()) row.status = 'recorded by someone else';
+    if (row.author.toLowerCase() !== row.expected.toLowerCase()) row.status = 'recorded by someone else';
   }
   const rel = 'sources/github/attribution.json';
   const record = { schema: 'evidence-desk.attribution/1', repo: input.repo, branch, workspace_path: prefix, checked_at: now(), roster_commit: snap.commit, rows };

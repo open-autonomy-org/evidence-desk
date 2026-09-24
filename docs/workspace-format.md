@@ -126,7 +126,8 @@ finds them; a declared seam never collected is a finding too.
 Signed acts at a seam: the workspace is kept in a private GitHub repository the roster members can open pull requests
 to, and each person records the acts the workspace names them in (a form response, an access review's sign-off, a
 policy's latest approval, the update that closed an incident, a risk's treatment decided by its owner, a vendor's
-review recorded by its owner) in a pull request they open. `collect attribution`
+review recorded by its owner) in a pull request they open. A register row's decision names the row's owner as the row
+stood when the decision was made, so reassigning the row later does not move the decision. `collect attribution`
 finds, on the default branch's first-parent line (`git log --first-parent origin/<default>`), the commit that brought
 each act to its present content, and requires GitHub to associate it with a pull request merged into the default branch and opened by the
 person's GitHub account on the roster; the working file must hold the act as merged. A shallow clone is refused. A
@@ -165,10 +166,13 @@ history on each checked repository's default branch, overdue critical and high D
 secret-scanning alerts. The Cloudflare collector (`CLOUDFLARE_API_TOKEN`, an account id or name and optionally zone
 names) covers two-factor authentication for every accepted member (or the account enforcing it), and each zone's minimum
 TLS version (1.2 or later) and HTTPS-only redirect. Roster completeness reads a Cloudflare account's administrators
-(members with an administrator role) from the same API.
+(members with an administrator role, or granted access by member policies) from the same API and matches them by email
+against the people register, whose emails the owner fills in (the roster names GitHub accounts, not emails).
 
-With an imported Open Autonomy project, the daily workflow clones the project's public repository and imports it again,
-committing what changed; the system description draft (`audit … draft description`) then states how the project builds
+With an imported Open Autonomy project, the daily workflow clones the project's public repository (the one named in
+`sources/open-autonomy/latest.json`) and imports it again, committing what changed; the declarations at a commit are
+recorded as evidence once, so a daily read does not date the controls they evidence as freshly reviewed, and a project
+that cannot be read fails the run; the system description draft (`audit … draft description`) then states how the project builds
 and runs the system: its agents and schedules, where people act and who may, and how a change reaches production.
 
 ## Audits

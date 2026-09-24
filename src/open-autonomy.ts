@@ -124,7 +124,7 @@ const pretty = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
 // custody by name, vendors and the agents' configuration.
 export const DECLARATION_CONTROLS = ['GOV-01', 'CHG-01', 'CHG-03', 'AC-05', 'VND-01', 'OPS-04', 'HR-06'];
 
-export type ImportReport = { commit: string; snapshot: string; changed: string[]; seams: string[]; added: string[]; conflicts: string[]; evidence: string | null };
+export type ImportReport = { commit: string; snapshot: string; changed: string[]; seams: string[]; added: string[]; conflicts: string[]; evidence: string | null; evidence_existing?: boolean };
 
 // Records the snapshot, fills what it determines and is still empty, reports what differs from what people entered,
 // and records the design facts as evidence for the controls they speak to.
@@ -177,7 +177,11 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
 
   const applicable = new Set(loadWorkspace(root).controls.filter((c) => c.data.applicable).map((c) => c.data.id));
   const controls = DECLARATION_CONTROLS.filter((c) => applicable.has(c));
-  if (controls.length) report.evidence = addEvidence(root, {
+  // Evidence of the declarations at a commit is recorded once: re-reading the same commit (the daily workflow does) must
+  // not date a governance or vendor control as freshly evidenced, since evidence dates decide when it is next due.
+  const already = loadWorkspace(root).evidence.find((e) => e.data.source?.kind === 'open-autonomy' && e.data.source?.commit === snap.commit && controls.every((c) => e.data.controls.includes(c)));
+  if (already) { report.evidence = already.data.id; report.evidence_existing = true; }
+  else if (controls.length) report.evidence = addEvidence(root, {
     title: `Open Autonomy declarations at ${snap.commit.slice(0, 12)}: roster, agents, seams, landing and production rules`, controls, files: [report.snapshot], recorded_by: by,
     source: { kind: 'open-autonomy', name: snap.account, commit: snap.commit, query: `git show ${snap.commit}:.open-autonomy/config.yaml .open-autonomy/agent.json .github/workflows/` },
   });

@@ -337,7 +337,7 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => [`Read ${r.commit.slice(0, 12)} into ${r.snapshot}.`,
           r.added.length ? `Filled: ${r.added.join(', ')}.` : 'Nothing new to fill.',
           ...r.changed.map((c) => `Changed: ${c}`), ...r.conflicts.map((c) => `Differs: ${c}`), ...r.seams.map((c) => `Seam: ${c}`),
-          r.evidence ? `Recorded ${r.evidence}.` : 'None of the controls the declarations evidence is adopted yet, so they are not recorded as evidence: import again after adopt.'].filter(Boolean).join('\n'));
+          r.evidence ? (r.evidence_existing ? `The declarations at this commit are already recorded as ${r.evidence}.` : `Recorded ${r.evidence}.`) : 'None of the controls the declarations evidence is adopted yet, so they are not recorded as evidence: import again after adopt.'].filter(Boolean).join('\n'));
         return 0;
       }
       if (rest[0] === 'completeness') {
