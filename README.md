@@ -85,10 +85,11 @@ bun src/cli.ts questionnaire ~/acme-soc2 import bigco.xlsx --name "BigCo vendor 
 bun src/cli.ts trust ~/acme-soc2 build --out ~/acme-trust
 ```
 
-The same program covers ISO 27001, reusing its controls and evidence:
+The same program targets other frameworks beside SOC 2, reusing its controls and evidence; `frameworks <dir>
+available` lists them and `drop` stops targeting one (its evidence stays). ISO 27001:
 
 ```bash
-bun src/cli.ts frameworks ~/acme-soc2 enable iso27001
+bun src/cli.ts frameworks ~/acme-soc2 target iso27001
 bun src/cli.ts soa ~/acme-soc2 --out soa.md
 ```
 

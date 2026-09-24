@@ -9,6 +9,7 @@ import { readVersioned, writeVersioned } from './files.ts';
 import { addEvidence, saveRegisterRow, setScope } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
 import { now } from './clock.ts';
+import { neededControls } from './targets.ts';
 
 declare const Bun: { YAML: { parse(text: string): unknown } };
 
@@ -197,7 +198,7 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
   for (const v of snap.vendors) register('vendors', { id: v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), name: v, service: SERVICE[v] ?? 'Named in the project\'s configuration; describe the service', criticality: 'high', owner: '' });
   register('systems', { id: 'repository', name: `${snap.account} source repository`, kind: 'source code and automation', description: 'Code and the agent setup, changed only through reviewed pull requests', in_scope: 'yes' });
 
-  const applicable = new Set(loadWorkspace(root).controls.filter((c) => c.data.applicable).map((c) => c.data.id));
+  const applicable = neededControls(loadWorkspace(root));
   const controls = DECLARATION_CONTROLS.filter((c) => applicable.has(c));
   // Evidence of the declarations is recorded when they change, not each time they are read: the daily workflow reads a
   // project whose agents commit constantly, and a fresh record each day would date a governance or vendor control as newly
@@ -244,7 +245,7 @@ export function collectRosterHistory(root: string, input: { repo: string; start:
   }
   const rel = `evidence/files/populations/roster-history-${input.start}-${input.end}-${Date.now()}.csv`;
   writeVersioned(root, rel, ['commit,committed_at,author,subject,changes', ...rows.map((r) => [r.commit, r.committed_at, r.author, r.subject, r.changes].map((v) => /[",\n]/.test(v) ? `"${v.replaceAll('"', '""')}"` : v).join(','))].join('\n') + '\n', null);
-  const applicable = new Set(loadWorkspace(root).controls.filter((x) => x.data.applicable).map((x) => x.data.id));
+  const applicable = neededControls(loadWorkspace(root));
   const evidence = addEvidence(root, {
     title: `Population: ${rows.length} changes to who holds authority, ${input.start} to ${input.end}`, controls: ['AC-02', 'HR-03', 'HR-04'].filter((x) => applicable.has(x)), files: [rel], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'open-autonomy', name: 'team roster', query: `git log --first-parent -- .open-autonomy/config.yaml, keeping commits that reached the branch ${input.start}..${input.end} (UTC committer date), comparing team at each commit and its first parent` },
@@ -279,7 +280,7 @@ export function collectSeamRecords(root: string, input: { repo: string; start: s
   const seams = [...(snap.seams ?? []).filter((s) => s.door === 'commit' && /^records\/[a-z0-9-]+\/?$/.test(s.record) && RECORD_KINDS[s.id]),
     ...PROGRAM_RECORDS.filter((id) => git(input.repo, 'ls-tree', '--name-only', snap.commit, '--', `records/${id}/`).trim()).map((id) => ({ id, scope: 'the internal-audit job', door: 'commit' as const, record: `records/${id}/` }))];
   if (!seams.length) throw new Error(`${snap.account} at ${snap.commit.slice(0, 12)} declares no commit seam recorded under records/ (the soc2 template's incidents, break-glass, credentials, escalations)`);
-  const applicable = new Set(loadWorkspace(root).controls.filter((x) => x.data.applicable).map((x) => x.data.id));
+  const applicable = neededControls(loadWorkspace(root));
   const csv = (v: unknown) => { const t = v === undefined || v === null ? '' : typeof v === 'string' ? v : JSON.stringify(v); return /[",\n]/.test(t) ? `"${t.replaceAll('"', '""')}"` : t; };
   const report: SeamRecordsReport = { commit: snap.commit, populations: [] };
   for (const seam of seams) {

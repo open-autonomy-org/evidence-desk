@@ -9,12 +9,13 @@ import { check, schema } from './schema.ts';
 import { questionnaireText } from './xlsx.ts';
 import { parseCsv, writeCsv } from './csv.ts';
 import { fileHash, readVersioned, writeVersioned } from './files.ts';
-import { categories, categoryAnswer } from './catalog.ts';
+import { categories, categoryAnswer, frameworkDescriptions } from './catalog.ts';
 import { loadWorkspace, type Workspace } from './workspace.ts';
 import { badgeSvg, badgesOf, certifications, claimOf, type Badge } from './certifications.ts';
 import { frameworkState } from './frameworks.ts';
 import { computeGaps } from './gaps.ts';
 import { clockDate, now } from './clock.ts';
+import { neededControls, targetsOf } from './targets.ts';
 
 type Source = { path: string; sha256: string };
 export type Question = { id: string; question: string; answer: string; sources: Source[]; status: 'unanswered' | 'draft' | 'reviewed' | 'needs-review'; reviewed_by?: string; reviewed_at?: string; from_library?: string };
@@ -46,11 +47,12 @@ export function reportOf(root: string): { claims: string[]; status: string[]; ba
   const g = computeGaps(ws);
   const readiness = `Readiness: evidence for ${g.summary.controls_ready} of ${g.summary.controls_applicable} applicable controls; ${g.summary.criteria_ready} of ${g.summary.criteria_in_scope} criteria in scope ready.`;
   const underway = open.map((e) => `An audit by ${e.firm} ${e.type === 'type1' ? `as of ${e.as_of}` : `covering ${e.period?.start} to ${e.period?.end}`} is under way.`);
-  // Readiness for each framework the program maps that no auditor's document covers.
-  const readinessOf = (ws.manifest?.data.frameworks ?? ['soc2']).map((f: string) => {
-    if (f === 'soc2') return { framework: 'SOC 2', matches: /soc ?2/i, ready: g.summary.controls_ready, of: g.summary.controls_applicable, unit: 'controls' };
+  // Readiness for each target (docs/decisions/0002-frameworks-are-targets.md) that no document covers.
+  const readinessOf = targetsOf(ws).map((f: string) => {
+    const d = frameworkDescriptions.find((x) => x.id === f)!;
+    if (f === 'soc2') return { id: f, outcome: d.outcome, framework: 'SOC 2', matches: /soc ?2/i, ready: g.summary.controls_ready, of: g.summary.controls_applicable, unit: 'controls' };
     const st = frameworkState(ws, f);
-    return { framework: st.title, matches: new RegExp(f.replace(/^iso/i, 'ISO.*'), 'i'), ready: st.summary.ready, of: st.summary.requirements - st.summary.excluded, unit: 'requirements' };
+    return { id: f, outcome: d.outcome, framework: st.title, matches: new RegExp(f.replace(/^iso/i, 'ISO.*'), 'i'), ready: st.summary.ready, of: st.summary.requirements - st.summary.excluded, unit: 'requirements' };
   });
   return { claims: held.map(claimOf), status: [...(held.some((c) => c.kind !== 'self-attestation') ? [] : ['No audit report or certificate is held yet.']), ...underway, readiness],
     badges: badgesOf(held, readinessOf, now().slice(0, 10)) };
@@ -150,7 +152,10 @@ function score(q: Set<string>, text: string): number {
 type Passage = { path: string; text: string; label: string };
 function passages(ws: Workspace): Passage[] {
   const out: Passage[] = [];
-  for (const c of ws.controls.filter((x) => x.data.applicable)) out.push({ path: c.path, label: `control ${c.data.id}`, text: `${c.data.title}. ${c.data.description}${c.data.status === 'implemented' ? '' : ' [status: ' + c.data.status + ']'}` });
+  // Passages from the program's controls, and from controls that do not apply (which may truthfully say so); a control no
+  // target needs is not a passage at all.
+  const needed = neededControls(ws);
+  for (const c of ws.controls.filter((x) => needed.has(x.data.id))) out.push({ path: c.path, label: `control ${c.data.id}`, text: `${c.data.title}. ${c.data.description}${c.data.status === 'implemented' ? '' : ' [status: ' + c.data.status + ']'}` });
   for (const c of ws.controls.filter((x) => !x.data.applicable)) out.push({ path: c.path, label: `control ${c.data.id} (excluded)`, text: `${c.data.title}: does not apply. ${c.data.exclusion_reason ?? ''}` });
   for (const p of ws.policies) {
     const v = p.data.versions.at(-1);

@@ -37,3 +37,17 @@ export type FormTemplate = {
 };
 export const formTemplates: FormTemplate[] = readdirSync(join(dir, 'forms')).filter((f) => f.endsWith('.json')).sort()
   .map((f) => JSON.parse(readFileSync(join(dir, 'forms', f), 'utf8')) as FormTemplate);
+
+// The frameworks a program can target (docs/decisions/0002-frameworks-are-targets.md). SOC 2 keeps its own model (the
+// criteria above, the mapping inside each control); every other framework is a catalog in catalog/frameworks/ whose
+// requirements name the controls that address them. `outcome` is what a framework can become with its document.
+export type Outcome = 'audit report' | 'certificate' | 'self-attestation';
+export type FrameworkRequirement = { id: string; group: string; title: string; controls: string[]; annex_a?: boolean };
+export type FrameworkCatalog = { schema: string; id: string; title: string; version: string; outcome: Outcome; issuer: string; source: { name: string; url?: string }; note?: string; requirements: FrameworkRequirement[] };
+export type FrameworkDescription = Omit<FrameworkCatalog, 'schema' | 'requirements' | 'note'>;
+export const frameworkCatalogs = new Map(readdirSync(join(dir, 'frameworks')).filter((f) => f.endsWith('.json')).sort()
+  .map((f) => json<FrameworkCatalog>(join('frameworks', f))).map((c) => [c.id, c] as const));
+export const SOC2: FrameworkDescription = { id: 'soc2', title: 'SOC 2', version: 'Trust Services Criteria', outcome: 'audit report', issuer: 'an independent CPA firm',
+  source: { name: "AICPA's Trust Services Criteria for Security, Availability, Processing Integrity, Confidentiality and Privacy" } };
+// Every framework Evidence Desk maps, SOC 2 first.
+export const frameworkDescriptions: FrameworkDescription[] = [SOC2, ...[...frameworkCatalogs.values()].map(({ schema: _s, requirements: _r, note: _n, ...d }) => d)];

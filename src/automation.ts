@@ -11,6 +11,7 @@ import { addEvidence } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
 import { cf, cfAccount, cfAll, cfAnswers, cfIsAdmin, cloudflareRoster } from './cloudflare.ts';
 import { clockDate, now } from './clock.ts';
+import { neededControls } from './targets.ts';
 
 export type CollectorSettings = { id: 'github' | 'cloudflare'; enabled: boolean; params: Record<string, string> };
 type Snapshot = { data: Record<string, unknown>; queries: string[]; responses?: { path: string; status: number; date: string; request_id: string }[] };
@@ -238,7 +239,7 @@ export async function runChecks(root: string, by: string, only?: string): Promis
   if (!(ws.registers.people?.data.rows ?? []).some((r) => r.id === by)) throw new Error(`${by || '(none)'} is not in registers/people.csv`);
   const enabled = readSettings(root).settings.filter((s) => s.enabled && (!only || s.id === only));
   if (!enabled.length) throw new Error(only ? `${only} is not enabled` : 'no collector is enabled; configure one with `evidence-desk collectors`');
-  const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
+  const applicable = neededControls(ws);
   const last = ws.runs.map((r) => r.data.started_at).sort().at(-1);
   const roster: Roster = { ...cloudflareRoster(root, ws), ...(last ? { since: last } : {}) };
   const id = `RUN-${clockDate().toISOString().replace(/[-:]/g, '').slice(0, 15)}-${randomBytes(2).toString('hex')}`;

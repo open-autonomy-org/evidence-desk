@@ -28,7 +28,11 @@
           "soc2",
           "iso27001"
         ]
-      }
+      },
+      "contains": {
+        "const": "soc2"
+      },
+      "description": "The frameworks the program targets. SOC 2 is always one (docs/decisions/0002-frameworks-are-targets.md)."
     }
   }
 }

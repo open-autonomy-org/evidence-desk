@@ -6,7 +6,8 @@ import { randomBytes } from 'node:crypto';
 import { check, schema } from './schema.ts';
 import { writeCsv } from './csv.ts';
 import { fileHash, readVersioned, writeVersioned, inside } from './files.ts';
-import { categoryAnswer, criterionCategory, formTemplates, library, policyTemplates, questions } from './catalog.ts';
+import { formTemplates, library, policyTemplates, questions } from './catalog.ts';
+import { libraryNeeded, neededControls } from './targets.ts';
 import { loadWorkspace, MANIFEST, REGISTERS, type Control, type Evidence, type Policy, type RegisterName, type Scope } from './workspace.ts';
 import { clockDate, now } from './clock.ts';
 
@@ -52,10 +53,9 @@ export function setScope(root: string, answers: Record<string, unknown>, version
 
 export const unanswered = (scope: Scope): string[] => questions.filter((q) => q.required && (scope.answers[q.id] === undefined || scope.answers[q.id] === '')).map((q) => q.id);
 
-// Why a library control does not apply under these answers, or null when it does.
+// Why a library control does not apply to the organization under these answers, or null when it does: its own scoping
+// conditions only. Which SOC 2 categories the report covers is SOC 2's scope, worked out when read (targets.ts).
 function exclusion(c: (typeof library)[number], answers: Scope['answers']): string | null {
-  const inScope = c.criteria.some((cr) => { const cat = criterionCategory.get(cr)!; return cat === 'CC' || answers[categoryAnswer[cat]] === true; });
-  if (!inScope) return `Its criteria (${c.criteria.join(', ')}) are outside the categories in scope.`;
   for (const w of c.when ?? []) {
     if (answers[w.answer] !== w.equals) {
       const q = questions.find((x) => x.id === w.answer);
@@ -68,8 +68,10 @@ function exclusion(c: (typeof library)[number], answers: Scope['answers']): stri
 export const render = (text: string, answers: Scope['answers']): string =>
   text.replace(/\{\{(organization|security_contact)\}\}/g, (m, k: string) => (typeof answers[k] === 'string' && answers[k] ? String(answers[k]) : m));
 
-// Brings the workspace in line with the library for the current scope. New controls and policies are created;
-// an existing control only has its applicability updated. Owners, statuses, notes and edited text are never touched.
+// Brings the workspace in line with the library for the current scope and targets. Every library control that carries a
+// SOC 2 criterion has a file, so SOC 2's deliverables can name it even when excluded; a control with none gets one only
+// once a target needs it. The policies and forms that needed controls name are created. An existing control only has its
+// applicability updated; owners, statuses, notes and edited text are never touched, and no file is ever deleted.
 export function adopt(root: string): { created: string[]; changed: string[]; policies: string[]; forms: string[] } {
   const ws = loadWorkspace(root);
   if (!ws.scope) throw new Error('scope.json is missing or invalid');
@@ -77,14 +79,12 @@ export function adopt(root: string): { created: string[]; changed: string[]; pol
   if (missing.length) throw new Error(`answer the scoping questions first: ${missing.join(', ')}`);
   const answers = ws.scope.data.answers;
   const out = { created: [] as string[], changed: [] as string[], policies: [] as string[], forms: [] as string[] };
-  const applicable = new Set<string>();
-  const needed = new Set<string>();
   for (const lib of library) {
     const reason = exclusion(lib, answers);
-    if (!reason) { lib.policies.forEach((p) => needed.add(p)); applicable.add(lib.id); }
     const rel = `controls/${lib.id}.json`;
     const existing = ws.controls.find((c) => c.data.id === lib.id);
     if (!existing) {
+      if (!lib.criteria.length && !libraryNeeded(ws, lib.id)) continue;
       const c: Control = { schema: 'evidence-desk.control/1', id: lib.id, title: lib.title, description: lib.description, criteria: lib.criteria,
         frequency: lib.frequency, policies: lib.policies, evidence_expected: lib.evidence, applicable: !reason, owner: '', status: 'not-started', catalog: lib.id };
       if (reason) c.exclusion_reason = reason;
@@ -102,6 +102,10 @@ export function adopt(root: string): { created: string[]; changed: string[]; pol
       out.changed.push(lib.id);
     }
   }
+  // What the program's work needs, from the controls as they now stand.
+  const now = loadWorkspace(root);
+  const inPlay = neededControls(now);
+  const needed = new Set(now.controls.filter((c) => inPlay.has(c.data.id)).flatMap((c) => c.data.policies));
   for (const id of needed) {
     if (ws.policies.some((p) => p.data.id === id)) continue;
     const t = policyTemplates.find((x) => x.id === id);
@@ -112,7 +116,7 @@ export function adopt(root: string): { created: string[]; changed: string[]; pol
     out.policies.push(id);
   }
   for (const f of formTemplates) {
-    if (!f.controls.some((c) => applicable.has(c)) || ws.forms.some((x) => x.data.id === f.id)) continue;
+    if (!f.controls.some((c) => inPlay.has(c)) || ws.forms.some((x) => x.data.id === f.id)) continue;
     writeVersioned(root, `forms/${f.id}.json`, pretty(f), null);
     out.forms.push(f.id);
   }
@@ -181,7 +185,7 @@ export function approvePolicy(root: string, id: string, approvedBy: string, text
   valid('policy', next, rel);
   writeVersioned(root, rel, pretty(next), rec.version);
   // The approval is GOV-04's evidence, as a passed form response is its form's.
-  if (loadWorkspace(root).controls.some((c) => c.data.id === 'GOV-04' && c.data.applicable)) addEvidence(root, {
+  if (neededControls(loadWorkspace(root)).has('GOV-04')) addEvidence(root, {
     title: `Policy ${id} version ${version} approved by ${approvedBy}`, controls: ['GOV-04'], files: [archived], recorded_by: approvedBy,
     source: { kind: 'evidence-desk', name: 'policy-approval' }, collected_at: next.versions.at(-1)!.approved_at,
   });

@@ -1,12 +1,12 @@
 // Validates records against the JSON Schemas in schemas/, which are the single source of each record's contract.
 // Supports the subset those schemas use: type, const, enum, required, properties, additionalProperties (schema form),
-// items, pattern, minLength and format date-time. Unknown fields are allowed everywhere, so extensions survive.
+// items, contains, pattern, minLength and format date-time. Unknown fields are allowed everywhere, so extensions survive.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export type Schema = {
   type?: string; const?: unknown; enum?: unknown[]; required?: string[]; properties?: Record<string, Schema>;
-  additionalProperties?: Schema | boolean; items?: Schema; pattern?: string; minLength?: number; format?: string;
+  additionalProperties?: Schema | boolean; items?: Schema; contains?: Schema; pattern?: string; minLength?: number; format?: string;
   title?: string; 'x-columns'?: string[];
 };
 
@@ -38,6 +38,7 @@ export function check(s: Schema, v: unknown, path = ''): string[] {
     if (s.format === 'date-time' && !DATE_TIME.test(v)) out.push(`${at}: must be an ISO date-time`);
   }
   if (Array.isArray(v) && s.items) v.forEach((item, i) => out.push(...check(s.items!, item, `${path}[${i}]`)));
+  if (Array.isArray(v) && s.contains && !v.some((item) => !check(s.contains!, item).length)) out.push(`${at}: must contain ${s.contains.const !== undefined ? JSON.stringify(s.contains.const) : 'a matching item'}`);
   if (typeOf(v) === 'object') {
     const o = v as Record<string, unknown>;
     for (const k of s.required ?? []) if (!(k in o)) out.push(`${path ? path + '.' : ''}${k}: is required`);

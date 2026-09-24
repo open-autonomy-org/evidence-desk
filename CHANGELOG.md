@@ -7,6 +7,13 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Frameworks are targets ([decision 0002](docs/decisions/0002-frameworks-are-targets.md)): `frameworks <dir> target <id>`
+  and `drop <id>` choose what the program aims at beside SOC 2, which is always a target; `frameworks <dir> available`
+  lists what each can become. A control applies by its own scoping conditions alone, and which SOC 2 categories the
+  report covers is worked out when read, so SOC 2's gaps, system description, control matrix and coverage are
+  unchanged while another framework is no longer bent by SOC 2's category answers: ISO/IEC 27001's A.5.34 now counts
+  its privacy control. The program's work covers the controls the targets need; a document in `certifications/` names
+  its `--target`, replaces that target's readiness badge, and a self-attestation lapses after a year.
 - `trust publish` sends the trust center's audits, certifications and readiness to an Open Autonomy project page as the
   owner's "Compliance" statement, on the project's steer key: the same badges and the same words, each badge dated to
   lapse on its own (a certificate at its expiry, an audit report a year after its period, a self-attestation a year

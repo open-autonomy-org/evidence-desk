@@ -10,7 +10,9 @@ import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
 import { questions } from './catalog.ts';
 import { serve } from './server.ts';
 import { serveFirm } from './firm-server.ts';
-import { decide, enableFramework, frameworkState, statementOfApplicability } from './frameworks.ts';
+import { decide, dropFramework, frameworkState, statementOfApplicability, targetFramework } from './frameworks.ts';
+import { neededControls, targetsOf } from './targets.ts';
+import { frameworkDescriptions } from './catalog.ts';
 import { writeCsv } from './csv.ts';
 import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, publishStatement, reviewAnswer, staleLibrary } from './trust.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
@@ -109,10 +111,11 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   questionnaire <dir> <id> export --out <csv>   reviewed answers filled in, every row with its status
   answers <dir> [--stale]                 the library of reviewed answers (--stale: those whose facts changed)
   certifications <dir> [add --framework <name> --kind "audit report"|certificate|self-attestation --issuer <name>
-                 --issued-on <date> [--period <start>..<end>] [--valid-until <date>] --file <document> --by <person>]
+                 --issued-on <date> [--period <start>..<end>] [--valid-until <date>] [--target <framework id>] --file <document> --by <person>]
                                           the attested documents the organization holds: the only ground for
                                           saying it was audited or certified
-  frameworks <dir> [enable iso27001]      the frameworks the program follows
+  frameworks <dir> [available | target <framework> | drop <framework>]
+                                          the frameworks the program targets (SOC 2 always); what each can become
   framework <dir> iso27001                each requirement: ready, with gaps, excluded, or not addressed
   framework <dir> iso27001 exclude <requirement> --reason <text> | include <requirement> | map <requirement> --controls <id>,...
   soa <dir> --out <file.csv|file.md>      the ISO 27001 statement of applicability
@@ -195,7 +198,9 @@ async function main(argv: string[]): Promise<number> {
     }
     case 'controls': {
       const ws = loadWorkspace(dir);
-      const rows = ws.controls.map((c) => c.data);
+      // The program's work and what a person may re-include: needed controls, and controls that do not apply.
+      const needed = neededControls(ws);
+      const rows = ws.controls.map((c) => c.data).filter((c) => needed.has(c.id) || !c.applicable);
       out(json, rows, () => rows.map((c) => `${c.id.padEnd(9)} ${(c.applicable ? c.status : 'excluded').padEnd(12)} ${(c.owner || '-').padEnd(12)} ${c.title}`).join('\n') || 'No controls yet.');
       return 0;
     }
@@ -624,7 +629,7 @@ async function main(argv: string[]): Promise<number> {
         const pr = one(a, 'period');
         const period = pr ? { start: pr.split('..')[0], end: pr.split('..')[1] } : undefined;
         const c = recordCertification(dir, { framework: one(a, 'framework') ?? '', kind: kind as 'audit report', issuer: one(a, 'issuer') ?? '', issued_on: one(a, 'issued-on') ?? '',
-          ...(period ? { period } : {}), ...(one(a, 'valid-until') ? { valid_until: one(a, 'valid-until') } : {}), file: resolve(one(a, 'file') ?? ''), by: one(a, 'by') ?? '' });
+          ...(period ? { period } : {}), ...(one(a, 'valid-until') ? { valid_until: one(a, 'valid-until') } : {}), ...(one(a, 'target') ? { target: one(a, 'target') } : {}), file: resolve(one(a, 'file') ?? ''), by: one(a, 'by') ?? '' });
         out(json, c, () => `Recorded ${c.id}: ${claimOf(c)}.`);
         return 0;
       }
@@ -634,10 +639,24 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
     case 'frameworks': {
-      if (rest[0] === 'enable') enableFramework(dir, rest[1] ?? '');
-      else if (rest[0]) throw new Error('frameworks takes: enable <framework>');
-      const m = loadWorkspace(dir).manifest?.data;
-      out(json, m?.frameworks ?? [], () => `Frameworks: ${(m?.frameworks ?? []).join(', ')}`);
+      if (rest[0] === 'target') targetFramework(dir, rest[1] ?? '');
+      else if (rest[0] === 'drop') dropFramework(dir, rest[1] ?? '');
+      else if (rest[0] && rest[0] !== 'available') throw new Error('frameworks takes: available | target <framework> | drop <framework>');
+      const ws = loadWorkspace(dir);
+      const targets = targetsOf(ws);
+      if (rest[0] === 'available') {
+        out(json, frameworkDescriptions.map((f) => ({ ...f, target: targets.includes(f.id) })), () => frameworkDescriptions.map((f) => `${targets.includes(f.id) ? '*' : ' '} ${f.id.padEnd(10)} ${f.title} (${f.outcome} from ${f.issuer})`).join('\n'));
+        return 0;
+      }
+      // Each target with what it can become and how far the program is toward it.
+      const g = computeGaps(ws);
+      const rows = targets.map((id) => {
+        const d = frameworkDescriptions.find((f) => f.id === id)!;
+        if (id === 'soc2') return { id, title: d.title, outcome: d.outcome, ready: g.summary.controls_ready, of: g.summary.controls_applicable, unit: 'controls' };
+        const st = frameworkState(ws, id);
+        return { id, title: d.title, outcome: d.outcome, ready: st.summary.ready, of: st.summary.requirements - st.summary.excluded, unit: 'requirements' };
+      });
+      out(json, rows, () => rows.map((r) => `${r.id.padEnd(10)} ${r.title}: ${r.ready}/${r.of} ${r.unit} ready; becomes: ${r.outcome}`).join('\n'));
       return 0;
     }
     case 'framework': {
@@ -651,7 +670,7 @@ async function main(argv: string[]): Promise<number> {
         else throw new Error('framework actions are exclude, include and map');
       }
       const ws = loadWorkspace(dir);
-      if (!(ws.manifest?.data.frameworks ?? []).includes(id)) throw new Error(`${id} is not enabled; run: evidence-desk frameworks ${dirArg} enable ${id}`);
+      if (!targetsOf(ws).includes(id)) throw new Error(`${id} is not a target; run: evidence-desk frameworks ${dirArg} target ${id}`);
       const st = frameworkState(ws, id);
       out(json, st, () => { const s = st.summary; return [`${st.title}: ${s.ready}/${s.requirements - s.excluded} requirements ready, ${s.excluded} excluded, ${s.unaddressed} not addressed; ${s.shared_evidence} evidence records also serve SOC 2.`,
         ...st.requirements.filter((r) => r.status !== 'ready').map((r) => `  ${r.id.padEnd(11)} ${r.status.padEnd(11)} ${r.title}${r.reason ? ` (${r.reason.slice(0, 90)})` : ''}`)].join('\n'); });
@@ -661,7 +680,7 @@ async function main(argv: string[]): Promise<number> {
       const o = one(a, 'out');
       if (!o) throw new Error('soa needs --out <file.csv or file.md>');
       const ws = loadWorkspace(dir);
-      if (!(ws.manifest?.data.frameworks ?? []).includes('iso27001')) throw new Error(`ISO 27001 is not enabled; run: evidence-desk frameworks ${dirArg} enable iso27001`);
+      if (!targetsOf(ws).includes('iso27001')) throw new Error(`ISO 27001 is not a target; run: evidence-desk frameworks ${dirArg} target iso27001`);
       const t = statementOfApplicability(ws);
       const text = o.endsWith('.md') ? [`# Statement of applicability: ${ws.manifest?.data.organization ?? ''}`, '', `Generated ${clockDate().toISOString().slice(0, 10)} from the workspace. ISO/IEC 27001:2022 Annex A identifiers with this project's titles.`, '',
         '| Control | Title | Included | Justification | Implementation | Evidence |', '|---|---|---|---|---|---|', ...t.rows.map((r) => `| ${r.control} | ${r.title} | ${r.included} | ${r.justification.replaceAll('|', '/')} | ${r.implementation} | ${r.evidence.split(';').filter(Boolean).length} |`)].join('\n') + '\n'

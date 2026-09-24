@@ -7,6 +7,7 @@ import { readVersioned, writeVersioned } from './files.ts';
 import { addEvidence } from './actions.ts';
 import { loadWorkspace, type AccessReview, type Incident, type Response } from './workspace.ts';
 import { clockDate, now } from './clock.ts';
+import { neededControls } from './targets.ts';
 
 const pretty = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
 const newId = (prefix: string) => `${prefix}-${clockDate().toISOString().slice(0, 10).replaceAll('-', '')}-${randomBytes(3).toString('hex')}`;
@@ -53,7 +54,7 @@ export function submitResponse(root: string, input: { form: string; person: stri
   const rel = `forms/responses/${id}.json`;
   writeVersioned(root, rel, pretty(rec), null);
   if (passed) {
-    const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
+    const applicable = neededControls(ws);
     const controls = f.controls.filter((c) => applicable.has(c));
     if (controls.length) addEvidence(root, {
       title: `${f.title}: ${input.person}${score !== undefined ? ` (${score}%)` : ''}`, controls, files: [rel], recorded_by: input.person, subject: input.person,
@@ -113,7 +114,7 @@ export function signOffAccessReview(root: string, id: string, version: string, b
   rec.signed_off_at = now();
   writeVersioned(root, rel, pretty(rec), version);
   const ws = loadWorkspace(root);
-  const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
+  const applicable = neededControls(ws);
   const controls = ['AC-03', ...(rec.accounts.some((a) => a.privileged) ? ['AC-04'] : [])].filter((c) => applicable.has(c));
   if (controls.length) addEvidence(root, {
     title: `Access review of ${rec.system}, ${rec.period.start} to ${rec.period.end}`, controls, files: [rel, rec.listing.path], recorded_by: by,
@@ -155,7 +156,7 @@ export function updateIncident(root: string, id: string, version: string, input:
   writeVersioned(root, rel, pretty(rec), version);
   if (rec.status === 'closed') {
     const ws = loadWorkspace(root);
-    if (ws.controls.some((c) => c.data.id === 'OPS-03' && c.data.applicable)) addEvidence(root, {
+    if (neededControls(ws).has('OPS-03')) addEvidence(root, {
       title: `Incident ${rec.id}: ${rec.title}`, controls: ['OPS-03'], files: [rel], recorded_by: input.by,
       source: { kind: 'evidence-desk', name: 'incident' }, collected_at: rec.closed_at,
     });

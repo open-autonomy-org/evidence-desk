@@ -244,9 +244,29 @@ left `unanswered`. A draft carries a marker and cannot be marked reviewed until 
 Only reviewed, current answers are exported. Drafting uses no AI service; a customer's own coding agent may refine
 drafts in the files.
 
-## Additional frameworks
+## Targets
 
-`evidence-desk frameworks <dir> enable iso27001` adds ISO/IEC 27001:2022 to the manifest's `frameworks`. Its clauses 4 to
+The manifest's `frameworks` lists the frameworks the program targets; SOC 2 is always one
+([decision 0002](decisions/0002-frameworks-are-targets.md)), and a list without `soc2` fails validation.
+`evidence-desk frameworks <dir>` lists the targets with what each can become (an audit report, a certificate, or a
+self-attestation) and how far the program is; `frameworks <dir> available` lists every framework Evidence Desk maps;
+`frameworks <dir> target <id>` and `drop <id>` add and remove one, and adoption then runs again. Dropping deletes
+nothing: settings and evidence stay for when it is targeted again.
+
+What applies and what is needed are separate. A control's `applicable` is the scoping decision alone: it applies unless
+one of its own scoping conditions fails. Which SOC 2 categories the report covers is SOC 2's scope, worked out when
+read, so a control excluded only by a category answer is applicable and simply not in SOC 2's scope. A control is
+*needed* when it is in SOC 2's scope or a target's requirement (not excluded in its settings) maps to it; the program's
+work (checks, obligations, collectors, the controls list, gaps) is on needed controls, and SOC 2's deliverables (the
+audit packet, the system description) on controls in SOC 2's scope, with the same exclusions and reasons as before.
+Adoption writes a file for every control that carries a SOC 2 criterion, and for any other only once a target needs it.
+
+A document in `certifications/` may name its `target` (`--target <id>`); a current document for a target replaces its
+readiness badge, and a self-attestation lapses a year after it is made.
+
+### ISO/IEC 27001
+
+`evidence-desk frameworks <dir> target iso27001` adds ISO/IEC 27001:2022 to the targets. Its clauses 4 to
 10 and 93 Annex A controls ([catalog/frameworks/iso27001.json](../catalog/frameworks/iso27001.json), identifiers with this
 project's titles and no ISO text) map onto the same controls, so one piece of evidence serves both frameworks. A
 requirement whose mapped controls are all excluded is excluded with their reasons; one no control addresses stays open

@@ -15,6 +15,7 @@ import type { Snapshot } from './open-autonomy.ts';
 import { loadWorkspace, type Workspace } from './workspace.ts';
 import { accessChanges, buildViews } from './packet.ts';
 import { now } from './clock.ts';
+import { inSoc2Scope, soc2Exclusion } from './targets.ts';
 
 export type Engagement = { schema: string; id: string; type: 'type1' | 'type2'; as_of?: string; period?: { start: string; end: string }; firm: string; contact?: string; status: string; created_at: string };
 export type Sample = { item: string; status: 'pending' | 'provided' | 'exception'; evidence?: string[]; note?: string };
@@ -227,8 +228,9 @@ function description(ws: Workspace, e: Engagement): string {
   const a = ws.scope?.data.answers ?? {};
   const org = ws.manifest?.data.organization ?? '';
   const inScope = ['CC', ...Object.entries(categoryAnswer).filter(([, q]) => a[q] === true).map(([c]) => c)];
-  const controls = ws.controls.filter((c) => c.data.applicable).map((c) => c.data);
-  const excludedCriteria = criteria.filter((c) => inScope.includes(c.category)).filter((c) => { const m = ws.controls.filter((x) => x.data.criteria.includes(c.id)); return m.length > 0 && m.every((x) => !x.data.applicable); });
+  // SOC 2's deliverable: the controls in SOC 2's scope, and its exclusions as the scoping answers make them (targets.ts).
+  const controls = ws.controls.filter((c) => inSoc2Scope(ws, c.data)).map((c) => c.data);
+  const excludedCriteria = criteria.filter((c) => inScope.includes(c.category)).filter((c) => { const m = ws.controls.filter((x) => x.data.criteria.includes(c.id)); return m.length > 0 && m.every((x) => !inSoc2Scope(ws, x.data)); });
   const rows = (name: 'people' | 'systems' | 'vendors') => ws.registers[name]?.data.rows ?? [];
   const incidents = ws.incidents.filter((i) => inPeriod(i.data.detected_at, e) && (i.data.severity === 'high' || i.data.severity === 'critical'));
   const approvals = ws.policies.flatMap((p) => p.data.versions.filter((v) => inPeriod(v.approved_at, e)).map((v) => `${p.data.title} version ${v.version} approved ${v.approved_at.slice(0, 10)}`));
@@ -306,7 +308,7 @@ Sources: scope.json (subservice_organizations), registers/vendors.csv.
 
 ## DC8 Criteria not relevant to the system
 
-${excludedCriteria.length ? excludedCriteria.map((c) => `- ${c.id} ${c.title}: ${ws.controls.filter((x) => x.data.criteria.includes(c.id)).map((x) => x.data.exclusion_reason).join(' ')}`).join('\n') : 'Every criterion in scope is addressed by at least one applicable control.'}
+${excludedCriteria.length ? excludedCriteria.map((c) => `- ${c.id} ${c.title}: ${ws.controls.filter((x) => x.data.criteria.includes(c.id)).map((x) => soc2Exclusion(ws, x.data)).join(' ')}`).join('\n') : 'Every criterion in scope is addressed by at least one applicable control.'}
 
 Sources: controls/ (exclusion reasons).
 ${e.type === 'type2' ? `
@@ -635,7 +637,7 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   // firm sees everything the organization holds for the period, not only what its request list happened to ask for.
   // The daily collector records are left out; their snapshots travel with the check runs.
   const win = e.data.period ?? { start: e.data.as_of ?? '', end: e.data.as_of ?? '' };
-  const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
+  const applicable = new Set(ws.controls.filter((c) => inSoc2Scope(ws, c.data)).map((c) => c.data.id));
   const yearBefore = new Date(Date.parse(`${win.end}T00:00:00Z`) - 365 * 864e5).toISOString().slice(0, 10);
   for (const rec of ws.evidence.filter((x) => x.data.controls.some((c) => applicable.has(c)) && !/collected by run/.test(x.data.title))) {
     // A record made after the period and before the package (the description's review, a subsequent event) is part of

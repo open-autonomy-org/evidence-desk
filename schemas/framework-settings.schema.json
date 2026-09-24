@@ -14,7 +14,8 @@
     "framework": {
       "enum": [
         "iso27001"
-      ]
+      ],
+      "description": "A framework Evidence Desk maps, other than SOC 2 (catalog/frameworks/)."
     },
     "exclusions": {
       "type": "object",

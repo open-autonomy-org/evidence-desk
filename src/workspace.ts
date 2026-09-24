@@ -6,6 +6,7 @@ import { check, schema } from './schema.ts';
 import { parseCsv, type Table } from './csv.ts';
 import { fileHash, readVersioned } from './files.ts';
 import { criterionCategory, type FormTemplate } from './catalog.ts';
+import { neededControls } from './targets.ts';
 
 export type Versioned<T> = { path: string; version: string; data: T };
 export type Control = {
@@ -147,6 +148,8 @@ function crossCheck(ws: Workspace): void {
   const people = new Set((ws.registers.people?.data.rows ?? []).map((r) => r.id));
   const policyIds = new Set(ws.policies.map((x) => x.data.id));
   const controlIds = new Set(ws.controls.map((x) => x.data.id));
+  // A control's policies must exist once the targets need it; one that is not needed yet has not been adopted into work.
+  const needed = neededControls(ws);
   const same = (v: Versioned<{ id: string }>, dir: string) => {
     if (v.path !== `${dir}/${v.data.id}.json`) p.push({ severity: 'error', file: v.path, message: `id ${v.data.id} does not match the file name` });
   };
@@ -160,7 +163,7 @@ function crossCheck(ws: Workspace): void {
   for (const c of ws.controls) {
     same(c, 'controls');
     if (c.data.owner && !people.has(c.data.owner)) p.push({ severity: 'error', file: c.path, message: `owner ${c.data.owner} is not in registers/people.csv` });
-    if (c.data.applicable) for (const pol of c.data.policies ?? []) if (!policyIds.has(pol)) p.push({ severity: 'error', file: c.path, message: `policy ${pol} does not exist` });
+    if (needed.has(c.data.id)) for (const pol of c.data.policies ?? []) if (!policyIds.has(pol)) p.push({ severity: 'error', file: c.path, message: `policy ${pol} does not exist` });
     for (const cr of c.data.criteria ?? []) if (!criterionCategory.has(cr)) p.push({ severity: 'error', file: c.path, message: `criterion ${cr} is not a SOC 2 criterion` });
     if (c.data.applicable === false && !c.data.exclusion_reason?.trim()) p.push({ severity: 'error', file: c.path, message: 'an excluded control needs an exclusion_reason' });
   }

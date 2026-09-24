@@ -1,7 +1,14 @@
 {
  "schema": "evidence-desk.framework/1",
- "framework": "iso27001",
+ "id": "iso27001",
  "title": "ISO/IEC 27001:2022",
+ "version": "2022",
+ "outcome": "certificate",
+ "issuer": "an accredited certification body",
+ "source": {
+  "name": "ISO/IEC 27001:2022, Information security management systems",
+  "url": "https://www.iso.org/standard/27001"
+ },
  "note": "Clause and Annex A identifiers with short titles written by this project, mapped onto the control library. ISO's requirement and control text is not included; use your own licensed copy.",
  "requirements": [
   {

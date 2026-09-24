@@ -81,6 +81,11 @@
     "recorded_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "target": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "The framework id this is the document for (soc2, or a catalog/frameworks/ id); badges match a record to its target by it."
     }
   }
 }

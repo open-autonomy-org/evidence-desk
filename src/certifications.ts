@@ -9,13 +9,15 @@ import { check, schema } from './schema.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { loadWorkspace } from './workspace.ts';
 import { now } from './clock.ts';
+import { frameworkDescriptions, type Outcome } from './catalog.ts';
 
 export type Certification = { schema: string; id: string; framework: string; kind: 'audit report' | 'certificate' | 'self-attestation'; issuer: string; issued_on: string;
-  period?: { start: string; end: string }; valid_until?: string; file: string; sha256: string; recorded_by: string; recorded_at: string };
+  period?: { start: string; end: string }; valid_until?: string; target?: string; file: string; sha256: string; recorded_by: string; recorded_at: string };
 
 const DIR = 'certifications';
 
-export function recordCertification(root: string, input: { framework: string; kind: Certification['kind']; issuer: string; issued_on: string; period?: { start: string; end: string }; valid_until?: string; file: string; by: string }): Certification {
+export function recordCertification(root: string, input: { framework: string; kind: Certification['kind']; issuer: string; issued_on: string; period?: { start: string; end: string }; valid_until?: string; target?: string; file: string; by: string }): Certification {
+  if (input.target && !frameworkDescriptions.some((f) => f.id === input.target)) throw new Error(`${input.target} is not a framework Evidence Desk maps; available: ${frameworkDescriptions.map((f) => f.id).join(', ')}`);
   if (!(loadWorkspace(root).registers.people?.data.rows ?? []).some((r) => r.id === input.by)) throw new Error(`${input.by || '(none)'} is not in registers/people.csv`);
   if (!existsSync(input.file)) throw new Error(`${input.file} does not exist`);
   if (input.kind === 'certificate' && !input.valid_until) throw new Error('a certificate needs --valid-until, the date it expires');
@@ -26,7 +28,7 @@ export function recordCertification(root: string, input: { framework: string; ki
   const file = `${DIR}/${id}${ext}`;
   writeVersioned(root, file, bytes, readVersioned(root, file)?.version ?? null);
   const record: Certification = { schema: 'evidence-desk.certification/1', id, framework: input.framework, kind: input.kind, issuer: input.issuer, issued_on: input.issued_on,
-    ...(input.period ? { period: input.period } : {}), ...(input.valid_until ? { valid_until: input.valid_until } : {}), file, sha256, recorded_by: input.by, recorded_at: now() };
+    ...(input.period ? { period: input.period } : {}), ...(input.valid_until ? { valid_until: input.valid_until } : {}), ...(input.target ? { target: input.target } : {}), file, sha256, recorded_by: input.by, recorded_at: now() };
   const errs = check(schema('certification'), record);
   if (errs.length) throw new Error(`the certification record is invalid: ${errs.join('; ')}`);
   const rel = `${DIR}/${id}.json`;
@@ -34,13 +36,14 @@ export function recordCertification(root: string, input: { framework: string; ki
   return record;
 }
 
-// Every record whose document is still the file it was recorded with; a document dated after today, or a certificate past its date, is not current.
+// Every record whose document is still the file it was recorded with; a document dated after today, a certificate past its
+// date, or a self-attestation more than a year old is not current.
 export function certifications(root: string, today = now().slice(0, 10)): (Certification & { current: boolean; intact: boolean })[] {
   const dir = join(root, DIR);
   if (!existsSync(dir)) return [];
   return readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')) as Certification).map((c) => {
     const intact = existsSync(join(root, c.file)) && createHash('sha256').update(readFileSync(join(root, c.file))).digest('hex') === c.sha256;
-    return { ...c, intact, current: intact && c.issued_on <= today && (!c.valid_until || c.valid_until >= today) };
+    return { ...c, intact, current: intact && c.issued_on <= today && (!c.valid_until || c.valid_until >= today) && (c.kind !== 'self-attestation' || plusYear(c.issued_on) >= today) };
   }).sort((a, b) => b.issued_on.localeCompare(a.issued_on));
 }
 
@@ -66,14 +69,17 @@ const plusYear = (day: string) => `${Number(day.slice(0, 4)) + 1}${day.slice(4)}
 // Short enough for any badge row: a label of 40 characters and a message of 60.
 const fit = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n - 1)}…`);
 
-export function badgesOf(held: Certification[], readiness: { framework: string; matches: RegExp; ready: number; of: number; unit: string }[], asOf: string): Badge[] {
+// A readiness entry is one target: its id, what it can become, and a name pattern for records made before `target` existed.
+export function badgesOf(held: Certification[], readiness: { id: string; outcome: Outcome; framework: string; matches: RegExp; ready: number; of: number; unit: string }[], asOf: string): Badge[] {
   const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const badge = (id: string, label: string, message: string, tone: Tone, until: string, basis: string): Badge => ({ id: slug(id), label: fit(label, 40), message: fit(message, 60), tone, until, color: COLOR[tone], basis });
   const out: Badge[] = held.map((c) => c.kind === 'certificate' ? badge(`${c.framework}-${c.kind}`, c.framework, `certified until ${c.valid_until}`, 'positive', c.valid_until!, c.file)
     : c.kind === 'audit report' ? badge(`${c.framework}-${c.kind}`, c.framework, `audited by ${c.issuer}, ${c.issued_on}`.length <= 60 ? `audited by ${c.issuer}, ${c.issued_on}` : `audited ${c.issued_on}`, 'positive', plusYear(c.period?.end ?? c.issued_on), c.file)
     : badge(`${c.framework}-${c.kind}`, c.framework, `self-attested ${c.issued_on}`, 'info', plusYear(c.issued_on), c.file));
   for (const r of readiness) {
-    if (held.some((c) => c.kind !== 'self-attestation' && r.matches.test(c.framework))) continue;
+    // A document for the target replaces its readiness: an auditor's or certifying body's always, the organization's own
+    // self-attestation when that is what the framework becomes. A record without a target is matched by its name.
+    if (held.some((c) => (c.target ? c.target === r.id : r.matches.test(c.framework)) && (c.kind !== 'self-attestation' || (c.target === r.id && r.outcome === 'self-attestation')))) continue;
     out.push(badge(`${r.framework}-readiness`, r.framework, `readiness ${r.ready}/${r.of} ${r.unit}`, 'neutral', plusDays(asOf, 30), 'readiness'));
   }
   return out;
