@@ -18,11 +18,15 @@ name (`trust.ts`).
 
 Source of authorization: the owner's coding conversation, September 24, 2026: "list all the ones we want to support
 because some 'readiness' and some 'self-attested' are good as a mix"; on which of them Open Autonomy helps with, the AI
-frameworks first; "we should be able to select which ones we want to target so we don't HAVE to do all of them
-together"; "let's think about it properly". Earlier the same day: "compliant or certified requires the doc"; "for
+frameworks first; to the author's proposed order (AIUC-1 and ISO/IEC 42001, then NIST AI RMF and CSA STAR for AI Level 1,
+then CSA STAR Level 1 and NIST CSF 2.0, then the conditional set), "okay good, so now we have our priorities right";
+"we should be able to select which ones we want to target so we don't HAVE to do all of them together"; "let's think
+about it properly". Earlier the same day: "compliant or certified requires the doc"; "for
 self-attestations, we can make those". The conversation has no public permalink; these quotations record scope, not
-independent approval. Everything past them (the commands, file shapes, the attestation rule, the catalog content rule,
-keeping SOC 2 a target) is this author's extrapolation.
+independent approval. The list of frameworks, which are readiness and which self-attested, and the order were the
+author's proposal, which the owner accepted in those words. Everything else past them (the commands, file shapes, the
+split of scoping, the attestation rule, the catalog content rule, keeping SOC 2 a target) is this author's
+extrapolation.
 
 ## Decision
 
@@ -37,20 +41,41 @@ say a program may leave it out. Every other framework is the owner's choice.
 - A framework not targeted is not counted, shown, checked or reminded about. Dropping one deletes nothing: its
   settings, positions and every piece of evidence stay, and targeting it again resumes where it was.
 
-**Whether a control is in play is worked out, not stored.** `applicable` keeps its one meaning, the scoping decision,
-and adoption keeps writing it from the scoping answers alone. What the targets need is derived when read, the way
-`frameworkState` already derives requirement status: a control is *needed* when it carries a SOC 2 criterion (SOC 2 is
-always a target) or a targeted framework maps a requirement to it (with the organization's own `mappings`). Each call
-site that acts on applicable controls is one of three kinds, and the implementation classifies every one of them:
+**Scoping says what applies; SOC 2's categories say what its report covers.** Today one test decides both: a control
+is written `applicable: false` when a scoping condition fails (`when`, such as having no office) *or* when none of its
+criteria's SOC 2 categories is in scope (`actions.ts` `exclusion()`). The second is SOC 2's audit scope, not a fact about
+the organization: it would exclude every control that meets no SOC 2 criterion, and it makes an ISO/IEC 27001
+requirement whose only controls are confidentiality or privacy ones depend on what the SOC 2 report covers. So the two
+are separated:
+
+- `applicable` is written by adoption from the scoping conditions alone. A control is applicable unless one of its own
+  `when` conditions fails. The category answers no longer write it.
+- SOC 2's scope is worked out when read: a control is in SOC 2's scope when it is applicable and one of its criteria's
+  categories is in scope. One function gives SOC 2's exclusion of a control, the failed condition's reason or today's
+  text for categories out of scope ("Its criteria (…) are outside the categories in scope."), and every SOC 2
+  deliverable that prints an exclusion uses it: the packet's control matrix and out-of-scope list, the drafted system
+  description's excluded criteria, SOC 2's criteria in the gaps view. Their output for an existing workspace is
+  unchanged.
+- Re-running adoption on an existing workspace rewrites the controls excluded only by a category answer as applicable,
+  with their reason removed; that is the one visible file change, and SOC 2's deliverables still exclude them.
+
+**Whether the targets need a control is worked out, not stored.** A control is *needed* when it is in SOC 2's scope
+(SOC 2 is always a target), or a targeted framework maps a requirement that is not excluded to it (with the
+organization's own `mappings`). Each part of the program acts on one of three sets, and the implementation classifies
+every call site that reads `applicable`:
 
 | kind | acts on | examples |
 |---|---|---|
-| SOC 2's deliverables | applicable controls carrying a SOC 2 criterion | the audit packet and its control matrix, the drafted system description, SOC 2's criteria in the gaps view, SOC 2's readiness |
-| the program's work | applicable controls that are needed | checks and their runs, obligations and reminders, collectors, owners and statuses in the gaps view |
+| SOC 2's deliverables | controls in SOC 2's scope | the audit packet and its control matrix, the drafted system description, SOC 2's criteria and readiness in the gaps view and on the trust center |
+| the program's work | needed controls | adoption's policies and forms, checks and their runs, obligations and reminders, collectors, owners and statuses in the gaps view, the questionnaire library's passages |
 | a framework's view | its own requirements' controls, through `frameworkState` | ISO/IEC 27001's view and statement of applicability, every new framework's readiness |
 
-Today every control carries a SOC 2 criterion, so needed and applicable coincide and nothing changes until the first
-control that meets no SOC 2 criterion exists.
+`computeGaps` works out every needed control's gaps (not only SOC 2's), so `frameworkState` finds each control it
+asks about. The questionnaire library drafts from needed controls and from controls a scoping condition excluded,
+which it may truthfully say do not apply; a control that is merely not needed is not a passage at all. `target` and
+`drop` re-run adoption, which creates the policies and forms that needed controls name and never deletes one.
+
+For a workspace targeting only SOC 2, needed is exactly SOC 2's scope, which is exactly today's applicable set.
 
 **Every framework has the same description.** `catalog/frameworks/<id>.json` has `id`, `title`, `version`, `outcome`,
 `issuer`, `source` and `requirements` (each an `id`, a `group`, a short `title` and the `controls` that address it);
@@ -65,7 +90,9 @@ badges and publishes alike, and SOC 2's badge keeps counting controls. `outcome`
 | `self-attestation` | blue, self-attested | the organization's own signed attestation (CSA STAR Level 1, CSA STAR for AI Level 1, NIST AI RMF, NIST CSF 2.0) |
 
 A record in `certifications/` gains an optional `target`, the framework id it is the document for; badges match a
-record to its target by that id, and fall back to the name only for records made before it.
+record to its target by that id, and fall back to the name only for records made before it. A document held for a
+framework that is not a target is still claimed while current: it is a true statement about the organization, and
+targets decide only what readiness is shown.
 
 Until its document is held, a target shows readiness: its requirements ready of those in scope, and the steps still
 open (each requirement not ready and its next act). Publicly the steps stay counts unless `trust.json` opts in,
@@ -81,7 +108,9 @@ Markdown (every requirement, its position and statement, the controls and eviden
 more; the rendered document discloses every requirement not met. A scheme with its own form (CSA's questionnaires for
 the STAR Registry) takes the same positions, and filing it with the scheme is the organization's own act outside
 Evidence Desk. An attestation is a signed act like a policy approval: `collect attribution` checks that the person who
-signed it merged it from their own pull request, as it does the other acts. It lapses a year after it is made.
+signed it opened the pull request that added it, as it does the other acts (a new act kind; the attestation's record
+names its signer and its hash binds the document). It lapses a year after it is made: a self-attestation is not current past that day, on the trust center as on
+the badges. While a target's self-attestation is current, it replaces that target's readiness badge.
 
 **Catalog content is ours.** A catalog holds identifiers and short titles written for Evidence Desk, never a standard's
 requirement text, except text in the public domain (NIST's). Each names its source, version and where to read the
@@ -97,7 +126,7 @@ revisions as populations of a period, on the project's own key, like the GitHub 
 collector can read a whole period, the platform must page those lists and keep the pause history (Open Autonomy PR
 #748).
 
-**What ships first**, in the owner's order: AIUC-1 and ISO/IEC 42001 as readiness targets; NIST AI RMF and CSA STAR for
+**What ships first**, in the order the owner accepted: AIUC-1 and ISO/IEC 42001 as readiness targets; NIST AI RMF and CSA STAR for
 AI Level 1 as self-attestations; CSA STAR Level 1 and NIST CSF 2.0 on the SOC 2 mapping; then the conditional set
 (ISO/IEC 27701, HITRUST, PCI DSS, the EU-U.S. Data Privacy Framework, an accessibility conformance report, HIPAA), each
 only when targeted.
