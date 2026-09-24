@@ -36,7 +36,8 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
         add({ key: `population:${ev.data.controls.join('+')}:${item}`, source: ev.data.title, controls: ev.data.controls.join(';'), item, detail: `independent approval: ${r.independent_approval}${r.title ? ` — ${r.title}` : ''}${r.author || r.started_by ? `; by ${r.author || r.started_by}` : ''}`, detected: day(ev.data.collected_at), resolved: '', file: f.path });
       }
     }
-    if (ev.data.period && day(ev.data.collected_at) <= ev.data.period.end) add({ key: `interim:${ev.data.id}`, source: ev.data.title, controls: ev.data.controls.join(';'), item: 'read before its period ended', detail: `collected ${day(ev.data.collected_at)} for a period ending ${ev.data.period.end}: rows after the collection are missing; collect again after the period ends`, detected: day(ev.data.collected_at), resolved: '', file: ev.path });
+    // Only a population can be read early: an act over a period (an access review) is dated by its sign-off.
+    if (ev.data.period && ev.data.files.some((f) => f.path.includes('/populations/')) && day(ev.data.collected_at) <= ev.data.period.end) add({ key: `interim:${ev.data.id}`, source: ev.data.title, controls: ev.data.controls.join(';'), item: 'read before its period ended', detail: `collected ${day(ev.data.collected_at)} for a period ending ${ev.data.period.end}: rows after the collection are missing; collect again after the period ends`, detected: day(ev.data.collected_at), resolved: '', file: ev.path });
   }
   // Signed acts not recorded by their own person.
   if (packaged.has('sources/github/attribution.json')) {
