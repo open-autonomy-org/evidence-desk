@@ -472,8 +472,14 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
   const rank = { 'vendor record': 0, 'client record': 1, 'client narrative': 2 } as const;
   const out: Claim[] = [];
   // A sentence ends at a full stop or a line; a semicolon inside a line (the drafter's deviation lines) does not end one.
+  // A drafted line that restates a row of the exceptions register (its date and its item) is what the register derived
+  // from the package: it is graded by the file the exception was raised from. A daily check's reading was decided from
+  // the vendor's answer that day.
+  const register = parseCsv(buildViews(root, ws, e, [], packaged, now()).get('review/exceptions.csv')!, 'exceptions.csv').rows;
   for (const t of texts) for (const sentence of t.text.split(/(?<=\.)\s+|\n+/).map((x) => x.trim()).filter(Boolean)) {
     if (/^Sources?:/i.test(sentence)) continue;
+    const row = register.find((x) => x.item && sentence.includes(x.item) && sentence.includes(x.occurred || x.detected));
+    if (row) { out.push({ source: t.source, claim: sentence, status: row.key.startsWith('check:') ? 'vendor record' : kindOfFile.get(row.file) ?? 'client record', detail: `the exceptions register's row ${row.key}, raised from ${row.file}` }); continue; }
     for (const [re, n] of counted) {
       // A count stands alone: the 17 of 2026-08-17 or the 04 of MON-04 is not one.
       const m = new RegExp(`(?<![\\w-])(\\d+|${Object.keys(NUMBER_WORDS).join('|')})\\s+(?:${re.source})\\b`, 'i').exec(sentence);
