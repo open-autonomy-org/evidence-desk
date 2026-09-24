@@ -16,7 +16,7 @@ import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, reviewAnswe
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { computeObligations } from './obligations.ts';
 import { collectRosterHistory, collectSeamRecords, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
-import { checkCompleteness, collectChanges, collectDeployments } from './github.ts';
+import { checkCompleteness, collectChanges, collectDeployments, collectOnboardingAttribution } from './github.ts';
 import { COLLECTORS, checkTitle, ciWorkflow, configureCollector, readSettings, runChecks } from './automation.ts';
 import { actOnRequest, createEngagement, draft, exportPackage, firmSummary, importRequests, importReturn, listRequests, readEngagement, verifyPackage } from './audit.ts';
 
@@ -54,6 +54,8 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   collect <dir> github-deployments --repo <owner/name> --environment <name> --period <start>..<end> --by <person>
                                           populations from GitHub with their queries (needs GITHUB_TOKEN)
   collect <dir> roster-history --repo <checkout> --period <start>..<end> --by <person>
+  collect <dir> onboarding-attribution --repo <owner/name of the workspace's repository> --by <person>
+                                          whether each response was merged from its member's own GitHub account
   collect <dir> seam-records --repo <checkout> --period <start>..<end> --by <person>
                                           every change to the Open Autonomy roster, from git
   collectors <dir> [<id> [--enable|--disable] [--set key=value ...]]
@@ -350,6 +352,12 @@ async function main(argv: string[]): Promise<number> {
       throw new Error('open-autonomy needs import, completeness or show');
     }
     case 'collect': {
+      if (rest[0] === 'onboarding-attribution') {
+        const r = await collectOnboardingAttribution(dir, { repo: one(a, 'repo') ?? '', by: one(a, 'by') ?? '' });
+        const bad = r.rows.filter((x) => x.status !== 'verified');
+        out(json, r, () => [`${r.rows.length - bad.length} of ${r.rows.length} responses recorded by their member's own GitHub account (${r.record}${r.evidence ? `, ${r.evidence}` : ''}).`, ...bad.map((x) => `  ${x.person} ${x.form} (${x.response}): ${x.status}${x.author ? ` (${x.author})` : ''}`)].join('\n'));
+        return 0;
+      }
       const [start, end] = (one(a, 'period') ?? '').split('..');
       if (!start || !end) throw new Error('collect needs --period <start>..<end>');
       const by = one(a, 'by') ?? '';
@@ -374,7 +382,7 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => r.populations.map((p) => `${p.evidence ? `Recorded ${p.evidence}` : `Wrote ${p.file} (no applicable control; adopt the controls first)`}: ${p.rows} ${p.seam} records${p.findings.length ? `; ${p.findings.join('; ')}` : ''}.`).join('\n'));
         return 0;
       }
-      throw new Error('collect needs github-changes, github-deployments, roster-history or seam-records');
+      throw new Error('collect needs github-changes, github-deployments, roster-history, seam-records or onboarding-attribution');
     }
     case 'collectors': {
       if (rest[0]) configureCollector(dir, rest[0], { ...(a.flags.has('enable') ? { enabled: true } : a.flags.has('disable') ? { enabled: false } : {}), ...(a.flags.has('set') ? { params: pairs(a.flags.get('set')!) } : {}) });

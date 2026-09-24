@@ -1,6 +1,7 @@
 // Populations and administrator lists read from GitHub's REST API with the owner's own token (GITHUB_TOKEN).
 // Each result is written into the workspace with the exact requests that produced it and how completeness was
 // established, then recorded as evidence. Nothing is sent to GitHub but reads.
+import { execFileSync } from 'node:child_process';
 import { writeCsv } from './csv.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { addEvidence } from './actions.ts';
@@ -117,3 +118,47 @@ export async function checkCompleteness(root: string, input: { account: string; 
   });
   return { record: rel, outside };
 }
+
+// Whether each onboarding response was recorded by the member it names, through a seam's door (ADR 0008): the
+// workspace is a Git repository on GitHub, a member records a response in a pull request of their own, and GitHub
+// says who opened it. The commit that added each response file is read from the workspace's history; its merged
+// pull request's author is compared with the member's GitHub account on the Open Autonomy roster.
+export type Attribution = { response: string; person: string; form: string; commit: string; pull: string; author: string; expected: string; status: 'verified' | 'uncommitted' | 'no merged pull request' | 'opened by someone else' | 'no GitHub account on the roster' };
+export async function collectOnboardingAttribution(root: string, input: { repo: string; by: string }): Promise<{ record: string; evidence: string | null; rows: Attribution[] }> {
+  if (!/^[\w.-]+\/[\w.-]+$/.test(input.repo)) throw new Error('--repo names the workspace\'s own GitHub repository as owner/name');
+  const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
+  if (!latest) throw new Error('import the Open Autonomy project first (evidence-desk open-autonomy import): its roster holds each member\'s GitHub account');
+  const snap = JSON.parse(latest.text) as Snapshot;
+  const git = (...args: string[]) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  try { git('rev-parse', '--show-toplevel'); } catch { throw new Error('the workspace is not a Git repository; responses are recorded through pull requests to it'); }
+  const prefix = git('rev-parse', '--show-prefix');
+  const ws = loadWorkspace(root);
+  const rows: Attribution[] = [];
+  for (const r of ws.responses) {
+    const d = r.data;
+    const expected = snap.team.find((m) => m.id === d.person)?.github ?? '';
+    const base = { response: d.id, person: d.person, form: d.form, commit: '', pull: '', author: '', expected };
+    if (!expected) { rows.push({ ...base, status: 'no GitHub account on the roster' }); continue; }
+    const commit = git('log', '--diff-filter=A', '--format=%H', '--', `forms/responses/${d.id}.json`).split('\n').filter(Boolean).pop() ?? '';
+    if (!commit) { rows.push({ ...base, status: 'uncommitted' }); continue; }
+    const pulls = await get(`/repos/${input.repo}/commits/${commit}/pulls`) as Pull[];
+    const merged = pulls.find((p) => p.merged_at);
+    if (!merged) { rows.push({ ...base, commit, status: 'no merged pull request' }); continue; }
+    const author = merged.user?.login ?? '';
+    rows.push({ ...base, commit, pull: String(merged.number), author, status: author.toLowerCase() === expected.toLowerCase() ? 'verified' : 'opened by someone else' });
+  }
+  const rel = 'sources/github/onboarding-attribution.json';
+  const record = { schema: 'evidence-desk.onboarding-attribution/1', repo: input.repo, workspace_path: prefix, checked_at: now(), roster_commit: snap.commit, rows };
+  writeVersioned(root, rel, JSON.stringify(record, null, 2) + '\n', readVersioned(root, rel)?.version ?? null);
+  const verified = rows.filter((x) => x.status === 'verified');
+  const forms = new Map(ws.forms.map((f) => [f.data.id, f.data.controls]));
+  const controls = applicableOf(root, [...new Set(verified.flatMap((x) => forms.get(x.form) ?? []))]);
+  const csv = `evidence/files/populations/onboarding-attribution-${Date.now()}.csv`;
+  writeVersioned(root, csv, writeCsv({ columns: ['response', 'person', 'form', 'commit', 'pull', 'author', 'expected', 'status'], rows }), null);
+  const evidence = controls.length ? addEvidence(root, {
+    title: `${verified.length} of ${rows.length} onboarding responses recorded by the member's own GitHub account`, controls, files: [csv], recorded_by: input.by,
+    source: { kind: 'collector', name: 'github', query: `git log --diff-filter=A for each forms/responses file; GET /repos/${input.repo}/commits/{sha}/pulls for each commit, comparing the merged pull request's author with the roster at ${snap.commit.slice(0, 12)}` },
+  }) : null;
+  return { record: rel, evidence, rows };
+}
+
