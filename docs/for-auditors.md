@@ -13,6 +13,23 @@ on receipt, before answering: `evidence-desk audit verify <folder>` checks every
 answers change the request files, so it no longer matches afterwards); you answer each request (accept, return, select samples, mark an exception) in the
 package's own page (`evidence-desk audit package-serve <folder>`), and the organization imports your answers back.
 
+Start with `review/index.html`. It and the tables beside it are derived from the packaged files and hashed in the
+manifest's `derived` list (the README too), and every line names the file it comes from:
+
+- `review/exceptions.csv`: every deviation the package's files show (a change or deployment without an independent
+  approval, an approval given before the commit that merged, a deployment whose run did not succeed or whose approved
+  run built another commit, a deploy started or approved by someone without the declared seam's scope, a failing
+  streak of a daily check, an administrator outside the roster, an act recorded by someone other than its person, an
+  access reviewer deciding their own account, a population read before the period ended), with when it occurred, was
+  detected and was resolved, and management's response.
+- `review/check-history/<check>.csv`: each daily reading with the collector snapshot it was decided from and that
+  snapshot's SHA-256; the snapshots are in the package.
+- `review/controls-matrix.csv`: every control, where it is requested, its evidence, and, for an applicable control,
+  what the workspace holds for it in the period; one with none is flagged.
+
+A file a packaged file cites travels with it; one the workspace does not hold is listed in the manifest's `omitted`
+with the file that cites it.
+
 ## How the evidence was produced
 
 Every evidence record names its source and hashes its files; what a collector or an import recorded also names the
@@ -42,8 +59,15 @@ query that produced it (evidence a person added by hand says so).
   pushes to someone's open pull request branch is not told apart from them.
 - **Completeness of people in scope**: each declared vendor account's administrators, read from the vendor (GitHub and
   Cloudflare) or from an export whose production is recorded, compared with the roster.
-- **Continuous checks** (two-factor enforcement, required review and protected history, dependency and secret-scanning
-  alerts, TLS and HTTPS settings) run daily in the workspace repository; each result and its first failure date are kept.
+- **Raw responses** sit beside each GitHub population (`*.raw.json`) with the account whose token read them and, for
+  every request, GitHub's `x-github-request-id` and the time GitHub answered, so any response can be raised with GitHub.
+  A deployment row is independently approved only when someone other than whoever started the run approved the
+  environment on the run that built the commit deployed.
+- **Seam records** (incidents, break-glass changes, credentials, escalations) are listed with each record's full git
+  history (`*.history.txt`): a record edited after it was added shows every change with its author and dates.
+- **Continuous checks** (two-factor enforcement, required review and protected history, bypasses of the default
+  branch's rules, dependency and secret-scanning alerts, TLS and HTTPS settings) run daily in the workspace repository;
+  each result, the snapshot it was decided from and its first failure date are kept.
 
 ## What to test, and how
 

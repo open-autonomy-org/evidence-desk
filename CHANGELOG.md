@@ -7,6 +7,20 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- An audit package is built for a firm to test from rather than to take on trust. `review/index.html` and its tables
+  (a control matrix flagging applicable controls with no evidence in the period, an exceptions register with when each
+  deviation occurred, was found and was resolved and management's response, and every automated check's reading on
+  every day of the period with the collector snapshot and hash it was decided from) are derived from the packaged files
+  and hashed with them, as is the README. Populations come from the system of record with their raw responses (GitHub's
+  request id and answer time for each, and whose token read them): every commit on the default branch reconciled to a
+  merged pull request or listed as a direct push, with who merged and whether the approval covered the merged commit;
+  each deployment's approved run matched to the commit deployed, its conclusion, and whether its starter and approver
+  hold the declared seams' scopes; each seam record with its full history. A daily check reports every bypass of the
+  default branch's rules. Cited files travel with what cites them, and a cited file the workspace lacks is listed in
+  the manifest. Drafts refuse export until filled and name the deviations found, a catalog template cannot be approved
+  as policy, and an access reviewer deciding their own account is an exception. Shaped by blind reviews of a
+  quarter run in the World against the GitHub and Cloudflare twins
+  ([volter-ai/twin 5349b9b5, bbebcc63](https://github.com/volter-ai/twin/commits/main)).
 - A project with several workflows gated on its production environment (release, deploy, administration) is read
   whole: the deploy-v* one is the production deploy, every one's egress names vendors, and the system description names
   them all. Found reading Open Autonomy's own repository, where only the last such workflow had been kept.
