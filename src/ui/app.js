@@ -357,11 +357,11 @@ function peopleView() {
     h('h1', {}, 'People'),
     h('p', { class: 'lead' }, 'Each person\'s onboarding and recurring obligations. People are added in Registers → People.'),
     rows.length ? rows.map((p) => {
-      const mine = S.gaps.obligations.filter((o) => o.who === p.id && ['person'].includes(o.kind));
+      const mine = S.gaps.obligations.filter((o) => (o.who === p.id || o.subject === p.id) && ['person'].includes(o.kind));
       const forms = S.forms.filter((f) => mine.some((o) => o.what === f.title));
       return h('div', { class: 'card' },
         h('h2', { style: 'margin-top:0' }, `${p.name} (${p.id})`, p.end_date ? h('span', { class: 'source' }, ` · left ${p.end_date}`) : p.start_date ? h('span', { class: 'source' }, ` · started ${p.start_date}`) : null),
-        mine.length ? obligationTable(mine, false) : h('p', { class: 'muted' }, 'Nothing owed.'),
+        mine.length ? obligationTable(mine, mine.some((o) => o.who !== p.id)) : h('p', { class: 'muted' }, 'Nothing owed.'),
         forms.length ? h('div', { class: 'row' }, forms.map((f) => h('button', { class: 'secondary', onclick: () => go('people', `form:${f.id}:${p.id}`) }, `Complete: ${f.title}`))) : null);
     }) : h('p', {}, 'No people yet.'));
 }

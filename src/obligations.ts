@@ -2,7 +2,7 @@
 // annual and offboarding obligations, vendor reviews, risk reviews, vulnerability deadlines and open incidents.
 import type { Workspace } from './workspace.ts';
 
-export type Obligation = { kind: 'control' | 'person' | 'vendor' | 'risk' | 'vulnerability' | 'incident'; what: string; controls: string[]; who: string; due: string; state: 'done' | 'due' | 'overdue'; done_on?: string };
+export type Obligation = { kind: 'control' | 'person' | 'vendor' | 'risk' | 'vulnerability' | 'incident'; what: string; controls: string[]; who: string; subject?: string; due: string; state: 'done' | 'due' | 'overdue'; done_on?: string };
 
 const DAY = 864e5;
 const INTERVAL_DAYS: Record<string, number> = { daily: 1, weekly: 7, monthly: 31, quarterly: 92, annual: 366 };
@@ -47,12 +47,13 @@ export function computeObligations(ws: Workspace, asOf = new Date()): Obligation
       if (applicable.has('HR-01')) {
         const ev = ws.evidence.find((e) => e.data.subject === p.id && e.data.controls.includes('HR-01'));
         const due = p.start_date ? dateOf(p.start_date) : today;
-        out.push({ kind: 'person', what: 'Background check', controls: ['HR-01'], who: p.id, due: iso(due), state: ev ? 'done' : state(due), ...(ev ? { done_on: ev.data.collected_at.slice(0, 10) } : {}) });
+        out.push({ kind: 'person', what: `Background check: ${p.id}`, controls: ['HR-01'], who: applicable.get('HR-01')!.owner, subject: p.id, due: iso(due), state: ev ? 'done' : state(due), ...(ev ? { done_on: ev.data.collected_at.slice(0, 10) } : {}) });
       }
     } else if (applicable.has('HR-04')) {
       const ev = ws.evidence.find((e) => e.data.subject === p.id && e.data.controls.includes('HR-04'));
       const due = dateOf(p.end_date) + DAY;
-      out.push({ kind: 'person', what: 'Offboarding: remove access to every in-scope system', controls: ['HR-04'], who: p.id, due: iso(due), state: ev ? 'done' : state(due), ...(ev ? { done_on: ev.data.collected_at.slice(0, 10) } : {}) });
+      // Owed by whoever owns offboarding, never by the person leaving, whose access is what gets removed.
+      out.push({ kind: 'person', what: `Offboarding ${p.id}: remove access to every in-scope system`, controls: ['HR-04'], who: applicable.get('HR-04')!.owner, subject: p.id, due: iso(due), state: ev ? 'done' : state(due), ...(ev ? { done_on: ev.data.collected_at.slice(0, 10) } : {}) });
     }
   }
 

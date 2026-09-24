@@ -7,12 +7,16 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
-- Added `collect onboarding-attribution`: in a workspace kept as a GitHub repository, every commit on the default
-  branch that touched a form response must come from a pull request merged into that branch and opened by the member's
-  GitHub account on the Open Autonomy roster, and the file must be as merged. A roster member's latest response that
-  fails this is a gap finding. Verified in the World against the GitHub twin, whose personal tokens now own their writes
-  and whose commit-to-pull-request lookup follows GitHub's default-branch rule
-  ([volter-ai/twin d88ec450](https://github.com/volter-ai/twin/commit/d88ec450)).
+- Added `collect attribution`: in a workspace kept as a GitHub repository, each act a person signs (a form response, an
+  access review sign-off, a policy's latest approval, an incident's closing update) must have been brought to its present
+  content by a pull request merged into the default branch and opened by that person's GitHub account on the Open
+  Autonomy roster, and be unchanged since; a roster member's act that fails this is a gap finding. Added `remind`, which
+  keeps one issue per owned due or overdue obligation in the workspace repository, assigned to its owner, and closes it
+  once met; the daily workflow runs both. Verified in the World against the GitHub twin, whose personal tokens now own
+  their writes and whose commit-to-pull-request lookup follows GitHub's default-branch rule
+  ([volter-ai/twin d88ec450](https://github.com/volter-ai/twin/commit/d88ec450)). Background checks and offboarding are
+  now owed by the owner of HR-01 and HR-04, never by the person joining or leaving. The daily workflow no longer writes
+  an empty `env:` when no collector is enabled.
 - Added `collect seam-records`: each commit seam an Open Autonomy project records under `records/` (the `soc2`
   template's incidents, break-glass changes, credential lifecycle and escalations) becomes a period population with
   the commit and author that added each record, as evidence for its controls. A closed incident without a review, a

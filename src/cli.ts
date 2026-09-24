@@ -16,7 +16,7 @@ import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, reviewAnswe
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { computeObligations } from './obligations.ts';
 import { collectRosterHistory, collectSeamRecords, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
-import { checkCompleteness, collectChanges, collectDeployments, collectOnboardingAttribution } from './github.ts';
+import { checkCompleteness, collectChanges, collectDeployments, collectAttribution, syncReminders } from './github.ts';
 import { COLLECTORS, checkTitle, ciWorkflow, configureCollector, readSettings, runChecks } from './automation.ts';
 import { actOnRequest, createEngagement, draft, exportPackage, firmSummary, importRequests, importReturn, listRequests, readEngagement, verifyPackage } from './audit.ts';
 
@@ -38,6 +38,7 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   respond <dir> <form> --person <id> --answer <question>=<answer> ...
                                           record a person's answers (graded; passing responses become evidence)
   obligations <dir> [--person <id>] [--as-of YYYY-MM-DD]   what is owed, by whom and when
+  remind <dir> --repo <owner/name>        keep one issue per due or overdue obligation in the workspace's repository
   access-review <dir> start --system <id> --reviewer <person> --period <start>..<end> --listing <file> --generated-by <how>
   access-review <dir> <id> [--decide <account>=keep|remove|modify ...] [--done <account>=<date> ...]
                      [--person <account>=<person> ...] [--privileged <account>] [--sign-off --by <person>]
@@ -54,10 +55,11 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   collect <dir> github-deployments --repo <owner/name> --environment <name> --period <start>..<end> --by <person>
                                           populations from GitHub with their queries (needs GITHUB_TOKEN)
   collect <dir> roster-history --repo <checkout> --period <start>..<end> --by <person>
-  collect <dir> onboarding-attribution --repo <owner/name of the workspace's repository> --by <person>
-                                          whether each response was merged from its member's own GitHub account
-  collect <dir> seam-records --repo <checkout> --period <start>..<end> --by <person>
                                           every change to the Open Autonomy roster, from git
+  collect <dir> seam-records --repo <checkout> --period <start>..<end> --by <person>
+                                          the acts an Open Autonomy project records under records/, from git
+  collect <dir> attribution --repo <owner/name of the workspace's repository> --by <person>
+                                          whether each signed act was merged from its person's own GitHub pull request
   collectors <dir> [<id> [--enable|--disable] [--set key=value ...]]
                                           show or configure the collectors (github)
   run <dir> --by <person> [--collector <id>]  collect from each enabled collector and run its checks; exits 3 if a check fails
@@ -351,11 +353,17 @@ async function main(argv: string[]): Promise<number> {
       }
       throw new Error('open-autonomy needs import, completeness or show');
     }
+    case 'remind': {
+      const asOf = one(a, 'as-of');
+      const r = await syncReminders(dir, { repo: one(a, 'repo') ?? '', ...(asOf ? { asOf: new Date(`${asOf}T00:00:00Z`) } : {}) });
+      out(json, r, () => [`Reminders: ${r.opened.length} opened, ${r.retitled.length} retitled, ${r.closed.length} closed, ${r.kept} unchanged.`, ...r.opened.map((t) => `  opened: ${t}`), ...r.retitled.map((t) => `  retitled: ${t}`), ...r.closed.map((t) => `  closed: ${t}`)].join('\n'));
+      return 0;
+    }
     case 'collect': {
-      if (rest[0] === 'onboarding-attribution') {
-        const r = await collectOnboardingAttribution(dir, { repo: one(a, 'repo') ?? '', by: one(a, 'by') ?? '' });
+      if (rest[0] === 'attribution') {
+        const r = await collectAttribution(dir, { repo: one(a, 'repo') ?? '', by: one(a, 'by') ?? '' });
         const bad = r.rows.filter((x) => x.status !== 'verified');
-        out(json, r, () => [`${r.rows.length - bad.length} of ${r.rows.length} responses recorded by their member's own GitHub account (${r.record}${r.evidence ? `, ${r.evidence}` : ''}).`, ...bad.map((x) => `  ${x.person} ${x.form} (${x.response}): ${x.status}${x.author ? ` (${x.author})` : ''}`)].join('\n'));
+        out(json, r, () => [`${r.rows.length - bad.length} of ${r.rows.length} signed acts recorded by the person's own GitHub account (${r.record}, ${r.file}).`, ...bad.map((x) => `  ${x.person}: ${x.label}: ${x.status}${x.author ? ` (${x.author})` : ''}`)].join('\n'));
         return 0;
       }
       const [start, end] = (one(a, 'period') ?? '').split('..');
@@ -382,7 +390,7 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => r.populations.map((p) => `${p.evidence ? `Recorded ${p.evidence}` : `Wrote ${p.file} (no applicable control; adopt the controls first)`}: ${p.rows} ${p.seam} records${p.findings.length ? `; ${p.findings.join('; ')}` : ''}.`).join('\n'));
         return 0;
       }
-      throw new Error('collect needs github-changes, github-deployments, roster-history, seam-records or onboarding-attribution');
+      throw new Error('collect needs github-changes, github-deployments, roster-history, seam-records or attribution');
     }
     case 'collectors': {
       if (rest[0]) configureCollector(dir, rest[0], { ...(a.flags.has('enable') ? { enabled: true } : a.flags.has('disable') ? { enabled: false } : {}), ...(a.flags.has('set') ? { params: pairs(a.flags.get('set')!) } : {}) });

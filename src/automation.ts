@@ -181,18 +181,24 @@ export function ciWorkflow(settings: CollectorSettings[]): string {
   return `name: Evidence Desk checks
 # Runs the workspace's enabled collectors and checks every day and commits the results. A failing check fails this
 # run so GitHub notifies you; it gates nothing. Store each credential below as a repository secret with read-only access
-# (a GitHub token as EVIDENCE_DESK_GITHUB_TOKEN: GitHub reserves the GITHUB_ prefix).
+# (a GitHub token as EVIDENCE_DESK_GITHUB_TOKEN: GitHub reserves the GITHUB_ prefix). It then checks who recorded each
+# signed act (with an imported Open Autonomy roster) and keeps one issue per due or overdue obligation, assigned to the
+# person who owes it, using this repository's own workflow token.
 on:
   schedule:
     - cron: '17 6 * * *'
   workflow_dispatch:
 permissions:
   contents: write
+  issues: write
+  pull-requests: read
 jobs:
   checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.3.10
@@ -204,16 +210,24 @@ jobs:
       - name: Run the checks
         id: run
         continue-on-error: true
+${secrets.length ? `        env:\n${secrets.map((s) => `          ${s}: \${{ secrets.${secretName(s)} }}`).join('\n')}\n` : ''}        run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" run . --by "\${{ vars.EVIDENCE_DESK_RECORDER }}"
+      - name: Check who recorded each signed act
+        if: hashFiles('sources/open-autonomy/latest.json') != ''
+        continue-on-error: true
         env:
-${secrets.map((s) => `          ${s}: \${{ secrets.${secretName(s)} }}`).join('\n')}
-        run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" run . --by "\${{ vars.EVIDENCE_DESK_RECORDER }}"
+          GITHUB_TOKEN: \${{ github.token }}
+        run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" collect . attribution --repo "\${{ github.repository }}" --by "\${{ vars.EVIDENCE_DESK_RECORDER }}"
       - name: Commit the results
         run: |
           git config user.name "Evidence Desk checks"
           git config user.email "evidence-desk@users.noreply.github.com"
-          git add checks evidence
+          git add checks evidence sources
           git diff --cached --quiet || git commit -m "Evidence Desk checks"
           git push
+      - name: Remind people of what they owe
+        env:
+          GITHUB_TOKEN: \${{ github.token }}
+        run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" remind . --repo "\${{ github.repository }}"
       - name: Fail when a check failed
         if: steps.run.outcome == 'failure'
         run: exit 1
