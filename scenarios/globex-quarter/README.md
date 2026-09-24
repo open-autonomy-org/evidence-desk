@@ -45,7 +45,7 @@ another.
 
 ## The blind review
 
-One reviewer's score swings by a point from run to run, so each package goes to five reviewers in parallel, each
+One reviewer's score swings by a point from run to run, so each package goes to four reviewers in parallel, each
 with its own copy of the package in a folder of its own and only this brief; the round's score is their mean, reported
 with the spread, and a change is judged by the asks that recur across them:
 
