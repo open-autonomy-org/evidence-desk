@@ -9,6 +9,8 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 - A failing daily check no escalation record answers is an exception: the alert reached no one. A claim is evidenced
   only by a line that records one of the acts it states (a table row by its columns), not just its date and subject.
+  Each change records what it touched (code, pipeline, docs, records) and how many files, in the changes population
+  and `review/change-releases.csv`.
 - A deploy outside the change path is found the day it happens: the daily Cloudflare check reads the last day of the
   account's audit log and fails on a change by no one it can name or no one on the roster, and on a Worker deployed by
   a person rather than the pipeline's service account. The package is not exported while an exception has no

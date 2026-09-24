@@ -369,10 +369,10 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       const dep = shipped ? approvals.get(shipped.github_deployment) : undefined;
       const by = dep?.approved_by ?? '';
       const human = by.split(';').some((x) => rosterLogins.has(x.toLowerCase()));
-      return { number: m.number, title: m.title, author: m.author, author_kind: m.author_kind ?? '', approvers: m.approvers, approver_kinds: m.approver_kinds ?? '', merged_at: m.merged_at,
+      return { number: m.number, title: m.title, touches: m.touches ?? '', author: m.author, author_kind: m.author_kind ?? '', approvers: m.approvers, approver_kinds: m.approver_kinds ?? '', merged_at: m.merged_at,
         released_in: shipped?.ref ?? '', released_at: shipped?.from ?? '', release_approved_by: by, release_approved_by_person: shipped ? (human ? 'yes' : 'no') : '' };
     });
-    views.set('review/change-releases.csv', writeCsv({ columns: ['number', 'title', 'author', 'author_kind', 'approvers', 'approver_kinds', 'merged_at', 'released_in', 'released_at', 'release_approved_by', 'release_approved_by_person'], rows: releases }));
+    views.set('review/change-releases.csv', writeCsv({ columns: ['number', 'title', 'touches', 'author', 'author_kind', 'approvers', 'approver_kinds', 'merged_at', 'released_in', 'released_at', 'release_approved_by', 'release_approved_by_person'], rows: releases }));
     for (const r of releases.filter((x) => x.release_approved_by_person === 'no'))
       add({ key: `release-without-person:#${r.number}`, source: 'change releases (review/change-releases.csv)', controls: 'CHG-01;CHG-03', item: `#${r.number} in ${r.released_in}`, detail: `shipped in a release no person on the roster approved (${r.release_approved_by || 'no approver'})`, occurred: day(r.released_at), detected: day(r.released_at), resolved: '', file: ghDep?.path ?? worker.path });
     views.set('review/production-timeline.csv', writeCsv({ columns: ['from', 'until', 'days', 'deployment', 'author', 'commit', 'github_deployment', 'ref', 'approved', 'change_path', 'pull_requests'], rows: timeline }));

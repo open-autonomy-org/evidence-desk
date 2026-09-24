@@ -55,6 +55,9 @@ type Review = { user?: { login?: string }; state: string; submitted_at?: string;
 // approvals, reconciled against every commit on the default branch in the period. A commit no merged pull request
 // carries (a push straight to the branch) is a row of its own with no approval, so the population cannot hide it. The
 // raw responses are kept beside the table so the derivation can be re-performed.
+// The areas a change touched: the pipeline (workflow files), the organization's records (records/), documents, or code.
+const areas = (paths: string[]) => [...new Set(paths.map((f) => f.startsWith('.github/workflows/') ? 'pipeline' : f.startsWith('records/') ? 'records' : /\.md$|^docs\//.test(f) ? 'docs' : 'code'))].sort().join(';');
+
 export async function collectChanges(root: string, input: { repo: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; unknown: number; notIndependent: number; direct: number }> {
   const source = await provenance();
   const meta = await get(`/repos/${input.repo}`) as { default_branch: string };
@@ -88,6 +91,9 @@ export async function collectChanges(root: string, input: { repo: string; start:
     const reviews = (await all<Review>(`/repos/${input.repo}/pulls/${p.number}/reviews`)).items;
     const commits = (await all<{ sha: string }>(`/repos/${input.repo}/pulls/${p.number}/commits`)).items;
     (raw.reviews as Record<string, unknown>)[p.number] = reviews; (raw.pull_commits as Record<string, unknown>)[p.number] = commits;
+    // What the change touched, so the firm can sample code apart from the records the organization commits.
+    const touched = (await all<{ filename: string }>(`/repos/${input.repo}/pulls/${p.number}/files`)).items.map((f) => f.filename);
+    ((raw.pull_files ??= {}) as Record<string, unknown>)[p.number] = touched;
     for (const c of commits) carried.add(c.sha);
     if (p.merge_commit_sha) carried.add(p.merge_commit_sha);
     if (commits.length >= 250) capped.push(p.number);
@@ -105,7 +111,7 @@ export async function collectChanges(root: string, input: { repo: string; start:
     const checks = runs.map((c) => `${c.name}:${c.status === 'completed' ? c.conclusion : c.status}`).join(';');
     const checksPassed = !runs.length ? 'none' : runs.every((c) => c.status === 'completed' && ['success', 'neutral', 'skipped'].includes(c.conclusion ?? '')) ? 'yes' : 'no';
     rows.push({ kind: 'pull request', number: String(p.number), commit: p.merge_commit_sha ?? '', title: p.title, author, opened_at: detail.created_at ?? '', approved_at: approvedAt, merged_at: p.merged_at ?? '', merged_by: detail.merged_by?.login ?? '',
-      approvals: String(approvals.length), approvers: approvers.join(';'), author_kind: kindOf(author), approver_kinds: approvers.map(kindOf).join(';'), approval_on_merged_head: onFinal, checks, checks_passed: checksPassed, independent_approval: independent });
+      approvals: String(approvals.length), approvers: approvers.join(';'), author_kind: kindOf(author), approver_kinds: approvers.map(kindOf).join(';'), approval_on_merged_head: onFinal, checks, checks_passed: checksPassed, independent_approval: independent, touches: areas(touched), files: String(touched.length) });
   }
   const onBranch = (await all<{ sha: string; commit?: { message?: string; author?: { name?: string; date?: string }; committer?: { date?: string } }; author?: { login?: string } | null }>(
     `/repos/${input.repo}/commits?sha=${encodeURIComponent(branch)}&since=${input.start}T00:00:00Z&until=${input.end}T23:59:59Z`)).items;
@@ -121,12 +127,12 @@ export async function collectChanges(root: string, input: { repo: string; start:
     if (!found.some((p) => p.merged_at && (p.base?.ref ?? branch) === branch)) unmatched.push(c);
   }
   for (const c of unmatched) {
-    rows.push({ kind: 'direct push', number: '', commit: c.sha, title: (c.commit?.message ?? '').split('\n')[0], author: c.author?.login ?? c.commit?.author?.name ?? '', opened_at: '', approved_at: '', merged_at: c.commit?.committer?.date ?? '', merged_by: '', approvals: '0', approvers: '', author_kind: kindOf(c.author?.login ?? ''), approver_kinds: '', approval_on_merged_head: '', checks: '', checks_passed: '', independent_approval: 'no' });
+    rows.push({ kind: 'direct push', number: '', commit: c.sha, title: (c.commit?.message ?? '').split('\n')[0], author: c.author?.login ?? c.commit?.author?.name ?? '', opened_at: '', approved_at: '', merged_at: c.commit?.committer?.date ?? '', merged_by: '', approvals: '0', approvers: '', author_kind: kindOf(c.author?.login ?? ''), approver_kinds: '', approval_on_merged_head: '', checks: '', checks_passed: '', independent_approval: 'no', touches: '', files: '' });
   }
   const stem = `evidence/files/populations/github-changes-${input.repo.replace('/', '-')}-${input.start}-${input.end}-${Date.now()}`;
-  writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['kind', 'number', 'commit', 'title', 'author', 'opened_at', 'approved_at', 'merged_at', 'merged_by', 'approvals', 'approvers', 'author_kind', 'approver_kinds', 'approval_on_merged_head', 'checks', 'checks_passed', 'independent_approval'], rows }), null);
+  writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['kind', 'number', 'commit', 'title', 'author', 'opened_at', 'approved_at', 'merged_at', 'merged_by', 'approvals', 'approvers', 'author_kind', 'approver_kinds', 'approval_on_merged_head', 'checks', 'checks_passed', 'independent_approval', 'touches', 'files'], rows }), null);
   writeVersioned(root, `${stem}.raw.json`, JSON.stringify(raw, null, 2) + '\n', null);
-  const query = `GET /repos/${input.repo}/pulls?state=closed (all ${pulls.pages} page(s)), keeping those merged into ${branch} ${input.start}..${input.end}; GET /repos/${input.repo}/pulls/{n}, /reviews and /commits for each, and /commits/{head}/check-runs for the commit that merged; GET /repos/${input.repo}/commits?sha=${branch}&since&until for the period, reconciling every commit against every merged pull request into ${branch} and, for any left, GET /repos/${input.repo}/commits/{sha}/pulls`;
+  const query = `GET /repos/${input.repo}/pulls?state=closed (all ${pulls.pages} page(s)), keeping those merged into ${branch} ${input.start}..${input.end}; GET /repos/${input.repo}/pulls/{n}, /reviews, /commits and /files for each, and /commits/{head}/check-runs for the commit that merged; GET /repos/${input.repo}/commits?sha=${branch}&since&until for the period, reconciling every commit against every merged pull request into ${branch} and, for any left, GET /repos/${input.repo}/commits/{sha}/pulls`;
   const unknown = rows.filter((r) => r.independent_approval === 'unknown').length;
   const notIndependent = rows.filter((r) => r.independent_approval === 'no').length;
   const direct = rows.filter((r) => r.kind === 'direct push').length;
