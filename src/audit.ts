@@ -497,8 +497,8 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
   const register = parseCsv(buildViews(root, ws, e, [], packaged, now()).get('review/exceptions.csv')!, 'exceptions.csv').rows;
   for (const t of texts) for (const sentence of t.text.split(/(?<=\.)\s+|\n+/).map((x) => x.trim()).filter(Boolean)) {
     if (/^Sources?:/i.test(sentence)) continue;
-    // A line that is only a date (the date a signature carries) states nothing to evidence.
-    if (!/[a-z]/i.test(sentence.replace(/\b20\d\d-\d\d-\d\d\b/g, ''))) continue;
+    // A line that is only a date, or the signature block's lines, states nothing to evidence.
+    if (!/[a-z]/i.test(sentence.replace(/\b20\d\d-\d\d-\d\d\b/g, '')) || /^(Signed by|Signature|Date):/.test(sentence)) continue;
     const row = register.find((x) => x.item && sentence.includes(x.item) && sentence.includes(x.occurred || x.detected));
     if (row) { out.push({ source: t.source, claim: sentence, status: row.key.startsWith('check:') ? 'vendor record' : kindOfFile.get(row.file) ?? 'client record', detail: `the exceptions register's row ${row.key}, raised from ${row.file}` }); continue; }
     for (const [re, n] of counted) {
@@ -571,6 +571,8 @@ add sample items) and send the folder back. A hash shows that a file is unchange
 \`git log\` any file to see who committed it and when, and that the file here is the one committed.
 The package's digest is the SHA-256 of \`manifest.json\`; \`audit verify\` prints it. Record it when the package
 arrives, by a channel the client does not control, and any later change to any file will show against it.
+\`audit recollect <this folder>\` reads the change, deployment, Cloudflare and token populations again with the firm's
+own read-only tokens and compares them row by row with the ones here.
 \`manifest.json\` lists what stays in the workspace under \`omitted\`${dangling ? `, including ${dangling} file(s) a packaged file cites that the workspace does not hold` : ''}. This README is hashed with the views.
 `;
 

@@ -74,6 +74,10 @@ approver wrote code it ships is an exception (`review/change-releases.csv`,
 the period's end, or any incident, by what identifies it, or does not say when a system created inside the period began operating.
 
 `review/workspace.bundle` is the workspace's Git history up to that commit; `audit verify` checks that it holds it.
+`audit recollect <package> --repo <owner/name> --environment <name> --account <id> --script <worker>` reads the
+change, deployment, Worker deployment, Cloudflare configuration and token populations again with the firm's own
+read-only `GITHUB_TOKEN` and `CLOUDFLARE_API_TOKEN`, and lists every row only the package has, every row it lacks,
+and every row whose fields differ; nothing in the package is changed.
 The control matrix's `evidence_basis` is the strongest kind of evidence the package holds for each control: a vendor
 record (a collector's answer or a daily check), a client record, or a client narrative; coverage marks a criterion whose
 evidence is client narrative only.

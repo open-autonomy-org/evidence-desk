@@ -7,6 +7,9 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- `audit recollect <package>` lets the firm read the change, deployment, Worker deployment, Cloudflare configuration
+  and token populations again with its own read-only tokens, against a scratch copy of the package's workspace, and
+  lists every row only the package has, every row it lacks and every row whose fields differ.
 - The package is not exported without a signed assertion (Signed by, Signature and Date lines). A response recorded
   again unchanged keeps its first date. The assertion must name every deviation the register holds. Self-approved
   releases are one design exception listing each release, against release approval (CHG-03). A hand-made setting change

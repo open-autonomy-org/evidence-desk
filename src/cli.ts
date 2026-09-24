@@ -16,6 +16,7 @@ import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, reviewAnswe
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { computeObligations } from './obligations.ts';
 import { collectAccessChanges } from './access.ts';
+import { recollect } from './recollect.ts';
 import { collectRosterHistory, collectSeamRecords, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
 import { checkCompleteness, collectChanges, collectDeployments, collectAttribution, collectNonHumanAccess, collectRuleChanges, syncReminders } from './github.ts';
 import { collectCloudflareChanges, collectCloudflareTokens, collectWorkerDeployments } from './cloudflare.ts';
@@ -93,6 +94,9 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   audit <dir> <id> export --out <folder>  a package of exactly what the requests point at, with hashes
   audit <dir> <id> import-return <folder> bring the firm's responses in from a returned package
   audit verify <package folder>           check a package's files against its manifest, offline
+  audit recollect <package folder> [--repo <owner/name> [--environment <name>]] [--account <id> [--script <worker>]]
+                                          read the populations again with the firm's own GITHUB_TOKEN and
+                                          CLOUDFLARE_API_TOKEN, and compare them row by row with the package's
   firm <firm.json> [--serve [--port <n>]] each client's engagements, requests and readiness, client by client
   audit package-serve <package folder> [--port <n>]   the firm's page for answering a received package
   trust <dir> build --out <folder>        build the static trust center from what trust.json allows
@@ -472,6 +476,11 @@ async function main(argv: string[]): Promise<number> {
     case 'audit': {
       if (dirArg && rest.length === 0 && existsSync(resolve(dirArg, 'manifest.json')) && !existsSync(resolve(dirArg, 'evidence-desk.json'))) throw new Error('to check a package, run: evidence-desk audit verify <package folder>');
       if (dirArg === 'package-serve') { serveFirm('package', resolve(rest[0] ?? ''), Number(one(a, 'port') ?? 4880)); return -1; }
+      if (cmd === 'audit' && dirArg === 'recollect') {
+        const r = await recollect(resolve(rest[0] ?? ''), { repo: one(a, 'repo'), environment: one(a, 'environment'), account: one(a, 'account'), script: one(a, 'script') });
+        out(json, r, () => r.map((x) => `${x.population}: packaged ${x.packaged}, read again ${x.recollected}${x.only_packaged.length ? `; only in the package: ${x.only_packaged.join(', ')}` : ''}${x.only_recollected.length ? `; missing from the package: ${x.only_recollected.join(', ')}` : ''}${x.differing.length ? `; different: ${x.differing.join(', ')}` : ''}${!x.only_packaged.length && !x.only_recollected.length && !x.differing.length ? '; identical' : ''}`).join('\n') || 'Nothing to compare: name --repo and/or --account.');
+        return r.some((x) => x.only_packaged.length || x.only_recollected.length || x.differing.length) ? 1 : 0;
+      }
       if (cmd === 'audit' && dirArg === 'verify') {
         const r = verifyPackage(resolve(rest[0] ?? ''));
         out(json, r, () => r.ok ? `Verified: all ${r.files} files match the manifest, and nothing unlisted is present.\nPackage digest (SHA-256 of manifest.json): ${r.digest}` : `Does not verify:\n  ${r.problems.join('\n  ')}`);
