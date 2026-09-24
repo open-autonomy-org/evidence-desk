@@ -455,6 +455,13 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   // The latest attribution check travels with every package: it names the pull request behind each person's act, which
   // the firm traces, and it is a record of the program rather than evidence of any one control.
   if (readVersioned(root, 'sources/github/attribution.json')) paths.add('sources/github/attribution.json');
+  // A packaged GitHub deployments population travels with the Worker deployments matched against it: what reached
+  // production on Cloudflare is the other half of that population's completeness.
+  for (const g of ws.evidence.filter((x) => paths.has(x.path) && x.data.files.some((f) => f.path.includes('/github-deployments-')))) {
+    const partner = ws.evidence.filter((x) => x.data.files.some((f) => f.path.includes('/cloudflare-worker-deployments-')) && (x.data.notes ?? '').includes(g.data.id))
+      .sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
+    if (partner) { paths.add(partner.path); for (const f of partner.data.files) if (existsSync(join(root, f.path))) paths.add(f.path); }
+  }
   // So does the latest listing of non-human access: the machines an access review covers, and what a recorded credential
   // rotation is checked against.
   const machines = ws.evidence.filter((x) => x.data.files.some((f) => f.path.includes('/nonhuman-access-'))).sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
