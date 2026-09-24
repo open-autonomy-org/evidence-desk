@@ -175,7 +175,7 @@ ${snap.agents.map((a) => `- Agent profile ${a.profile}: ${a.jobs.map((j) => `${j
 Where people act:
 ${(snap.seams ?? []).map((x) => `- ${x.id}: held by ${x.scope} (${holders(x.scope)}), through ${x.door}; record: ${x.record}`).join('\n') || '- [the project declares no seams]'}
 
-Change and release as declared: ${snap.rules.pr_landing ? 'changes land through pull requests by the project\'s landing workflow' : '[describe how changes land]'}; ${prod ? `production is deployed by ${prod.workflow}${prod.tag_trigger ? ` on a ${prod.tag_trigger} tag` : ''} through the ${prod.environment} environment's required reviewers, with outbound access limited to ${prod.egress.join(', ') || '[none listed]'}` : '[describe how a change reaches production]'}.${(snap.rules.production_workflows ?? []).length > 1 ? ` Every run of ${snap.rules.production_workflows!.map((g) => `${g.workflow}${g.tag_trigger ? ` (${g.tag_trigger})` : ''}`).join(', ')} passes the same environment's review.` : ''}
+The project declares its change and release design: ${snap.rules.pr_landing ? 'changes land through pull requests by the project\'s landing workflow' : '[describe how changes land]'}; ${prod ? `production is to be deployed by ${prod.workflow}${prod.tag_trigger ? ` from a ${prod.tag_trigger} tag` : ''} through the ${prod.environment} environment's required reviewers, with outbound access limited to ${prod.egress.join(', ') || '[none listed]'}` : '[describe how a change reaches production]'}.${(snap.rules.production_workflows ?? []).length > 1 ? ` Every run of ${snap.rules.production_workflows!.map((g) => `${g.workflow}${g.tag_trigger ? ` (${g.tag_trigger})` : ''}`).join(', ')} passes the same environment's review.` : ''}
 ${(() => { const c = e.period ? periodPopulation(ws, e, 'changes to') : null; const d = e.period ? periodPopulation(ws, e, 'deployments of') : null; if (!c && !d) return '';
   const lines: string[] = [];
   if (c) { const prs = c.rows.filter((r) => r.kind === 'pull request'); const bad = c.rows.filter((r) => r.independent_approval !== 'yes');
@@ -371,9 +371,11 @@ export function draft(root: string, id: string, kind: 'description' | 'assertion
 // approved policy texts those requests name. Refuses when a referenced file is missing or no longer matches its record.
 // Claims a description commonly makes that the packaged populations can refute. Each rule reads the final text; a
 // contradiction stops the export, and every rule's outcome is a row of review/description-lint.csv.
-function lintDescription(ws: Workspace, e: Engagement, text: string): { rule: string; status: 'pass' | 'contradiction' | 'not applicable'; detail: string }[] {
+// The assertion is read beside the description: an open exception management has not disclosed in either is an omission.
+function lintDescription(ws: Workspace, e: Engagement, text: string, assertionText = ''): { rule: string; status: 'pass' | 'contradiction' | 'not applicable'; detail: string }[] {
   const out: ReturnType<typeof lintDescription> = [];
   const prose = text.replace(/```[\s\S]*?```/g, '');
+  const both = `${prose}\n${assertionText}`;
   const inc = latestPopulation(ws, 'incidents');
   const incRows = inc ? parseCsv(readFileSync(join(ws.root, inc.data.files[0].path), 'utf8'), inc.data.files[0].path).rows.filter((r) => inPeriod(r.detected_at, e)) : [];
   const serious = incRows.filter((r) => r.severity === 'high' || r.severity === 'critical');
@@ -382,20 +384,38 @@ function lintDescription(ws: Workspace, e: Engagement, text: string): { rule: st
     : (noneClaim && incRows.length) || (noSerious && serious.length) ? { rule: 'incidents', status: 'contradiction', detail: `the description says no ${noSerious ? 'high or critical ' : ''}incident is recorded; the incidents population (${inc!.data.id}) holds ${(noSerious ? serious : incRows).map((r) => `${r.id} (${r.severity})`).join(', ')}` }
     : { rule: 'incidents', status: 'pass', detail: `consistent with ${inc ? inc.data.id : 'no incidents population'}` });
   const c = e.period ? periodPopulation(ws, e, 'changes to') : null;
-  const unapproved = (c?.rows ?? []).filter((r) => r.independent_approval !== 'yes').map((r) => r.number ? `#${r.number}` : r.commit.slice(0, 12));
+  // What reached production without an approved change: unapproved merges, and Cloudflare deployments no approved GitHub
+  // deployment accounts for.
+  const worker = ws.evidence.filter((x) => x.data.files.some((f) => f.path.includes('/cloudflare-worker-deployments-') && f.path.endsWith('.csv')) && x.data.period && e.period && x.data.period.start <= e.period.start && x.data.period.end >= e.period.end).sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
+  const workerCsv = worker?.data.files.find((f) => f.path.endsWith('.csv'));
+  const offBook = workerCsv ? parseCsv(readFileSync(join(ws.root, workerCsv.path), 'utf8'), workerCsv.path).rows.filter((r) => r.matched !== 'yes').map((r) => r.deployment.slice(0, 8)) : [];
+  const unapproved = [...(c?.rows ?? []).filter((r) => r.independent_approval !== 'yes').map((r) => r.number ? `#${r.number}` : r.commit.slice(0, 12)), ...offBook];
   const reviewClaim = /\b(only|always|every change|all changes)\b(?:[^.\n]|\.(?=\S))*\breview/i.exec(prose);
   out.push(!reviewClaim || !c ? { rule: 'changes reviewed', status: 'not applicable', detail: reviewClaim ? 'no changes population for the period' : 'the description makes no claim that every change is reviewed' }
     : unapproved.every((x) => prose.includes(x)) ? { rule: 'changes reviewed', status: 'pass', detail: `"${reviewClaim[0]}"; ${unapproved.length ? `the description names ${unapproved.join(', ')}` : 'every change in the population was independently approved'} (${c.id})` }
     : { rule: 'changes reviewed', status: 'contradiction', detail: `"${reviewClaim[0]}", but ${unapproved.filter((x) => !prose.includes(x)).join(', ')} in ${c.id} had no independent approval and the description does not name them` });
   const d = e.period ? periodPopulation(ws, e, 'deployments of') : null;
   // A sentence runs to a full stop followed by a space; a path's dots (deploy.yml) stay inside it.
-  const tagClaim = /\bdeploy(?:s|ed)?\b(?:[^.\n]|\.(?=\S))*\b(?:from|on) an? \S+ tag\b/i.exec(prose);
-  const other = [...new Set((d?.rows ?? []).map((r) => r.run_event).filter((x) => x && x !== 'push'))];
-  out.push(!tagClaim || !d ? { rule: 'deployment trigger', status: 'not applicable', detail: tagClaim ? 'no deployments population for the period' : 'the description names no deploy trigger' }
-    : !other.length || other.every((x) => prose.includes(x)) ? { rule: 'deployment trigger', status: 'pass', detail: `"${tagClaim[0]}"; runs in ${d.id}: ${tally(d.rows.map((r) => r.run_event))}` }
-    : { rule: 'deployment trigger', status: 'contradiction', detail: `"${tagClaim[0]}", but runs in ${d.id} were started by ${tally(d.rows.map((r) => r.run_event))} and the description does not say so` });
+  // A claim that production deploys from a tag is a claim about what happened, unless the sentence says it is the declared
+  // design; then the operated trigger must be stated too.
+  const tagClaims = [...prose.matchAll(/[^.\n]*(?:\.(?=\S)[^.\n]*)*\bdeploy(?:s|ed)?\b(?:[^.\n]|\.(?=\S))*\b(?:from|on) an? \S+ tag\b[^.\n]*/gi)].map((m) => m[0]);
+  const events = [...new Set((d?.rows ?? []).map((r) => r.run_event).filter((x) => x && x !== 'push'))];
+  const flat = tagClaims.filter((x) => !/\bdeclare/i.test(x));
+  out.push(!tagClaims.length || !d ? { rule: 'deployment trigger', status: 'not applicable', detail: tagClaims.length ? 'no deployments population for the period' : 'the description names no deploy trigger' }
+    : flat.length && events.length ? { rule: 'deployment trigger', status: 'contradiction', detail: `"${flat[0].trim()}", but runs in ${d.id} were started by ${tally(d.rows.map((r) => r.run_event))}` }
+    : events.length && !events.every((x) => prose.includes(x)) ? { rule: 'deployment trigger', status: 'contradiction', detail: `the declared tag trigger is stated, but not that runs in ${d.id} were started by ${tally(d.rows.map((r) => r.run_event))}` }
+    : { rule: 'deployment trigger', status: 'pass', detail: `${flat.length ? 'every run started from the tag' : 'the declared trigger and the operated one are both stated'}; runs in ${d.id}: ${tally(d.rows.map((r) => r.run_event))}` });
+  // Every exception still open at the period's end is named in the description or the assertion.
+  const ident = (x: Record<string, string>) => /#\d+|deploy-v\d+|\b[0-9a-f]{8}(?=[0-9a-f-]*\b)|\bR-\d+\b|[\w.+-]+@[\w-]+\.[\w.-]+|AR-\d{8}-[0-9a-f]{6}/.exec(x.item)?.[0] ?? x.key.split(':')[1] ?? x.key;
+  const open = knownExceptions(ws, e).filter((x) => !x.resolved || (e.period && x.resolved > e.period.end));
+  const missing = open.filter((x) => !both.includes(ident(x)));
+  out.push(!open.length ? { rule: 'open exceptions disclosed', status: 'not applicable', detail: 'no exception is open at the period end' }
+    : missing.length ? { rule: 'open exceptions disclosed', status: 'contradiction', detail: `${missing.length} open exception(s) named in neither the description nor the assertion: ${missing.map((x) => `${ident(x)} (${x.key})`).join('; ')}` }
+    : { rule: 'open exceptions disclosed', status: 'pass', detail: `each of the ${open.length} open exception(s) is named` });
   return out;
 }
+
+const assertionOf = (root: string, id: string) => { const f = join(root, base(id), 'drafts', 'assertion.md'); return existsSync(f) ? readFileSync(f, 'utf8') : ''; };
 
 // The package's own README, hashed in the manifest with the other derived views.
 const readme = (organization: string, engagement: string, created: string, id: string, dangling: number) => `# SOC 2 audit package: ${organization}, engagement ${engagement}
@@ -519,7 +539,7 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     }
   }
   const draftDescription = join(root, base(id), 'drafts', 'description.md');
-  if (existsSync(draftDescription)) for (const l of lintDescription(ws, e.data, readFileSync(draftDescription, 'utf8')).filter((x) => x.status === 'contradiction')) problems.push(`the description contradicts the evidence (${l.rule}): ${l.detail}`);
+  if (existsSync(draftDescription)) for (const l of lintDescription(ws, e.data, readFileSync(draftDescription, 'utf8'), assertionOf(root, id)).filter((x) => x.status === 'contradiction')) problems.push(`the description contradicts the evidence (${l.rule}): ${l.detail}`);
   // A packaged response travels with its form's definition (the questions and correct answers it was graded against).
   for (const r of ws.responses) if (paths.has(`forms/responses/${r.data.id}.json`)) { const f = ws.forms.find((x) => x.data.id === r.data.form); if (f) paths.add(f.path); }
   if (problems.length) throw new Error(`the package cannot be exported:\n  ${problems.join('\n  ')}`);
@@ -542,7 +562,7 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     const log = execFileSync('git', ['-C', root, 'log', '--first-parent', '--format=%H %cI %an <%ae>%n    %s', 'HEAD', '--', '.'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     views.set('review/workspace-history.txt', `git log --first-parent HEAD -- . in the workspace repository at ${created}\n\n${log}`);
   } catch { /* a workspace that is not a Git repository has no history to ship */ }
-  if (described) views.set('review/description-lint.csv', writeCsv({ columns: ['rule', 'status', 'detail'], rows: lintDescription(ws, e.data, described) }));
+  if (described) views.set('review/description-lint.csv', writeCsv({ columns: ['rule', 'status', 'detail'], rows: lintDescription(ws, e.data, described, assertionOf(root, id)) }));
   views.set('README.md', readme(ws.manifest?.data.organization ?? '', e.data.id, created, id, omitted.length - 1));
   const derived = [...views].sort(([a], [b]) => a.localeCompare(b)).map(([p, text]) => {
     const dest = join(out, p);

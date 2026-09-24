@@ -253,11 +253,19 @@ export const RECORD_KINDS: Record<string, { date: string; columns: string[]; con
   credentials: { date: 'at', columns: ['id', 'at', 'by', 'custody_name', 'action', 'reason'], controls: ['AC-05'], finding: () => null },
   escalations: { date: 'received_at', columns: ['id', 'received_at', 'responded_at', 'channel', 'summary'], controls: ['OPS-01', 'GOV-07'],
     finding: (r) => r.responded_at ? null : `escalation ${r.id} has no recorded response` },
+  'restore-tests': { date: 'at', columns: ['id', 'at', 'by', 'store', 'backup_taken_at', 'restored_to', 'result', 'duration_minutes', 'notes'], controls: ['OPS-05', 'OPS-07'],
+    finding: (r) => r.result === 'passed' ? null : `restore test ${r.id} of ${r.store} did not pass (${r.result ?? 'no result'})` },
+  // The internal audit's own runs (the soc2 template's internal-audit job): not a person's seam, but recorded the same way.
+  'internal-audits': { date: 'at', columns: ['id', 'at', 'commit', 'items', 'findings'], controls: ['MON-04', 'MON-01'],
+    finding: (r) => Array.isArray(r.findings) && r.findings.length ? `internal audit ${r.id} found: ${(r.findings as string[]).join('; ')}` : null },
 };
+// Folders the template records that are no person's seam: read whenever the project has them.
+const PROGRAM_RECORDS = ['internal-audits'];
 export type SeamRecordsReport = { commit: string; populations: { seam: string; folder: string; file: string; evidence: string | null; rows: number; findings: string[] }[] };
 export function collectSeamRecords(root: string, input: { repo: string; start: string; end: string; by: string; commit?: string }): SeamRecordsReport {
   const snap = readProject(input.repo, input.commit ?? 'HEAD');
-  const seams = (snap.seams ?? []).filter((s) => s.door === 'commit' && /^records\/[a-z0-9-]+\/?$/.test(s.record) && RECORD_KINDS[s.id]);
+  const seams = [...(snap.seams ?? []).filter((s) => s.door === 'commit' && /^records\/[a-z0-9-]+\/?$/.test(s.record) && RECORD_KINDS[s.id]),
+    ...PROGRAM_RECORDS.filter((id) => git(input.repo, 'ls-tree', '--name-only', snap.commit, '--', `records/${id}/`).trim()).map((id) => ({ id, scope: 'the internal-audit job', door: 'commit' as const, record: `records/${id}/` }))];
   if (!seams.length) throw new Error(`${snap.account} at ${snap.commit.slice(0, 12)} declares no commit seam recorded under records/ (the soc2 template's incidents, break-glass, credentials, escalations)`);
   const applicable = new Set(loadWorkspace(root).controls.filter((x) => x.data.applicable).map((x) => x.data.id));
   const csv = (v: unknown) => { const t = v === undefined || v === null ? '' : typeof v === 'string' ? v : JSON.stringify(v); return /[",\n]/.test(t) ? `"${t.replaceAll('"', '""')}"` : t; };

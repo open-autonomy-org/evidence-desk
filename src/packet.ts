@@ -64,8 +64,39 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
         add({ ...base, key: `config-actor:${f.path.split('/').pop()!.replace(/-\d+\.csv$/, '')}:${r.id || `${r.ruleset_id}:${r.version}`}`, item: r.change || `${r.resource} ${r.old_value} → ${r.new_value}`, detail: r.actor ? `changed by ${r.actor}, who is not on the roster` : 'changed by no one the vendor names (a token without a user)', occurred: day(r.at) });
       if (t.columns.includes('weakens')) for (const r of t.rows.filter((r) => r.weakens === 'yes'))
         add({ ...base, key: `weakened:${r.ruleset_id}:${r.version}`, item: `ruleset ${r.ruleset} version ${r.version}`, detail: `${r.change}, by ${r.actor || 'no one named'}`, occurred: day(r.at) });
+      // The deploys the pipeline made (those matching an approved GitHub deployment) should run on a credential no person
+      // holds; one made with a person's own Cloudflare account puts a human key in the pipeline.
+      if (t.columns.includes('github_deployment')) {
+        const people = new Set((ws.registers.people?.data.rows ?? []).map((p) => (p.email ?? '').toLowerCase()).filter(Boolean));
+        const personal = t.rows.filter((r) => r.matched === 'yes' && people.has(r.author.toLowerCase()));
+        if (personal.length) add({ ...base, key: `personal-pipeline-credential:${f.path.split('/').pop()!.replace(/-\d+\.csv$/, '')}`, controls: 'AC-05', item: `${personal.length} pipeline deploy(s) by ${[...new Set(personal.map((r) => r.author))].join(', ')}`, detail: `the deploy workflow's Cloudflare credential belongs to a person (${[...new Set(personal.map((r) => r.author))].join(', ')}), not to a service account`, occurred: day(personal.map((r) => r.at).sort()[0]) });
+        // What the account's audit log should hold: each Worker deployment in the same period.
+        const cfLog = evidence.filter((x) => x.data.files.some((g) => g.path.includes('/cloudflare-changes-') && g.path.endsWith('.csv'))).at(-1);
+        const logCsv = cfLog?.data.files.find((g) => g.path.endsWith('.csv'));
+        if (logCsv) {
+          const logged = parseCsv(readFileSync(join(root, logCsv.path), 'utf8'), logCsv.path).rows;
+          const unlogged = t.rows.filter((r) => !logged.some((l) => l.resource.includes('script') && Math.abs(Date.parse(l.at) - Date.parse(r.at)) < 6e4));
+          if (unlogged.length) add({ ...base, key: `audit-log-gap:${logCsv.path.split('/').pop()!.replace(/-\d+\.csv$/, '')}`, controls: 'OPS-04', item: `${unlogged.length} of ${t.rows.length} Worker deployment(s) missing from the account audit log`, detail: `${cfLog!.data.id} is complete for what Cloudflare's audit log returned, but the log lacks deployments ${unlogged.map((r) => r.deployment.slice(0, 8)).join(', ')} that the Workers API lists; the log is not a complete record of changes`, occurred: day(unlogged[0].at), file: logCsv.path });
+        }
+      }
       if (t.columns.includes('github_deployment')) for (const r of t.rows.filter((r) => r.matched !== 'yes'))
         add({ ...base, key: `unmatched-deploy:${r.deployment}`, item: `Cloudflare deployment ${r.deployment.slice(0, 8)}${r.commit ? ` of ${r.commit.slice(0, 12)}` : ''}`, detail: `reached production ${r.matched === 'no' ? 'with no matching GitHub deployment' : 'with no commit recorded, so it matches no GitHub deployment'}; made by ${r.author || 'no one named'} from ${r.source || 'an unknown source'}${r.message ? ` (${r.message})` : ''}`, occurred: day(r.at) });
+      // A restore that did not pass, an internal audit's findings, and the audit's cadence across the period.
+      if (t.columns.includes('result') && f.path.includes('/restore-tests-')) for (const r of t.rows.filter((r) => r.result !== 'passed'))
+        add({ ...base, key: `restore-failed:${r.id}`, item: `restore test ${r.id} (${r.store})`, detail: `result ${r.result || 'not recorded'}`, occurred: day(r.at) });
+      if (f.path.includes('/internal-audits-')) {
+        for (const r of t.rows) { let found: string[] = []; try { found = JSON.parse(r.findings || '[]'); } catch { found = r.findings ? [r.findings] : []; }
+          found.forEach((x, i) => add({ ...base, key: `audit-finding:${r.id}:${i + 1}`, item: `internal audit ${r.id}`, detail: x, occurred: day(r.at) })); }
+        const at = t.rows.map((r) => Date.parse(r.at)).filter((x) => !Number.isNaN(x)).sort((a, b) => a - b);
+        const edges = [Date.parse(`${period.start}T00:00:00Z`), ...at, Date.parse(`${period.end}T23:59:59Z`)];
+        const gaps = edges.slice(1).map((x, i) => [edges[i], x]).filter(([a, b]) => b - a > 8 * 864e5);
+        if (gaps.length) add({ ...base, key: `audit-cadence:${f.path.split('/').pop()!.replace(/-\d+\.csv$/, '')}`, controls: 'MON-04', item: `${gaps.length} gap(s) of more than 8 days between internal audits`, detail: gaps.map(([a, b]) => `${new Date(a).toISOString().slice(0, 10)} to ${new Date(b).toISOString().slice(0, 10)}`).join('; '), occurred: new Date(gaps[0][0]).toISOString().slice(0, 10) });
+      }
+      // A change merged without its pre-merge checks passing is unverified (CHG-02).
+      if (t.columns.includes('checks_passed')) {
+        for (const r of t.rows.filter((r) => r.checks_passed === 'no')) add({ ...base, key: `unverified-change:${itemOf(r)}`, controls: 'CHG-02', item: itemOf(r), detail: `merged with checks ${r.checks}`, occurred: at(r) });
+        if (t.rows.length && t.rows.every((r) => r.checks_passed === 'none')) add({ ...base, key: `no-checks:${f.path.split('/').pop()!.replace(/-\d+\.csv$/, '')}`, controls: 'CHG-02', item: `${t.rows.length} change(s)`, detail: 'no change carries a check run: nothing verifies a change before it merges', occurred: at(t.rows[0]) });
+      }
       if (t.columns.includes('run_conclusion')) for (const r of t.rows.filter((r) => r.run && r.run_conclusion !== 'success'))
         add({ ...base, key: `run:${ev.data.controls.join('+')}:${itemOf(r)}`, item: itemOf(r), detail: `the run ${r.run} that deployed it ended ${r.run_conclusion || 'without a conclusion'}, yet the deployment reads ${r.final_state}`, occurred: at(r) });
     }
@@ -150,7 +181,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   }
 
   const views = new Map<string, string>();
-  views.set('review/exceptions.csv', writeCsv({ columns: ['key', 'source', 'controls', 'item', 'detail', 'occurred', 'detected', 'resolved', 'closed_by', 'response', 'responded_by', 'response_cites', 'file'], rows: exceptions.map((x) => ({ ...x, closed_by: x.closed_by ?? '', response_cites: x.response_cites ?? '' })) }));
+  views.set('review/exceptions.csv', writeCsv({ columns: ['key', 'source', 'controls', 'item', 'detail', 'occurred', 'detected', 'resolved', 'closed_by', 'open_at_period_end', 'response', 'responded_by', 'response_cites', 'file'], rows: exceptions.map((x) => ({ ...x, closed_by: x.closed_by ?? '', open_at_period_end: !x.resolved || x.resolved > period.end ? 'yes' : 'no', response_cites: x.response_cites ?? '' })) }));
   const days = (() => { const out: string[] = []; for (let t = Date.parse(`${period.start}T00:00:00Z`); t <= Date.parse(`${period.end}T00:00:00Z`); t += 864e5) out.push(new Date(t).toISOString().slice(0, 10)); return out; })();
   const coverage = new Map<string, { days: number; pass: number; fail: number; error: number }>();
   for (const [check, rows] of history) {
