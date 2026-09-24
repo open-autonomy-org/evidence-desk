@@ -54,6 +54,10 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     // Only a population can be read early: an act over a period (an access review) is dated by its sign-off.
     if (ev.data.period && ev.data.files.some((f) => f.path.includes('/populations/')) && day(ev.data.collected_at) <= ev.data.period.end) add({ key: `interim:${ev.data.id}`, occurred: day(ev.data.collected_at), source: ev.data.title, controls: ev.data.controls.join(';'), item: 'read before its period ended', detail: `collected ${day(ev.data.collected_at)} for a period ending ${ev.data.period.end}: rows after the collection are missing; collect again after the period ends`, detected: day(ev.data.collected_at), resolved: '', file: ev.path });
   }
+  // An access review whose reviewer decided on their own account: the one decision a review cannot make independently.
+  for (const a of ws.accessReviews.filter((x) => packaged.has(`reviews/access/${x.data.id}.json`) && x.data.status === 'signed-off' && inside(x.data.signed_off_at ?? '', period)))
+    for (const acct of a.data.accounts.filter((x) => x.person && x.person === a.data.reviewer))
+      add({ key: `self-review:${a.data.id}:${acct.account}`, source: `access review ${a.data.id} (${a.data.system})`, controls: 'AC-03', item: acct.account, detail: `the reviewer ${a.data.reviewer} decided on their own access (${acct.decision})`, occurred: day(a.data.signed_off_at ?? ''), detected: day(a.data.signed_off_at ?? ''), resolved: '', file: `reviews/access/${a.data.id}.json` });
   // Signed acts not recorded by their own person.
   if (packaged.has('sources/github/attribution.json')) {
     const a = JSON.parse(readFileSync(join(root, 'sources/github/attribution.json'), 'utf8')) as { checked_at: string; rows: { key: string; person: string; label: string; status: string; author: string; at?: string; committed_at?: string }[] };
