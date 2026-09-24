@@ -185,10 +185,11 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
 // The roster's history as a population: every commit that changed `team` in the period, with who made it and which
 // people or scopes it added or removed. Complete by construction: git log lists every commit touching the file.
 export function collectRosterHistory(root: string, input: { repo: string; start: string; end: string; by: string }): { evidence: string; rows: number } {
-  // Every commit touching the file, filtered by date here: git's --since stops walking at the first older commit, so a
-  // history whose dates are not monotonic (clock skew, rebased or imported commits) would silently lose changes.
+  // The branch's own line (first parents), each change dated by when it reached the branch (the committer date of the
+  // commit on that line, a merge commit for a merged pull request), filtered by date here: git's --since stops walking
+  // at the first older commit, so a history whose dates are not monotonic would silently lose changes.
   const inPeriod = (at: string) => { const d = new Date(at).toISOString().slice(0, 10); return d >= input.start && d <= input.end; };
-  const log = git(input.repo, 'log', '--format=%H%x09%an%x09%ae%x09%aI%x09%s', '--', '.open-autonomy/config.yaml')
+  const log = git(input.repo, 'log', '--first-parent', '--format=%H%x09%an%x09%ae%x09%cI%x09%s', '--', '.open-autonomy/config.yaml')
     .split('\n').filter(Boolean).map((l) => { const [sha, name, email, at, subject] = l.split('\t'); return { sha, name, email, at, subject }; }).filter((c) => inPeriod(c.at));
   const teamAt = (ref: string): Map<string, string[]> => {
     const text = show(input.repo, ref, '.open-autonomy/config.yaml');
@@ -198,7 +199,7 @@ export function collectRosterHistory(root: string, input: { repo: string; start:
   const rows: Record<string, string>[] = [];
   for (const c of log.reverse()) {
     let parent: string | null = null;
-    try { parent = git(input.repo, 'rev-parse', `${c.sha}^`).trim(); } catch { parent = null; }
+    try { parent = git(input.repo, 'rev-parse', `${c.sha}^1`).trim(); } catch { parent = null; }
     const before = parent ? teamAt(parent) : new Map<string, string[]>();
     const after = teamAt(c.sha);
     const changes: string[] = [];
@@ -215,8 +216,8 @@ export function collectRosterHistory(root: string, input: { repo: string; start:
   const applicable = new Set(loadWorkspace(root).controls.filter((x) => x.data.applicable).map((x) => x.data.id));
   const evidence = addEvidence(root, {
     title: `Population: ${rows.length} changes to who holds authority, ${input.start} to ${input.end}`, controls: ['AC-02', 'HR-03', 'HR-04'].filter((x) => applicable.has(x)), files: [rel], recorded_by: input.by,
-    period: { start: input.start, end: input.end }, source: { kind: 'open-autonomy', name: 'team roster', query: `git log -- .open-autonomy/config.yaml, keeping commits authored ${input.start}..${input.end} (UTC), comparing team at each commit and its parent` },
-    notes: 'Complete by construction: every commit touching the roster file in the period is listed.',
+    period: { start: input.start, end: input.end }, source: { kind: 'open-autonomy', name: 'team roster', query: `git log --first-parent -- .open-autonomy/config.yaml, keeping commits that reached the branch ${input.start}..${input.end} (UTC committer date), comparing team at each commit and its first parent` },
+    notes: 'Complete by construction: every commit on the branch\'s first-parent line that changed the roster file and reached the branch in the period is listed.',
   });
   return { evidence, rows: rows.length };
 }
