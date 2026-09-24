@@ -38,7 +38,8 @@ manifest's `derived` list (the README too), and every line names the file it com
 Each population in `index.html` carries a test memo: how many items it holds and whether its completeness comes from
 the system of record or from records the organization keeps itself. A change merged without an independent approval
 that no break-glass record names is an exception of its own. A management response lists the workspace files it
-cites; one citing nothing says so. The package is not exported while any exception has no response.
+cites; one citing nothing says so. The package is not exported while any exception has no response; `audit <dir> <id>
+exceptions` lists the register the package will carry and which rows are answered.
 
 - `review/claims.csv`: every dated claim in the description, the assertion and management's responses, tied to the
   packaged line that records its date and names its subject, and graded by where that line came from: a vendor's own

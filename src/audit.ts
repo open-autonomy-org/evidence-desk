@@ -856,6 +856,14 @@ export function packageState(dir: string) {
 // Management's response to an exception the package derives (review/exceptions.csv names each by key): what happened,
 // what was done and by when. It is a person's statement, kept beside the engagement and shown with the exception.
 // A response names the workspace files behind its claims (--cite); each must exist, and it travels in the package.
+// The exceptions register as the package will list it, with each response recorded so far: management answers every
+// row before the package can be exported.
+export function exceptionsRegister(root: string, id: string): Record<string, string>[] {
+  const ws = loadWorkspace(root);
+  const e = readEngagement(root, id).data;
+  return parseCsv(buildViews(root, ws, e, listRequests(root, id), derivable(ws), now()).get('review/exceptions.csv')!, 'exceptions.csv').rows;
+}
+
 export function respondToException(root: string, id: string, key: string, text: string, by: string, cites: string[] = []): { file: string } {
   readEngagement(root, id);
   if (!text.trim()) throw new Error('the response needs --response <text>');

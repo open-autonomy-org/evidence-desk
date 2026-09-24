@@ -19,7 +19,7 @@ import { collectRosterHistory, collectSeamRecords, importOpenAutonomy, readProje
 import { checkCompleteness, collectChanges, collectDeployments, collectAttribution, collectNonHumanAccess, collectRuleChanges, syncReminders } from './github.ts';
 import { collectCloudflareChanges, collectWorkerDeployments } from './cloudflare.ts';
 import { COLLECTORS, checkTitle, ciWorkflow, configureCollector, readSettings, runChecks } from './automation.ts';
-import { respondToException, actOnRequest, createEngagement, draft, exportPackage, firmSummary, importRequests, importReturn, listRequests, readEngagement, verifyPackage } from './audit.ts';
+import { exceptionsRegister, respondToException, actOnRequest, createEngagement, draft, exportPackage, firmSummary, importRequests, importReturn, listRequests, readEngagement, verifyPackage } from './audit.ts';
 import { clockDate } from './clock.ts';
 
 const USAGE = `evidence-desk <command> <workspace> [options]
@@ -82,6 +82,7 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                      [--evidence <id>,...] [--population <evidence id>] [--select <item>,...]
                      [--sample <item>=provided|exception] [--sample-evidence <item>=<evidence id>]
   audit <dir> <id> draft description|assertion|bridge [--to <date>]
+  audit <dir> <id> exceptions              the exceptions register the package will carry, and which are answered
   audit <dir> <id> exception <key> --response <text> --by <person> [--cite <workspace file> ...]
                                           management's response to an exception the package lists
   audit <dir> <id> export --out <folder>  a package of exactly what the requests point at, with hashes
@@ -474,6 +475,11 @@ async function main(argv: string[]): Promise<number> {
         const reqs = listRequests(dir, id).map((r) => r.data);
         out(json, { engagement: e, requests: reqs }, () => [`${e.id}: ${e.type === 'type1' ? `Type 1 as of ${e.as_of}` : `Type 2, ${e.period!.start} to ${e.period!.end}`}, ${e.firm}, ${e.status}`,
           ...reqs.map((r) => `  ${r.id.padEnd(10)} ${r.status.padEnd(9)} ${r.kind.padEnd(10)} ${r.title}${r.samples?.length ? ` [${r.samples.map((x) => `${x.item}:${x.status}`).join(', ')}]` : ''}`)].join('\n'));
+        return 0;
+      }
+      if (action === 'exceptions') {
+        const rows = exceptionsRegister(dir, id);
+        out(json, rows, () => rows.map((x) => `${x.response ? 'answered  ' : 'UNANSWERED'} ${x.key}\n           ${x.item}: ${x.detail}`).join('\n') || 'No exceptions.');
         return 0;
       }
       if (action === 'exception') {

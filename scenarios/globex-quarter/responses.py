@@ -1,6 +1,6 @@
-# responses.py <workspace> <dry package>: management's response to each exception, citing the workspace files behind it
+# responses.py <workspace> <exceptions register as JSON>: management's response to each exception, citing the workspace files behind it
 import csv,glob,json,os,subprocess,sys
-W,D=sys.argv[1],sys.argv[2]
+W,X=sys.argv[1],sys.argv[2]
 rel=lambda p: os.path.relpath(p,W)
 def one(pat): m=sorted(glob.glob(os.path.join(W,pat))); return rel(m[-1]) if m else None
 chg_csv=one('evidence/files/populations/github-changes-*.csv'); chg_raw=one('evidence/files/populations/github-changes-*.raw.json')
@@ -17,7 +17,7 @@ R={}
 glass=one('evidence/files/populations/break-glass-*.history.txt'); glass_csv=one('evidence/files/populations/break-glass-*.csv')
 workers=one('evidence/files/populations/cloudflare-worker-deployments-*.csv')
 audits=one('evidence/files/populations/internal-audits-*.csv'); restores=one('evidence/files/populations/restore-tests-*.csv')
-for r in csv.DictReader(open(os.path.join(D,'review/exceptions.csv'))):
+for r in json.load(open(X)):
     k=r['key']
     if k.startswith('unmatched-deploy:'):
         R[k]=("Sam deployed the relay Worker from a laptop at 18:20 UTC on 2026-09-10 with a personal Cloudflare token, to raise the replay limit "
@@ -26,6 +26,11 @@ for r in csv.DictReader(open(os.path.join(D,'review/exceptions.csv'))):
               "merged through review and deployed as deploy-v6 at 11:00 UTC that day, so unreviewed code ran for about 17 hours. We accept it as "
               "a deviation from the change path. Reducing Sam's personal Cloudflare access to read-only is a Q4 action (management review of "
               "2026-09-25), not yet done.",[workers,glass_csv,glass])
+    elif k.startswith('check:cloudflare-change-actors'):
+        R[k]=("This reading is Sam's deploy of the relay Worker from a laptop at 18:20 UTC on 2026-09-10, made with his personal Cloudflare "
+              "token; the Cloudflare deployments population lists the same deploy, and management's response to that deployment's exception "
+              "gives what happened and what follows. No one acknowledged the failing reading before Sam's break-glass record of 2026-09-11.",
+              [cf_changes,snap('2026-09-10','cloudflare'),glass])
     elif k.startswith('check:cloudflare-https'):
         R[k]=("Sam turned Always Use HTTPS off on relay.globex.test at 16:00 UTC on 2026-08-19 while testing a redirect, and Maya turned it back "
               "on at 10:00 UTC on 2026-08-21 (the account audit log in the configuration-changes population). The daily check found it on 08-19, and Maya "
