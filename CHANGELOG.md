@@ -14,8 +14,9 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
   keeps one issue per owned due or overdue obligation in the workspace repository, assigned to its owner, and closes it
   once met; the daily workflow runs both. Verified in the World against the GitHub twin, whose personal tokens now own
   their writes and whose commit-to-pull-request lookup follows GitHub's default-branch rule
-  ([volter-ai/twin d88ec450](https://github.com/volter-ai/twin/commit/d88ec450)). The daily workflow no longer writes an
-  empty `env:` when no collector is enabled.
+  ([volter-ai/twin d88ec450](https://github.com/volter-ai/twin/commit/d88ec450)). Background checks and offboarding are
+  now owed by the owner of HR-01 and HR-04, never by the person joining or leaving. The daily workflow no longer writes
+  an empty `env:` when no collector is enabled.
 - Added `collect seam-records`: each commit seam an Open Autonomy project records under `records/` (the `soc2`
   template's incidents, break-glass changes, credential lifecycle and escalations) becomes a period population with
   the commit and author that added each record, as evidence for its controls. A closed incident without a review, a

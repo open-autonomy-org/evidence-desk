@@ -147,7 +147,8 @@ export type AttributionStatus = 'verified' | 'no GitHub account on the roster' |
   | 'not on GitHub' | 'no merged pull request' | 'recorded by someone else';
 export type Attribution = { key: string; kind: Act['kind']; file: string; person: string; label: string; value_sha256: string; commit: string; pull: string; author: string; expected: string; status: AttributionStatus };
 export const actDigest = (v: unknown) => createHash('sha256').update(JSON.stringify(v ?? null)).digest('hex');
-export async function collectAttribution(root: string, input: { repo: string; by: string }): Promise<{ record: string; evidence: string | null; rows: Attribution[] }> {
+const writeCsvFile = (root: string, rel: string, rows: Attribution[]) => writeVersioned(root, rel, writeCsv({ columns: ['key', 'kind', 'file', 'person', 'label', 'value_sha256', 'commit', 'pull', 'author', 'expected', 'status'], rows }), null);
+export async function collectAttribution(root: string, input: { repo: string; by: string }): Promise<{ record: string; file: string; evidence: null; rows: Attribution[] }> {
   if (!/^[\w.-]+\/[\w.-]+$/.test(input.repo)) throw new Error('--repo names the workspace\'s own GitHub repository as owner/name');
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
   if (!latest) throw new Error('import the Open Autonomy project first (evidence-desk open-autonomy import): its roster holds each person\'s GitHub account');
@@ -171,13 +172,15 @@ export async function collectAttribution(root: string, input: { repo: string; by
     const row: Attribution = { key: act.key, kind: act.kind, file: act.file, person: act.person, label: act.label, value_sha256: actDigest(current), commit: '', pull: '', author: '', expected, status: 'verified' };
     rows.push(row);
     if (!expected) { row.status = 'no GitHub account on the roster'; continue; }
-    // Newest first: the act's present content was introduced by the oldest commit of the newest run holding it.
-    const commits = git('log', '--no-renames', '--format=%H', ref, '--', act.file).split('\n').filter(Boolean);
+    // The default branch's own line (first parents), newest first: the act was introduced by the newest commit whose
+    // first parent did not hold it. A merge commit maps to the pull request it merged; a pull request's branch commits
+    // are never walked, so another pull request touching the same file cannot be mistaken for the act's.
+    const commits = git('log', '--first-parent', '--no-renames', '--format=%H', ref, '--', act.file).split('\n').filter(Boolean);
     const same = (c: string) => actDigest(act.extract(at(c, act.file))) === row.value_sha256;
     if (!commits.length || actDigest(act.extract(at(ref, act.file))) === actDigest(null)) { row.status = 'not on the default branch'; continue; }
     if (!same(ref)) { row.status = 'changed since merged'; continue; }
     let intro = '';
-    for (const c of commits) { if (same(c)) intro = c; else break; }
+    for (const c of commits) { if (!same(c)) break; intro = c; if (!same(`${c}^1`)) break; }
     row.commit = intro;
     const found = await pullsOf(intro);
     if (!found) { row.status = 'not on GitHub'; continue; }
@@ -190,18 +193,12 @@ export async function collectAttribution(root: string, input: { repo: string; by
   const rel = 'sources/github/attribution.json';
   const record = { schema: 'evidence-desk.attribution/1', repo: input.repo, branch, workspace_path: prefix, checked_at: now(), roster_commit: snap.commit, rows };
   writeVersioned(root, rel, JSON.stringify(record, null, 2) + '\n', readVersioned(root, rel)?.version ?? null);
-  const verified = rows.filter((x) => x.status === 'verified');
-  const ws = loadWorkspace(root);
-  const forms = new Map(ws.forms.map((f) => [f.data.id, f.data.controls]));
-  const KIND_CONTROLS: Record<Act['kind'], string[]> = { response: [], 'access-review': ['AC-03'], 'policy-approval': ['GOV-04'], 'incident-closure': ['OPS-03'] };
-  const controls = applicableOf(root, [...new Set(verified.flatMap((x) => x.kind === 'response' ? forms.get(ws.responses.find((r) => `response:${r.data.id}` === x.key)?.data.form ?? '') ?? [] : KIND_CONTROLS[x.kind]))]);
+  // The check's rows are kept as a file for the audit, not recorded as evidence of the acts' controls: evidence dates
+  // decide when a periodic control is next due, and a daily check would make a year-old review look current.
   const csv = `evidence/files/populations/attribution-${Date.now()}.csv`;
-  writeVersioned(root, csv, writeCsv({ columns: ['key', 'kind', 'file', 'person', 'label', 'value_sha256', 'commit', 'pull', 'author', 'expected', 'status'], rows }), null);
-  const evidence = controls.length ? addEvidence(root, {
-    title: `${verified.length} of ${rows.length} signed acts recorded by the person's own GitHub account`, controls, files: [csv], recorded_by: input.by,
-    source: { kind: 'collector', name: 'github', query: `git log --no-renames ${ref} for each act's file, finding the commit that brought the act to its present content; GET /repos/${input.repo}/commits/{sha}/pulls, requiring a pull request merged into ${branch} and opened by the person on the roster at ${snap.commit.slice(0, 12)}` },
-  }) : null;
-  return { record: rel, evidence, rows };
+  writeCsvFile(root, csv, rows);
+  const evidence = null;
+  return { record: rel, file: csv, evidence, rows };
 }
 
 // Reminders for what people owe, as issues in the workspace's own repository: one open issue per owned obligation that
@@ -228,36 +225,37 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
   const title = (o: (typeof owed)[number]) => `${o.state === 'overdue' ? `Overdue since ${o.due}` : 'Due'}: ${o.what} (${o.who})`;
   const open = (await all<{ number: number; title: string; body?: string | null }>(`/repos/${input.repo}/issues?state=open&labels=${LABEL}`)).items;
   const result = { opened: [] as string[], retitled: [] as string[], closed: [] as string[], kept: 0 };
-  const wanted = new Set<string>();
-  // Obligations no one owns share one issue that lists them, so a new workspace does not open one issue per control.
   const unowned = owed.filter((o) => !o.who);
-  if (unowned.length) {
-    const m = marker({ kind: 'unowned', what: '', who: '' });
-    wanted.add(m);
-    const t = `${unowned.length} obligation${unowned.length === 1 ? ' has' : 's have'} no one assigned`;
-    const body = ['Assign an owner in the workspace for each of these; each then gets its own reminder.', unowned.map((o) => `- ${o.what}${o.state === 'overdue' ? ` (overdue since ${o.due})` : ''}`).join('\n'), m].join('\n\n');
-    const existing = open.find((i) => (i.body ?? '').includes(m));
-    if (!existing) { await send('POST', `/repos/${input.repo}/issues`, { title: t, body, labels: [LABEL] }); result.opened.push(t); }
-    else if (existing.title !== t || existing.body !== body) { await send('PATCH', `/repos/${input.repo}/issues/${existing.number}`, { title: t, body }); result.retitled.push(t); }
-    else result.kept++;
-  }
-  for (const o of owed.filter((x) => x.who)) {
-    const m = marker(o);
-    wanted.add(m);
-    const existing = open.find((i) => (i.body ?? '').includes(m));
-    if (existing) {
-      if (existing.title !== title(o)) { await send('PATCH', `/repos/${input.repo}/issues/${existing.number}`, { title: title(o) }); result.retitled.push(title(o)); } else result.kept++;
-      continue;
-    }
-    const login = team.find((t) => t.id === o.who)?.github;
-    const body = [`${o.what} is ${o.state === 'overdue' ? 'overdue' : 'due'} on ${o.due}, owed by ${o.who}.`,
-      o.controls.length ? `Controls: ${o.controls.join(', ')}.` : '', 'Record it in the workspace in a pull request of your own; this issue closes once the workspace shows it done.', m].filter(Boolean).join('\n\n');
-    await send('POST', `/repos/${input.repo}/issues`, { title: title(o), body, labels: [LABEL], ...(login ? { assignees: [login] } : {}) });
-    result.opened.push(title(o));
-  }
+  const unownedMarker = marker({ kind: 'unowned', what: '', who: '' });
+  const wanted = new Set([...owed.filter((o) => o.who).map(marker), ...(unowned.length ? [unownedMarker] : [])]);
+  // Close first, so an error on a later write never leaves a met obligation's issue open.
   for (const i of open) {
     const m = /<!-- evidence-desk:obligation [0-9a-f]{16} -->/.exec(i.body ?? '')?.[0];
     if (m && !wanted.has(m)) { await send('PATCH', `/repos/${input.repo}/issues/${i.number}`, { state: 'closed', state_reason: 'completed' }); result.closed.push(i.title); }
+  }
+  const upsert = async (m: string, t: string, body: string, login?: string) => {
+    const existing = open.find((i) => (i.body ?? '').includes(m));
+    if (existing) {
+      if (existing.title !== t || existing.body !== body) { await send('PATCH', `/repos/${input.repo}/issues/${existing.number}`, { title: t, body }); result.retitled.push(t); } else result.kept++;
+      return;
+    }
+    // GitHub refuses an assignee who cannot be assigned in the repository (not a collaborator): open it unassigned.
+    try { await send('POST', `/repos/${input.repo}/issues`, { title: t, body, labels: [LABEL], ...(login ? { assignees: [login] } : {}) }); }
+    catch (e) {
+      if (!login || !/answered 422/.test((e as Error).message)) throw e;
+      await send('POST', `/repos/${input.repo}/issues`, { title: t, body: body.replace(m, `${login} cannot be assigned in this repository.\n\n${m}`), labels: [LABEL] });
+    }
+    result.opened.push(t);
+  };
+  // Obligations no one owns share one issue that lists them, so a new workspace does not open one issue per control.
+  if (unowned.length) await upsert(unownedMarker, `${unowned.length} obligation${unowned.length === 1 ? ' has' : 's have'} no one assigned`,
+    ['Assign an owner in the workspace for each of these; each then gets its own reminder.', unowned.map((o) => `- ${o.what}${o.state === 'overdue' ? ` (overdue since ${o.due})` : ''}`).join('\n'), unownedMarker].join('\n\n'));
+  for (const o of owed.filter((x) => x.who)) {
+    const m = marker(o);
+    const login = team.find((t) => t.id === o.who)?.github;
+    const body = [`${o.what} is ${o.state === 'overdue' ? `overdue since ${o.due}` : 'due'}, owed by ${o.who}.`,
+      o.controls.length ? `Controls: ${o.controls.join(', ')}.` : '', 'Record it in the workspace in a pull request of your own; this issue closes once the workspace no longer shows it owed.', m].filter(Boolean).join('\n\n');
+    await upsert(m, title(o), body, login);
   }
   return result;
 }

@@ -213,6 +213,7 @@ jobs:
 ${secrets.length ? `        env:\n${secrets.map((s) => `          ${s}: \${{ secrets.${secretName(s)} }}`).join('\n')}\n` : ''}        run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" run . --by "\${{ vars.EVIDENCE_DESK_RECORDER }}"
       - name: Check who recorded each signed act
         if: hashFiles('sources/open-autonomy/latest.json') != ''
+        continue-on-error: true
         env:
           GITHUB_TOKEN: \${{ github.token }}
         run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" collect . attribution --repo "\${{ github.repository }}" --by "\${{ vars.EVIDENCE_DESK_RECORDER }}"

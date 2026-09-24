@@ -363,7 +363,7 @@ async function main(argv: string[]): Promise<number> {
       if (rest[0] === 'attribution') {
         const r = await collectAttribution(dir, { repo: one(a, 'repo') ?? '', by: one(a, 'by') ?? '' });
         const bad = r.rows.filter((x) => x.status !== 'verified');
-        out(json, r, () => [`${r.rows.length - bad.length} of ${r.rows.length} signed acts recorded by the person's own GitHub account (${r.record}${r.evidence ? `, ${r.evidence}` : ''}).`, ...bad.map((x) => `  ${x.person}: ${x.label}: ${x.status}${x.author ? ` (${x.author})` : ''}`)].join('\n'));
+        out(json, r, () => [`${r.rows.length - bad.length} of ${r.rows.length} signed acts recorded by the person's own GitHub account (${r.record}, ${r.file}).`, ...bad.map((x) => `  ${x.person}: ${x.label}: ${x.status}${x.author ? ` (${x.author})` : ''}`)].join('\n'));
         return 0;
       }
       const [start, end] = (one(a, 'period') ?? '').split('..');

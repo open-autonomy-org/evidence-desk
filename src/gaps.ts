@@ -47,8 +47,9 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
       if (!last) program.push(`Open Autonomy: the administrators of ${acct.vendor} ${acct.account} have not been compared with the roster`);
       else for (const o of last.outside) program.push(`Open Autonomy: ${o} administers ${acct.vendor} ${acct.account} but is not on the roster`);
     }
-    // Every act a roster member signs must have been recorded by their own GitHub account: their latest passed response
-    // per form, each access review sign-off, each policy's latest approval, each incident's closing review.
+    // Every signed act must have been recorded by its person's own GitHub account on the roster: each person's latest
+    // passed response per form, each access review sign-off, each policy's latest approval, each incident's closing. A
+    // signer who is not on the roster has no account to check, which is itself the finding.
     const attributed = readVersioned(ws.root, 'sources/github/attribution.json');
     const record = attributed ? JSON.parse(attributed.text) as { roster_commit: string; rows: { key: string; value_sha256: string; status: string; author: string }[] } : null;
     if (record && record.roster_commit !== snap.commit) program.push(`Open Autonomy: signed acts were checked against the roster at ${record.roster_commit.slice(0, 12)}, not ${snap.commit.slice(0, 12)} (collect attribution)`);
@@ -58,7 +59,7 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
       if ((latestResponse.get(k)?.at ?? '') < r.data.submitted_at) latestResponse.set(k, { id: r.data.id, at: r.data.submitted_at });
     }
     const latestIds = new Set([...latestResponse.values()].map((x) => `response:${x.id}`));
-    const acts = signedActs(ws.root).filter((a) => snap.team.some((m) => m.id === a.person) && (a.kind !== 'response' || latestIds.has(a.key)));
+    const acts = signedActs(ws.root).filter((a) => a.kind !== 'response' || latestIds.has(a.key));
     if (acts.length && !record) program.push('Open Autonomy: signed acts (onboarding, access review sign-offs, policy approvals, incident closures) have not been checked against the people\'s GitHub accounts (collect attribution)');
     else for (const a of acts) {
       const value = actDigest(a.extract(JSON.parse(readVersioned(ws.root, a.file)!.text)));

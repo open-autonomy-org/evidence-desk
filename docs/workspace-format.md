@@ -94,7 +94,8 @@ Evidence about one person (a background check, an offboarding) names them as `su
 
 `evidence-desk obligations` derives what is owed from the files: periodic controls one interval after their latest
 evidence; each current person's forms within the form's `due_within_days` of their start date and yearly after for
-annual forms; a background check by the start date when required; access removal the day after a person's `end_date`;
+annual forms; a background check by the start date when required and access removal the day after a person's
+`end_date`, both owed by the owner of that control and naming the person as `subject`;
 yearly reviews of medium and high criticality vendors; risk `review_due` dates; vulnerability `due_on` dates; and open
 incidents. An overdue obligation is a gap on its controls. A vulnerability fixed after its due date is shown as done and
 flagged as an exception to report.
@@ -125,16 +126,19 @@ finds them; a declared seam never collected is a finding too.
 Signed acts at a seam: the workspace is kept in a private GitHub repository the roster members can open pull requests
 to, and each person records the acts the workspace names them in (a form response, an access review's sign-off, a
 policy's latest approval, the update that closed an incident) in a pull request they open. `collect attribution`
-finds, on the default branch (`git log --no-renames origin/<default>`), the commit that brought each act to its present
-content, and requires GitHub to associate it with a pull request merged into the default branch and opened by the
+finds, on the default branch's first-parent line (`git log --first-parent origin/<default>`), the commit that brought
+each act to its present content, and requires GitHub to associate it with a pull request merged into the default branch and opened by the
 person's GitHub account on the roster; the working file must hold the act as merged. A shallow clone is refused. A
 roster member's act that fails this (for responses, their latest passed one per form), or changed after the check, is a
 finding in the gap view, as is a check made against an earlier roster. A collaborator who pushes a commit to a person's
-open pull request branch is not told apart from them. Register rows (risks, vendors) are not yet attributed.
+open pull request branch is not told apart from them. Register rows (risks, vendors) are not yet attributed. A signer
+who is not on the roster is a finding. The rows are written under `evidence/files/populations/` for the audit and are
+not recorded as evidence of any control: evidence dates decide when a periodic control is next due.
 
 `remind` keeps one issue labelled `evidence-desk` in the workspace repository for each owned obligation that is due or
-overdue, assigned to the owner's GitHub account on the roster, retitled when it becomes overdue and closed once the
-obligation is met; obligations no one owns share one issue that lists them. The daily workflow that `ci-template` writes runs
+overdue, assigned to the owner's GitHub account on the roster (unassigned when GitHub refuses the assignee), updated when
+it becomes overdue and closed once the workspace no longer shows it owed (met, or its owner or title changed, which opens
+its successor); obligations no one owns share one issue that lists them. The daily workflow that `ci-template` writes runs
 the attribution check (where an Open Autonomy roster was imported) and the reminders with the repository's own token.
 
 `evidence-desk collect` writes populations under `evidence/files/populations/` with the requests that produced them:
