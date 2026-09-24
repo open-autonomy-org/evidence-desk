@@ -489,6 +489,9 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
     // A count of what the assertion describes is the number of its matters.
     [/(?:control )?(?:deviations?|matters?) (?:are |is )?(?:described|listed|named) in the assertion/, () => { const a = assertionOf(root, id); return a ? (a.match(/^\([a-z]\) /gm) ?? []).length : null; }],
   ];
+  // The day a system created inside the period began operating bounds what the assertion covers, as the period's own
+  // days do.
+  const goLive = (e.period ? periodPopulation(ws, e, 'configuration of')?.rows ?? [] : []).filter((r) => r.action === 'create' && r.resource.startsWith('script ')).map((r) => r.at.slice(0, 10)).sort()[0] ?? '';
   const texts: { source: string; text: string; about?: string[] }[] = [];
   for (const k of ['description', 'assertion']) { const f = join(root, base(id), 'drafts', `${k}.md`); if (existsSync(f)) texts.push({ source: k, text: readFileSync(f, 'utf8').replace(/```[\s\S]*?```/g, '') }); }
   const ex = join(root, base(id), 'exceptions.json');
@@ -516,7 +519,7 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
     }
     const dates = [...new Set([...sentence.matchAll(/\b(20\d\d-\d\d-\d\d)\b/g)].map((m) => m[1]))].filter((d) => d <= today);
     if (!dates.length) continue;
-    const eventDates = dates.filter((d) => d !== period.start && d !== period.end);
+    const eventDates = dates.filter((d) => d !== period.start && d !== period.end && d !== goLive);
     if (!eventDates.length) { out.push({ source: t.source, claim: sentence, status: 'judgment', detail: 'its only dates bound the period: a statement for the firm to judge, not a dated fact' }); continue; }
     const low = sentence.toLowerCase();
     // An id is a hyphenated token the package itself uses (replay-headers, deploy-v6); an ordinary hyphenated word
