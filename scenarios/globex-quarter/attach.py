@@ -22,7 +22,10 @@ for r in csv.DictReader(open(requests)):
         continue
     ids = []
     for c in controls:
-        cand = sorted([e for e in ev if c in e['controls'] and not e['title'].startswith('Population:')], key=lambda e: e['collected_at'])
+        # Change populations (who changed the rules or the configuration) answer a document request about that
+        # configuration; the transaction populations answer population requests.
+        is_config = lambda e: e['title'].startswith('Population:') and ('rulesets' in e['title'] or 'configuration changes' in e['title'])
+        cand = sorted([e for e in ev if c in e['controls'] and (not e['title'].startswith('Population:') or is_config(e))], key=lambda e: e['collected_at'])
         daily = [e for e in cand if e.get('source', {}).get('kind') == 'collector' and 'collected by run' in e['title']]
         for e in [e for e in cand if e not in daily] + daily[-1:]:
             if e['id'] not in ids: ids.append(e['id'])

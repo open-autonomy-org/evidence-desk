@@ -58,6 +58,12 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       // that would restrict it exists.
       if (t.columns.includes('trigger_as_declared')) { const off = t.rows.filter((r) => r.trigger_as_declared === 'no'); const unruled = t.rows.some((r) => r.declared_tag_rule === 'not configured');
         if (off.length || unruled) add({ ...base, key: `trigger:${ev.data.controls.join('+')}:${f.path.split('/').pop()}`, item: `${off.length} of ${t.rows.length} deployments`, detail: `${off.length ? `not started from the declared tag (${off.map((r) => `${r.ref} by ${r.run_event}`).join(', ')})` : 'every deployment started from the declared tag'}${unruled ? '; no active tag ruleset restricts who may create the declared tag' : ''}`, occurred: day(t.rows.map((r) => r.created_at).sort()[0] ?? '') }); }
+      // A configuration change made by someone not on the roster, or by no one the vendor can name, and a rules change
+      // that weakened the rules.
+      if (t.columns.includes('actor_on_roster')) for (const r of t.rows.filter((r) => r.actor_on_roster !== 'yes'))
+        add({ ...base, key: `config-actor:${f.path.split('/').pop()!.replace(/-\d+\.csv$/, '')}:${r.id || `${r.ruleset_id}:${r.version}`}`, item: r.change || `${r.resource} ${r.old_value} → ${r.new_value}`, detail: r.actor ? `changed by ${r.actor}, who is not on the roster` : 'changed by no one the vendor names (a token without a user)', occurred: day(r.at) });
+      if (t.columns.includes('weakens')) for (const r of t.rows.filter((r) => r.weakens === 'yes'))
+        add({ ...base, key: `weakened:${r.ruleset_id}:${r.version}`, item: `ruleset ${r.ruleset} version ${r.version}`, detail: `${r.change}, by ${r.actor || 'no one named'}`, occurred: day(r.at) });
       if (t.columns.includes('run_conclusion')) for (const r of t.rows.filter((r) => r.run && r.run_conclusion !== 'success'))
         add({ ...base, key: `run:${ev.data.controls.join('+')}:${itemOf(r)}`, item: itemOf(r), detail: `the run ${r.run} that deployed it ended ${r.run_conclusion || 'without a conclusion'}, yet the deployment reads ${r.final_state}`, occurred: at(r) });
     }

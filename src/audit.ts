@@ -525,7 +525,17 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     writeFileSync(dest, text);
     return { path: p, sha256: sha256(Buffer.from(text)), bytes: Buffer.byteLength(text) };
   });
-  const manifest = { schema: 'evidence-desk.audit-package/1', engagement: e.data.id, organization: ws.manifest?.data.organization ?? '', created_at: created, files, derived,
+  // The workspace's commit and where it is published: the hosted repository's history dates every record independently
+  // of this package, so the firm can check that a file here is the file committed there, and when.
+  let workspace: Record<string, unknown> = {};
+  try {
+    const g = (...args: string[]) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+    const head = g('rev-parse', 'HEAD');
+    const remote = (() => { try { return g('remote', 'get-url', 'origin').replace(/\/\/[^/@]*@/, '//'); } catch { return ''; } })();
+    const pushed = remote ? g('branch', '-r', '--contains', head, '--format=%(refname:short)').split('\n').filter((x) => x && x !== 'origin/HEAD') : [];
+    workspace = { commit: head, committed_at: g('show', '-s', '--format=%cI', head), remote, remote_branches: pushed, uncommitted: g('status', '--porcelain', '--', '.') ? 'yes' : 'no' };
+  } catch { /* not a Git repository */ }
+  const manifest = { schema: 'evidence-desk.audit-package/1', engagement: e.data.id, organization: ws.manifest?.data.organization ?? '', created_at: created, ...(Object.keys(workspace).length ? { workspace } : {}), files, derived,
     omitted,
     request_versions: Object.fromEntries(reqs.map((r) => [r.data.id, r.version])) };
   valid('audit-package', manifest, 'the package manifest');

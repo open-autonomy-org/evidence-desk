@@ -44,7 +44,9 @@ An exception's `closed_by` says what ended it: a later passing reading (which sh
 anyone remediated it) or a later completeness check. A check that reports events, such as a bypass of the branch
 rules, is never closed by a quiet day.
 
-A file a packaged file cites travels with it; one the workspace does not hold is listed in the manifest's `omitted`
+The manifest's `workspace` names the workspace repository's commit at export, its origin and the remote branches
+holding it: the hosted repository's history dates every record independently of the package. A file a packaged file
+cites travels with it; one the workspace does not hold is listed in the manifest's `omitted`
 with the file that cites it.
 
 ## How the evidence was produced
@@ -80,6 +82,9 @@ query that produced it (evidence a person added by hand says so).
   every request, GitHub's `x-github-request-id` and the time GitHub answered, so any response can be raised with GitHub.
   A deployment row is independently approved only when someone other than whoever started the run approved the
   environment on the run that built the commit deployed.
+- **Configuration changes**: who changed the default branch's rules, from each ruleset's version history on GitHub
+  (with what changed and whether it weakened them), and who changed the Cloudflare account, from its audit log (with
+  the old and new value). A change by someone not on the roster, or by no one the vendor names, is an exception.
 - **Seam records** (incidents, break-glass changes, credentials, escalations) are listed with each record's full git
   history (`*.history.txt`): a record edited after it was added shows every change with its author and dates.
 - **Continuous checks** (two-factor enforcement, required review and protected history, bypasses of the default

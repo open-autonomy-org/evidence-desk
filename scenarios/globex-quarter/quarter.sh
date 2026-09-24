@@ -30,8 +30,8 @@ PY
     2026-08-05) zsh $S/onboard.sh lee lee-gx maya-gx ${1}T13:00:00Z "MacBook Air 13 (macOS 26)" | tail -1 ;;
     2026-08-12) clock ${1}T22:40:00Z; change sam fix/signature-header "Hotfix: accept the legacy signature header"; pr_relay sam-gx fix/signature-header "Hotfix: accept the legacy signature header" "" sam-gx
       clock ${1}T23:05:00Z; deploy sam sam-gx maya-gx ;;
-    2026-08-19) clock ${1}T16:00:00Z; seed - cfset always_use_https off ;;
-    2026-08-21) clock ${1}T10:00:00Z; seed - cfset always_use_https on ;;
+    2026-08-19) clock ${1}T16:00:00Z; cfas sam@globex.test always_use_https off ;;
+    2026-08-21) clock ${1}T10:00:00Z; cfas maya@globex.test always_use_https on ;;
     2026-08-26) clock ${1}T08:40:00Z
       record maya maya-gx sam-gx incidents/2026-08-26-replay-headers.json '{"kind":"incident","id":"replay-headers","detected_at":"2026-08-26T08:10:00Z","severity":"high","status":"open","summary":"Replay requests can return another customer'"'"'s request headers (never bodies): the replay cache key omits the tenant","notification":"","review":""}' "Incident replay-headers: opened"
       record maya maya-gx sam-gx escalations/2026-08-26-replay-headers.json '{"kind":"escalation","id":"replay-headers-report","received_at":"2026-08-26T08:05:00Z","responded_at":"2026-08-26T08:12:00Z","channel":"community bot","summary":"A customer reported seeing an unfamiliar header in a replayed request"}' "Escalation: replay-headers report answered"
@@ -61,6 +61,8 @@ d=2026-06-26
 while [ "$d" != "2026-10-01" ]; do
   day_events $d
   clock ${d}T23:30:00Z; (cd $ED && timeout 120 $V attach evidence-desk-oa --root $RT -- env GITHUB_TOKEN=$(tok maya-gx) bun src/cli.ts run $W --by maya 2>&1 | grep -v WARN | grep -E "fail|error" | sed "s/^/$d /")
+  # The daily workflow commits each run to the workspace's main on its day, as the workspace's scheduled job does.
+  git -C $W checkout -q main; git -C $W add checks evidence; gcommit $W maya "Daily checks $d" && gpush $W main
   d=$(python3 -c "import datetime;print((datetime.date.fromisoformat('$d')+datetime.timedelta(days=1)).isoformat())")
 done
 git -C $W checkout -q main; git -C $W add -A; gcommit $W maya "Daily checks through 2026-09-30"; gpush $W main

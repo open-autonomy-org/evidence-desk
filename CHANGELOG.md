@@ -7,6 +7,11 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Configuration changes are populations: `collect github-rule-changes` reads each ruleset's version history (who changed
+  the rules, what changed, whether it weakened them) and `collect cloudflare-changes` the Cloudflare account's audit log
+  (who changed what, old and new value). A change by someone not on the roster or not named is an exception. The package
+  manifest names the workspace commit it was exported from and where that commit is published. The Globex quarter runs
+  as a repeatable scenario (`scenarios/globex-quarter/`). Twin: volter-ai/twin 0570d603, 2554c085.
 - An audit package is built for a firm to test from rather than to take on trust. `review/index.html` and its tables
   (a control matrix flagging applicable controls with no evidence in the period, an exceptions register with when each
   deviation occurred, was found and was resolved and management's response, and every automated check's reading on

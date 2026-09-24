@@ -6,6 +6,7 @@ def one(pat): m=sorted(glob.glob(os.path.join(W,pat))); return rel(m[-1]) if m e
 chg_csv=one('evidence/files/populations/github-changes-*.csv'); chg_raw=one('evidence/files/populations/github-changes-*.raw.json')
 dep_csv=one('evidence/files/populations/github-deployments-*.csv'); dep_raw=one('evidence/files/populations/github-deployments-*.raw.json')
 inc_hist=one('evidence/files/populations/incidents-*.history.txt')
+cf_changes=one('evidence/files/populations/cloudflare-changes-*.csv'); rule_changes=one('evidence/files/populations/github-rule-changes-*.csv')
 snap=lambda day,c: one(f'evidence/files/collected/{c}/RUN-{day.replace("-","")}T*.json')
 roster='sources/open-autonomy/latest.json'
 S=("The production-deploy seam is declared for the owner scope, which only Maya holds. Sam (release-review) and Lee "
@@ -31,16 +32,18 @@ for r in csv.DictReader(open(os.path.join(D,'review/exceptions.csv'))):
     elif k.startswith('check:github-change-review') or k.startswith('check:github-history-protected'):
         R[k]=("Design deficiency, accepted. From the start of the period the ruleset main-protected let organization administrators "
               "(Maya and Sam) always bypass its rules, and the daily check said so every day. No one acted until after incident "
-              "replay-headers. The bypass list was emptied on 2026-08-27; the snapshot of that day shows bypass_actors empty.",
-              [snap('2026-08-26','github'),snap('2026-08-27','github')])
+              "replay-headers. Maya emptied the bypass list on 2026-08-27 (ruleset version history in the rule-changes population); the "
+              "snapshot of that day shows bypass_actors empty.",
+              [rule_changes,snap('2026-08-26','github'),snap('2026-08-27','github')])
     elif k.startswith('check:github-rule-bypass'):
         R[k]=("The only bypass in the period is PR #4's merge (rule suite 1). The check failed that night, and no one acted on the alert "
               "until a customer report on 2026-08-26. No other bypass was reported in the period.",[snap('2026-08-12','github'),chg_csv])
     elif k.startswith('check:cloudflare-https'):
-        R[k]=("Always Use HTTPS was off on relay.globex.test from 2026-08-19 to 2026-08-21. The daily check failed on 08-19 and 08-20 "
-              "and passes from 08-21. The minimum TLS version stayed 1.2 throughout. The change has no record, and we cannot name who "
-              "made it without Cloudflare's audit log, which is not in the package. We have no evidence either way about plain-HTTP "
-              "traffic during the window.",[snap('2026-08-19','cloudflare'),snap('2026-08-21','cloudflare')])
+        R[k]=("Sam turned Always Use HTTPS off on relay.globex.test at 16:00 UTC on 2026-08-19 while testing a redirect, and Maya "
+              "turned it back on at 10:00 UTC on 2026-08-21 (Cloudflare's audit log in the configuration-changes population). The daily "
+              "check failed on 08-19 and 08-20 and passes from 08-21; the minimum TLS version stayed 1.2 throughout. The change went "
+              "through no change record. We have no evidence either way about plain-HTTP traffic in the window.",
+              [cf_changes,snap('2026-08-19','cloudflare'),snap('2026-08-21','cloudflare')])
     elif k.startswith('self-review:'):
         f=one(f"reviews/access/{k.split(':')[1]}.json")
         R[k]=("Sam reviewed this system and kept Sam's own access; no one else reviewed it in Q3. From Q4, Maya reviews Sam's accounts "
@@ -49,6 +52,8 @@ for r in csv.DictReader(open(os.path.join(D,'review/exceptions.csv'))):
         R[k]=("Maya recorded this decision of Sam's while setting up the workspace on 2026-06-23, before the period. It was recorded "
               "by the wrong account, and we do not claim otherwise."+(" Sam re-rated R-3 on 2026-08-28 in a pull request from Sam's own "
               "account (review/workspace-history.txt)." if 'R-3' in k else ""),['sources/github/attribution.json'])
+    elif k.startswith('config-actor:') or k.startswith('weakened:'):
+        R[k]=("This change is in the collected change history; management has not yet reviewed it.",[cf_changes if 'cloudflare' in k else rule_changes])
     else: print('UNHANDLED',k,file=sys.stderr)
 for k,(t,c) in R.items():
     args=['bun','src/cli.ts','audit',W,'q3','exception',k,'--response',t,'--by','maya']

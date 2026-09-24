@@ -1,5 +1,11 @@
 // Reads from Cloudflare's API v4 with the owner's own read-only token (CLOUDFLARE_API_TOKEN). Nothing is sent to
 // Cloudflare but reads. Every request is recorded in the caller's query list so what was read can be shown.
+import { writeCsv } from './csv.ts';
+import { readVersioned, writeVersioned } from './files.ts';
+import { addEvidence } from './actions.ts';
+import { loadWorkspace } from './workspace.ts';
+import type { Snapshot } from './open-autonomy.ts';
+import { now } from './clock.ts';
 const API = 'https://api.cloudflare.com/client/v4';
 
 // Each answer's status, Date and cf-ray (Cloudflare's id for the request), for a caller that keeps them with what it read.
@@ -44,3 +50,32 @@ export async function cfAccount(account: string, queries: string[]): Promise<{ i
 // member policies instead of roles is counted too: the policies' scope is not read, so completeness errs toward naming them.
 export const CF_ADMIN_ROLES = ['Super Administrator - All Privileges', 'Administrator'];
 export const cfIsAdmin = (m: any) => (m.roles ?? []).some((r: any) => CF_ADMIN_ROLES.includes(r.name)) || (!(m.roles ?? []).length && (m.policies ?? []).length > 0);
+
+// Configuration changes to a Cloudflare account in the period, from its audit log: every entry, with who made it (the
+// user whose API token or session it was), what it changed and the old and new value. A change by someone not on the
+// roster, or by no one Cloudflare can name, is marked.
+export async function collectCloudflareChanges(root: string, input: { account: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; unnamed: number }> {
+  const queries: string[] = [];
+  cfAnswers.length = 0;
+  const account = await cfAccount(input.account, queries);
+  const entries = await cfAll(`/accounts/${account.id}/audit_logs?since=${input.start}T00:00:00Z&before=${nextDay(input.end)}T00:00:00Z&direction=asc`, queries);
+  const ws = loadWorkspace(root);
+  const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
+  const team = latest ? (JSON.parse(latest.text) as Snapshot).team.map((m) => m.id) : [];
+  const emails = new Set((ws.registers.people?.data.rows ?? []).filter((p) => !team.length || team.includes(p.id)).map((p) => (p.email ?? '').toLowerCase()).filter(Boolean));
+  const val = (v: unknown) => v == null ? '' : typeof v === 'string' ? v : JSON.stringify(v);
+  const rows = entries.map((x: any) => ({ at: String(x.when ?? ''), actor: String(x.actor?.email ?? ''), actor_on_roster: !x.actor?.email ? 'unknown' : emails.has(String(x.actor.email).toLowerCase()) ? 'yes' : 'no',
+    action: String(x.action?.type ?? ''), resource: `${x.resource?.type ?? ''} ${x.resource?.id ?? ''}`.trim(), zone: String(x.metadata?.zone_name ?? ''), old_value: val(x.oldValue), new_value: val(x.newValue), id: String(x.id ?? '') }));
+  const stem = `evidence/files/populations/cloudflare-changes-${account.id.slice(0, 8)}-${input.start}-${input.end}-${Date.now()}`;
+  writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: [...cfAnswers] }, account, entries }, null, 2) + '\n', null);
+  writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['at', 'actor', 'actor_on_roster', 'action', 'resource', 'zone', 'old_value', 'new_value', 'id'], rows }), null);
+  const unnamed = rows.filter((r) => r.actor_on_roster !== 'yes').length;
+  const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
+  const evidence = addEvidence(root, {
+    title: `Population: ${rows.length} configuration changes to Cloudflare account ${account.name}, ${input.start} to ${input.end}`, controls: ['OPS-04', 'AC-02'].filter((c) => applicable.has(c)), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
+    period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'cloudflare', query: `${queries.join('; ')} (all pages)` },
+    notes: `Complete: every page of the account's audit log for the period. ${unnamed} made by someone not on the roster or not named. Raw responses with each answer's cf-ray: ${stem}.raw.json.`,
+  });
+  return { evidence, rows: rows.length, unnamed };
+}
+const nextDay = (d: string) => new Date(Date.parse(`${d}T00:00:00Z`) + 864e5).toISOString().slice(0, 10);
