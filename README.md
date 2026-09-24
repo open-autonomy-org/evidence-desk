@@ -159,3 +159,6 @@ zones and members through `POST /client/v4/twin/bootstrap`.
 "$W" attach evidence-desk-oa --root "$D" -- bun src/cli.ts collect <workspace> attribution --repo acme/compliance --by ana
 "$W" down evidence-desk-oa --root "$D"
 ```
+
+[scenarios/globex-quarter](scenarios/globex-quarter/README.md) plays a whole Type II quarter in that World and exports
+the audit package for a blind review.

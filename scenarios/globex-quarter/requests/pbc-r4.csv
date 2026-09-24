@@ -1,0 +1,16 @@
+id,title,kind,controls
+Q01,"System boundary: in-scope systems, subservice organizations and non-human actors",document,GOV-08;VND-01
+Q02,All changes deployed to the production application with approver and approval time,population,CHG-01;CHG-02
+Q03,Break-glass and emergency changes with after-the-fact review,population,CHG-04
+Q04,Production deployment approvals and the environment's protection configuration,population,CHG-03
+Q05,Default-branch protection settings and any bypass of them during the period,document,CHG-01;OPS-04
+Q06,Roster changes: people granted or removed from in-scope access,population,HR-03;HR-04;AC-02
+Q07,Access review of production systems for the period,document,AC-03;AC-04
+Q08,Two-factor authentication enforcement for all accounts with production access,document,AC-01
+Q09,Availability monitoring and capacity management,document,OPS-06;OPS-07
+Q10,Backup and restore testing,document,OPS-05
+Q11,"Incidents: log, customer notification and root-cause review",population,OPS-03
+Q12,Credential and secret rotation and revocation,population,AC-05
+Q13,Risk register changes during the period,document,RISK-02;RISK-01
+Q14,Vendor assurance reviews for critical subservice organizations,document,VND-02;VND-01
+Q15,Security awareness training and policy acknowledgments of new personnel,document,HR-02;GOV-05

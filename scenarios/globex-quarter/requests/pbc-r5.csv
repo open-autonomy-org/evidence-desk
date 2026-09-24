@@ -1,0 +1,16 @@
+id,title,kind,controls
+S01,"Change management: every change promoted to production, its approvals and the approving review's commit",population,CHG-01;CHG-02
+S02,"Emergency changes: the break-glass log, and changes that reached production outside normal approval",population,CHG-04
+S03,"Deployments: each release with who started it, who approved the environment and the commit shipped",population,CHG-03
+S04,"Logical access: additions to and removals from in-scope access during the period",population,AC-02;HR-03;HR-04
+S05,"User access review of GitHub and Cloudflare, with the reviewer's evidence",document,AC-03
+S06,"Privileged accounts and multi-factor authentication settings over the period",document,AC-04;AC-01
+S07,"Configuration monitoring: repository rules, protection settings and alerts, with their history",document,OPS-04;CHG-05;MON-03
+S08,"Security incidents, customer notifications and lessons learned",population,OPS-03
+S09,"Secrets and key management: rotations and revocations",population,AC-05
+S10,"Risk assessment and changes to the risk register",document,RISK-01;RISK-02
+S11,"Vendor management: register, criticality and assurance review",document,VND-01;VND-02
+S12,"Personnel security: onboarding acknowledgments, training and confidentiality",document,HR-02;GOV-05;HR-05
+S13,"Encryption in transit for the production endpoint",document,AC-09
+S14,"Business continuity and disaster recovery testing",document,OPS-07;OPS-05
+S15,"Management's monitoring of control operation",document,MON-01;GOV-03

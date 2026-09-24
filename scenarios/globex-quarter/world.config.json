@@ -1,0 +1,36 @@
+{
+  "id": "evidence-desk-oa",
+  "description": "Evidence Desk reading a synthetic Open Autonomy project's GitHub records.",
+  "resources": {
+    "memoryMiB": 1024,
+    "writableStorageMiB": 1024
+  },
+  "env": {
+    "GITHUB_TOKEN": "twin-fake-github-token",
+    "CLOUDFLARE_API_TOKEN": "twin-fake-cloudflare-token"
+  },
+  "services": [
+    {
+      "id": "github",
+      "type": "twin",
+      "//": "Twin checkout at volter-ai/twin main: the published twin packages predate what the quarter uses (rulesets that refuse unapproved merges, rule suites, runners completing runs, merge attribution, request ids).",
+      "command": "bun",
+      "args": [
+        "${TWIN_CHECKOUT}/packages/twin/github/src/cli.ts",
+        "serve"
+      ],
+      "injectEnv": "GITHUB_TWIN_URL"
+    },
+    {
+      "id": "cloudflare",
+      "type": "twin",
+      "//": "Twin checkout at volter-ai/twin main: the published twin packages predate what the quarter uses (rulesets that refuse unapproved merges, rule suites, runners completing runs, merge attribution, request ids).",
+      "command": "bun",
+      "args": [
+        "${TWIN_CHECKOUT}/packages/twin/cloudflare/src/cli.ts",
+        "serve"
+      ],
+      "injectEnv": "CLOUDFLARE_TWIN_URL"
+    }
+  ]
+}

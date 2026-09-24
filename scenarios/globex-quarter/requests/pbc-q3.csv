@@ -1,0 +1,16 @@
+id,title,kind,controls
+R01,Information security policies in force and their approval,document,GOV-04
+R02,Organization chart and security roles and responsibilities,document,HR-06;GOV-01
+R03,Population of changes to the production code base,population,CHG-01
+R04,Population of production deployments,population,CHG-03
+R05,"New hires during the period: acknowledgments, training and confidentiality",document,HR-02;GOV-05;HR-05
+R06,User access reviews of in-scope systems,document,AC-03
+R07,Privileged users of in-scope systems,document,AC-04
+R08,Multi-factor authentication enforcement,document,AC-01
+R09,Encryption in transit,document,AC-09
+R10,Security incidents during the period,population,OPS-03
+R11,Security event monitoring and escalations,population,OPS-01
+R12,Credential rotation and revocation,population,AC-05
+R13,Risk assessment and treatment,document,RISK-01;RISK-02
+R14,Vendor inventory and due diligence,document,VND-01;VND-02
+R15,Joiners and leavers during the period,population,AC-02;HR-03;HR-04

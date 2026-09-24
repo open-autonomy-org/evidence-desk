@@ -1,0 +1,24 @@
+# After the period: collections (2 October), the engagement, drafts, responses, and the package (5 October).
+source ${0:A:h}/lib.sh
+W=$D/compliance; Q=2026-07-01..2026-09-30; OUT=${PACKAGE_OUT:-$STATE/package}
+asmaya() { (cd $ED && timeout 180 $V attach evidence-desk-oa --root $RT -- env GITHUB_TOKEN=$(tok maya-gx) bun src/cli.ts "$@" 2>&1 | grep -v WARN); }
+clock 2026-10-02T10:00:00Z; git -C $W checkout -q main
+asmaya collect $W github-changes --repo globex/relay --period $Q --by maya
+asmaya collect $W github-deployments --repo globex/relay --environment production --period $Q --by maya
+ed collect $W roster-history --repo $D/relay --period $Q --by maya
+ed collect $W seam-records --repo $D/relay --period $Q --by maya
+ed open-autonomy $W import --repo $D/relay --by maya | tail -1
+asmaya collect $W attribution --repo globex/compliance --by maya | head -6
+ed audit $W new q3 --type type2 --firm "Example & Co" --period $Q | tail -1
+ed audit $W q3 requests --import $S/requests/${REQUESTS:-pbc-r5}.csv | tail -1
+python3 $S/attach.py $W $S/requests/${REQUESTS:-pbc-r5}.csv > $STATE/attach.txt
+while read r kind ids; do
+  if [ "$kind" = none ]; then ed audit $W q3 request $r --side client --by maya --text "No evidence is recorded for these controls in the period; see the control matrix (review/controls-matrix.csv)." | grep -i error
+  elif [ "$kind" = population ]; then ed audit $W q3 request $r --side client --by maya --text "The population for the period, with the query that produced it and its raw responses." --population $ids | grep -i error
+  else ed audit $W q3 request $r --side client --by maya --text "Attached from the workspace; review/index.html lists each item with its source." --evidence $ids | grep -i error; fi
+  ed audit $W q3 request $r --side client --by maya --status submitted | grep -i error
+done < $STATE/attach.txt
+ed audit $W q3 draft description | tail -1; ed audit $W q3 draft assertion | tail -1
+python3 $S/fill.py $W/audits/q3/drafts/description.md $W/audits/q3/drafts/assertion.md
+git -C $W add -A; gcommit $W maya "Q3 engagement: collections, requests answered, drafts"; gpush $W main
+echo POST-DONE

@@ -1,0 +1,16 @@
+id,title,kind,controls
+P01,Complete listing of changes merged to production code with approval evidence,population,CHG-01;CHG-02
+P02,Emergency and after-hours changes with post-implementation review,population,CHG-04;CHG-01
+P03,Production releases with the release approver and the build that shipped,population,CHG-03
+P04,Branch protection and repository rule configuration over the period,document,CHG-01;OPS-04
+P05,Personnel added to in-scope systems during the period with approval,population,HR-03;AC-02
+P06,Quarterly user access review with reviewer sign-off,document,AC-03
+P07,Administrator accounts on each in-scope system,document,AC-04;AC-01
+P08,Vulnerability and dependency alerts and their remediation,document,MON-03;CHG-05
+P09,Security incidents and their post-incident review,population,OPS-03
+P10,Security reports received from customers and the public,population,OPS-01;GOV-06
+P11,Secrets and API credential changes,population,AC-05
+P12,Risk assessment performed for the period,document,RISK-01;RISK-02
+P13,Vendor register and review of critical vendors' assurance reports,document,VND-01;VND-02
+P14,New hire policy acknowledgment and confidentiality agreement,document,GOV-05;HR-05;HR-02
+P15,Transport security configuration of the production endpoint,document,AC-09
