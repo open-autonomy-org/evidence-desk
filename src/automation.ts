@@ -27,16 +27,18 @@ type CollectorDef = { id: CollectorSettings['id']; title: string; params: { name
 const list = (v: string | undefined) => (v ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 
 // ── GitHub ─────────────────────────────────────────────────────────────────────────────────────────────────────
-// Each GitHub answer's status, Date and x-github-request-id, kept in the snapshot so any reading can be raised with GitHub.
-let ghAnswers: { path: string; status: number; date: string; request_id: string }[] = [];
+// Each GitHub answer's status, Date, x-github-request-id and body, kept in the snapshot so any reading can be re-derived
+// from the vendor's own answer and raised with GitHub.
+let ghAnswers: { path: string; status: number; date: string; request_id: string; body: unknown }[] = [];
 async function gh(path: string, queries: string[]): Promise<{ status: number; body: any }> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error('GITHUB_TOKEN is not set');
   queries.push(`GET ${path}`);
   const r = await fetch(`https://api.github.com${path}`, { headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28' } });
-  ghAnswers.push({ path, status: r.status, date: r.headers.get('date') ?? '', request_id: r.headers.get('x-github-request-id') ?? '' });
   const text = await r.text();
-  return { status: r.status, body: text ? JSON.parse(text) : null };
+  const body = text ? JSON.parse(text) : null;
+  ghAnswers.push({ path, status: r.status, date: r.headers.get('date') ?? '', request_id: r.headers.get('x-github-request-id') ?? '', body });
+  return { status: r.status, body };
 }
 async function ghAll(path: string, queries: string[]): Promise<any[]> {
   const out: any[] = [];
@@ -169,7 +171,7 @@ const cloudflare: CollectorDef = {
     // change path is found the day it is made, not when the audit package is built.
     const since = new Date(clockDate().getTime() - 86_400_000).toISOString();
     const changes = (await cfAll(`/accounts/${account.id}/audit_logs?since=${since}&direction=asc`, queries)).map((x) => ({ at: String(x.when ?? ''), actor: String(x.actor?.email ?? '').toLowerCase(), action: String(x.action?.type ?? ''), resource: `${x.resource?.type ?? ''} ${x.resource?.id ?? ''}`.trim() }));
-    return { data: { account: { id: account.id, name: account.name, enforce_twofactor: account.settings?.enforce_twofactor === true }, members, zones: settings, changes_since: since, changes, roster }, queries, responses: cfAnswers.map((x) => ({ path: x.path, status: x.status, date: x.date, request_id: x.cf_ray })) };
+    return { data: { account: { id: account.id, name: account.name, enforce_twofactor: account.settings?.enforce_twofactor === true }, members, zones: settings, changes_since: since, changes, roster }, queries, responses: cfAnswers.map((x) => ({ path: x.path, status: x.status, date: x.date, request_id: x.cf_ray, body: x.body })) };
   },
   checks: [
     { id: 'cloudflare-2fa', title: 'Every Cloudflare member uses two-factor authentication', controls: ['AC-01'], evaluate: (d) => {

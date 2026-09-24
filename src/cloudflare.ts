@@ -11,15 +11,15 @@ import { now } from './clock.ts';
 const API = 'https://api.cloudflare.com/client/v4';
 
 // Each answer's status, Date and cf-ray (Cloudflare's id for the request), for a caller that keeps them with what it read.
-export const cfAnswers: { path: string; status: number; date: string; cf_ray: string }[] = [];
+export const cfAnswers: { path: string; status: number; date: string; cf_ray: string; body?: unknown }[] = [];
 
 export async function cf(path: string, queries: string[]): Promise<{ status: number; result: any; info?: any }> {
   const token = process.env.CLOUDFLARE_API_TOKEN;
   if (!token) throw new Error('CLOUDFLARE_API_TOKEN is not set; export a read-only token for the account');
   queries.push(`GET ${path}`);
   const r = await fetch(`${API}${path}`, { headers: { authorization: `Bearer ${token}` } });
-  cfAnswers.push({ path, status: r.status, date: r.headers.get('date') ?? '', cf_ray: r.headers.get('cf-ray') ?? '' });
   const body = await r.json().catch(() => null) as { result?: unknown; result_info?: unknown } | null;
+  cfAnswers.push({ path, status: r.status, date: r.headers.get('date') ?? '', cf_ray: r.headers.get('cf-ray') ?? '', body });
   return { status: r.status, result: body?.result ?? null, info: body?.result_info };
 }
 
@@ -78,12 +78,12 @@ export async function collectCloudflareChanges(root: string, input: { account: s
   const rows = entries.map((x: any) => ({ at: String(x.when ?? ''), actor: String(x.actor?.email ?? ''), actor_on_roster: !x.actor?.email ? 'unknown' : emails.has(String(x.actor.email).toLowerCase()) ? 'yes' : services.has(String(x.actor.email).toLowerCase()) ? 'service account' : 'no',
     action: String(x.action?.type ?? ''), resource: `${x.resource?.type ?? ''} ${x.resource?.id ?? ''}`.trim(), zone: String(x.metadata?.zone_name ?? ''), old_value: val(x.oldValue), new_value: val(x.newValue), id: String(x.id ?? '') }));
   const stem = `evidence/files/populations/cloudflare-changes-${account.id.slice(0, 8)}-${input.start}-${input.end}-${Date.now()}`;
-  writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: [...cfAnswers] }, account, entries }, null, 2) + '\n', null);
+  writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: cfAnswers.map(({ body: _, ...x }) => x) }, account, entries }, null, 2) + '\n', null);
   writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['at', 'actor', 'actor_on_roster', 'action', 'resource', 'zone', 'old_value', 'new_value', 'id'], rows }), null);
   const unnamed = rows.filter((r) => r.actor_on_roster === 'no' || r.actor_on_roster === 'unknown').length;
   const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
   const evidence = addEvidence(root, {
-    title: `Population: ${rows.length} configuration changes to Cloudflare account ${account.name}, ${input.start} to ${input.end}`, controls: ['OPS-04', 'AC-02'].filter((c) => applicable.has(c)), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
+    title: `Population: ${rows.length} configuration changes to Cloudflare account ${account.name}, ${input.start} to ${input.end}`, controls: ['OPS-04', 'CHG-04', 'AC-02'].filter((c) => applicable.has(c)), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'cloudflare', query: `${queries.join('; ')} (all pages)` },
     notes: `Complete: every page of the account's audit log for the period. ${unnamed} made by someone not on the roster or not named. Raw responses: ${stem}.raw.json${cfAnswers.every((x) => x.cf_ray) ? ", with each answer's Date and cf-ray" : ", with each answer's Date; Cloudflare sent no cf-ray on some"}.`,
   });
@@ -113,7 +113,7 @@ export async function collectCloudflareTokens(root: string, input: { account: st
   const deploys = (email: string) => entries.filter((x: any) => x.resource?.type === 'script' && String(x.actor?.email ?? '').toLowerCase() === email && String(x.when).slice(0, 10) >= input.start && String(x.when).slice(0, 10) <= input.end).length;
   const rows = [...tokens.values()].map((t) => ({ ...t, owner_kind: kind(t.owner), live_at_period_end: t.revoked_at && t.revoked_at.slice(0, 10) <= input.end ? 'no' : 'yes', owner_worker_deploys_in_period: String(deploys(t.owner)) }));
   const stem = `evidence/files/populations/cloudflare-tokens-${account.id.slice(0, 8)}-${input.start}-${input.end}-${Date.now()}`;
-  writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: [...cfAnswers] }, account, entries: entries.filter((x: any) => x.resource?.type === 'token' || x.resource?.type === 'script') }, null, 2) + '\n', null);
+  writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: cfAnswers.map(({ body: _, ...x }) => x) }, account, entries: entries.filter((x: any) => x.resource?.type === 'token' || x.resource?.type === 'script') }, null, 2) + '\n', null);
   writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['token', 'owner', 'owner_kind', 'created_at', 'created_by', 'revoked_at', 'revoked_by', 'live_at_period_end', 'owner_worker_deploys_in_period'], rows }), null);
   const personal = rows.filter((r) => r.owner_kind !== 'service account' && r.live_at_period_end === 'yes').length;
   const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
@@ -158,12 +158,12 @@ export async function collectWorkerDeployments(root: string, input: { account: s
   });
   const unshipped = ghRows.filter((g) => !rows.some((x) => x.commit && (g.sha === x.commit || g.sha.startsWith(x.commit))));
   const stem = `evidence/files/populations/cloudflare-worker-deployments-${input.script}-${input.start}-${input.end}-${Date.now()}`;
-  writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: [...cfAnswers] }, account, deployments, versions, github_population: gh?.data.id ?? null }, null, 2) + '\n', null);
+  writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: cfAnswers.map(({ body: _, ...x }) => x) }, account, deployments, versions, github_population: gh?.data.id ?? null }, null, 2) + '\n', null);
   writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['deployment', 'at', 'author', 'source', 'version', 'commit', 'message', 'github_deployment', 'github_ref', 'github_approved', 'matched'], rows }), null);
   const unmatched = rows.filter((x) => x.matched !== 'yes').length;
   const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
   const evidence = addEvidence(root, {
-    title: `Population: ${rows.length} deployments of Worker ${input.script} on Cloudflare, ${input.start} to ${input.end}`, controls: ['CHG-03'].filter((c) => applicable.has(c)), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
+    title: `Population: ${rows.length} deployments of Worker ${input.script} on Cloudflare, ${input.start} to ${input.end}`, controls: ['CHG-03', 'CHG-04'].filter((c) => applicable.has(c)), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'cloudflare', query: `${queries.slice(0, 2).join('; ')}; GET .../versions/{version_id} for each deployed version` },
     notes: `Complete: every deployment Cloudflare lists for the Worker in the period, matched by commit to ${gh ? `the GitHub deployments in ${gh.data.id}` : 'no GitHub deployments population (collect github-deployments first)'}. ${unmatched} reached production with no matching GitHub deployment; ${unshipped.length} GitHub deployment(s) (${unshipped.map((g) => g.ref).join(', ') || 'none'}) have no Cloudflare deployment. Raw responses: ${stem}.raw.json.`,
   });
