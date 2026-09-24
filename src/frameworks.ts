@@ -45,6 +45,8 @@ function setTargets(root: string, next: (current: string[]) => string[]): { targ
   // Refuse before writing anything when the adoption the change needs could not run.
   const ws = loadWorkspace(root);
   const adopted = ws.controls.length > 0;
+  const broken = ws.problems.filter((x) => x.severity === 'error' && x.file.startsWith('controls/'));
+  if (adopted && broken.length) throw new Error(`fix the control files first: ${broken.map((x) => `${x.file}: ${x.message}`).join('; ')}`);
   if (adopted && (!ws.scope || unanswered(ws.scope.data).length)) throw new Error(`answer the scoping questions first: ${ws.scope ? unanswered(ws.scope.data).join(', ') : 'scope.json is missing'}`);
   doc.frameworks = targets;
   writeVersioned(root, 'evidence-desk.json', JSON.stringify(doc, null, 2) + '\n', m.version);

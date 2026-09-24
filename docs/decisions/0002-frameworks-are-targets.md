@@ -79,7 +79,7 @@ asks about; its summary counts stay SOC 2's. The controls list in the CLI and th
 controls that are not applicable (so a person can still re-include one); a control that is applicable but not needed
 is not listed. The questionnaire library drafts from needed controls and from controls that are not applicable, which
 it may truthfully say do not apply; a control that is merely not needed is not a passage at all. `target` and
-`drop` re-run adoption. Adoption creates a file for every library control that carries a SOC 2 criterion, as today
+`drop` run adoption to create what became needed (they change no control's applicability). Adoption creates a file for every library control that carries a SOC 2 criterion, as today
 (whether or not scoping excludes it, so SOC 2's deliverables can name it as excluded), and for a control with no SOC 2
 criterion only when it is needed (so the AI family appears only once an AI target maps it); it creates the policies
 and forms needed controls name, and it never deletes a file. A control

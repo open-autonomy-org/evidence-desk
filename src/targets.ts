@@ -56,7 +56,8 @@ export function neededControls(ws: Workspace): Set<string> {
   return out;
 }
 
-// The same rule for a library control that has no file yet: whether adoption should write it.
+// Whether a targeted framework maps a library control that has no file yet. Adoption writes it only when this holds and
+// its own scoping conditions do (actions.ts), since a control that does not apply is never needed.
 export function libraryNeeded(ws: Workspace, id: string): boolean {
   for (const t of targetsOf(ws)) {
     const cat = frameworkCatalogs.get(t);
