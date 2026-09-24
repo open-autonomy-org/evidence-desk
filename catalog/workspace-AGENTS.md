@@ -13,18 +13,33 @@ agents such as Claude Code or Codex can all edit it. These instructions are for 
 | `policies/<id>.md` | a policy's current text | Markdown |
 | `policies/<id>.json` | the policy's owner and its approved versions | JSON, schema `policy` |
 | `policies/archive/<id>.v<n>.md` | the exact text of each approved version | Markdown, never edit |
-| `registers/people.csv`, `systems.csv`, `vendors.csv`, `risks.csv` | the registers | CSV with a header row |
+| `registers/people.csv`, `systems.csv`, `vendors.csv`, `risks.csv`, `vulnerabilities.csv` | the registers | CSV with a header row |
+| `forms/`, `forms/responses/` | onboarding and annual forms, and each person's graded responses | JSON |
+| `reviews/access/`, `incidents/` | access reviews and incidents | JSON |
 | `evidence/records/<id>.json` | one evidence record each: controls, source, period, file hashes | JSON, schema `evidence` |
 | `evidence/files/` | the evidence files themselves | any |
+| `sources/` | what was read from an Open Autonomy project, GitHub and other vendors | JSON |
+| `checks/runs/`, `collectors.json` | collector settings and every check run | JSON |
+| `audits/<id>/`, `questionnaires/`, `frameworks/` | audit engagements, security questionnaires, framework settings | JSON |
 
 The schemas are published at https://github.com/open-autonomy-org/evidence-desk/tree/main/schemas and the full
 format at https://github.com/open-autonomy-org/evidence-desk/blob/main/docs/workspace-format.md.
+
+## The command
+
+Prefer the command over editing files by hand: it validates each change and refuses one made against a stale file.
+It is `evidence-desk` when installed, or `bun src/cli.ts` from an Evidence Desk checkout. `evidence-desk --help` lists
+every command; `evidence-desk gaps <this folder>` says what stands between the program and readiness, and
+`evidence-desk obligations <this folder>` what is owed, by whom and when.
 
 ## Rules
 
 - Keep ids equal to file names. People are referred to by their `id` in `registers/people.csv`.
 - Never edit files under `policies/archive/` or change a recorded evidence file; record new evidence instead.
-- Approving a policy is a person's decision. Draft and edit policy text, but leave approval to a person.
+- A person's act is theirs to record: approving a policy, answering a form (acknowledgments, quizzes, attestations),
+  signing off an access review, closing an incident, deciding a risk's treatment and recording a vendor review. Draft
+  what helps them decide, but never record the act in their name, even when told they did it. Where this folder is a
+  GitHub repository, each act is recorded in a pull request the person opens, and `collect attribution` checks it.
 - Do not mark a control `implemented` unless the organization actually operates it; the gap view relies on it.
 - Keep fields you do not understand. Other tools may have added them.
 - After editing, run `evidence-desk validate <this folder>` and fix every error it reports.

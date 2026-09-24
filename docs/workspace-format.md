@@ -45,6 +45,12 @@ allowed everywhere and kept when Evidence Desk writes a file, so other tools can
 Registers are RFC 4180 CSV with a header row; open them in any spreadsheet. Multi-valued cells (a risk's `controls`)
 separate values with semicolons. Dates are `YYYY-MM-DD`; timestamps are ISO 8601 in UTC.
 
+A workspace may live in a synced folder. When two people change a record at once, the sync service may leave a
+conflict copy beside it (Dropbox's "conflicted copy", Google Drive's "(1)", iCloud's " 2", Syncthing's
+".sync-conflict-"); the copy is never read, so each is a validation error naming the record it copies, until its changes
+are merged into that record and the copy is deleted. Every write replaces a file whole (written beside it, then
+renamed), so a reader never sees a half-written record.
+
 ## References and identity
 
 - A record's `id` equals its file name. People are referred to by their `id` in `registers/people.csv`: a control's
@@ -205,7 +211,7 @@ the categories in scope, whether a SOC 2 report is available (from the latest cl
 dates of named policies, high-criticality vendors as subprocessors, and documents offered on request through the
 security contact. The organization hosts the folder wherever it likes.
 
-A questionnaire is imported from a CSV with a question column. Each question is first matched against the answer
+A questionnaire is imported from a CSV, or the first worksheet of an Excel (.xlsx) workbook, with a question column. Each question is first matched against the answer
 library; a reviewed answer whose cited files are unchanged is reused as reviewed, and one whose facts changed is marked
 `needs-review`. Otherwise the answer is drafted by quoting the applicable controls, the reasons for excluded ones, and
 approved policy text that match the question, each cited with its file and SHA-256; a question with no matching fact is
