@@ -213,13 +213,17 @@ async function send(method: string, path: string, body: unknown): Promise<any> {
   return r.status === 204 ? null : r.json();
 }
 const LABEL = 'evidence-desk';
-export async function syncReminders(root: string, input: { repo: string; asOf?: Date }): Promise<{ opened: string[]; retitled: string[]; closed: string[]; kept: number }> {
+export async function syncReminders(root: string, input: { repo: string; asOf?: Date; within: number }): Promise<{ opened: string[]; retitled: string[]; closed: string[]; kept: number }> {
   if (!/^[\w.-]+\/[\w.-]+$/.test(input.repo)) throw new Error('--repo names the workspace\'s own GitHub repository as owner/name');
   const { computeObligations } = await import('./obligations.ts');
   const ws = loadWorkspace(root);
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
   const team = latest ? (JSON.parse(latest.text) as Snapshot).team : [];
-  const owed = computeObligations(ws, input.asOf).filter((o) => o.state !== 'done');
+  // What is overdue, and what falls due within the window the workspace's workflow names (--within): a review due next
+  // year is not owed today.
+  const horizon = new Date((input.asOf ?? new Date()).getTime() + input.within * 864e5).toISOString().slice(0, 10);
+  const obligations = computeObligations(ws, input.asOf);
+  const owed = obligations.filter((o) => o.state === 'overdue' || (o.state === 'due' && o.due <= horizon));
   const marker = (o: { kind: string; what: string; who: string }) => `<!-- evidence-desk:obligation ${createHash('sha256').update(`${o.kind}|${o.what}|${o.who}`).digest('hex').slice(0, 16)} -->`;
   // Only an overdue item carries its date: one never done is due as of each day, and a daily date would retitle it daily.
   const title = (o: (typeof owed)[number]) => `${o.state === 'overdue' ? `Overdue since ${o.due}` : 'Due'}: ${o.what} (${o.who})`;
@@ -228,10 +232,12 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
   const unowned = owed.filter((o) => !o.who);
   const unownedMarker = marker({ kind: 'unowned', what: '', who: '' });
   const wanted = new Set([...owed.filter((o) => o.who).map(marker), ...(unowned.length ? [unownedMarker] : [])]);
+  const later = new Set(obligations.filter((o) => o.state !== 'done' && o.who).map(marker));
   // Close first, so an error on a later write never leaves a met obligation's issue open.
   for (const i of open) {
     const m = /<!-- evidence-desk:obligation [0-9a-f]{16} -->/.exec(i.body ?? '')?.[0];
-    if (m && !wanted.has(m)) { await send('PATCH', `/repos/${input.repo}/issues/${i.number}`, { state: 'closed', state_reason: 'completed' }); result.closed.push(i.title); }
+    // Completed when the obligation is met or gone; not planned when it is still owed but now falls outside the window.
+    if (m && !wanted.has(m)) { await send('PATCH', `/repos/${input.repo}/issues/${i.number}`, { state: 'closed', state_reason: later.has(m) ? 'not_planned' : 'completed' }); result.closed.push(i.title); }
   }
   const upsert = async (m: string, t: string, body: string, login?: string) => {
     const existing = open.find((i) => (i.body ?? '').includes(m));

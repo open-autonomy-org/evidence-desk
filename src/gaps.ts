@@ -4,7 +4,7 @@ import { categories, categoryAnswer, criteria, questions } from './catalog.ts';
 import { placeholders, unanswered } from './actions.ts';
 import type { Workspace } from './workspace.ts';
 import { computeObligations, type Obligation } from './obligations.ts';
-import { RECORD_KINDS, seamFindings, type Snapshot } from './open-autonomy.ts';
+import { DECLARATION_CONTROLS, RECORD_KINDS, seamFindings, type Snapshot } from './open-autonomy.ts';
 import { actDigest, signedActs } from './github.ts';
 import { readVersioned } from './files.ts';
 import { existsSync, readdirSync } from 'node:fs';
@@ -40,6 +40,9 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
   if (oa) {
     const snap = JSON.parse(oa.text) as Snapshot;
     program.push(...seamFindings(snap).map((f) => `Open Autonomy: ${f}`));
+    const declared = DECLARATION_CONTROLS.filter((c) => ws.controls.some((x) => x.data.id === c && x.data.applicable));
+    if (declared.length && !ws.evidence.some((e) => e.data.source?.kind === 'open-autonomy' && e.data.source?.commit === snap.commit && declared.some((c) => e.data.controls.includes(c))))
+      program.push(`Open Autonomy: the declarations at ${snap.commit.slice(0, 12)} are not recorded as evidence (open-autonomy import again now that controls are adopted)`);
     const dir = join(ws.root, 'sources/open-autonomy/completeness');
     const checks = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readVersioned(ws.root, `sources/open-autonomy/completeness/${f}`)!.text) as { account: string; vendor: string; checked_at: string; outside: string[] }) : [];
     for (const acct of snap.vendor_accounts) {

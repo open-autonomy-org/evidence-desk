@@ -227,7 +227,7 @@ ${secrets.length ? `        env:\n${secrets.map((s) => `          ${s}: \${{ sec
       - name: Remind people of what they owe
         env:
           GITHUB_TOKEN: \${{ github.token }}
-        run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" remind . --repo "\${{ github.repository }}"
+        run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" remind . --repo "\${{ github.repository }}" --within 30
       - name: Fail when a check failed
         if: steps.run.outcome == 'failure'
         run: exit 1

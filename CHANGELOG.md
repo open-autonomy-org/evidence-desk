@@ -7,6 +7,13 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Demonstrated a project on Open Autonomy's `soc2` template end to end, which fixed: egress hosts of one vendor
+  (`codeload.github.com`, `objects.githubusercontent.com`) are that vendor, not vendors of their own; roster history walks
+  the branch's first-parent line and dates each change by when it reached the branch, so no change is lost to a history
+  whose dates are not monotonic (git's `--since` stops at the first older commit) or to a rebase across the period's
+  start; `remind` takes `--within <days>` so an obligation due next year is not owed today (the daily
+  workflow uses 30), and an issue whose obligation moves outside the window closes as not planned; importing a project before adopting controls says to import again, and the gap view says so until
+  the declarations are recorded as evidence.
 - Added `collect attribution`: in a workspace kept as a GitHub repository, each act a person signs (a form response, an
   access review sign-off, a policy's latest approval, an incident's closing update) must have been brought to its present
   content by a pull request merged into the default branch and opened by that person's GitHub account on the Open
