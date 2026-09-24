@@ -69,7 +69,7 @@ Agents do the work; people act at a few controlled seams that Open Autonomy spec
 declarations and seams supply the controls and evidence that automation can; the humans supply the rest. This
 integration is optional: core use never requires Open Autonomy.
 **Differentiator D1, not counted in the parity headline:** a project on Open Autonomy's `soc2` template reaches SOC2
-readiness out of the box, owned by `open-autonomy-soc2-ready` (landed and demonstrated end to end; publication of kit 3.3.0 is outstanding).
+readiness out of the box, owned by `open-autonomy-soc2-ready` (landed and demonstrated end to end; kit 3.3.0 published as `create-open-autonomy@3.3.0` on 2026-09-24).
 
 **Extrapolation starts here.** The outcome boundaries, sequence and the design choices inside each outcome
 are the owner-side agent's judgment, not measured user research. Differentiation hypothesis: the same
@@ -140,7 +140,7 @@ checks passing. The gap view's program section is empty. What remains per contro
 repository holds: infrastructure and data handling in vendor consoles (AC-07 to AC-09, AC-11, CONF-01, CONF-02,
 OPS-05 to OPS-07), the penetration test and the CPA firm.
 
-Outstanding: kit 3.3.0 is not yet published, so `create --skew soc2` works only from an Open Autonomy checkout. The
+Kit 3.3.0 is published (`npm create open-autonomy@3.3.0 -- --skew soc2`). Outstanding: the
 published twin package (0.1.2) predates the twin fixes this demonstration used. Since the demonstration: risk decisions
 and vendor reviews are attributed like every other signed act, and the organization two-factor check passes against the
 twin with an owner's token.
@@ -184,19 +184,12 @@ Completion:
 - A scheduled-run template for the workspace repository's CI and a local on-demand run; failures, stale evidence and collector errors are visible per control.
 - Demonstrated end to end in the World against the twins, including a failing check, its remediation and the recorded history.
 
-## release-next: First release of the rebuilt product
+## release-next: The auditor packet
 
 Dispatch: hold
-Release decision: request-review
-Target version: 0.1.0
-Target window: 2026-09-25 to 2026-10-02
-Review by: 2026-09-30
-Candidate: 873506fcebf6a64d3d7e1a06baacf2a8c24434c1
-Scope: every outcome in CHANGELOG.md's Unreleased section at the candidate; kit 3.3.0's soc2 template is released separately by Open Autonomy
-Readiness: ready-for-review
-Readiness evidence: a clean clone of the candidate installed with `bun install --frozen-lockfile` in the World; init, import of a synthetic soc2-template project, scope, adopt, validate and gaps ran; the local app served its state and refused a foreign Host; the end-to-end demonstration and its fixes are recorded under open-autonomy-soc2-ready
-Rationale: the parity capabilities and the Open Autonomy soc2 path are landed and demonstrated; the owner asked for every remaining step to be handled, including the release
-Version rationale: the first published version under the release policy in CONTRIBUTING.md (SemVer, 0.x while the workspace format may still change)
+Release decision: none yet
+Target version: 0.2.0
+Scope: CHANGELOG.md's Unreleased section (the audit package a firm can test from)
+Readiness: not started
 
-To publish, a person reviews the candidate and creates the GitHub release `v0.1.0` at that commit; merging or tagging
-alone publishes nothing. After publication, the changelog's Unreleased entries move under 0.1.0 with the release link.
+0.1.0 was published on 2026-09-24 as [v0.1.0](https://github.com/open-autonomy-org/evidence-desk/releases/tag/v0.1.0) at 873506f.
