@@ -447,6 +447,12 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     if (!counts.length || !/finding/i.test(text) || vulns.length) continue;
     add({ key: `findings-unregistered:${ev.data.id}`, source: `evidence ${ev.data.id} (${ev.data.title})`, controls: ev.data.controls.join(';'), item: `${counts.map((c) => `${c.n} ${c.sev}`).join(', ')} finding(s) in ${ev.data.id}`, detail: `the report states findings and the vulnerability register (registers/vulnerabilities.csv) records none found in the period`, occurred: day(ev.data.collected_at), detected: collectedOf(f.path), resolved: '', found_by: 'this package, comparing reports that state findings with the vulnerability register', file: f.path });
   }
+  // Management's own record stating that no independent review exists: a gap in the design, admitted in writing.
+  for (const ev of evidence.filter((x) => inside(x.data.collected_at, { start: period.start, end: day(createdAt) }) && x.data.controls.some((c) => /^(GOV|MON)-/.test(c)))) for (const f of ev.data.files.filter((x) => /\.(md|txt)$/.test(x.path))) {
+    const text = existsSync(join(root, f.path)) ? readFileSync(join(root, f.path), 'utf8') : '';
+    const said = /[^.\n]*\b(?:no (?:\w+ ){0,4}independent|not independent|nobody independent|no one independent)\b[^.\n]*/i.exec(text)?.[0].trim();
+    if (said) add({ key: `admitted-gap:${ev.data.id}`, source: `evidence ${ev.data.id} (${ev.data.title})`, controls: ev.data.controls.join(';'), item: `management's own record states there is no independent review (${ev.data.id})`, detail: `"${said}"`, occurred: day(ev.data.collected_at), detected: collectedOf(f.path), resolved: '', found_by: 'this package, reading management\'s own records', file: f.path });
+  }
   // One event, one exception, for hand-made settings too: the change check's failing reading of the day a person changed
   // a setting (or put it back), and its unacknowledged sibling, belong to that setting's out-of-path exception.
   for (const u of exceptions.filter((x) => x.key.startsWith('out-of-path-change:'))) {
@@ -488,7 +494,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   // A deviation is of design when what it shows stood through the period (a person's live credential, a ruleset
   // weakened, a declared trigger never used, the same self-approval release after release), and of operation when a
   // designed control failed on an occasion. The assertion qualifies the two separately.
-  const natureOf = (x: PacketException) => /^(personal-token|personal-deploy-token|weakened|trigger):/.test(x.key) || x.key === 'release-self-approved' ? 'design' : 'operating';
+  const natureOf = (x: PacketException) => /^(personal-token|personal-deploy-token|weakened|trigger|admitted-gap):/.test(x.key) || x.key === 'release-self-approved' ? 'design' : 'operating';
   // Written after every view that can raise an exception.
   views.set('review/exceptions.csv', writeCsv({ columns: ['key', 'nature', 'source', 'controls', 'item', 'detail', 'occurred', 'detected', 'resolved', 'closed_by', 'open_at_period_end', 'found_by', 'response', 'responded_by', 'response_cites', 'file'], rows: exceptions.map((x) => ({ ...x, nature: natureOf(x), closed_by: x.closed_by ?? '', open_at_period_end: !x.resolved || x.resolved > period.end ? 'yes' : 'no',
       found_by: x.found_by ?? (x.key.startsWith('check:') ? `the organization's daily check, on ${x.detected}` : x.key.startsWith('audit-finding:') ? `the organization's internal audit, on ${x.occurred}` : x.key.startsWith('incident:') ? 'the organization (its incident record)' : `this package's collection, on ${x.detected}`), response_cites: x.response_cites ?? '' })) }));

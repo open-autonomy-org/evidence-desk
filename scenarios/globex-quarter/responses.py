@@ -47,6 +47,10 @@ for r in json.load(open(X)):
               "period's end, and Sam still held Cloudflare Administrator. We accept it as a deviation: revoking the token and reducing "
               "Sam's personal access to read-only are Q4 actions, so that only the deploy service account can deploy.",
               [one('evidence/files/populations/cloudflare-tokens-*.csv'),workers])
+    elif k.startswith('admitted-gap:'):
+        R[k]=("Our management review records that no reviewer independent of both people with security duties existed in the period, and "
+              "that the weekly internal audit is run by the project's own agent. We accept it as a design deficiency in monitoring "
+              "and oversight (GOV-03, MON-04); from Q4 an outside reviewer engaged by the owner reviews the internal audits each quarter.",[r['file']])
     elif k.startswith('findings-unregistered:'):
         R[k]=(f"{r['item']}: the penetration test's findings were tracked in the tester's report and the retest record, not in "
               "the vulnerability register. The medium finding was fixed in deploy-v7 and closed at the retest of 2026-09-12; the two "

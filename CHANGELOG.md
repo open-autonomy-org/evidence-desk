@@ -7,6 +7,11 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Management's own record stating that no independent review exists is a design exception. The assertion is drafted
+  from the day a system created inside the period began operating. The manifest lists each committed file the package
+  leaves out, with why. The drafted description states the declared two-stage review as declared, beside what operated,
+  and summarises the exceptions register instead of pasting it. A cited register key counts as disclosure only in a
+  matter carrying the deviation's date, and claims are traced first to the line naming most of their ids.
 - A report that states findings (a penetration test, a scan) while the vulnerability register records none in the
   period is an exception.
 - The Open Autonomy import keeps the documents it read at that commit (the architecture decisions, the SOC 2

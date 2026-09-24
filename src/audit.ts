@@ -178,7 +178,7 @@ ${snap.decisions.map((d) => `- ${d.title} (${d.status || 'no status'}; checklist
 ` : ''}Where people act:
 ${(snap.seams ?? []).map((x) => `- ${x.id}: made by those holding ${x.scope} (${holders(x.scope)}); recorded in ${x.record.charAt(0).toLowerCase()}${x.record.slice(1)}`).join('\n') || '- [the project declares no decisions reserved to people]'}
 
-Change review works in two stages: agents review and merge each change, and a person holding release-review approves each release, an approval that covers every change the release ships (review/change-releases.csv lists each change with the release that shipped it and who approved that release). The project declares its change and release design: ${snap.rules.pr_landing ? 'changes land through pull requests by the project\'s landing workflow' : '[describe how changes land]'}; ${prod ? `production is to be deployed by ${prod.workflow}${prod.tag_trigger ? ` from a ${prod.tag_trigger} tag` : ''} through the ${prod.environment} environment's required reviewers, with outbound access limited to ${prod.egress.join(', ') || '[none listed]'}` : '[describe how a change reaches production]'}.${(snap.rules.production_workflows ?? []).length > 1 ? ` Every run of ${snap.rules.production_workflows!.map((g) => `${g.workflow}${g.tag_trigger ? ` (${g.tag_trigger})` : ''}`).join(', ')} passes the same environment's review.` : ''}
+Change review is declared in two stages: each change is approved in its pull request by an account other than its author's (a person, or the review agent), and a person holding release-review approves each release, an approval that covers every change the release ships. What operated is stated below (review/change-releases.csv lists each change with the release that shipped it and who approved that release). The project declares its change and release design: ${snap.rules.pr_landing ? 'changes land through pull requests by the project\'s landing workflow' : '[describe how changes land]'}; ${prod ? `production is to be deployed by ${prod.workflow}${prod.tag_trigger ? ` from a ${prod.tag_trigger} tag` : ''} through the ${prod.environment} environment's required reviewers, with outbound access limited to ${prod.egress.join(', ') || '[none listed]'}` : '[describe how a change reaches production]'}.${(snap.rules.production_workflows ?? []).length > 1 ? ` Every run of ${snap.rules.production_workflows!.map((g) => `${g.workflow}${g.tag_trigger ? ` (${g.tag_trigger})` : ''}`).join(', ')} passes the same environment's review.` : ''}
 ${(() => { const c = e.period ? periodPopulation(ws, e, 'changes to') : null; const d = e.period ? periodPopulation(ws, e, 'deployments of') : null; if (!c && !d) return '';
   const lines: string[] = [];
   if (c) { const prs = c.rows.filter((r) => r.kind === 'pull request'); const bad = c.rows.filter((r) => r.independent_approval !== 'yes');
@@ -273,8 +273,7 @@ ${openAutonomySection(ws, e)}
 
 ${incidents.length ? incidents.map((i) => `- ${i.data.detected_at.slice(0, 10)} ${i.data.title} (${i.data.severity}, ${i.data.status})${i.data.review ? `: ${i.data.review}` : ''}`).join('\n') : projectIncidents(ws, e) ? '' : 'No incident is recorded for this period, in the workspace or in the project\'s records.'}
 ${projectIncidents(ws, e)}${(() => { const ex = knownExceptions(ws, e); return ex.length ? `
-Deviations the workspace found during the period (the package's review/exceptions.csv):
-${deviationList(ex)}
+The package's exceptions register (review/exceptions.csv) holds ${ex.length} deviation(s) of the period, ${ex.filter((x) => x.nature === 'design').length} of design and ${ex.filter((x) => x.nature !== 'design').length} of operation; management's assertion describes each.
 
 [State which of these deviations are incidents to disclose here, with the effect and resolution of each.]
 ` : ''; })()}
@@ -319,7 +318,10 @@ Sources: policies/*.json (approved versions).
 
 function assertion(ws: Workspace, e: Engagement): string {
   const org = ws.manifest?.data.organization ?? '';
-  const when = e.type === 'type1' ? `as of ${e.as_of}` : `throughout the period ${e.period!.start} to ${e.period!.end}`;
+  // A system that began operating inside the period is asserted on from that day, not from the period's start.
+  const cfg = e.type === 'type2' ? periodPopulation(ws, e, 'configuration of') : null;
+  const born = (cfg?.rows ?? []).filter((r) => r.action === 'create' && r.resource.startsWith('script ')).map((r) => r.at.slice(0, 10)).sort()[0];
+  const when = e.type === 'type1' ? `as of ${e.as_of}` : born && born > e.period!.start ? `from ${born}, when the system began operating, to ${e.period!.end}` : `throughout the period ${e.period!.start} to ${e.period!.end}`;
   return `# Management's assertion
 
 <!-- Drafted by Evidence Desk. Management reviews, adapts and signs it; the firm may provide its own required wording. -->
@@ -739,7 +741,10 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     return { path: p, sha256: h.sha256, bytes: h.bytes };
   });
   const omitted = ['Evidence outside the engagement window and evidence of excluded controls stay in the workspace; the control matrix lists every control with its evidence ids, and the firm may ask for any of it.',
-    ...[...absent].sort(([a], [b]) => a.localeCompare(b)).map(([ref, by]) => `${ref}: cited by ${by}, and not in the workspace`)];
+    ...[...absent].sort(([a], [b]) => a.localeCompare(b)).map(([ref, by]) => `${ref}: cited by ${by}, and not in the workspace`),
+    // Each committed file the package leaves out, by name, so the firm need not diff the history to find it.
+    ...(() => { try { return execFileSync('git', ['-C', root, 'ls-files'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).split('\n').filter((f) => f && !paths.has(f) && f !== 'evidence-desk.json')
+      .map((f) => `${f}: ${f.startsWith('evidence/') ? 'evidence outside the window or of an excluded control' : f.startsWith('checks/runs/') ? 'a check run outside the period' : f.startsWith('.github/') || f === 'collectors.json' || f === 'trust.json' ? 'the workspace\'s own configuration' : 'not cited by any packaged file'}`); } catch { return []; } })()];
   const described = existsSync(join(root, base(id), 'drafts', 'description.md')) ? readFileSync(join(root, base(id), 'drafts', 'description.md'), 'utf8') : null;
   // The workspace's own history on its default line: who merged each change to the program's records and when, so a
   // register edit or an attribution row can be traced to the commit and pull request that made it.
