@@ -416,14 +416,15 @@ function lintDescription(ws: Workspace, e: Engagement, text: string, assertionTe
   // Every exception still open at the period's end is named in the assertion management signs, by what identifies it:
   // a date alone names whatever else happened that day.
   const ident = (x: Record<string, string>) => /#\d+|deploy-v\d+|\b[0-9a-f]{8}(?=[0-9a-f-]*\b)|\bR-\d+\b|[\w.+-]+@[\w-]+\.[\w.-]+|AR-\d{8}-[0-9a-f]{6}/.exec(x.item)?.[0] ?? x.key.split(':')[1] ?? x.key;
-  const open = knownExceptions(ws, e).filter((x) => !x.resolved || (e.period && x.resolved > e.period.end));
+  // Open at the period's end, or an incident: an incident is material whether or not it closed within the period.
+  const open = knownExceptions(ws, e).filter((x) => !x.resolved || (e.period && x.resolved > e.period.end) || x.key.startsWith('incident:'));
   const signed = assertionText || both;
   // Named means the row's own item (release deploy-v6, sam@globex.test's token cf-…): an id alone can appear in another
   // matter about something else.
   const missing = open.filter((x) => !signed.includes(x.item));
   out.push(!open.length ? { rule: 'open exceptions disclosed', status: 'not applicable', detail: 'no exception is open at the period end' }
-    : missing.length ? { rule: 'open exceptions disclosed', status: 'contradiction', detail: `${missing.length} open exception(s) the assertion does not name: ${missing.map((x) => `${ident(x)} (${x.key})`).join('; ')}` }
-    : { rule: 'open exceptions disclosed', status: 'pass', detail: `the assertion names each of the ${open.length} open exception(s)` });
+    : missing.length ? { rule: 'open exceptions disclosed', status: 'contradiction', detail: `${missing.length} open exception(s) or incident(s) the assertion does not name: ${missing.map((x) => `${ident(x)} (${x.key})`).join('; ')}` }
+    : { rule: 'open exceptions disclosed', status: 'pass', detail: `the assertion names each of the ${open.length} open exception(s) and incident(s)` });
   // A system created inside the period did not operate from its start: the assertion says when it began.
   const cfg = e.period ? periodPopulation(ws, e, 'configuration of') : null;
   const born = (cfg?.rows ?? []).filter((r) => r.action === 'create' && r.resource.startsWith('script ')).map((r) => r.at.slice(0, 10)).sort()[0];

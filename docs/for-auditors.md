@@ -66,9 +66,11 @@ An exception's `closed_by` says what ended it: a later passing reading (which sh
 anyone remediated it) or a later completeness check. A check that reports events, such as a bypass of the branch
 rules or a Worker deployed by a person, is never closed by a quiet day. Where the package holds the escalations
 population, a failing check that no escalation record names on or after its first failing reading is an exception of
-its own: the failure reached no one. A release whose approver wrote code it ships is an exception (`review/change-releases.csv`,
+its own: the failure reached no one. A production setting a person changed with no break-glass record that day, an access review that kept an account
+an earlier exception names, and a record made by someone without its seam's scope are exceptions. A release whose
+approver wrote code it ships is an exception (`review/change-releases.csv`,
 `release_approver_wrote_it`). `review/description-lint.csv` fails when the assertion does not name an exception open at
-the period's end by what identifies it, or does not say when a system created inside the period began operating.
+the period's end, or any incident, by what identifies it, or does not say when a system created inside the period began operating.
 
 `review/workspace.bundle` is the workspace's Git history up to that commit; `audit verify` checks that it holds it.
 The control matrix's `evidence_basis` is the strongest kind of evidence the package holds for each control: a vendor

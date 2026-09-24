@@ -63,6 +63,8 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   const responses = readResponses(root, e.id);
   const evidence = ws.evidence.filter((x) => packaged.has(x.path));
   const exceptions: PacketException[] = [];
+  // When the package's collection read a file: the date a finding the package made from it was found.
+  const collectedOf = (path: string | undefined) => day(evidence.find((x) => x.data.files.some((f) => f.path === path))?.data.collected_at ?? createdAt);
   const add = (x: Omit<PacketException, 'response' | 'responded_by'>) => { const r = responses[x.key]; exceptions.push({ ...x, response: r?.text ?? '', responded_by: r ? `${r.by} ${r.at}` : '', response_cites: (r?.cites ?? []).join(';') }); };
 
   // Populations: a row without an independent approval, and a population read before the period ended.
@@ -89,6 +91,18 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
         if (off.length || unruled) add({ ...base, key: `trigger:${ev.data.controls.join('+')}:${f.path.split('/').pop()}`, item: `${off.length} of ${t.rows.length} deployments`, detail: `${off.length ? `not started from the declared tag (${off.map((r) => `${r.ref} by ${r.run_event}`).join(', ')})` : 'every deployment started from the declared tag'}${unruled ? '; no active tag ruleset restricts who may create the declared tag' : ''}`, occurred: day(t.rows.map((r) => r.created_at).sort()[0] ?? '') }); }
       // A configuration change made by someone not on the roster, or by no one the vendor can name, and a rules change
       // that weakened the rules.
+      // A record under records/ made by someone who does not hold its seam's scope: the act the record describes was not
+      // theirs to take, or to record.
+      const seamOf = /\/(incidents|break-glass|credentials|escalations|restore-tests)-/.exec(f.path)?.[1];
+      if (seamOf && t.columns.includes('added_by') && existsSync(join(root, 'sources/open-autonomy/latest.json'))) {
+        const snap = JSON.parse(readFileSync(join(root, 'sources/open-autonomy/latest.json'), 'utf8')) as { team?: { id: string; name?: string; scopes: string[] }[]; seams?: { id: string; scope: string }[] };
+        const scope = snap.seams?.find((x) => x.id === seamOf)?.scope;
+        const holders = (snap.team ?? []).filter((m) => scope && m.scopes.includes(scope)).map((m) => m.id);
+        if (scope) for (const r of t.rows) {
+          const who = (r.by || /^([^<]+)/.exec(r.added_by ?? '')?.[1] || '').trim().toLowerCase();
+          if (who && !holders.includes(who)) add({ ...base, key: `seam-authority:${seamOf}:${r.id}`, controls: ev.data.controls.join(';'), item: `${seamOf} record ${r.id} by ${who}`, detail: `the ${seamOf} seam is held by ${scope} (${holders.join(', ') || 'no one'}); ${who} does not hold it`, occurred: day(r.at || r.added_at || '') });
+        }
+      }
       // A token created in the period while the same owner's earlier token was never revoked: a rotation that left the
       // old credential live.
       if (f.path.includes('/cloudflare-changes-')) {
@@ -107,6 +121,14 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       if (t.columns.includes('owner_worker_deploys_in_period')) for (const r of t.rows.filter((r) => r.owner_kind !== 'service account' && r.live_at_period_end === 'yes')) {
         const deployed = Number(r.owner_worker_deploys_in_period) > 0;
         add({ ...base, key: `${deployed ? 'personal-deploy-token' : 'personal-token'}:${r.token}`, controls: deployed ? 'AC-05;CHG-03' : 'AC-05', item: `${r.owner}'s token ${r.token}`, detail: `a person's API token live at the period's end (created ${day(r.created_at)})${deployed ? `; its owner deployed Workers ${r.owner_worker_deploys_in_period} time(s) in the period, outside the pipeline's service account` : ''}`, occurred: day(r.created_at), resolved: '' });
+      }
+      // A production setting a person changed by hand is a change outside the change path unless a break-glass record
+      // covers it that day.
+      if (t.columns.includes('actor_on_roster')) {
+        const bgFile = evidence.flatMap((x) => x.data.files).find((x) => x.path.includes('/break-glass-') && x.path.endsWith('.csv'));
+        const glass = bgFile ? parseCsv(readFileSync(join(root, bgFile.path), 'utf8'), bgFile.path).rows : [];
+        for (const r of t.rows.filter((r) => r.actor_on_roster === 'yes' && r.resource.startsWith('zone_setting') && !glass.some((g) => day(g.at) === day(r.at))))
+          add({ ...base, key: `out-of-path-change:${r.id}`, controls: 'CHG-01;CHG-04', item: `${r.resource}${r.zone ? ` on ${r.zone}` : ''} changed ${r.old_value || '(unset)'} → ${r.new_value} by ${r.actor}`, detail: `a production setting changed by hand at ${r.at}, outside the reviewed change path, with no break-glass record that day${bgFile ? ` (${bgFile.path})` : ''}`, occurred: day(r.at) });
       }
       if (t.columns.includes('actor_on_roster')) for (const r of t.rows.filter((r) => r.actor_on_roster === 'no' || r.actor_on_roster === 'unknown'))
         add({ ...base, key: `config-actor:${f.path.split('/').pop()!.replace(/-\d+\.csv$/, '')}:${r.id || `${r.ruleset_id}:${r.version}`}`, item: r.change || `${r.resource} ${r.old_value} → ${r.new_value}`, detail: r.actor ? `changed by ${r.actor}, who is not on the roster` : 'changed by no one the vendor names (a token without a user)', occurred: day(r.at) });
@@ -249,7 +271,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     let streak: typeof rows = [];
     const answeredBy = (from: string) => escalations?.find((x) => `${x.channel} ${x.summary}`.includes(check) && day(x.received_at) >= day(from));
     const unacknowledged = () => { if (!escalations || !streak.length || answeredBy(streak[0].at)) return;
-      add({ key: `unacknowledged:${check}:${streak[0].run.split('/').pop()!.replace(/\.json$/, '')}`, occurred: day(streak[0].at), source: `automated check ${check}`, controls: 'OPS-01;MON-01', item: `check ${check} failing from ${day(streak[0].at)}`, detail: `no escalation record names the check on or after its first failing reading (${escFile!.path})`, detected: day(createdAt), resolved: '', found_by: `this package, comparing the check's readings with the escalations population (${escFile!.path})`, file: escFile!.path }); };
+      add({ key: `unacknowledged:${check}:${streak[0].run.split('/').pop()!.replace(/\.json$/, '')}`, occurred: day(streak[0].at), source: `automated check ${check}`, controls: 'OPS-01;MON-01', item: `check ${check} failing from ${day(streak[0].at)}`, detail: `no escalation record names the check on or after its first failing reading (${escFile!.path})`, detected: collectedOf(escFile!.path), resolved: '', found_by: `this package, comparing the check's readings with the escalations population (${escFile!.path})`, file: escFile!.path }); };
     const close = (end?: { at: string; run: string }) => { if (!streak.length) return; add({ key: `check:${check}:${streak[0].run.split('/').pop()!.replace(/\.json$/, '')}`, occurred: day(streak[0].at), source: `automated check ${check}`, controls: streak[0].controls.join(';'), item: `${streak.length} failing reading(s)`, detail: streak.at(-1)!.detail, detected: day(streak[0].at), resolved: end && !EVENT_CHECKS.has(check) ? day(end.at) : '', closed_by: !end ? '' : EVENT_CHECKS.has(check) ? `not closed by a reading: the check reports events, and ${day(end.at)}'s reading found none new` : `the reading of ${day(end.at)} passed again (${end.run}); remediation is management's to show`, file: streak[0].run }); streak = []; };
     for (const row of rows) { if (row.status === 'fail') streak.push(row); else if (row.status === 'pass') { unacknowledged(); close(row); } }
     unacknowledged(); close();
@@ -392,7 +414,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     const selfApproved = new Map<string, typeof releases>();
     for (const r of releases.filter((x) => x.release_approver_wrote_it === 'yes' && /code|pipeline/.test(x.touches))) selfApproved.set(r.released_in, [...(selfApproved.get(r.released_in) ?? []), r]);
     for (const [release, rs] of selfApproved)
-      add({ key: `release-self-approved:${release}`, source: 'change releases (review/change-releases.csv)', controls: 'CHG-01;CHG-03', item: `release ${release}`, detail: `approved by ${rs[0].release_approved_by}, who wrote ${rs.map((r) => `#${r.number}`).join(', ')} in it`, occurred: day(rs[0].released_at), detected: day(createdAt), resolved: '', found_by: `this package, comparing each release's approver with the authors of the changes it ships`, file: ghDep?.path ?? worker.path });
+      add({ key: `release-self-approved:${release}`, source: 'change releases (review/change-releases.csv)', controls: 'CHG-01;CHG-03', item: `release ${release}`, detail: `approved by ${rs[0].release_approved_by}, who wrote ${rs.map((r) => `#${r.number}`).join(', ')} in it`, occurred: day(rs[0].released_at), detected: collectedOf(ghDep?.path ?? worker.path), resolved: '', found_by: `this package, comparing each release's approver with the authors of the changes it ships`, file: ghDep?.path ?? worker.path });
     views.set('review/production-timeline.csv', writeCsv({ columns: ['from', 'until', 'days', 'deployment', 'author', 'commit', 'github_deployment', 'ref', 'approved', 'change_path', 'pull_requests'], rows: timeline }));
   }
   // One event, one exception: a deploy no approved GitHub deployment accounts for, which the daily change-actors check
@@ -405,10 +427,20 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     u.found_by = `the organization's daily check cloudflare-change-actors, on ${c.detected} (${c.file})`;
     exceptions.splice(exceptions.indexOf(c), 1);
   }
+  // An access review that kept an account an earlier exception names: the review saw the account and let it stand.
+  for (const a of ws.accessReviews.filter((x) => packaged.has(`reviews/access/${x.data.id}.json`) && x.data.status === 'signed-off' && inside(x.data.signed_off_at ?? '', period)))
+    for (const acct of a.data.accounts.filter((x) => x.decision === 'keep')) {
+      const named = exceptions.filter((x) => x.occurred && x.occurred <= day(a.data.signed_off_at ?? '') && `${x.item} ${x.detail}`.toLowerCase().includes(acct.account.toLowerCase()));
+      if (named.length) add({ key: `kept-after-exception:${a.data.id}:${acct.account}`, source: `access review ${a.data.id} (${a.data.system})`, controls: 'AC-03;AC-04', item: `${acct.account} kept by ${a.data.reviewer}`, detail: `kept on ${day(a.data.signed_off_at ?? '')}, after ${named.map((x) => x.key).join(', ')} named the account`, occurred: day(a.data.signed_off_at ?? ''), detected: collectedOf(`reviews/access/${a.data.id}.json`), resolved: '', found_by: 'this package, comparing each access review with the exceptions before it', file: `reviews/access/${a.data.id}.json` });
+    }
   // The matrix and coverage count what the register holds once every view has raised its exceptions.
   for (const m of matrix) m.exceptions = String(exceptions.filter((x) => x.controls.split(';').includes(m.control)).length);
   views.set('review/controls-matrix.csv', writeCsv({ columns: matrixColumns, rows: matrix }));
-  for (const c of byCriterion) c.exceptions = String(exceptions.filter((x) => x.controls.split(';').some((id) => c.controls.split(';').includes(id))).length);
+  for (const c of byCriterion) {
+    const n = exceptions.filter((x) => x.controls.split(';').some((id) => c.controls.split(';').includes(id))).length;
+    c.exceptions = String(n);
+    c.status = c.status.replace(/, (?:\d+ exception\(s\)|no exception)$/, n ? `, ${n} exception(s)` : ', no exception');
+  }
   // Written after every view that can raise an exception.
   views.set('review/exceptions.csv', writeCsv({ columns: ['key', 'source', 'controls', 'item', 'detail', 'occurred', 'detected', 'resolved', 'closed_by', 'open_at_period_end', 'found_by', 'response', 'responded_by', 'response_cites', 'file'], rows: exceptions.map((x) => ({ ...x, closed_by: x.closed_by ?? '', open_at_period_end: !x.resolved || x.resolved > period.end ? 'yes' : 'no',
       found_by: x.found_by ?? (x.key.startsWith('check:') ? `the organization's daily check, on ${x.detected}` : x.key.startsWith('audit-finding:') ? `the organization's internal audit, on ${x.occurred}` : x.key.startsWith('incident:') ? 'the organization (its incident record)' : `this package's collection, on ${x.detected}`), response_cites: x.response_cites ?? '' })) }));

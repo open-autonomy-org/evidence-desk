@@ -53,8 +53,18 @@ for r in json.load(open(X)):
     elif k.startswith('check:cloudflare-https'):
         R[k]=("Sam turned Always Use HTTPS off on relay.globex.test at 16:00 UTC on 2026-08-19 while testing a redirect, and Maya turned it back "
               "on at 10:00 UTC on 2026-08-21 (the account audit log in the configuration-changes population). The daily check found it on 08-19, and Maya "
-              "acknowledged the alert at 08:30 UTC on 2026-08-20 (escalation record); the minimum TLS version stayed 1.2 throughout. The change went through no change record, which we accept as a deviation. We have "
-              "no evidence either way about plain-HTTP traffic in the window.",[cf_changes,snap('2026-08-19','cloudflare'),snap('2026-08-21','cloudflare')])
+              "acknowledged the alert at 08:30 UTC on 2026-08-20 and chose to leave the setting off until Sam fixed the redirect loop, so it stayed off for a further 25.5 hours (escalation record); the minimum TLS version stayed 1.2 throughout. The change went through no change record, which we accept as a deviation. We have "
+              "no evidence either way about plain-HTTP traffic in the window.",[cf_changes,snap('2026-08-19','cloudflare'),snap('2026-08-21','cloudflare'),one('evidence/files/populations/escalations-*.csv')])
+    elif k.startswith('out-of-path-change:'):
+        R[k]=(f"{r['item']}: a production setting changed by hand, with no change record or break-glass record. We accept it as a "
+              "deviation from the change path; from Q4 a production setting is changed only through a reviewed pull request or a "
+              "recorded break-glass change.",[cf_changes,glass_csv])
+    elif k.startswith('kept-after-exception:'):
+        R[k]=(f"{r['item']}: {r['detail']}. The reviewer kept the access without recording a reason. We accept it as a deviation "
+              "from the access review; reducing Sam's personal Cloudflare access to read-only is a Q4 action.",[r['file']])
+    elif k.startswith('seam-authority:'):
+        R[k]=(f"{r['item']}: {r['detail']}. Sam recorded the break-glass change himself; the owner did not approve it before or "
+              "after. We accept it as a deviation from the break-glass procedure.",[glass_csv])
     elif k.startswith('audit-finding:'):
         on=k.split(':')[1][:10]
         R[k]=(f"The internal audit of {on} found no restore test recorded yet this quarter for the payload store, as each weekly audit did "

@@ -38,7 +38,7 @@ if qual: t=re.sub(r"\[The workspace found \d+ deviation\(s\).*?\]\n(- .*\n)+", q
 # register the package will carry, and says when the system began operating if that was inside the period.
 if len(sys.argv)>3 and os.path.exists(sys.argv[3]):
     import json as _json
-    add=[x for x in _json.load(open(sys.argv[3])) if x.get('open_at_period_end')=='yes' and x['item'] not in t]
+    add=[x for x in _json.load(open(sys.argv[3])) if (x.get('open_at_period_end')=='yes' or x['key'].startswith('incident:')) and x['item'] not in t]
     letters=re.findall(r'^\(([a-z])\) ', t, flags=re.M); n=ord(max(letters))+1 if letters else ord('a')
     for x in add:
         t=t.rstrip('\n')+f"\n\n({chr(n)}) {x['item']}: {x['detail']}.\n"; n+=1
