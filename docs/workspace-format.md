@@ -27,7 +27,7 @@ allowed everywhere and kept when Evidence Desk writes a file, so other tools can
 | `sources/open-autonomy/<commit>.json`, `latest.json` | what an Open Autonomy project declared at a commit | `open-autonomy` |
 | `sources/open-autonomy/completeness/<id>.json` | one vendor account's administrators compared with the roster | `completeness` |
 | `sources/open-autonomy/seam-records/<seam>.json` | the latest collection of one commit seam's records, with its findings | none |
-| `sources/github/onboarding-attribution.json` | the latest check of who recorded each form response | none |
+| `sources/github/attribution.json` | the latest check of who recorded each signed act | none |
 | `collectors.json` | which collectors are enabled and their parameters (never credentials) | `collectors` |
 | `checks/runs/<id>.json` | one run of the enabled collectors and every check result | `check-run` |
 | `evidence/files/collected/<collector>/<run>.json` | what a collector read in a run, with the requests it made | JSON |
@@ -122,14 +122,20 @@ author, recorded as evidence for the kind's controls. A closed incident without 
 a later review and an escalation without a response are findings in the gap view until a later collection no longer
 finds them; a declared seam never collected is a finding too.
 
-Onboarding at a seam: the workspace is kept in a private GitHub repository the roster members can open pull requests
-to, and each member records their own responses (`respond`, or the People page of their own `serve`) in a pull request
-they open. `collect onboarding-attribution` reads, on the default branch, every commit that touched each response file
-(`git log --no-renames origin/<default>`), and requires GitHub to associate each with a pull request merged into the
-default branch and opened by the member's GitHub account on the roster, and the file to be unchanged since. A shallow
-clone is refused. A roster member's latest passed response to a form that fails any of these, or changed after the
-check, is a finding in the gap view, as is a check made against an earlier roster. A collaborator who pushes a commit to
-a member's open pull request branch is not told apart from the member.
+Signed acts at a seam: the workspace is kept in a private GitHub repository the roster members can open pull requests
+to, and each person records the acts the workspace names them in (a form response, an access review's sign-off, a
+policy's latest approval, the update that closed an incident) in a pull request they open. `collect attribution`
+finds, on the default branch (`git log --no-renames origin/<default>`), the commit that brought each act to its present
+content, and requires GitHub to associate it with a pull request merged into the default branch and opened by the
+person's GitHub account on the roster; the working file must hold the act as merged. A shallow clone is refused. A
+roster member's act that fails this (for responses, their latest passed one per form), or changed after the check, is a
+finding in the gap view, as is a check made against an earlier roster. A collaborator who pushes a commit to a person's
+open pull request branch is not told apart from them. Register rows (risks, vendors) are not yet attributed.
+
+`remind` keeps one issue labelled `evidence-desk` in the workspace repository for each owned obligation that is due or
+overdue, assigned to the owner's GitHub account on the roster, retitled when it becomes overdue and closed once the
+obligation is met; obligations no one owns share one issue that lists them. The daily workflow that `ci-template` writes runs
+the attribution check (where an Open Autonomy roster was imported) and the reminders with the repository's own token.
 
 `evidence-desk collect` writes populations under `evidence/files/populations/` with the requests that produced them:
 merged pull requests with their approvals and whether an approval came from someone other than the author (`unknown`

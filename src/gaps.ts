@@ -5,6 +5,7 @@ import { placeholders, unanswered } from './actions.ts';
 import type { Workspace } from './workspace.ts';
 import { computeObligations, type Obligation } from './obligations.ts';
 import { RECORD_KINDS, seamFindings, type Snapshot } from './open-autonomy.ts';
+import { actDigest, signedActs } from './github.ts';
 import { readVersioned } from './files.ts';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -46,23 +47,24 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
       if (!last) program.push(`Open Autonomy: the administrators of ${acct.vendor} ${acct.account} have not been compared with the roster`);
       else for (const o of last.outside) program.push(`Open Autonomy: ${o} administers ${acct.vendor} ${acct.account} but is not on the roster`);
     }
-    // Each roster member's latest passed response per form must have been recorded by their own GitHub account.
-    const attributed = readVersioned(ws.root, 'sources/github/onboarding-attribution.json');
-    const record = attributed ? JSON.parse(attributed.text) as { roster_commit: string; rows: { response: string; sha256: string; status: string; author: string }[] } : null;
-    const rows = record?.rows ?? null;
-    if (record && record.roster_commit !== snap.commit) program.push(`Open Autonomy: onboarding was checked against the roster at ${record.roster_commit.slice(0, 12)}, not ${snap.commit.slice(0, 12)} (collect onboarding-attribution)`);
-    const titles = new Map(ws.forms.map((f) => [f.data.id, f.data.title]));
-    const latestBy = new Map<string, { id: string; person: string; form: string }>();
-    for (const r of ws.responses) if (r.data.passed && snap.team.some((m) => m.id === r.data.person)) {
-      const key = `${r.data.person} ${r.data.form}`;
-      const cur = latestBy.get(key);
-      if (!cur || ws.responses.find((x) => x.data.id === cur.id)!.data.submitted_at < r.data.submitted_at) latestBy.set(key, { id: r.data.id, person: r.data.person, form: r.data.form });
+    // Every act a roster member signs must have been recorded by their own GitHub account: their latest passed response
+    // per form, each access review sign-off, each policy's latest approval, each incident's closing review.
+    const attributed = readVersioned(ws.root, 'sources/github/attribution.json');
+    const record = attributed ? JSON.parse(attributed.text) as { roster_commit: string; rows: { key: string; value_sha256: string; status: string; author: string }[] } : null;
+    if (record && record.roster_commit !== snap.commit) program.push(`Open Autonomy: signed acts were checked against the roster at ${record.roster_commit.slice(0, 12)}, not ${snap.commit.slice(0, 12)} (collect attribution)`);
+    const latestResponse = new Map<string, { id: string; at: string }>();
+    for (const r of ws.responses) if (r.data.passed) {
+      const k = `${r.data.person} ${r.data.form}`;
+      if ((latestResponse.get(k)?.at ?? '') < r.data.submitted_at) latestResponse.set(k, { id: r.data.id, at: r.data.submitted_at });
     }
-    if (latestBy.size && !rows) program.push('Open Autonomy: onboarding responses have not been checked against the members\' GitHub accounts (collect onboarding-attribution)');
-    else for (const r of latestBy.values()) {
-      const row = rows!.find((x) => x.response === r.id && x.sha256 === ws.responses.find((y) => y.data.id === r.id)!.version);
-      if (!row) program.push(`Open Autonomy: ${r.person}'s ${titles.get(r.form) ?? r.form} (${r.id}) has not been checked against their GitHub account`);
-      else if (row.status !== 'verified') program.push(`Open Autonomy: ${r.person}'s ${titles.get(r.form) ?? r.form} (${r.id}) is not recorded by their own GitHub account: ${row.status}${row.author ? ` (${row.author})` : ''}`);
+    const latestIds = new Set([...latestResponse.values()].map((x) => `response:${x.id}`));
+    const acts = signedActs(ws.root).filter((a) => snap.team.some((m) => m.id === a.person) && (a.kind !== 'response' || latestIds.has(a.key)));
+    if (acts.length && !record) program.push('Open Autonomy: signed acts (onboarding, access review sign-offs, policy approvals, incident closures) have not been checked against the people\'s GitHub accounts (collect attribution)');
+    else for (const a of acts) {
+      const value = actDigest(a.extract(JSON.parse(readVersioned(ws.root, a.file)!.text)));
+      const row = record!.rows.find((x) => x.key === a.key && x.value_sha256 === value);
+      if (!row) program.push(`Open Autonomy: ${a.person}'s ${a.label} has not been checked against their GitHub account`);
+      else if (row.status !== 'verified') program.push(`Open Autonomy: ${a.person}'s ${a.label} is not recorded by their own GitHub account: ${row.status}${row.author ? ` (${row.author})` : ''}`);
     }
     for (const seam of (snap.seams ?? []).filter((x) => x.door === 'commit' && x.record.startsWith('records/') && RECORD_KINDS[x.id])) {
       const got = readVersioned(ws.root, `sources/open-autonomy/seam-records/${seam.id}.json`);
