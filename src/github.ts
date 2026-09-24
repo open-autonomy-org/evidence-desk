@@ -154,7 +154,8 @@ export async function collectDeployments(root: string, input: { repo: string; en
   const rulesets = await (get(`/repos/${input.repo}/rulesets`) as Promise<{ id: number; target?: string }[]>).catch(() => []);
   const tagRulesets = await Promise.all(rulesets.filter((r) => r.target === 'tag').map((r) => get(`/repos/${input.repo}/rulesets/${r.id}`)));
   const raw: Record<string, unknown> = { provenance: source, environment, tag_rulesets: tagRulesets, deployments: deps.items, statuses: {}, runs: {}, approvals: {} };
-  // The trigger the project declares for production (a deploy-v* tag) against how each run actually started, and
+  // The trigger the project declares for production (a deploy-v* tag, pushed or dispatched from) against how each run
+  // actually started, and
   // whether any active tag ruleset restricts who may create such a tag.
   const declared = snap?.rules.production_deploy?.tag_trigger ?? null;
   const glob = (pat: string, x: string) => new RegExp(`^${pat.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`).test(x);
@@ -186,7 +187,7 @@ export async function collectDeployments(root: string, input: { repo: string; en
     const shaMatch = !runFound ? '' : runSha === d.sha ? 'yes' : 'no';
     const independent = !runFound ? 'unknown' : !approvers.length || shaMatch === 'no' ? 'no' : !starters.length || approvers.some((a) => !a) ? 'unknown' : approvers.some((a) => !starters.includes(a)) ? 'yes' : 'no';
     rows.push({ id: String(d.id), ref: d.ref, sha: d.sha, created_at: d.created_at, creator: d.creator?.login ?? '', final_state: last?.state ?? 'none', final_at: last?.created_at ?? '',
-      run: runID, run_event: runEvent, trigger_as_declared: !declared || !runFound ? '' : runEvent === 'push' && glob(declared, d.ref) ? 'yes' : 'no', declared_tag_rule: tagRule, run_commit: runSha, commit_match: shaMatch, run_conclusion: runConclusion, started_by: startedBy, starter_holds_seam: holds(deployers, starters), approved_by: approvedBy, approver_holds_seam: holds(releasers, approvers), independent_approval: independent });
+      run: runID, run_event: runEvent, trigger_as_declared: !declared || !runFound ? '' : (runEvent === 'push' || runEvent === 'workflow_dispatch') && glob(declared, d.ref) ? 'yes' : 'no', declared_tag_rule: tagRule, run_commit: runSha, commit_match: shaMatch, run_conclusion: runConclusion, started_by: startedBy, starter_holds_seam: holds(deployers, starters), approved_by: approvedBy, approver_holds_seam: holds(releasers, approvers), independent_approval: independent });
   }
   const stem = `evidence/files/populations/github-deployments-${input.repo.replace('/', '-')}-${input.environment}-${input.start}-${input.end}-${Date.now()}`;
   const rel = `${stem}.csv`;
