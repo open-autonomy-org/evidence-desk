@@ -32,6 +32,7 @@ async function post(path, payload, okText) {
   const view = document.getElementById('view');
   const holder = (trigger instanceof Element ? trigger : document.activeElement)?.closest?.('form, .card');
   const box = holder && view.contains(holder) ? [...view.querySelectorAll('form, .card')].indexOf(holder) : -1;
+  trigger = null;
   let r, j;
   try {
     r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
