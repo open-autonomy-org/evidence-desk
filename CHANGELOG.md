@@ -7,6 +7,8 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- `review/claims.csv` tells a corroborated date from a supported fact: a claim whose date, subject and act are found but
+  whose stated time, pull request or release no supporting line carries is `partly supported`, naming what is not.
 - More of what an auditor finds by hand is raised as an exception: a production setting a person changed with no
   break-glass record that day; an access review that kept an account an earlier exception names; a record under
   `records/` made by someone who does not hold its seam's scope. Every incident must be named in the assertion, closed

@@ -447,7 +447,7 @@ function lintDescription(ws: Workspace, e: Engagement, text: string, assertionTe
 // firm. A future date is a plan. A count must match the population it names.
 const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20 };
 const ACT_WORDS = ['told', 'notified', 'customer', 'joined', 'left', 'restore', 'audit', 'incident', 'deploy', 'deployment', 'rotat', 'token', 'review', 'test', 'merge', 'approv', 'break-glass', 'escalation', 'notif', 'backup', 'onboard', 'access', 'https', 'tls', 'bypass', 'ruleset', 'monitor', 'uptime', 'tabletop', 'exercise', 'penetration'];
-export type Claim = { source: string; claim: string; status: 'vendor record' | 'client record' | 'client narrative' | 'unsupported' | 'contradiction' | 'judgment'; detail: string };
+export type Claim = { source: string; claim: string; status: 'vendor record' | 'client record' | 'client narrative' | 'partly supported' | 'unsupported' | 'contradiction' | 'judgment'; detail: string };
 function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, packaged: Set<string>, today: string): Claim[] {
   const kindOfFile = new Map<string, 'vendor record' | 'client record' | 'client narrative'>();
   for (const x of ws.evidence.filter((y) => packaged.has(y.path) && !/collected by run/.test(y.data.title))) {
@@ -521,7 +521,7 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
     if (!ids.length && !people.length && t.about) ids.push(...t.about.filter((x) => lines.some((l) => l.text.includes(x))));
     const subjects = [...new Set([...ids, ...people, ...ACT_WORDS.filter((w) => low.includes(w))])];
     const acts = ACT_WORDS.filter((w) => new RegExp(`\\b${w}`).test(low)).map((w) => new RegExp(`\\b${w.replace(/-/g, '\\-')}`));
-    const found: string[] = []; let worst: Claim['status'] = 'vendor record'; const missing: string[] = [];
+    const found: string[] = []; const support: string[] = []; let worst: Claim['status'] = 'vendor record'; const missing: string[] = [];
     for (const d of eventDates) {
       // Among qualifying lines, the strongest kind wins (a system record over a client's own document, whose length
       // lets it name many subjects), then the line naming most of the claim's subjects.
@@ -535,10 +535,16 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
       const hits = (withId.length ? withId : withPerson.length ? withPerson : onDay.filter((l) => subjects.filter((x) => l.text.includes(x)).length >= Math.min(2, subjects.length || 2)))
         .sort((a, b) => rank[a.kind] - rank[b.kind] || score(b) - score(a));
       if (!hits.length) { missing.push(d); continue; }
+      support.push(...hits.map((l) => `${l.text} ${l.acts ?? ''}`));
 
       found.push(`${d}: ${hits[0].file}:${hits[0].n} (${hits[0].kind})`);
       if (rank[hits[0].kind] > rank[worst as keyof typeof rank]) worst = hits[0].kind;
     }
+    // A line that carries the claim's date, subject and act corroborates when and who; the specific facts the claim
+    // states (a time of day, a pull request, a release) are supported only if a supporting line carries them too.
+    const facts = [...new Set([...sentence.matchAll(/\b\d{1,2}:\d{2}\b|#\d+\b|\bdeploy-v\d+\b/g)].map((m) => m[0].toLowerCase()))];
+    const unconfirmed = missing.length ? [] : facts.filter((f) => !support.some((x) => x.includes(f.length === 4 ? `0${f}` : f) || x.includes(f)));
+    if (unconfirmed.length) { out.push({ source: t.source, claim: sentence, status: 'partly supported', detail: `${found.join('; ')}; no supporting line states ${unconfirmed.join(', ')}` }); continue; }
     out.push(missing.length ? { source: t.source, claim: sentence, status: 'unsupported', detail: `no packaged line records ${missing.join(', ')} together with ${subjects.slice(0, 6).join(', ') || 'any subject of the claim'}` }
       : { source: t.source, claim: sentence, status: worst, detail: found.join('; ') });
   }

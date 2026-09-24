@@ -42,7 +42,8 @@ cites; one citing nothing says so. The package is not exported while any excepti
 exceptions` lists the register the package will carry and which rows are answered.
 
 - `review/claims.csv`: every dated claim in the description, the assertion and management's responses, tied to the
-  packaged line that records its date and names its subject, and graded by where that line came from: a vendor's own
+  packaged line that records its date, names its subject and records its act (a claim whose stated time, pull request
+  or release no such line carries is `partly supported`), and graded by where that line came from: a vendor's own
   answer (vendor record), a record the organization made (client record: it shows what was recorded, not that it
   happened) or a document it wrote (client narrative). Sentences dated only by the period are judgments. A claim no
   line supports, or a count its population contradicts, stops the export.
