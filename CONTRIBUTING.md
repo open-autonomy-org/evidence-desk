@@ -24,3 +24,9 @@ the constitution's invariants. Short on purpose; the reviewer reads it whole.
   what it is for. The README says how to run it. Nothing else is documented twice.
 - **Dependencies.** Add one only when writing it would be more code than reading it. Pin what you add.
 - **History.** One change per commit, the task id first in the subject, signed as the agent.
+- **Releases.** The artifact is the source at a tag: `v<version>` on a landed candidate, published as a GitHub release
+  of this repository, and run from a checkout of that tag (`bun install --frozen-lockfile`, then `bun src/cli.ts`, as the
+  README says). Versions follow SemVer, 0.x until the workspace format is declared stable: a change that makes an
+  existing workspace invalid or reads it differently is a minor bump, anything else a patch. The version lives in
+  `package.json`. A person creates the release at the candidate after reviewing it; merging or tagging alone publishes
+  nothing.
