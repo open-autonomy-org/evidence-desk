@@ -4,19 +4,15 @@ A synthetic company run through one SOC 2 Type II quarter (2026-07-01 to 2026-09
 and Cloudflare twins, ending in the audit package Evidence Desk exports for it. It exists to measure that package: run
 it, hand the package to a blind reviewer, change the product, run it again.
 
-Globex is three people: Maya (owner), Sam and Lee. Relay, its product, is an Open Autonomy project on the `soc2`
-template, and its compliance workspace is a second repository. The quarter holds the deviations a real first audit
-finds:
-- a hotfix merged by an administrator who bypassed the required review;
-- the incident that hotfix caused, with its escalation and a credential rotation;
-- two days with HTTPS-only turned off;
-- deployments started by people the project did not authorize to deploy;
-- an access reviewer deciding on their own access;
-- two decisions recorded under someone else's account.
-
-Globex also departs from the template on purpose, to give the package something to find: it lets administrators
-bypass the ruleset and never configures the tag rule. What it lacks (a penetration test, backups, continuity tests)
-stays missing.
+Globex is three people: Maya (owner), Sam and Lee, who joins in August. Relay, its product, is an Open Autonomy
+project on the `soc2` template, and its compliance workspace is a second repository. Agents author and review each
+change; a person approves each release. The quarter holds the deviations a real first audit finds:
+- an after-hours hotfix that passed review and caused a high-severity incident, with its escalation, customer
+  notice, corrective change and credential rotation;
+- two days with HTTPS-only turned off, caught by the daily check and escalated;
+- a Worker deployed from a laptop outside the change path, recorded as break-glass and followed by the matching
+  change;
+- the weekly internal audit's recurring finding of no restore test, until one is recorded.
 
 ## Running it
 
@@ -73,5 +69,6 @@ Copy the package into a folder of its own, and give a fresh agent only that fold
 > 5. **Top 10 changes.** Rank the ten changes to the packet or the tool that would most reduce your effort or raise
 >    your confidence.
 
-Five such reviews shaped the package. They scored it 4, 4.5, 6, 6.5 and 6.5, and the last two judged it better than the
-best competitor packet their reviewer had seen. Their remaining asks are in the roadmap.
+Ten such reviews shaped the package. They scored it 4, 4.5, 6, 6.5, 6.5, 6, 6.5, 7, 6.5 and 6.5, and the later
+ones judged it better than the best competitor packet their reviewer had seen. Their remaining asks are in the
+roadmap.
