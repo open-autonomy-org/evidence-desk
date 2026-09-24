@@ -14,7 +14,9 @@ declare const Bun: { YAML: { parse(text: string): unknown } };
 
 export type Seam = { id: string; scope: string; door: string; record: string };
 export type Snapshot = {
-  schema: string; repository: string; repository_path?: string; remote_url?: string; remote_branches?: string[]; commit: string; read_at: string; account: string; kit: { skew: string; version: string } | null;
+  schema: string; repository: string; repository_path?: string; remote_url?: string; remote_branches?: string[];
+  // The project's architecture decision records, and whether each answers the soc2 template's checklist.
+  decisions?: { file: string; title: string; status: string; checklist: 'complete' | 'incomplete' | 'none' }[]; commit: string; read_at: string; account: string; kit: { skew: string; version: string } | null;
   team: { id: string; name: string; github?: string; discord?: string; scopes: string[] }[];
   agents: { profile: string; models: { name: string; provider: string; model: string; credential?: string }[]; jobs: { name: string; schedule: string; skills: string[] }[] }[];
   seams: Seam[] | null; vendor_accounts: { id: string; vendor: string; account: string }[];
@@ -84,8 +86,14 @@ export function readProject(repo: string, commitish = 'HEAD'): Snapshot {
   let remote = '';
   try { remote = git(repo, 'remote', 'get-url', 'origin').trim(); } catch { /* a checkout with no origin */ }
   const remoteBranches = remote ? git(repo, 'branch', '-r', '--contains', commit, '--format=%(refname:short)').split('\n').map((x) => x.trim()).filter((x) => x.startsWith('origin/') && x !== 'origin/HEAD') : [];
+  const decisions = git(repo, 'ls-tree', '--name-only', commit, 'docs/decisions/').split('\n').filter((f) => /\/\d{4}-[^/]*\.md$/.test(f)).map((f) => {
+    const text = show(repo, commit, f) ?? '';
+    const section = /^## SOC 2 checklist\s*$([\s\S]*?)(?=^## |(?![\s\S]))/m.exec(text)?.[1];
+    const answered = section ? Array.from({ length: 10 }, (_, i) => `C${i + 1}`).every((c) => new RegExp(`^\\s*[-*]?\\s*${c}\\b[^:\\n]*:\\s*\\S`, 'm').test(section)) : false;
+    return { file: f, title: /^#\s+(.*)$/m.exec(text)?.[1] ?? f, status: /^Status:\s*(.*)$/m.exec(text)?.[1]?.trim() ?? '', checklist: (!section ? 'none' : answered ? 'complete' : 'incomplete') as 'complete' | 'incomplete' | 'none' };
+  });
   const snap: Snapshot = {
-    schema: 'evidence-desk.open-autonomy/1', repository: String(config.account ?? repo), repository_path: repo, remote_url: remote.replace(/\/\/[^/@]*@/, '//'), remote_branches: remoteBranches, commit, read_at: now(), account: String(config.account ?? ''),
+    schema: 'evidence-desk.open-autonomy/1', ...(decisions.length ? { decisions } : {}), repository: String(config.account ?? repo), repository_path: repo, remote_url: remote.replace(/\/\/[^/@]*@/, '//'), remote_branches: remoteBranches, commit, read_at: now(), account: String(config.account ?? ''),
     kit: kit ? (({ skew, version }) => ({ skew, version }))(JSON.parse(kit)) : null,
     team, agents, seams: seamsDoc?.seams ?? null, vendor_accounts: seamsDoc?.vendor_accounts ?? [],
     rules: { pr_landing: workflows.some((w) => /land\.ya?ml$/.test(w)), production_deploy: production, production_workflows: gated },

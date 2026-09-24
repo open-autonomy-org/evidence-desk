@@ -85,8 +85,12 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       if (t.columns.includes('result') && f.path.includes('/restore-tests-')) for (const r of t.rows.filter((r) => r.result !== 'passed'))
         add({ ...base, key: `restore-failed:${r.id}`, item: `restore test ${r.id} (${r.store})`, detail: `result ${r.result || 'not recorded'}`, occurred: day(r.at) });
       if (f.path.includes('/internal-audits-')) {
-        for (const r of t.rows) { let found: string[] = []; try { found = JSON.parse(r.findings || '[]'); } catch { found = r.findings ? [r.findings] : []; }
-          found.forEach((x, i) => add({ ...base, key: `audit-finding:${r.id}:${i + 1}`, item: `internal audit ${r.id}`, detail: x, occurred: day(r.at) })); }
+        // A finding is resolved by the first later audit in which its item passes.
+        const runs = [...t.rows].sort((a, b) => a.at.localeCompare(b.at));
+        const statusOf = (r: Record<string, string>, item: string) => { try { return (JSON.parse(r.items || '[]') as { item: string; status: string }[]).find((x) => x.item === item)?.status ?? ''; } catch { return ''; } };
+        for (const r of runs) { let found: string[] = []; try { found = JSON.parse(r.findings || '[]'); } catch { found = r.findings ? [r.findings] : []; }
+          found.forEach((x, i) => { const item = /^C\d+/.exec(x)?.[0] ?? ''; const later = item ? runs.find((y) => y.at > r.at && statusOf(y, item) === 'pass') : undefined;
+            add({ ...base, key: `audit-finding:${r.id}:${i + 1}`, item: `internal audit ${r.id}`, detail: x, occurred: day(r.at), resolved: later ? day(later.at) : '', closed_by: later ? `the internal audit ${later.id} found ${item} passing` : '' }); }); }
         const at = t.rows.map((r) => Date.parse(r.at)).filter((x) => !Number.isNaN(x)).sort((a, b) => a - b);
         const edges = [Date.parse(`${period.start}T00:00:00Z`), ...at, Date.parse(`${period.end}T23:59:59Z`)];
         const gaps = edges.slice(1).map((x, i) => [edges[i], x]).filter(([a, b]) => b - a > 8 * 864e5);

@@ -20,15 +20,19 @@ subs={'Cloudflare':'hosts and serves Relay (Workers and Durable Objects), termin
  'Open Autonomy platform (model valve and books)':'meters and routes the development agents\' model use and keeps their spending books; it holds no customer data (CSOC: none relied on for customer data). Globex reviews its security overview each year',
  'npm':'serves the dependencies the build installs, pinned by lockfile (CSOC: package integrity). Globex monitors dependency alerts daily'}
 for k,v in subs.items(): s=s.replace(f"- {k}: [the controls the organization expects it to operate, and how the organization monitors them]", f"- {k}: {v}.")
-s=s.replace("- [Add significant changes to the system, its people or its controls.]","- Lee Park joined as an engineer on 2026-08-03.\n- On 2026-08-27, after incident replay-headers, the organization administrators' bypass of the default branch's required review was removed from the ruleset main-protected; from then every change needs an approving review.")
-import os
+s=s.replace("- [Add significant changes to the system, its people or its controls.]","- Lee Park joined as an engineer on 2026-08-03 (GitHub access from 2026-08-05, after the agreements).\n- On 2026-08-27, after incident replay-headers, a tenant-isolation regression test joined the required CI checks and the deploy token moved to the deploy@globex.test service account.\n- On 2026-09-10 a break-glass deploy from a laptop reached production outside the change path (see the assertion).\n- On 2026-09-26 personal Cloudflare tokens lost the Workers edit permission.")
+import os,glob,csv as _csv
 here=os.path.dirname(os.path.abspath(__file__))
-dc4=open(here+'/dc4.md').read().strip() if os.path.exists(here+'/dc4.md') else None
+# The laptop deploy's Cloudflare id, as collected: the one deployment no approved GitHub deployment accounts for.
+_w=sorted(glob.glob(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(d)))),'evidence/files/populations/cloudflare-worker-deployments-*.csv')))
+_laptop=next((r['deployment'][:8] for r in _csv.DictReader(open(_w[-1])) if r['matched']!='yes'),'') if _w else ''
+_sub=lambda t: t.replace('{{laptop_deploy}}',_laptop)
+dc4=_sub(open(here+'/dc4.md').read().strip()) if os.path.exists(here+'/dc4.md') else None
 if dc4: s=re.sub(r"\[State which of these deviations are incidents to disclose here.*?\]", dc4, s, flags=re.S)
 open(d,'w').write(s)
 t=open(a).read()
 t=re.sub(r'<!-- Drafted by Evidence Desk.*?-->\n\n', '', t, flags=re.S)
-qual=open(here+'/qualification.md').read().strip() if os.path.exists(here+'/qualification.md') else None
+qual=_sub(open(here+'/qualification.md').read().strip()) if os.path.exists(here+'/qualification.md') else None
 if qual: t=re.sub(r"\[The workspace found \d+ deviation\(s\).*?\]\n(- .*\n)+", qual+'\n', t, flags=re.S); t=t.replace('and they operated effectively throughout that period.', 'and they operated effectively throughout that period, except for the matters described in the following paragraph.') if qual else t
 t=t.replace('[Name, title]','Maya Chen, Chief Executive Officer').replace('[Signature]','/s/ Maya Chen').replace('[Date]','2026-10-05')
 open(a,'w').write(t)

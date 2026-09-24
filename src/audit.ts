@@ -172,7 +172,10 @@ How the system is built and operated (the Open Autonomy project ${snap.account} 
 The project declares these agents, each on a schedule with its models, and the seams below as the places people act.
 ${snap.agents.map((a) => `- Agent profile ${a.profile}: ${a.jobs.map((j) => `${j.name} (${j.schedule})`).join(', ') || 'no scheduled jobs'}; models ${a.models.map((m) => `${m.provider} ${m.model}`).join(', ') || 'none'}`).join('\n')}
 
-Where people act:
+${snap.decisions?.length ? `Architecture decisions (${snap.decisions.length}), each answering the SOC 2 checklist of the soc2 template (${snap.decisions.filter((d) => d.checklist === 'complete').length} complete):
+${snap.decisions.map((d) => `- ${d.title} (${d.status || 'no status'}; checklist ${d.checklist})`).join('\n')}
+
+` : ''}Where people act:
 ${(snap.seams ?? []).map((x) => `- ${x.id}: held by ${x.scope} (${holders(x.scope)}), through ${x.door}; record: ${x.record}`).join('\n') || '- [the project declares no seams]'}
 
 The project declares its change and release design: ${snap.rules.pr_landing ? 'changes land through pull requests by the project\'s landing workflow' : '[describe how changes land]'}; ${prod ? `production is to be deployed by ${prod.workflow}${prod.tag_trigger ? ` from a ${prod.tag_trigger} tag` : ''} through the ${prod.environment} environment's required reviewers, with outbound access limited to ${prod.egress.join(', ') || '[none listed]'}` : '[describe how a change reaches production]'}.${(snap.rules.production_workflows ?? []).length > 1 ? ` Every run of ${snap.rules.production_workflows!.map((g) => `${g.workflow}${g.tag_trigger ? ` (${g.tag_trigger})` : ''}`).join(', ')} passes the same environment's review.` : ''}

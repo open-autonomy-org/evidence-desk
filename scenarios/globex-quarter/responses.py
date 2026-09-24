@@ -14,54 +14,27 @@ S=("The production-deploy seam is declared for the owner scope, which only Maya 
    "starter, given on the deployment's own run (approved_by, commit_match). We accept this departure from the declared "
    "design. From Q4, deploys are started by Maya only, until the seam is declared otherwise.")
 R={}
+glass=one('evidence/files/populations/break-glass-*.history.txt'); glass_csv=one('evidence/files/populations/break-glass-*.csv')
+workers=one('evidence/files/populations/cloudflare-worker-deployments-*.csv')
+audits=one('evidence/files/populations/internal-audits-*.csv'); restores=one('evidence/files/populations/restore-tests-*.csv')
 for r in csv.DictReader(open(os.path.join(D,'review/exceptions.csv'))):
     k=r['key']
-    if k.startswith('seam:'):
-        t=S+(" Deploy-v3 shipped the unreviewed PR #4, and Maya's approval did not catch the missing review." if 'deploy-v3' in k else "")
-        R[k]=(t,[dep_csv,roster])
-    elif k.startswith('trigger:'):
-        R[k]=("The declared trigger is a deploy-v* tag from an organization administrator. Globex never configured a tag ruleset, "
-              "and every run was started by workflow_dispatch naming the tag. The environment approval was the only gate. "
-              "A tag ruleset restricting deploy-v* to administrators is configured for Q4.",[dep_raw,roster])
-    elif k.startswith('population:') or k.startswith('unrecorded-emergency:'):
-        R[k]=("Control failure, accepted. Sam opened PR #4 at 22:40 UTC on 2026-08-12 and merged it with no approving review, as an "
-              "organization administrator bypassing the ruleset's required review (rule suite 1). No break-glass record was made, "
-              "and the after-the-fact review the change policy requires was not done. It shipped in deploy-v3 at 23:05 and caused "
-              "incident replay-headers. The bypass list was emptied on 2026-08-27, and every later change has an independent approval "
-              "on the merged commit.",[chg_csv,chg_raw,inc_hist,snap('2026-08-12','github'),snap('2026-08-27','github')])
-    elif k.startswith('check:github-change-review') or k.startswith('check:github-history-protected'):
-        R[k]=("Design deficiency, accepted. From the start of the period the ruleset main-protected let organization administrators "
-              "(Maya and Sam) always bypass its rules, and the daily check said so every day. No one acted until after incident "
-              "replay-headers. Maya emptied the bypass list on 2026-08-27 (ruleset version history in the rule-changes population); the "
-              "snapshot of that day shows bypass_actors empty.",
-              [rule_changes,snap('2026-08-26','github'),snap('2026-08-27','github')])
-    elif k.startswith('check:github-rule-bypass'):
-        R[k]=("The only bypass in the period is PR #4's merge (rule suite 1). The check failed that night, and no one acted on the alert "
-              "until a customer report on 2026-08-26. No other bypass was reported in the period.",[snap('2026-08-12','github'),chg_csv])
+    if k.startswith('unmatched-deploy:'):
+        R[k]=("Sam deployed the relay Worker from a laptop at 18:20 UTC on 2026-09-10 with a personal Cloudflare token, to raise the replay limit "
+              "for a customer whose replay backlog was failing. It bypassed the pull request and the production environment's approval. Sam "
+              "recorded it as a break-glass change on 2026-09-11 (records/break-glass/2026-09-10-replay-limit.json), and the same change was "
+              "merged through review that day. We accept it as a deviation from the change path. Personal Cloudflare tokens lost the Workers "
+              "edit permission on 2026-09-26 (management review of 2026-09-25).",[workers,glass_csv,glass])
     elif k.startswith('check:cloudflare-https'):
-        R[k]=("Sam turned Always Use HTTPS off on relay.globex.test at 16:00 UTC on 2026-08-19 while testing a redirect, and Maya "
-              "turned it back on at 10:00 UTC on 2026-08-21 (Cloudflare's audit log in the configuration-changes population). The daily "
-              "check failed on 08-19 and 08-20 and passes from 08-21; the minimum TLS version stayed 1.2 throughout. The change went "
-              "through no change record. We have no evidence either way about plain-HTTP traffic in the window.",
-              [cf_changes,snap('2026-08-19','cloudflare'),snap('2026-08-21','cloudflare')])
-    elif k.startswith('self-review:'):
-        f=one(f"reviews/access/{k.split(':')[1]}.json")
-        R[k]=("Sam reviewed this system and decided on Sam's own access. Maya approved the pull request that recorded the review; that "
-              "approval was not a review of Sam's access, and the review file records no second decision on it. From Q4, Maya reviews Sam's "
-              "accounts and Sam reviews Maya's.",[f])
-    elif k.startswith('attribution:'):
-        R[k]=("Maya recorded this decision of Sam's while setting up the workspace on 2026-06-23, before the period. It was recorded "
-              "by the wrong account, and we do not claim otherwise."+(" Sam re-rated R-3 on 2026-08-28 in a pull request from Sam's own "
-              "account (review/workspace-history.txt)." if 'R-3' in k else ""),['sources/github/attribution.json'])
-    elif k.startswith('unmatched-deploy:'):
-        R[k]=("Sam deployed the relay Worker from a laptop on 2026-09-10 with Sam's own Cloudflare token, to raise the replay limit. "
-              "It went through no pull request, no GitHub deployment and no environment approval. We accept this as a change-management "
-              "failure: the deploy token is the only Cloudflare credential that may deploy from Q4, and personal tokens lose the "
-              "Workers edit permission.",[one('evidence/files/populations/cloudflare-worker-deployments-*.csv')])
-    elif k.startswith('rotation-unconfirmed:'):
-        R[k]=("The rotation is recorded; the secret's own date in the non-human access listing is the check.",[one('evidence/files/listings/nonhuman-access-*.csv')])
+        R[k]=("Sam turned Always Use HTTPS off on relay.globex.test at 16:00 UTC on 2026-08-19 while testing a redirect, and Maya turned it back "
+              "on at 10:00 UTC on 2026-08-21 (the account audit log in the configuration-changes population). The daily check found it on 08-19; "
+              "the minimum TLS version stayed 1.2 throughout. The change went through no change record, which we accept as a deviation. We have "
+              "no evidence either way about plain-HTTP traffic in the window.",[cf_changes,snap('2026-08-19','cloudflare'),snap('2026-08-21','cloudflare')])
+    elif k.startswith('audit-finding:'):
+        R[k]=("The internal audit of 2026-08-17 found no restore test recorded yet this quarter for the payload store. Maya ran and recorded one on "
+              "2026-08-20 (passed), and the audit of 2026-08-24 found C6 passing.",[audits,restores])
     elif k.startswith('config-actor:') or k.startswith('weakened:'):
-        R[k]=("This change is in the collected change history; management has not yet reviewed it.",[cf_changes if 'cloudflare' in k else rule_changes])
+        R[k]=("This change is in the collected change history; management reviewed it at the quarterly review of 2026-09-25.",[cf_changes if 'cloudflare' in k else rule_changes])
     else: print('UNHANDLED',k,file=sys.stderr)
 for k,(t,c) in R.items():
     args=['bun','src/cli.ts','audit',W,'q3','exception',k,'--response',t,'--by','maya']
