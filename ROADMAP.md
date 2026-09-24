@@ -82,9 +82,10 @@ licensed AICPA copy locally. Policy templates come from CC0/Apache sources
 ([Tailscale security-policies, CC0](https://github.com/tailscale/security-policies),
 [strongdm/comply, Apache-2.0](https://github.com/strongdm/comply)); SCF and CIS content are not redistributable.
 
-Build mode (owner, 2026-09-23): the owner's coding session builds the outcomes here, one after the next, until
-the plan is done; the fleet resumes once the product works. Outcomes below are `Dispatch: hold` so a fleet start
-does not duplicate that work.
+Build mode (owner, 2026-09-23) ended with the product working end to end; the owner asked for every remaining step
+to be handled (2026-09-24), and the fleet's service runs again from main. Its scheduled runs wait on the project's
+operating state on the Open Autonomy platform, which the owner resumes. The remaining outcomes stay `Dispatch: hold`:
+each waits on work outside this repository (twins for further collectors, the human release steps).
 
 Sequence: `open-autonomy-soc2-ready` (the aim; publication of the template is outstanding), then
 `evidence-automation` (further collectors wait on twins). The workspace
