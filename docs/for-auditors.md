@@ -70,6 +70,11 @@ its own: the failure reached no one. A release whose approver wrote code it ship
 `release_approver_wrote_it`). `review/description-lint.csv` fails when the assertion does not name an exception open at
 the period's end by what identifies it, or does not say when a system created inside the period began operating.
 
+`review/workspace.bundle` is the workspace's Git history up to that commit; `audit verify` checks that it holds it.
+The control matrix's `evidence_basis` is the strongest kind of evidence the package holds for each control: a vendor
+record (a collector's answer or a daily check), a client record, or a client narrative; coverage marks a criterion whose
+evidence is client narrative only.
+
 The manifest's `workspace` names the workspace repository's commit at export, its origin and the remote branches
 holding it: the hosted repository's history dates every record independently of the package. A file a packaged file
 cites travels with it; one the workspace does not hold is listed in the manifest's `omitted`

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 // Seeds the GitHub and Cloudflare twins for the Globex quarter, through each vendor's API (and the twins' constructs
 // for what vendors set only in their UI: personal tokens, the org two-factor setting, Cloudflare's bootstrap).
 // Usage: bun seed.ts <step> <token|-> [args...]
@@ -21,7 +22,9 @@ const [step, token, a, b, c] = process.argv.slice(2);
 async function wrangler(tag: string, message: string) {
   const form = new FormData();
   form.append('metadata', JSON.stringify({ main_module: 'index.js', compatibility_date: '2026-06-01', annotations: { ...(tag ? { 'workers/tag': tag } : {}), 'workers/message': message } }));
-  form.append('index.js', new Blob(['export default { fetch() { return new Response("relay"); } };'], { type: 'application/javascript+module' }), 'index.js');
+  // The module is what was built: the relay's source at the deployed commit, or whatever the deployer's checkout held.
+  const module = process.env.WORKER_MODULE ? readFileSync(process.env.WORKER_MODULE, 'utf8') : 'export default { fetch() { return new Response("relay"); } };';
+  form.append('index.js', new Blob([module], { type: 'application/javascript+module' }), 'index.js');
   const r = await fetch(`${cf}/accounts/${ACCOUNT}/workers/scripts/relay`, { method: 'PUT', headers: { authorization: `Bearer ${process.env.CF_AS || process.env.CLOUDFLARE_API_TOKEN}` }, body: form });
   if (!r.ok) throw new Error(`wrangler deploy ${r.status} ${(await r.text()).slice(0, 200)}`);
 }

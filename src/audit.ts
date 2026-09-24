@@ -552,6 +552,8 @@ manifest shows they are unchanged since, not that they were derived correctly: e
 \`evidence-desk audit verify <this folder>\`, or compare the hashes with any SHA-256 tool. To respond, edit the request
 files under \`workspace/${base(id)}/requests/\` (add to each thread with side "firm", set status "accepted" or "returned",
 add sample items) and send the folder back. A hash shows that a file is unchanged; it does not show who made it.
+\`review/workspace.bundle\` is the workspace's Git history up to the commit the manifest names: \`git clone\` it and
+\`git log\` any file to see who committed it and when, and that the file here is the one committed.
 \`manifest.json\` lists what stays in the workspace under \`omitted\`${dangling ? `, including ${dangling} file(s) a packaged file cites that the workspace does not hold` : ''}. This README is hashed with the views.
 `;
 
@@ -727,6 +729,14 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     const pushed = remote ? g('branch', '-r', '--contains', head, '--format=%(refname:short)').split('\n').filter((x) => x && x !== 'origin/HEAD') : [];
     workspace = { commit: head, committed_at: g('show', '-s', '--format=%cI', head), remote, remote_branches: pushed, uncommitted: g('status', '--porcelain', '--', '.') ? 'yes' : 'no' };
   } catch { /* not a Git repository */ }
+  // The workspace's history itself, as a Git bundle of the commit named above: the firm can clone it and check that a
+  // file here is the one committed there, by whom and when, without reaching the hosted repository.
+  if (workspace.commit) try {
+    const rel = 'review/workspace.bundle';
+    execFileSync('git', ['-C', root, 'bundle', 'create', join(out, rel), 'HEAD'], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const bytes = readFileSync(join(out, rel));
+    derived.push({ path: rel, sha256: sha256(bytes), bytes: bytes.length });
+  } catch { /* no history to bundle */ }
   const manifest = { schema: 'evidence-desk.audit-package/1', engagement: e.data.id, organization: ws.manifest?.data.organization ?? '', created_at: created, ...(Object.keys(workspace).length ? { workspace } : {}), files, derived,
     omitted,
     request_versions: Object.fromEntries(reqs.map((r) => [r.data.id, r.version])) };
@@ -757,6 +767,12 @@ export function verifyPackage(dir: string): { ok: boolean; problems: string[]; f
     else if (sha256(readFileSync(full)) !== f.sha256) problems.push(`${f.path} does not match the manifest`);
   }
   if (existsSync(join(dir, 'review'))) for (const f of walk(join(dir, 'review'))) if (!views.has(`review/${f}`)) problems.push(`review/${f} is in the package but not in the manifest`);
+  // The bundled history holds the workspace commit the manifest names.
+  const bundle = join(dir, 'review', 'workspace.bundle');
+  if (manifest.workspace?.commit && existsSync(bundle)) try {
+    const heads = execFileSync('git', ['bundle', 'list-heads', bundle], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    if (!heads.includes(manifest.workspace.commit)) problems.push(`review/workspace.bundle does not hold the workspace commit ${manifest.workspace.commit}`);
+  } catch { problems.push('review/workspace.bundle is not a readable Git bundle'); }
   return { ok: !problems.length, problems, files: manifest.files.length };
 }
 

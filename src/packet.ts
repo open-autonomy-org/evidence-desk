@@ -133,7 +133,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       if (t.columns.includes('github_deployment')) for (const r of t.rows.filter((r) => r.matched !== 'yes')) {
         const next = wsorted.find((x) => x.at > r.at);
         const back = next && next.matched === 'yes' ? next : undefined;
-        add({ ...base, resolved: back ? day(back.at) : '', closed_by: back ? `replaced in production by ${back.deployment.slice(0, 8)}, the approved GitHub deployment ${back.github_ref} (${back.at})` : next ? `replaced by ${next.deployment.slice(0, 8)}, itself outside the change path` : '', key: `unmatched-deploy:${r.deployment}`, item: `Cloudflare deployment ${r.deployment.slice(0, 8)}${r.commit ? ` of ${r.commit.slice(0, 12)}` : ''}`, detail: `reached production ${r.matched === 'no' ? 'with no matching GitHub deployment' : 'with no commit recorded, so it matches no GitHub deployment'}; made by ${r.author || 'no one named'} from ${r.source || 'an unknown source'}${r.message ? ` (${r.message})` : ''}`, occurred: day(r.at) });
+        add({ ...base, resolved: back ? day(back.at) : '', closed_by: back ? `replaced in production by ${back.deployment.slice(0, 8)}, the approved GitHub deployment ${back.github_ref} (${back.at})` : next ? `replaced by ${next.deployment.slice(0, 8)}, itself outside the change path` : '', key: `unmatched-deploy:${r.deployment}`, item: `Cloudflare deployment ${r.deployment.slice(0, 8)}${r.commit ? ` of ${r.commit.slice(0, 12)}` : ''}`, detail: `reached production ${r.matched === 'no' ? 'with no matching GitHub deployment' : 'with no commit recorded, so it matches no GitHub deployment'}; made by ${r.author || 'no one named'} from ${r.source || 'an unknown source'}${r.message ? ` (${r.message})` : ''}${r.same_content_as ? `; its script ${r.same_content_as === 'no approved release' ? 'matches no approved release' : `is identical to the approved ${r.same_content_as}`} (Cloudflare's content hash)` : ''}`, occurred: day(r.at) });
       }
       // A restore that did not pass, an internal audit's findings, and the audit's cadence across the period.
       // Every incident in the period is an exception in its own right, resolved when its record closed.
@@ -311,6 +311,9 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   const matrix = ws.controls.map((c) => {
     const d = c.data;
     const ids = evidence.filter((x) => x.data.controls.includes(d.id)).map((x) => x.data.id);
+    // How strong the packaged evidence is: a vendor's own answer (a collector, or a daily check decided from one), a
+    // record the organization made in its repository, or a document it wrote.
+    const kinds = evidence.filter((x) => x.data.controls.includes(d.id)).map((x) => x.data.source?.kind === 'collector' ? 0 : x.data.source?.kind === 'manual' ? 2 : 1);
     const checks = [...history.entries()].filter(([, rows]) => rows[0]?.controls.includes(d.id)).map(([k]) => `${k} ${coverage.get(k)!.days}/${days.length} days`);
     // What the workspace holds for the control in the period, packaged or not: an applicable control with none has no
     // evidence of operating, which the firm should see without asking.
@@ -320,12 +323,12 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     const window = { start: since < period.start ? since : period.start, end: period.end };
     const held = ws.evidence.filter((x) => x.data.controls.includes(d.id) && (x.data.period ? x.data.period.start <= window.end && x.data.period.end >= window.start : inside(x.data.collected_at, window))).length;
     return { control: d.id, title: d.title, criteria: d.criteria.join(';'), frequency: d.frequency, owner: d.owner, status: d.status, applicable: d.applicable ? 'yes' : 'no', exclusion_reason: d.exclusion_reason ?? '',
-      requests: reqs.filter((r) => r.data.controls.includes(d.id)).map((r) => r.data.id).join(';'), evidence_in_package: ids.join(';'), check_history: checks.join('; '),
+      requests: reqs.filter((r) => r.data.controls.includes(d.id)).map((r) => r.data.id).join(';'), evidence_in_package: ids.join(';'), evidence_basis: ['vendor record', 'client record', 'client narrative'][Math.min(...kinds, checks.length ? 0 : 3)] ?? '', check_history: checks.join('; '),
       workspace_evidence_in_window: d.applicable ? (held ? `${held} record(s)${window.start < period.start ? ` since ${window.start}` : ''}${checks.length ? ` and ${checks.length} check(s)` : ''}` : checks.length ? `check only (${checks.length}), no evidence record` : 'none') : '',
       records_in_window: String(held),
       exceptions: String(exceptions.filter((x) => x.controls.split(';').includes(d.id)).length) };
   });
-  const matrixColumns = ['control', 'title', 'criteria', 'frequency', 'owner', 'status', 'applicable', 'exclusion_reason', 'requests', 'evidence_in_package', 'check_history', 'workspace_evidence_in_window', 'records_in_window', 'exceptions'];
+  const matrixColumns = ['control', 'title', 'criteria', 'frequency', 'owner', 'status', 'applicable', 'exclusion_reason', 'requests', 'evidence_in_package', 'evidence_basis', 'check_history', 'workspace_evidence_in_window', 'records_in_window', 'exceptions'];
   views.set('review/controls-matrix.csv', writeCsv({ columns: matrixColumns, rows: matrix }));
 
   // Coverage by criterion: each criterion of the categories in scope, the applicable controls that address it, and whether
@@ -338,6 +341,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     // A control counts as evidenced by a record in this package that names it; one covered only by an automated check is
     // shown apart, and one whose records stayed in the workspace is not provided.
     const held = ctl.filter((m) => m.evidence_in_package !== '');
+    const narrativeOnly = held.length > 0 && held.every((m) => m.evidence_basis === 'client narrative');
     const checkOnly = ctl.filter((m) => m.evidence_in_package === '' && m.check_history !== '');
     const withheld = ctl.filter((m) => m.evidence_in_package === '' && m.check_history === '' && Number(m.records_in_window) > 0);
     // Evidence existing says nothing about whether it shows the control working: the exceptions against these controls
@@ -345,7 +349,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     const open = exceptions.filter((x) => x.controls.split(';').some((id) => ctl.some((m) => m.control === id))).length;
     return { criterion: c.id, category: categories[c.category] ?? c.category, title: c.title, controls: ctl.map((m) => m.control).join(';'), controls_with_evidence: held.map((m) => m.control).join(';'),
       requested: [...new Set(ctl.flatMap((m) => m.requests ? m.requests.split(';') : []))].join(';'), exceptions: String(open), check_only: checkOnly.map((m) => m.control).join(';'), not_provided: withheld.map((m) => m.control).join(';'),
-      status: !ctl.length ? (excludedFor(c.id).length ? `excluded: ${excludedFor(c.id).join(' ')}` : 'no applicable control') : !held.length ? (checkOnly.length ? 'automated check only' : withheld.length ? 'held in the workspace, not provided' : 'no evidence') : `evidence for ${held.length} of ${ctl.length} control(s)${checkOnly.length ? `, check only for ${checkOnly.length}` : ''}${withheld.length ? `, not provided for ${withheld.length}` : ''}${open ? `, ${open} exception(s)` : ', no exception'}` };
+      status: !ctl.length ? (excludedFor(c.id).length ? `excluded: ${excludedFor(c.id).join(' ')}` : 'no applicable control') : !held.length ? (checkOnly.length ? 'automated check only' : withheld.length ? 'held in the workspace, not provided' : 'no evidence') : `evidence for ${held.length} of ${ctl.length} control(s)${narrativeOnly ? ' (client narrative only)' : ''}${checkOnly.length ? `, check only for ${checkOnly.length}` : ''}${withheld.length ? `, not provided for ${withheld.length}` : ''}${open ? `, ${open} exception(s)` : ', no exception'}` };
   });
   // What ran in production: for each Worker deployment in the package, the span it was live, what it was built from and
   // the approved GitHub deployment and pull requests behind it.

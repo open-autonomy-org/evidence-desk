@@ -7,6 +7,12 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- The package ships the workspace's Git history (`review/workspace.bundle`), and `audit verify` checks it holds the
+  commit the manifest names. Daily snapshots keep each vendor response's body. Worker deployments record Cloudflare's
+  content hash, and a deployment outside the change path says which approved release ran identical code, or that none
+  did. The control matrix says how strong each control's evidence is (vendor record, client record, client narrative),
+  and coverage marks a criterion resting on client narrative only. The Cloudflare deployments and configuration-change
+  populations answer emergency-change requests.
 - The package is not exported while a request has no response from the client. Every person's Cloudflare token live at
   the period's end is an exception, not only one its owner deployed with. The control matrix and coverage count
   exceptions from the finished register. An exception the package found is dated by the package, not by the event. A

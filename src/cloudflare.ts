@@ -150,16 +150,21 @@ export async function collectWorkerDeployments(root: string, input: { account: s
   const ghRows = ghCsv ? parseCsv(readFileSync(join(root, ghCsv.path), 'utf8'), ghCsv.path).rows : [];
   const rows = deployments.map((d) => {
     const live = [...(d.versions ?? [])].sort((a: any, b: any) => b.percentage - a.percentage)[0];
-    const v = versions[live?.version_id] as { annotations?: Record<string, string> } | undefined;
+    const v = versions[live?.version_id] as { annotations?: Record<string, string>; resources?: { script?: { etag?: string } } } | undefined;
     const commit = v?.annotations?.['workers/tag'] ?? '';
     const match = commit ? ghRows.find((g) => g.sha === commit || g.sha.startsWith(commit)) : undefined;
     return { deployment: String(d.id), at: String(d.created_on ?? ''), author: String(d.author_email ?? ''), source: String(d.source ?? ''), version: String(live?.version_id ?? ''), commit, message: v?.annotations?.['workers/message'] ?? '',
-      github_deployment: match?.id ?? '', github_ref: match?.ref ?? '', github_approved: match?.independent_approval ?? '', matched: !commit ? 'no commit recorded' : match ? 'yes' : 'no' };
+      content: v?.resources?.script?.etag ?? '',
+      github_deployment: match?.id ?? '', github_ref: match?.ref ?? '', github_approved: match?.independent_approval ?? '', matched: !commit ? 'no commit recorded' : match ? 'yes' : 'no', same_content_as: '' };
   });
+  // What an unmatched deployment ran, set against what the approved ones ran: Cloudflare's hash of the uploaded script
+  // either equals that of an approved release (the same code, reviewed afterwards or before) or of none.
+  for (const r of rows.filter((x) => x.matched !== 'yes' && x.content))
+    r.same_content_as = rows.filter((x) => x.matched === 'yes' && x.content === r.content).map((x) => x.github_ref).join(';') || 'no approved release';
   const unshipped = ghRows.filter((g) => !rows.some((x) => x.commit && (g.sha === x.commit || g.sha.startsWith(x.commit))));
   const stem = `evidence/files/populations/cloudflare-worker-deployments-${input.script}-${input.start}-${input.end}-${Date.now()}`;
   writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: cfAnswers.map(({ body: _, ...x }) => x) }, account, deployments, versions, github_population: gh?.data.id ?? null }, null, 2) + '\n', null);
-  writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['deployment', 'at', 'author', 'source', 'version', 'commit', 'message', 'github_deployment', 'github_ref', 'github_approved', 'matched'], rows }), null);
+  writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['deployment', 'at', 'author', 'source', 'version', 'commit', 'message', 'content', 'github_deployment', 'github_ref', 'github_approved', 'matched', 'same_content_as'], rows }), null);
   const unmatched = rows.filter((x) => x.matched !== 'yes').length;
   const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
   const evidence = addEvidence(root, {
