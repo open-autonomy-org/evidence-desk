@@ -40,6 +40,17 @@ the system of record or from records the organization keeps itself. A change mer
 that no break-glass record names is an exception of its own. A management response lists the workspace files it
 cites; one citing nothing says so.
 
+- `review/claims.csv`: every dated claim in the description, the assertion and management's responses, with the
+  packaged files that record each date, and every count checked against its population. A claim nothing in the
+  package records, or a count its population contradicts, stops the export.
+- `review/identities.csv`: every identity seen acting in the populations (person, service account, agent account)
+  and the access review that covered it; one that acted in the period with no review is an exception.
+- `review/production-timeline.csv`: what ran in production and for how long, each deployment with its commit, its
+  approved GitHub deployment and the pull requests it shipped.
+
+The package carries every in-window record of each applicable control, whether a request names it or not; coverage
+counts only what the package holds.
+
 An exception's `closed_by` says what ended it: a later passing reading (which shows the condition stopped, not that
 anyone remediated it) or a later completeness check. A check that reports events, such as a bypass of the branch
 rules, is never closed by a quiet day.

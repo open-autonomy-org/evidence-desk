@@ -79,8 +79,14 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
           if (unlogged.length) add({ ...base, key: `audit-log-gap:${logCsv.path.split('/').pop()!.replace(/-\d+\.csv$/, '')}`, controls: 'OPS-04', item: `${unlogged.length} of ${t.rows.length} Worker deployment(s) missing from the account audit log`, detail: `${cfLog!.data.id} is complete for what Cloudflare's audit log returned, but the log lacks deployments ${unlogged.map((r) => r.deployment.slice(0, 8)).join(', ')} that the Workers API lists; the log is not a complete record of changes`, occurred: day(unlogged[0].at), file: logCsv.path });
         }
       }
-      if (t.columns.includes('github_deployment')) for (const r of t.rows.filter((r) => r.matched !== 'yes'))
-        add({ ...base, key: `unmatched-deploy:${r.deployment}`, item: `Cloudflare deployment ${r.deployment.slice(0, 8)}${r.commit ? ` of ${r.commit.slice(0, 12)}` : ''}`, detail: `reached production ${r.matched === 'no' ? 'with no matching GitHub deployment' : 'with no commit recorded, so it matches no GitHub deployment'}; made by ${r.author || 'no one named'} from ${r.source || 'an unknown source'}${r.message ? ` (${r.message})` : ''}`, occurred: day(r.at) });
+      // A deployment outside the change path stays live until a later deployment replaces it; when that one is approved,
+      // production is back on reviewed code.
+      const wsorted = t.columns.includes('github_deployment') ? [...t.rows].sort((a, b) => a.at.localeCompare(b.at)) : [];
+      if (t.columns.includes('github_deployment')) for (const r of t.rows.filter((r) => r.matched !== 'yes')) {
+        const next = wsorted.find((x) => x.at > r.at);
+        const back = next && next.matched === 'yes' ? next : undefined;
+        add({ ...base, resolved: back ? day(back.at) : '', closed_by: back ? `replaced in production by ${back.deployment.slice(0, 8)}, the approved GitHub deployment ${back.github_ref} (${back.at})` : next ? `replaced by ${next.deployment.slice(0, 8)}, itself outside the change path` : '', key: `unmatched-deploy:${r.deployment}`, item: `Cloudflare deployment ${r.deployment.slice(0, 8)}${r.commit ? ` of ${r.commit.slice(0, 12)}` : ''}`, detail: `reached production ${r.matched === 'no' ? 'with no matching GitHub deployment' : 'with no commit recorded, so it matches no GitHub deployment'}; made by ${r.author || 'no one named'} from ${r.source || 'an unknown source'}${r.message ? ` (${r.message})` : ''}`, occurred: day(r.at) });
+      }
       // A restore that did not pass, an internal audit's findings, and the audit's cadence across the period.
       // Every incident in the period is an exception in its own right, resolved when its record closed.
       if (f.path.includes('/incidents-')) for (const r of t.rows)

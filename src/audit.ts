@@ -418,6 +418,52 @@ function lintDescription(ws: Workspace, e: Engagement, text: string, assertionTe
   return out;
 }
 
+// Every dated claim in the drafts and in management's responses, against the package. A claim's dates must each be the
+// date of something the package records (a population row, a record, an evidence file): the daily check runs and their
+// snapshots, which exist for every day, do not count. A future date is a plan, not a claim. A count ("thirteen internal
+// audits") must match the population it names.
+const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20 };
+export type Claim = { source: string; claim: string; status: 'supported' | 'unsupported' | 'contradiction'; detail: string };
+function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, packaged: Set<string>, today: string): Claim[] {
+  const dated = new Map<string, Set<string>>();
+  for (const p of packaged) {
+    if (/^(checks\/runs|evidence\/files\/collected|audits)\//.test(p) || !/\.(csv|json|md|txt)$/.test(p)) continue;
+    const rec = ws.evidence.find((x) => x.path === p);
+    if (rec && /collected by run/.test(rec.data.title)) continue;
+    for (const m of readFileSync(join(root, p), 'utf8').matchAll(/\b(20\d\d-\d\d-\d\d)/g)) (dated.get(m[1]) ?? dated.set(m[1], new Set()).get(m[1])!).add(p);
+  }
+  const period = e.period ?? { start: e.as_of ?? '', end: e.as_of ?? '' };
+  const count = (stem: string) => { const ev = ws.evidence.filter((x) => packaged.has(x.path) && x.data.files.some((f) => f.path.includes(stem) && f.path.endsWith('.csv'))).at(-1);
+    const f = ev?.data.files.find((x) => x.path.includes(stem) && x.path.endsWith('.csv')); return f ? parseCsv(readFileSync(join(root, f.path), 'utf8'), f.path).rows : null; };
+  const counted: [RegExp, () => number | null][] = [
+    [/internal audits?/, () => count('/internal-audits-')?.filter((r) => r.at.slice(0, 10) >= period.start && r.at.slice(0, 10) <= period.end).length ?? null],
+    [/production deployments?|deployments? (?:to|of) production/, () => count('/github-deployments-')?.length ?? null],
+    [/restore tests?/, () => count('/restore-tests-')?.length ?? null],
+    [/incidents?/, () => count('/incidents-')?.length ?? null],
+  ];
+  const texts: { source: string; text: string }[] = [];
+  for (const k of ['description', 'assertion']) { const f = join(root, base(id), 'drafts', `${k}.md`); if (existsSync(f)) texts.push({ source: k, text: readFileSync(f, 'utf8').replace(/```[\s\S]*?```/g, '') }); }
+  const ex = join(root, base(id), 'exceptions.json');
+  if (existsSync(ex)) for (const [key, r] of Object.entries((JSON.parse(readFileSync(ex, 'utf8')) as { responses?: Record<string, { text: string }> }).responses ?? {})) texts.push({ source: `response to ${key}`, text: r.text });
+  const out: Claim[] = [];
+  for (const t of texts) for (const sentence of t.text.split(/(?<=[.;])\s+|\n+/).map((x) => x.trim()).filter(Boolean)) {
+    if (/^Sources?:/i.test(sentence)) continue;
+    const dates = [...new Set([...sentence.matchAll(/\b(20\d\d-\d\d-\d\d)\b/g)].map((m) => m[1]))].filter((d) => d <= today);
+    for (const [re, n] of counted) {
+      // A count stands alone: the 17 of 2026-08-17 or the 04 of MON-04 is not one.
+      const m = new RegExp(`(?<![\\w-])(\\d+|${Object.keys(NUMBER_WORDS).join('|')})\\s+(?:${re.source})\\b`, 'i').exec(sentence);
+      if (!m) continue;
+      const said = /^\d+$/.test(m[1]) ? Number(m[1]) : NUMBER_WORDS[m[1].toLowerCase()];
+      const is = n();
+      if (is !== null && said !== is) out.push({ source: t.source, claim: sentence, status: 'contradiction', detail: `says ${said} ${m[0].slice(m[1].length).trim()}; the package's population holds ${is}` });
+    }
+    if (!dates.length) continue;
+    const missing = dates.filter((d) => !dated.has(d) && d !== period.start && d !== period.end);
+    out.push({ source: t.source, claim: sentence, status: missing.length ? 'unsupported' : 'supported', detail: missing.length ? `nothing in the package records ${missing.join(', ')}` : dates.filter((d) => dated.has(d)).map((d) => `${d}: ${[...dated.get(d)!].slice(0, 2).join(', ')}`).join('; ') || 'the period itself' });
+  }
+  return out;
+}
+
 const assertionOf = (root: string, id: string) => { const f = join(root, base(id), 'drafts', 'assertion.md'); return existsSync(f) ? readFileSync(f, 'utf8') : ''; };
 
 // The package's own README, hashed in the manifest with the other derived views.
@@ -554,6 +600,9 @@ export function exportPackage(root: string, id: string, out: string): { files: n
       }
     }
   }
+  // A dated claim nothing in the package records, or a count its population contradicts, stops the export: the firm
+  // should never be the first to find it.
+  for (const c of claimsLedger(root, ws, e.data, id, paths, now().slice(0, 10)).filter((x) => x.status !== 'supported')) problems.push(`${c.source} makes a claim the package does not support (${c.status}): "${c.claim.slice(0, 160)}" — ${c.detail}`);
   const draftDescription = join(root, base(id), 'drafts', 'description.md');
   if (existsSync(draftDescription)) for (const l of lintDescription(ws, e.data, readFileSync(draftDescription, 'utf8'), assertionOf(root, id)).filter((x) => x.status === 'contradiction')) problems.push(`the description contradicts the evidence (${l.rule}): ${l.detail}`);
   // A packaged response travels with its form's definition (the questions and correct answers it was graded against).
@@ -578,6 +627,7 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     const log = execFileSync('git', ['-C', root, 'log', '--first-parent', '--format=%H %cI %an <%ae>%n    %s', 'HEAD', '--', '.'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     views.set('review/workspace-history.txt', `git log --first-parent HEAD -- . in the workspace repository at ${created}\n\n${log}`);
   } catch { /* a workspace that is not a Git repository has no history to ship */ }
+  views.set('review/claims.csv', writeCsv({ columns: ['source', 'status', 'claim', 'detail'], rows: claimsLedger(root, ws, e.data, id, paths, created.slice(0, 10)) }));
   if (described) views.set('review/description-lint.csv', writeCsv({ columns: ['rule', 'status', 'detail'], rows: lintDescription(ws, e.data, described, assertionOf(root, id)) }));
   views.set('README.md', readme(ws.manifest?.data.organization ?? '', e.data.id, created, id, omitted.length - 1));
   const derived = [...views].sort(([a], [b]) => a.localeCompare(b)).map(([p, text]) => {

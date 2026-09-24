@@ -7,6 +7,14 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- A package no longer carries claims its evidence does not support: `review/claims.csv` ties every dated claim in the
+  description, assertion and management responses to the packaged files that record that date, and checks every count
+  against its population; an unsupported or contradicted claim stops the export, as does an open exception the
+  assertion does not name. Incidents are exceptions; a deployment outside the change path closes when an approved one
+  replaces it. `review/identities.csv` lists every identity seen acting with the access review that covered it, and
+  `review/production-timeline.csv` what ran in production and what it shipped. The package carries every in-window
+  record of each applicable control. An import reads the project's ADRs and whether each answers the soc2 checklist;
+  restore tests and internal audits are record populations. Branch-rule checks read only default-branch rulesets.
 - What reached production is reconciled: `collect cloudflare-deployments` matches every Worker deployment to the GitHub
   deployments by commit, and a deploy no approved GitHub deployment accounts for is an exception. `collect
   nonhuman-access` lists deploy keys, secrets, app installations and agents; a recorded credential rotation the secret's
