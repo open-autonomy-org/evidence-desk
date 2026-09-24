@@ -8,6 +8,7 @@ import { check, schema } from './schema.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { addEvidence, saveRegisterRow, setScope } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
+import { now } from './clock.ts';
 
 declare const Bun: { YAML: { parse(text: string): unknown } };
 
@@ -25,7 +26,6 @@ export type Snapshot = {
 const DOORS = ['commit', 'code-host-gate', 'platform-key'];
 const git = (repo: string, ...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 const show = (repo: string, commit: string, path: string): string | null => { try { return git(repo, 'show', `${commit}:${path}`); } catch { return null; } };
-const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 const VENDOR_OF: Record<string, string> = {
   'api.github.com': 'GitHub', 'github.com': 'GitHub', 'registry.npmjs.org': 'npm', 'api.cloudflare.com': 'Cloudflare',

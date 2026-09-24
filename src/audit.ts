@@ -12,16 +12,19 @@ import { categories, categoryAnswer, criteria } from './catalog.ts';
 import { computeGaps } from './gaps.ts';
 import type { Snapshot } from './open-autonomy.ts';
 import { loadWorkspace, type Workspace } from './workspace.ts';
+import { buildViews } from './packet.ts';
+import { now } from './clock.ts';
 
 export type Engagement = { schema: string; id: string; type: 'type1' | 'type2'; as_of?: string; period?: { start: string; end: string }; firm: string; contact?: string; status: string; created_at: string };
 export type Sample = { item: string; status: 'pending' | 'provided' | 'exception'; evidence?: string[]; note?: string };
 export type Message = { at: string; by: string; side: 'client' | 'firm'; text: string };
 export type AuditRequest = { schema: string; id: string; title: string; kind: 'document' | 'population' | 'sample'; controls: string[]; status: 'open' | 'submitted' | 'accepted' | 'returned'; evidence: string[]; population?: string; samples?: Sample[]; thread: Message[] };
 
-const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const pretty = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
 function valid(name: string, data: unknown, what: string) { const e = check(schema(name), data); if (e.length) throw new Error(`${what} is invalid: ${e.join('; ')}`); }
 const base = (id: string) => `audits/${id}`;
+// Every file under a workspace folder, as workspace paths.
+const listUnder = (root: string, dir: string): string[] => existsSync(join(root, dir)) ? readdirSync(join(root, dir), { withFileTypes: true }).flatMap((x) => x.isDirectory() ? listUnder(root, `${dir}/${x.name}`) : [`${dir}/${x.name}`]) : [];
 
 export function readEngagement(root: string, id: string): { data: Engagement; version: string } {
   const r = readVersioned(root, `${base(id)}/engagement.json`);
@@ -163,6 +166,18 @@ Sources: sources/open-autonomy/${snap.commit.slice(0, 12)}.json (the project's .
 `;
 }
 
+// Incidents an Open Autonomy project recorded in its own records/ (collected as the incidents seam's population), every
+// severity, so the description names what the program knows about rather than only what the workspace recorded.
+function latestPopulation(ws: Workspace, seam: string) {
+  return ws.evidence.filter((x) => x.data.source?.kind === 'open-autonomy' && x.data.source?.name === `${seam} seam`).sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
+}
+function projectIncidents(ws: Workspace, e: Engagement): string {
+  const ev = latestPopulation(ws, 'incidents');
+  if (!ev) return '';
+  const rows = parseCsv(readFileSync(join(ws.root, ev.data.files[0].path), 'utf8'), ev.data.files[0].path).rows.filter((r) => inPeriod(r.detected_at, e));
+  return rows.length ? `\nIncidents the project recorded in its records/ during the period, every severity:\n${rows.map((r) => `- ${r.detected_at.slice(0, 10)} ${r.id} (${r.severity}, ${r.status}): ${r.summary}${r.notification ? `. Notification: ${r.notification}` : ''}${r.review ? `. Review: ${r.review}` : ''}`).join('\n')}\n` : '';
+}
+
 function description(ws: Workspace, e: Engagement): string {
   const a = ws.scope?.data.answers ?? {};
   const org = ws.manifest?.data.organization ?? '';
@@ -212,8 +227,8 @@ ${openAutonomySection(ws)}
 ## DC4 System incidents
 
 ${incidents.length ? incidents.map((i) => `- ${i.data.detected_at.slice(0, 10)} ${i.data.title} (${i.data.severity}, ${i.data.status})${i.data.review ? `: ${i.data.review}` : ''}`).join('\n') : 'No high or critical incident is recorded for this period.'}
-
-Sources: incidents/.
+${projectIncidents(ws, e)}
+Sources: incidents/${projectIncidents(ws, e) ? `, ${latestPopulation(ws, 'incidents')!.data.files[0].path}` : ''}.
 
 ## DC5 Applicable trust services criteria and related controls
 
@@ -319,9 +334,22 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   const reqs = listRequests(root, id);
   const paths = new Set<string>([`${base(id)}/engagement.json`, ...reqs.map((r) => r.path)]);
   const draftDir = join(root, base(id), 'drafts');
-  if (existsSync(draftDir)) for (const f of readdirSync(draftDir)) paths.add(`${base(id)}/drafts/${f}`);
-  const evidenceIds = new Set(reqs.flatMap((r) => [...r.data.evidence, ...(r.data.population ? [r.data.population] : []), ...(r.data.samples ?? []).flatMap((s) => s.evidence ?? [])]));
   const problems: string[] = [];
+  // Drafts go to the firm only once management has finished them, and every source a draft cites travels with it.
+  if (existsSync(draftDir)) for (const f of readdirSync(draftDir)) {
+    const rel = `${base(id)}/drafts/${f}`;
+    const text = readFileSync(join(root, rel), 'utf8');
+    if (text.includes('<!-- Drafted by Evidence Desk') || /\[[^\]\n]{3,}\](?!\()/.test(text)) problems.push(`${rel} still has its drafting comment or a [bracketed] item to fill`);
+    paths.add(rel);
+    for (const line of text.split('\n').filter((l) => l.startsWith('Sources:'))) for (const tok of line.slice(8).split(/[,;]/).map((t) => t.trim().replace(/\s*\(.*$/, '').replace(/\.$/, ''))) {
+      if (!/^[\w.-]+(\/[\w.*-]*)*$/.test(tok) || !(tok.includes('/') || /\.(json|csv|md)$/.test(tok))) continue;
+      const globbed = tok.includes('*') || tok.endsWith('/') ? listUnder(root, tok.replace(/\*.*$/, '').replace(/\/$/, '')).filter((x) => !tok.includes('*') || new RegExp(`^${tok.replace(/[.]/g, '\\.').replace(/\*/g, '[^/]*')}$`).test(x)) : [tok];
+      if (tok.endsWith('/') && !globbed.length) continue; // an empty or absent folder: the draft's "none" rests on it
+      if (!globbed.length || globbed.some((x) => !existsSync(join(root, x)))) problems.push(`${rel} cites ${tok}, which is not in the workspace`);
+      else for (const x of globbed) paths.add(x);
+    }
+  }
+  const evidenceIds = new Set(reqs.flatMap((r) => [...r.data.evidence, ...(r.data.population ? [r.data.population] : []), ...(r.data.samples ?? []).flatMap((s) => s.evidence ?? [])]));
   for (const eid of evidenceIds) {
     const rec = ws.evidence.find((x) => x.data.id === eid);
     if (!rec) { problems.push(`evidence ${eid} is referenced but does not exist`); continue; }
@@ -336,7 +364,15 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   // The latest attribution check travels with every package: it names the pull request behind each person's act, which
   // the firm traces, and it is a record of the program rather than evidence of any one control.
   if (readVersioned(root, 'sources/github/attribution.json')) paths.add('sources/github/attribution.json');
-  for (const cid of new Set(reqs.flatMap((r) => r.data.controls))) {
+  // What a firm reconciles against: the registers, every control the included evidence cites, the checks run during the
+  // period, the project's declarations and each roster completeness check.
+  for (const f of listUnder(root, 'registers')) paths.add(f);
+  if (existsSync(join(root, base(id), 'exceptions.json'))) paths.add(`${base(id)}/exceptions.json`);
+  const period = e.data.period ?? { start: e.data.as_of ?? '', end: e.data.as_of ?? '' };
+  for (const r of ws.runs) if (r.data.started_at.slice(0, 10) >= period.start && r.data.started_at.slice(0, 10) <= period.end) paths.add(r.path);
+  for (const f of ['sources/open-autonomy/latest.json', ...listUnder(root, 'sources/open-autonomy/completeness')]) if (existsSync(join(root, f))) paths.add(f);
+  const cited = new Set([...reqs.flatMap((r) => r.data.controls), ...ws.evidence.filter((x) => paths.has(x.path)).flatMap((x) => x.data.controls)]);
+  for (const cid of cited) {
     const c = ws.controls.find((x) => x.data.id === cid);
     if (!c) { problems.push(`control ${cid} does not exist`); continue; }
     paths.add(c.path);
@@ -355,14 +391,23 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     const h = fileHash(join(out, 'workspace'), p)!;
     return { path: p, sha256: h.sha256, bytes: h.bytes };
   });
-  const manifest = { schema: 'evidence-desk.audit-package/1', engagement: e.data.id, organization: ws.manifest?.data.organization ?? '', created_at: now(), files,
-    omitted: ['Everything not referenced by this engagement\'s requests: other evidence, registers, people and unrelated records stay in the workspace.'],
+  const created = now();
+  const derived = [...buildViews(root, ws, e.data, reqs, paths, created)].sort(([a], [b]) => a.localeCompare(b)).map(([p, text]) => {
+    const dest = join(out, p);
+    mkdirSync(dirname(dest), { recursive: true });
+    writeFileSync(dest, text);
+    return { path: p, sha256: sha256(Buffer.from(text)), bytes: Buffer.byteLength(text) };
+  });
+  const manifest = { schema: 'evidence-desk.audit-package/1', engagement: e.data.id, organization: ws.manifest?.data.organization ?? '', created_at: created, files, derived,
+    omitted: ['Evidence no request names and records unrelated to the engagement stay in the workspace; the control matrix lists every control with its evidence ids, and the firm may ask for any of it.'],
     request_versions: Object.fromEntries(reqs.map((r) => [r.data.id, r.version])) };
   valid('audit-package', manifest, 'the package manifest');
   writeFileSync(join(out, 'manifest.json'), pretty(manifest));
   writeFileSync(join(out, 'README.md'), `# SOC 2 audit package: ${manifest.organization}, engagement ${e.data.id}
 
-Created ${manifest.created_at}. \`manifest.json\` lists every file under \`workspace/\` with its SHA-256. Check it with
+Created ${manifest.created_at}. Start with \`review/index.html\`: the exceptions register, each automated check across the
+period, every request with its evidence, and the control matrix, each line linked to the file it comes from
+(\`review/*.csv\` hold the same tables). \`manifest.json\` lists every file under \`workspace/\` and \`review/\` with its SHA-256. Check it with
 \`evidence-desk audit verify <this folder>\`, or compare the hashes with any SHA-256 tool. To respond, edit the request
 files under \`workspace/${base(id)}/requests/\` (add to each thread with side "firm", set status "accepted" or "returned",
 add sample items) and send the folder back. A hash shows that a file is unchanged; it does not show who made it.
@@ -384,6 +429,14 @@ export function verifyPackage(dir: string): { ok: boolean; problems: string[]; f
   }
   const walk = (d: string, rel = ''): string[] => readdirSync(join(d, rel), { withFileTypes: true }).flatMap((x) => x.isDirectory() ? walk(d, join(rel, x.name)) : [join(rel, x.name).split('\\').join('/')]);
   for (const f of walk(join(dir, 'workspace'))) if (!listed.has(f)) problems.push(`${f} is in the package but not in the manifest`);
+  const views = new Set<string>();
+  for (const f of (manifest.derived ?? []) as { path: string; sha256: string }[]) {
+    views.add(f.path);
+    const full = join(dir, f.path);
+    if (!existsSync(full)) problems.push(`${f.path} is listed but missing`);
+    else if (sha256(readFileSync(full)) !== f.sha256) problems.push(`${f.path} does not match the manifest`);
+  }
+  if (existsSync(join(dir, 'review'))) for (const f of walk(join(dir, 'review'))) if (!views.has(`review/${f}`)) problems.push(`review/${f} is in the package but not in the manifest`);
   return { ok: !problems.length, problems, files: manifest.files.length };
 }
 
@@ -503,3 +556,18 @@ export function packageState(dir: string) {
   const evidence = Object.fromEntries((manifest.files as { path: string }[]).filter((f) => f.path.startsWith('evidence/records/')).map((f) => { const r = JSON.parse(readFileSync(join(wsDir, f.path), 'utf8')); return [r.id, { title: r.title, files: r.files.map((x: { path: string }) => x.path), source: r.source, period: r.period ?? null, collected_at: r.collected_at }]; }));
   return { organization: manifest.organization, created_at: manifest.created_at, engagement: e, requests, drafts, evidence, verification: verifyPackage(dir) };
 }
+
+// Management's response to an exception the package derives (review/exceptions.csv names each by key): what happened,
+// what was done and by when. It is a person's statement, kept beside the engagement and shown with the exception.
+export function respondToException(root: string, id: string, key: string, text: string, by: string): { file: string } {
+  readEngagement(root, id);
+  if (!text.trim()) throw new Error('the response needs --response <text>');
+  if (!(loadWorkspace(root).registers.people?.data.rows ?? []).some((r) => r.id === by)) throw new Error(`${by || '(none)'} is not in registers/people.csv`);
+  const rel = `${base(id)}/exceptions.json`;
+  const cur = readVersioned(root, rel);
+  const doc = cur ? JSON.parse(cur.text) as { responses: Record<string, { text: string; by: string; at: string }> } : { responses: {} };
+  doc.responses[key] = { text: text.trim(), by, at: now() };
+  writeVersioned(root, rel, pretty(doc), cur?.version ?? null);
+  return { file: rel };
+}
+

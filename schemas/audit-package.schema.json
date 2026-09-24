@@ -60,6 +60,29 @@
         "type": "string"
       },
       "description": "The version of each request file when it was exported, for reconciling a returned package."
+    },
+    "derived": {
+      "type": "array",
+      "description": "Review views derived from the package's files (review/), each with its SHA-256",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "sha256",
+          "bytes"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer"
+          }
+        }
+      }
     }
   }
 }

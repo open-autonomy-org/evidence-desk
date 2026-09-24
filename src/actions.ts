@@ -8,8 +8,8 @@ import { writeCsv } from './csv.ts';
 import { fileHash, readVersioned, writeVersioned, inside } from './files.ts';
 import { categoryAnswer, criterionCategory, formTemplates, library, policyTemplates, questions } from './catalog.ts';
 import { loadWorkspace, MANIFEST, REGISTERS, type Control, type Evidence, type Policy, type RegisterName, type Scope } from './workspace.ts';
+import { clockDate, now } from './clock.ts';
 
-const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const pretty = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
 function valid(schemaName: string, data: unknown, what: string): void {
   const errs = check(schema(schemaName), data);
@@ -217,7 +217,7 @@ export function addEvidence(root: string, input: {
   if (!input.controls.length) throw new Error('name at least one control this evidence supports');
   if (!input.files.length) throw new Error('name at least one file');
   if (!(ws.registers.people?.data.rows ?? []).some((r) => r.id === input.recorded_by)) throw new Error(`recorder ${input.recorded_by} is not in registers/people.csv`);
-  const id = `EV-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${randomBytes(3).toString('hex')}`;
+  const id = `EV-${clockDate().toISOString().slice(0, 10).replaceAll('-', '')}-${randomBytes(3).toString('hex')}`;
   const files = input.files.map((f) => {
     const outside = resolve(f);
     const isOutside = f.startsWith('/') || f.startsWith('.') || !existsSync(join(root, f));

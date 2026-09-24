@@ -10,6 +10,7 @@ import { readVersioned, writeVersioned } from './files.ts';
 import { addEvidence } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
 import { cf, cfAccount, cfAll, cfIsAdmin } from './cloudflare.ts';
+import { clockDate, now } from './clock.ts';
 
 export type CollectorSettings = { id: 'github' | 'cloudflare'; enabled: boolean; params: Record<string, string> };
 type Snapshot = { data: Record<string, unknown>; queries: string[] };
@@ -20,7 +21,6 @@ export type Run = { schema: string; id: string; started_at: string; finished_at:
 type CheckDef = { id: string; title: string; controls: string[]; evaluate(d: Record<string, any>): { status: Result['status']; detail: string } };
 type CollectorDef = { id: CollectorSettings['id']; title: string; params: { name: string; prompt: string }[]; credentials: string[]; collect(p: Record<string, string>): Promise<Snapshot>; checks: CheckDef[] };
 
-const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const list = (v: string | undefined) => (v ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 
 // ── GitHub ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ const github: CollectorDef = {
         if (!Array.isArray(r.dependabot)) return { status: 'error', detail: `dependency alerts for ${repo} are not available (${r.dependabot.unavailable}); enable Dependabot alerts or grant the token access` };
         for (const a of r.dependabot) {
           const sev = a.security_advisory?.severity ?? a.security_vulnerability?.severity ?? a.severity;
-          if ((sev === 'critical' || sev === 'high') && Date.parse(a.created_at) < Date.now() - 30 * 864e5) late.push(`${repo}#${a.number} (${sev}, open since ${String(a.created_at).slice(0, 10)})`);
+          if ((sev === 'critical' || sev === 'high') && Date.parse(a.created_at) < clockDate().getTime() - 30 * 864e5) late.push(`${repo}#${a.number} (${sev}, open since ${String(a.created_at).slice(0, 10)})`);
         }
       }
       return late.length ? { status: 'fail', detail: late.join('; ') } : { status: 'pass', detail: 'none overdue' };
@@ -183,7 +183,7 @@ export async function runChecks(root: string, by: string, only?: string): Promis
   const enabled = readSettings(root).settings.filter((s) => s.enabled && (!only || s.id === only));
   if (!enabled.length) throw new Error(only ? `${only} is not enabled` : 'no collector is enabled; configure one with `evidence-desk collectors`');
   const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
-  const id = `RUN-${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}-${randomBytes(2).toString('hex')}`;
+  const id = `RUN-${clockDate().toISOString().replace(/[-:]/g, '').slice(0, 15)}-${randomBytes(2).toString('hex')}`;
   const run: Run = { schema: 'evidence-desk.check-run/1', id, started_at: now(), finished_at: '', by, collectors: [], results: [] };
   for (const s of enabled) {
     const def = COLLECTORS.find((c) => c.id === s.id)!;

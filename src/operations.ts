@@ -6,10 +6,10 @@ import { check, schema } from './schema.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { addEvidence } from './actions.ts';
 import { loadWorkspace, type AccessReview, type Incident, type Response } from './workspace.ts';
+import { clockDate, now } from './clock.ts';
 
-const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const pretty = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
-const newId = (prefix: string) => `${prefix}-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${randomBytes(3).toString('hex')}`;
+const newId = (prefix: string) => `${prefix}-${clockDate().toISOString().slice(0, 10).replaceAll('-', '')}-${randomBytes(3).toString('hex')}`;
 function valid(name: string, data: unknown, what: string): void {
   const errs = check(schema(name), data);
   if (errs.length) throw new Error(`${what} is invalid: ${errs.join('; ')}`);

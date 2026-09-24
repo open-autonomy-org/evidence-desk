@@ -9,9 +9,9 @@ import { readVersioned, writeVersioned } from './files.ts';
 import { addEvidence } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
 import type { Snapshot } from './open-autonomy.ts';
+import { clockDate, now } from './clock.ts';
 
 const API = 'https://api.github.com';
-const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 async function get(path: string): Promise<unknown> {
   const token = process.env.GITHUB_TOKEN;
@@ -38,29 +38,49 @@ const applicableOf = (root: string, ids: string[]) => { const a = new Set(loadWo
 type Pull = { number: number; title: string; user?: { login?: string }; merged_at: string | null; merged_by?: { login?: string } };
 type Review = { user?: { login?: string }; state: string; submitted_at?: string };
 
-export async function collectChanges(root: string, input: { repo: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; unknown: number; notIndependent: number }> {
-  const pulls = await all<Pull>(`/repos/${input.repo}/pulls?state=closed&sort=created&direction=asc`);
-  const merged = pulls.items.filter((p) => inPeriod(p.merged_at, input.start, input.end));
+// Changes that reached the default branch in the period, from the system of record: every merged pull request with its
+// approvals, reconciled against every commit on the default branch in the period. A commit no merged pull request
+// carries (a push straight to the branch) is a row of its own with no approval, so the population cannot hide it. The
+// raw responses are kept beside the table so the derivation can be re-performed.
+export async function collectChanges(root: string, input: { repo: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; unknown: number; notIndependent: number; direct: number }> {
+  const meta = await get(`/repos/${input.repo}`) as { default_branch: string };
+  const branch = meta.default_branch;
+  const pulls = await all<Pull & { merge_commit_sha?: string | null; base?: { ref?: string } }>(`/repos/${input.repo}/pulls?state=closed&sort=created&direction=asc`);
+  const merged = pulls.items.filter((p) => inPeriod(p.merged_at, input.start, input.end) && (p.base?.ref ?? branch) === branch);
+  const raw: Record<string, unknown> = { repository: meta, pulls: pulls.items, reviews: {}, pull_commits: {} };
   const rows: Record<string, string>[] = [];
+  const carried = new Set<string>();
   for (const p of merged) {
     const reviews = (await all<Review>(`/repos/${input.repo}/pulls/${p.number}/reviews`)).items;
+    const commits = (await all<{ sha: string }>(`/repos/${input.repo}/pulls/${p.number}/commits`)).items;
+    (raw.reviews as Record<string, unknown>)[p.number] = reviews; (raw.pull_commits as Record<string, unknown>)[p.number] = commits;
+    for (const c of commits) carried.add(c.sha);
+    if (p.merge_commit_sha) carried.add(p.merge_commit_sha);
     const approvals = reviews.filter((r) => r.state === 'APPROVED');
     const author = p.user?.login ?? '';
     const approvers = [...new Set(approvals.map((r) => r.user?.login ?? ''))];
     const independent = !approvals.length ? 'no' : !author || approvers.some((a) => !a || a === 'twin') ? 'unknown' : approvers.some((a) => a !== author) ? 'yes' : 'no';
-    rows.push({ number: String(p.number), title: p.title, author, merged_at: p.merged_at ?? '', merged_by: p.merged_by?.login ?? '', approvals: String(approvals.length), approvers: approvers.join(';'), independent_approval: independent });
+    rows.push({ kind: 'pull request', number: String(p.number), commit: p.merge_commit_sha ?? '', title: p.title, author, merged_at: p.merged_at ?? '', merged_by: p.merged_by?.login ?? '', approvals: String(approvals.length), approvers: approvers.join(';'), independent_approval: independent });
   }
-  const rel = `evidence/files/populations/github-changes-${input.repo.replace('/', '-')}-${input.start}-${input.end}-${Date.now()}.csv`;
-  writeVersioned(root, rel, writeCsv({ columns: ['number', 'title', 'author', 'merged_at', 'merged_by', 'approvals', 'approvers', 'independent_approval'], rows }), null);
-  const query = `GET /repos/${input.repo}/pulls?state=closed (all ${pulls.pages} page(s), ${pulls.items.length} closed pull requests), keeping those merged ${input.start}..${input.end}; GET /repos/${input.repo}/pulls/{n}/reviews for each`;
+  const onBranch = (await all<{ sha: string; commit?: { message?: string; author?: { name?: string; date?: string }; committer?: { date?: string } }; author?: { login?: string } | null }>(
+    `/repos/${input.repo}/commits?sha=${encodeURIComponent(branch)}&since=${input.start}T00:00:00Z&until=${input.end}T23:59:59Z`)).items;
+  raw.branch_commits = onBranch;
+  for (const c of onBranch.filter((x) => !carried.has(x.sha))) {
+    rows.push({ kind: 'direct push', number: '', commit: c.sha, title: (c.commit?.message ?? '').split('\n')[0], author: c.author?.login ?? c.commit?.author?.name ?? '', merged_at: c.commit?.committer?.date ?? '', merged_by: '', approvals: '0', approvers: '', independent_approval: 'no' });
+  }
+  const stem = `evidence/files/populations/github-changes-${input.repo.replace('/', '-')}-${input.start}-${input.end}-${Date.now()}`;
+  writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['kind', 'number', 'commit', 'title', 'author', 'merged_at', 'merged_by', 'approvals', 'approvers', 'independent_approval'], rows }), null);
+  writeVersioned(root, `${stem}.raw.json`, JSON.stringify(raw, null, 2) + '\n', null);
+  const query = `GET /repos/${input.repo}/pulls?state=closed (all ${pulls.pages} page(s)), keeping those merged into ${branch} ${input.start}..${input.end}; GET /repos/${input.repo}/pulls/{n}/reviews and /commits for each; GET /repos/${input.repo}/commits?sha=${branch}&since&until for the period, reconciling every commit against the merged pull requests`;
   const unknown = rows.filter((r) => r.independent_approval === 'unknown').length;
   const notIndependent = rows.filter((r) => r.independent_approval === 'no').length;
+  const direct = rows.filter((r) => r.kind === 'direct push').length;
   const evidence = addEvidence(root, {
-    title: `Population: ${rows.length} changes merged to ${input.repo}, ${input.start} to ${input.end}`, controls: applicableOf(root, ['CHG-01', 'CHG-02']), files: [rel], recorded_by: input.by,
+    title: `Population: ${rows.length} changes to ${input.repo}'s ${branch}, ${input.start} to ${input.end}`, controls: applicableOf(root, ['CHG-01', 'CHG-02']), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'github', query },
-    notes: `Complete: every page of closed pull requests was read. ${notIndependent} merged without an approval from someone other than the author; independence could not be established for ${unknown} (the approver or author is not identified by the source).`,
+    notes: `Complete: every page of closed pull requests and of the branch's commits in the period was read, and every commit is either carried by a merged pull request or listed as a direct push (${direct}). ${notIndependent} reached the branch without an approval from someone other than the author; independence could not be established for ${unknown}. Raw responses: ${stem}.raw.json.`,
   });
-  return { evidence, rows: rows.length, unknown, notIndependent };
+  return { evidence, rows: rows.length, unknown, notIndependent, direct };
 }
 
 type Deployment = { id: number; ref: string; sha: string; environment: string; created_at: string; creator?: { login?: string } };
@@ -73,8 +93,10 @@ type Approval = { state: string; user?: { login?: string }; environments?: { nam
 export async function collectDeployments(root: string, input: { repo: string; environment: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; unapproved: number }> {
   const deps = await all<Deployment>(`/repos/${input.repo}/deployments?environment=${encodeURIComponent(input.environment)}`);
   const rows: Record<string, string>[] = [];
+  const raw: Record<string, unknown> = { deployments: deps.items, statuses: {}, runs: {}, approvals: {} };
   for (const d of deps.items.filter((x) => inPeriod(x.created_at, input.start, input.end))) {
     const statuses = (await all<Status>(`/repos/${input.repo}/deployments/${d.id}/statuses`)).items;
+    (raw.statuses as Record<string, unknown>)[d.id] = statuses;
     const last = statuses[0];
     const runID = statuses.map((x) => /\/actions\/runs\/(\d+)/.exec(x.log_url ?? x.target_url ?? '')?.[1]).find(Boolean) ?? '';
     let startedBy = '', approvedBy = '', runFound = false;
@@ -84,9 +106,11 @@ export async function collectDeployments(root: string, input: { repo: string; en
       const run = await (get(`/repos/${input.repo}/actions/runs/${runID}`) as Promise<RunDoc>).catch((e: Error): RunDoc | null => { if (/answered 404/.test(e.message)) return null; throw e; });
       if (run) {
         runFound = true;
+        (raw.runs as Record<string, unknown>)[runID] = run;
         startedBy = [...new Set([run.actor?.login, run.triggering_actor?.login].filter(Boolean))].join(';');
-        approvedBy = [...new Set((await get(`/repos/${input.repo}/actions/runs/${runID}/approvals`) as Approval[])
-          .filter((a) => a.state === 'approved' && (a.environments ?? []).some((e) => e.name === input.environment)).map((a) => a.user?.login ?? ''))].join(';');
+        const approvals = await get(`/repos/${input.repo}/actions/runs/${runID}/approvals`) as Approval[];
+        (raw.approvals as Record<string, unknown>)[runID] = approvals;
+        approvedBy = [...new Set(approvals.filter((a) => a.state === 'approved' && (a.environments ?? []).some((e) => e.name === input.environment)).map((a) => a.user?.login ?? ''))].join(';');
       }
     }
     const approvers = approvedBy ? approvedBy.split(';') : [];
@@ -96,11 +120,13 @@ export async function collectDeployments(root: string, input: { repo: string; en
     rows.push({ id: String(d.id), ref: d.ref, sha: d.sha, created_at: d.created_at, creator: d.creator?.login ?? '', final_state: last?.state ?? 'none', final_at: last?.created_at ?? '',
       run: runID, started_by: startedBy, approved_by: approvedBy, independent_approval: independent });
   }
-  const rel = `evidence/files/populations/github-deployments-${input.repo.replace('/', '-')}-${input.environment}-${input.start}-${input.end}-${Date.now()}.csv`;
+  const stem = `evidence/files/populations/github-deployments-${input.repo.replace('/', '-')}-${input.environment}-${input.start}-${input.end}-${Date.now()}`;
+  const rel = `${stem}.csv`;
+  writeVersioned(root, `${stem}.raw.json`, JSON.stringify(raw, null, 2) + '\n', null);
   writeVersioned(root, rel, writeCsv({ columns: ['id', 'ref', 'sha', 'created_at', 'creator', 'final_state', 'final_at', 'run', 'started_by', 'approved_by', 'independent_approval'], rows }), null);
   const unapproved = rows.filter((r) => r.independent_approval !== 'yes').length;
   const evidence = addEvidence(root, {
-    title: `Population: ${rows.length} deployments of ${input.repo} to ${input.environment}, ${input.start} to ${input.end}`, controls: applicableOf(root, ['CHG-03']), files: [rel], recorded_by: input.by,
+    title: `Population: ${rows.length} deployments of ${input.repo} to ${input.environment}, ${input.start} to ${input.end}`, controls: applicableOf(root, ['CHG-03']), files: [rel, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'github', query: `GET /repos/${input.repo}/deployments?environment=${input.environment} (all ${deps.pages} page(s)); GET /repos/${input.repo}/deployments/{id}/statuses for each; GET /repos/${input.repo}/actions/runs/{run} and /approvals for the run each status links` },
     notes: `Complete: every page of deployments to the environment was read. ${unapproved} without an independent approval of the ${input.environment} environment (no linked run, no approval, or approved only by the person who started it).`,
   });
@@ -138,7 +164,7 @@ export async function checkCompleteness(root: string, input: { account: string; 
   const known = new Set(snap.team.flatMap((m) => [m.github, m.discord, m.id].filter(Boolean).map((x) => String(x).toLowerCase())));
   const emails = new Set((loadWorkspace(root).registers.people?.data.rows ?? []).filter((p) => snap.team.some((m) => m.id === p.id)).map((p) => p.email.toLowerCase()).filter(Boolean));
   const outside = admins.filter((a) => !known.has(a.toLowerCase()) && !emails.has(a.toLowerCase()));
-  const id = `${acct.id}-${new Date().toISOString().slice(0, 10)}-${Date.now().toString(36)}`;
+  const id = `${acct.id}-${clockDate().toISOString().slice(0, 10)}-${Date.now().toString(36)}`;
   const rel = `sources/open-autonomy/completeness/${id}.json`;
   const rec = { schema: 'evidence-desk.completeness/1', id, account: acct.account, vendor: acct.vendor, checked_at: now(), query, commit: snap.commit, admins, outside };
   writeVersioned(root, rel, JSON.stringify(rec, null, 2) + '\n', null);
@@ -280,7 +306,7 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
   const team = latest ? (JSON.parse(latest.text) as Snapshot).team : [];
   // What is overdue, and what falls due within the window the workspace's workflow names (--within): a review due next
   // year is not owed today.
-  const horizon = new Date((input.asOf ?? new Date()).getTime() + input.within * 864e5).toISOString().slice(0, 10);
+  const horizon = new Date((input.asOf ?? clockDate()).getTime() + input.within * 864e5).toISOString().slice(0, 10);
   const obligations = computeObligations(ws, input.asOf);
   const owed = obligations.filter((o) => o.state === 'overdue' || (o.state === 'due' && o.due <= horizon));
   const marker = (o: { kind: string; what: string; who: string }) => `<!-- evidence-desk:obligation ${createHash('sha256').update(`${o.kind}|${o.what}|${o.who}`).digest('hex').slice(0, 16)} -->`;
