@@ -155,7 +155,7 @@ ${snap.agents.map((a) => `- Agent profile ${a.profile}: ${a.jobs.map((j) => `${j
 Where people act:
 ${(snap.seams ?? []).map((x) => `- ${x.id}: held by ${x.scope} (${holders(x.scope)}), through ${x.door}; record: ${x.record}`).join('\n') || '- [the project declares no seams]'}
 
-Change and release: ${snap.rules.pr_landing ? 'every change lands through a reviewed pull request' : '[describe how changes land]'}; ${prod ? `production is deployed by ${prod.workflow}${prod.tag_trigger ? ` from a ${prod.tag_trigger} tag` : ''} through the ${prod.environment} environment's required reviewers, with outbound access limited to ${prod.egress.join(', ') || '[none listed]'}` : '[describe how a change reaches production]'}.${(snap.rules.production_workflows ?? []).length > 1 ? ` Every run of ${snap.rules.production_workflows!.map((g) => `${g.workflow}${g.tag_trigger ? ` (${g.tag_trigger})` : ''}`).join(', ')} passes the same environment's review.` : ''}
+Change and release: ${snap.rules.pr_landing ? 'changes land through pull requests by the project\'s landing workflow [confirm review with the daily required-review check]' : '[describe how changes land]'}; ${prod ? `production is deployed by ${prod.workflow}${prod.tag_trigger ? ` from a ${prod.tag_trigger} tag` : ''} through the ${prod.environment} environment's required reviewers, with outbound access limited to ${prod.egress.join(', ') || '[none listed]'}` : '[describe how a change reaches production]'}.${(snap.rules.production_workflows ?? []).length > 1 ? ` Every run of ${snap.rules.production_workflows!.map((g) => `${g.workflow}${g.tag_trigger ? ` (${g.tag_trigger})` : ''}`).join(', ')} passes the same environment's review.` : ''}
 
 Subservice organizations: ${snap.vendors.join(', ')}.
 
@@ -333,6 +333,9 @@ export function exportPackage(root: string, id: string, out: string): { files: n
       else paths.add(f.path);
     }
   }
+  // The latest attribution check travels with every package: it names the pull request behind each person's act, which
+  // the firm traces, and it is a record of the program rather than evidence of any one control.
+  if (readVersioned(root, 'sources/github/attribution.json')) paths.add('sources/github/attribution.json');
   for (const cid of new Set(reqs.flatMap((r) => r.data.controls))) {
     const c = ws.controls.find((x) => x.data.id === cid);
     if (!c) { problems.push(`control ${cid} does not exist`); continue; }
