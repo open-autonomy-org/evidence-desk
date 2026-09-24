@@ -215,7 +215,8 @@ function knownExceptions(ws: Workspace, e: Engagement) {
   const csv = buildViews(ws.root, ws, e, [], derivable(ws), now()).get('review/exceptions.csv')!;
   return parseCsv(csv, 'exceptions').rows.filter((x) => !x.key.startsWith('interim:'));
 }
-const deviationList = (ex: Record<string, string>[]) => ex.map((x) => `- ${x.occurred || x.detected} ${x.item}: ${x.detail}${x.controls ? ` (${x.controls.replaceAll(';', ', ')})` : ''}${x.resolved ? `; resolved ${x.resolved}` : ''}`).join('\n');
+// A check's exception is named by its check: its item alone ("1 failing reading(s)") says nothing of which.
+const deviationList = (ex: Record<string, string>[]) => ex.map((x) => `- ${x.occurred || x.detected} ${x.key.startsWith('check:') ? `${x.source}, ` : ''}${x.item}: ${x.detail}${x.controls ? ` (${x.controls.replaceAll(';', ', ')})` : ''}${x.resolved ? `; resolved ${x.resolved}` : ''}`).join('\n');
 
 function description(ws: Workspace, e: Engagement): string {
   const a = ws.scope?.data.answers ?? {};
