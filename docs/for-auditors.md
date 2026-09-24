@@ -34,8 +34,9 @@ query that produced it (evidence a person added by hand says so).
   commit to a declared file merged under review, the code host's gate with a named reviewer (an environment approval, a
   protected tag), or a platform key no agent holds. A chat message is never the record of an act.
 - **A person's own acts** (a policy's latest approval, acknowledgments, quizzes and attestations, access review sign-off,
-  incident closing, a risk's treatment, a vendor's review) are recorded in the organization's private workspace
-  repository through a pull request that person opened. The attribution check traces each act to the commit on the
+  incident closing, a risk's treatment, a vendor's review) must be recorded in the organization's private workspace
+  repository through a pull request that person opened; the attribution check reports every act that was not (pushed
+  without a pull request, recorded by someone else, changed since merged) as a finding in the gap view. It traces each act to the commit on the
   default branch that brought it to its present content, and to the merged pull request GitHub associates with that
   commit, and compares that pull request's author with the person's GitHub account on the roster. A collaborator who
   pushes to someone's open pull request branch is not told apart from them.
