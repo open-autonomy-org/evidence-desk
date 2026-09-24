@@ -187,7 +187,7 @@ ${(() => { const c = e.period ? periodPopulation(ws, e, 'changes to') : null; co
   if (d) { lines.push(`- ${d.rows.length} production deployment(s) (${d.id}), their runs started by ${tally(d.rows.map((r) => r.run_event))}${d.rows.some((r) => r.commit_match === 'no') ? `; ${d.rows.filter((r) => r.commit_match === 'no').length} approved on a run of another commit` : ''}; started by ${tally(d.rows.map((r) => r.started_by))}; ${d.rows.filter((r) => r.independent_approval === 'yes').length} approved by someone other than the starter.`); }
   // A Worker created inside the period is a system that began operating then, not at the period's start.
   const cfg = e.period ? periodPopulation(ws, e, 'configuration of') : null;
-  for (const r of cfg?.rows.filter((r) => r.action === 'create' && r.resource.startsWith('script ')) ?? []) lines.push(`- Worker ${r.resource.slice(7)} was created on ${r.at.slice(0, 10)} (${cfg!.id}): it began operating within the period, not at its start`);
+  for (const r of cfg?.rows.filter((r) => r.action === 'create' && r.resource.startsWith('script ')) ?? []) lines.push(`- Worker ${r.resource.slice(7)} was created on ${r.at.slice(0, 10)} by ${r.actor || 'no one the log names'} (${cfg!.id}): it began operating within the period, not at its start`);
   return `As operated in the period:\n${lines.join('\n')}\n`; })()}
 Subservice organizations: ${snap.vendors.join(', ')}.
 
