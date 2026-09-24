@@ -61,7 +61,11 @@ const github: CollectorDef = {
       const rules = await Promise.all(((rulesets.status === 200 ? rulesets.body : []) as any[]).map(async (rs) => (await gh(`/repos/${repo}/rulesets/${rs.id}`, queries)).body));
       const dependabot = await gh(`/repos/${repo}/dependabot/alerts?state=open&per_page=100`, queries);
       const secrets = await gh(`/repos/${repo}/secret-scanning/alerts?state=open&per_page=100`, queries);
+      // GitHub keeps rule insights for a month and filters them by a window back from now: a daily run reads the last
+      // day, so consecutive runs cover every bypass of the repository's rules.
+      const bypasses = await gh(`/repos/${repo}/rulesets/rule-suites?time_period=day&rule_suite_result=bypass&per_page=100`, queries);
       repos[repo] = { default_branch: branch, protection: protection.status === 200 ? protection.body : null, rulesets: rules,
+        rule_bypasses: bypasses.status === 200 ? bypasses.body : { unavailable: bypasses.status },
         dependabot: dependabot.status === 200 ? dependabot.body : { unavailable: dependabot.status }, secret_scanning: secrets.status === 200 ? secrets.body : { unavailable: secrets.status } };
     }
     return { data: { org: { login: org?.login, two_factor_requirement_enabled: org?.two_factor_requirement_enabled }, admins, repos }, queries };
@@ -76,7 +80,18 @@ const github: CollectorDef = {
         const ruled = (r.rulesets as any[]).some((rs) => rs.enforcement === 'active' && (rs.rules ?? []).some((x: any) => x.type === 'pull_request' && (x.parameters?.required_approving_review_count ?? 0) >= 1));
         return !classic && !ruled;
       }).map(([k]) => k);
-      return bad.length ? { status: 'fail', detail: `no required approving review on the default branch of ${bad.join(', ')}` } : { status: 'pass', detail: 'every checked repository requires an approving review' };
+      const bypassable = Object.entries(d.repos as Record<string, any>).filter(([, r]) => (r.rulesets as any[]).some((rs) => rs.enforcement === 'active' && (rs.bypass_actors ?? []).length)).map(([k]) => k);
+      return bad.length ? { status: 'fail', detail: `no required approving review on the default branch of ${bad.join(', ')}` }
+        : { status: 'pass', detail: `every checked repository requires an approving review${bypassable.length ? `; its ruleset lets listed actors bypass it in ${bypassable.join(', ')} (github-rule-bypass reports each bypass)` : ''}` };
+    } },
+    { id: 'github-rule-bypass', title: 'No one bypassed the default branch rules in the last day', controls: ['CHG-01'], evaluate: (d) => {
+      const seen: string[] = [];
+      for (const [repo, r] of Object.entries(d.repos as Record<string, any>)) {
+        if (!r.rule_bypasses) continue;
+        if (!Array.isArray(r.rule_bypasses)) return { status: 'error', detail: `rule insights for ${repo} are not available (${r.rule_bypasses.unavailable}); the token needs repository administration read access` };
+        for (const x of r.rule_bypasses) seen.push(`${repo} ${String(x.ref).replace('refs/heads/', '')} by ${x.actor_name} at ${x.pushed_at} (rule suite ${x.id}, ${String(x.after_sha ?? '').slice(0, 12)})`);
+      }
+      return seen.length ? { status: 'fail', detail: `bypassed: ${seen.join('; ')}` } : { status: 'pass', detail: 'no bypass' };
     } },
     { id: 'github-history-protected', title: 'The default branch cannot be force-pushed or deleted', controls: ['CHG-03', 'OPS-04'], evaluate: (d) => {
       const bad = Object.entries(d.repos as Record<string, any>).filter(([, r]) => {
