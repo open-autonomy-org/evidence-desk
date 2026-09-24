@@ -40,9 +40,15 @@ the system of record or from records the organization keeps itself. A change mer
 that no break-glass record names is an exception of its own. A management response lists the workspace files it
 cites; one citing nothing says so.
 
-- `review/claims.csv`: every dated claim in the description, the assertion and management's responses, with the
-  packaged files that record each date, and every count checked against its population. A claim nothing in the
-  package records, or a count its population contradicts, stops the export.
+- `review/claims.csv`: every dated claim in the description, the assertion and management's responses, tied to the
+  packaged line that records its date and names its subject, and graded by where that line came from: a vendor's own
+  answer (vendor record), a record the organization made (client record: it shows what was recorded, not that it
+  happened) or a document it wrote (client narrative). Sentences dated only by the period are judgments. A claim no
+  line supports, or a count its population contradicts, stops the export.
+- `review/access-changes.csv`: who was added to, removed from or given another role in the GitHub organization and
+  the Cloudflare account, day by day, from the daily snapshots.
+- `review/evidence-provenance.csv`: each client document's and register's history in the workspace repository; a
+  document describing dates after it was recorded is an exception.
 - `review/identities.csv`: every identity seen acting in the populations (person, service account, agent account)
   and the access review that covered it; one that acted in the period with no review is an exception.
 - `review/production-timeline.csv`: what ran in production and for how long, each deployment with its commit, its

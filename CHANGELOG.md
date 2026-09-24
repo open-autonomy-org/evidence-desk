@@ -7,6 +7,12 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Evidence is labelled by where it came from (vendor record, client record, client narrative) instead of
+  "system-evidenced", and a claim needs a line naming its subject, not just its date. Access changes come from the
+  daily snapshots of GitHub and Cloudflare membership. A recurring internal-audit finding is one exception. Changes
+  record whether a person or an agent account wrote and approved them. The production timeline ends with the changes
+  merged but not deployed by the period's end. A Cloudflare token created without a revocation is an exception.
+  Client documents and registers carry their history; a document dated after its own contents is an exception.
 - A package no longer carries claims its evidence does not support: `review/claims.csv` ties every dated claim in the
   description, assertion and management responses to the packaged files that record that date, and checks every count
   against its population; an unsupported or contradicted claim stops the export, as does an open exception the

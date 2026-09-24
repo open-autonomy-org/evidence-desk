@@ -78,6 +78,9 @@ if (step === 'org') {
 } else if (step === 'secret') { // secret <token> <name>: the production environment's secret set (or rotated) by that person
   await call('PUT', `/repos/globex/relay/environments/production/secrets/${a}`, { encrypted_value: Buffer.from(`${a}:${Date.now()}`).toString('base64'), key_id: 'twin' }, T);
   console.log('secret', a);
+} else if (step === 'cfrevoke') { // cfrevoke -: revoke the token in CF_AS, as its owner does in the dashboard
+  const id = String(process.env.CF_AS).slice(0, 12);
+  await cfcall('DELETE', `/user/tokens/${id}`); console.log('revoked', id);
 } else if (step === 'cftoken') { // cftoken - <email>: a person's Cloudflare API token, minted as in the dashboard
   console.log((await cfcall('POST', `/twin/users/${a}/tokens`)).token);
 } else if (step === 'cfset') { console.log(a, (await cfcall('PATCH', `/zones/${ZONE}/settings/${a}`, { value: b })).value);

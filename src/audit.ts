@@ -182,7 +182,8 @@ The project declares its change and release design: ${snap.rules.pr_landing ? 'c
 ${(() => { const c = e.period ? periodPopulation(ws, e, 'changes to') : null; const d = e.period ? periodPopulation(ws, e, 'deployments of') : null; if (!c && !d) return '';
   const lines: string[] = [];
   if (c) { const prs = c.rows.filter((r) => r.kind === 'pull request'); const bad = c.rows.filter((r) => r.independent_approval !== 'yes');
-    lines.push(`- ${c.rows.length} change(s) reached the default branch (${c.id}): ${prs.length} through pull requests, opened by ${tally(prs.map((r) => r.author))}; ${c.rows.length - prs.length} pushed directly; ${bad.length ? `${bad.length} without an independent approval (${bad.map((r) => r.number ? `#${r.number}` : r.commit.slice(0, 12)).join(', ')})` : 'every one independently approved'}.`); }
+    lines.push(`- ${c.rows.length} change(s) reached the default branch (${c.id}): ${prs.length} through pull requests, opened by ${tally(prs.map((r) => r.author))}; ${c.rows.length - prs.length} pushed directly; ${bad.length ? `${bad.length} without an independent approval (${bad.map((r) => r.number ? `#${r.number}` : r.commit.slice(0, 12)).join(', ')})` : 'every one independently approved'}.`);
+    if (prs.some((r) => r.approver_kinds)) lines.push(`- Approvals by kind of account: ${tally(prs.flatMap((r) => (r.approver_kinds || '').split(';').filter(Boolean)))}; ${prs.filter((r) => r.author_kind === 'agent' && (r.approver_kinds || '').split(';').every((k) => k === 'agent')).length} change(s) were written and approved only by agent accounts.`); }
   if (d) { lines.push(`- ${d.rows.length} production deployment(s) (${d.id}), their runs started by ${tally(d.rows.map((r) => r.run_event))}${d.rows.some((r) => r.commit_match === 'no') ? `; ${d.rows.filter((r) => r.commit_match === 'no').length} approved on a run of another commit` : ''}; started by ${tally(d.rows.map((r) => r.started_by))}; ${d.rows.filter((r) => r.independent_approval === 'yes').length} approved by someone other than the starter.`); }
   return `As operated in the period:\n${lines.join('\n')}\n`; })()}
 Subservice organizations: ${snap.vendors.join(', ')}.
@@ -421,21 +422,24 @@ function lintDescription(ws: Workspace, e: Engagement, text: string, assertionTe
 // Every dated claim in the drafts and in management's responses, against the package, line by line. A claim is
 // evidenced only by a packaged line that carries one of its dates and names one of its subjects (an id such as
 // deploy-v6 or replay-headers, a person, an account, a kind of act); the line's file says what kind of evidence it is: a
-// collector's or the project's own records (system), a workspace record a person made (access review, form, approval),
-// or a document the client wrote (client document). Daily check runs and their snapshots, which exist for every day,
+// vendor's own answer (vendor record), a record the organization made (client record), or a document it wrote (client
+// narrative). A client record shows what was recorded, not that it happened. Daily check runs and their snapshots, which exist for every day,
 // are not evidence of a particular day's act. A sentence whose only dates bound the period is a judgment, left to the
 // firm. A future date is a plan. A count must match the population it names.
 const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20 };
 const ACT_WORDS = ['told', 'notified', 'customer', 'joined', 'left', 'restore', 'audit', 'incident', 'deploy', 'deployment', 'rotat', 'token', 'review', 'test', 'merge', 'approv', 'break-glass', 'escalation', 'notif', 'backup', 'onboard', 'access', 'https', 'tls', 'bypass', 'ruleset', 'monitor', 'uptime', 'tabletop', 'exercise', 'penetration'];
-export type Claim = { source: string; claim: string; status: 'system-evidenced' | 'workspace record' | 'client document' | 'unsupported' | 'contradiction' | 'judgment'; detail: string };
+export type Claim = { source: string; claim: string; status: 'vendor record' | 'client record' | 'client narrative' | 'unsupported' | 'contradiction' | 'judgment'; detail: string };
 function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, packaged: Set<string>, today: string): Claim[] {
-  const kindOfFile = new Map<string, 'system-evidenced' | 'workspace record' | 'client document'>();
+  const kindOfFile = new Map<string, 'vendor record' | 'client record' | 'client narrative'>();
   for (const x of ws.evidence.filter((y) => packaged.has(y.path) && !/collected by run/.test(y.data.title))) {
-    const k = x.data.source?.kind === 'collector' || x.data.source?.kind === 'open-autonomy' ? 'system-evidenced' : x.data.source?.kind === 'evidence-desk' ? 'workspace record' : 'client document';
+    // Where the evidence came from decides what it can show: a vendor's API answer (vendor record), a record the
+    // organization made in its own repository or workspace (client record: it shows what the organization recorded,
+    // not that it happened), or a document the organization wrote (client narrative).
+    const k = x.data.source?.kind === 'collector' ? 'vendor record' : x.data.source?.kind === 'manual' ? 'client narrative' : 'client record';
     for (const f of x.data.files) if (!kindOfFile.has(f.path)) kindOfFile.set(f.path, k);
   }
-  for (const p of packaged) if (!kindOfFile.has(p) && /^(sources\/|reviews\/|policies\/|forms\/responses\/|registers\/)/.test(p)) kindOfFile.set(p, p.startsWith('sources/') ? 'system-evidenced' : 'workspace record');
-  const lines: { file: string; n: number; text: string; kind: 'system-evidenced' | 'workspace record' | 'client document' }[] = [];
+  for (const p of packaged) if (!kindOfFile.has(p) && /^(sources\/|reviews\/|policies\/|forms\/responses\/|registers\/)/.test(p)) kindOfFile.set(p, p.startsWith('sources/github/') || p.startsWith('sources/open-autonomy/completeness/') ? 'vendor record' : 'client record');
+  const lines: { file: string; n: number; text: string; kind: 'vendor record' | 'client record' | 'client narrative' }[] = [];
   for (const [p, kind] of kindOfFile) {
     if (!/\.(csv|json|md|txt)$/.test(p) || p.endsWith('.raw.json') || !existsSync(join(root, p))) continue;
     // A table's unit is its row; a document's (and a record's history) is the whole file, whose date may sit in its
@@ -446,7 +450,7 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
   }
   const period = e.period ?? { start: e.as_of ?? '', end: e.as_of ?? '' };
   // The access changes the daily snapshots show are system evidence of their day.
-  for (const c of accessChanges(root, ws, period)) lines.push({ file: `review/access-changes.csv (${c.snapshot})`, n: 0, text: `${c.at} ${c.system} ${c.account} ${c.change} ${c.role} access`.toLowerCase(), kind: 'system-evidenced' });
+  for (const c of accessChanges(root, ws, period)) lines.push({ file: `review/access-changes.csv (${c.snapshot})`, n: 0, text: `${c.at} ${c.system} ${c.account} ${c.change} ${c.role} access`.toLowerCase(), kind: 'vendor record' });
   const names = (ws.registers.people?.data.rows ?? []).flatMap((p) => [p.id, (p.name ?? '').split(' ')[0], p.email].filter(Boolean).map((x) => String(x).toLowerCase()));
   const count = (stem: string) => { const ev = ws.evidence.filter((x) => packaged.has(x.path) && x.data.files.some((f) => f.path.includes(stem) && f.path.endsWith('.csv'))).at(-1);
     const f = ev?.data.files.find((x) => x.path.includes(stem) && x.path.endsWith('.csv')); return f ? parseCsv(readFileSync(join(root, f.path), 'utf8'), f.path).rows : null; };
@@ -460,7 +464,7 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
   for (const k of ['description', 'assertion']) { const f = join(root, base(id), 'drafts', `${k}.md`); if (existsSync(f)) texts.push({ source: k, text: readFileSync(f, 'utf8').replace(/```[\s\S]*?```/g, '') }); }
   const ex = join(root, base(id), 'exceptions.json');
   if (existsSync(ex)) for (const [key, r] of Object.entries((JSON.parse(readFileSync(ex, 'utf8')) as { responses?: Record<string, { text: string }> }).responses ?? {})) texts.push({ source: `response to ${key}`, text: r.text });
-  const rank = { 'system-evidenced': 0, 'workspace record': 1, 'client document': 2 } as const;
+  const rank = { 'vendor record': 0, 'client record': 1, 'client narrative': 2 } as const;
   const out: Claim[] = [];
   // A sentence ends at a full stop or a line; a semicolon inside a line (the drafter's deviation lines) does not end one.
   for (const t of texts) for (const sentence of t.text.split(/(?<=\.)\s+|\n+/).map((x) => x.trim()).filter(Boolean)) {
@@ -483,7 +487,7 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
     const ids = [...new Set([...low.matchAll(/\b[a-z0-9]+(?:-[a-z0-9]+)+\b|\bc\d{1,2}\b/g)].map((m) => m[0]))].filter((x) => !/^20\d\d-\d\d-\d\d$/.test(x) && !/^\d/.test(x) && !/^[a-z]{2,5}-\d+$/.test(x) && !ACT_WORDS.includes(x) && lines.some((l) => l.text.includes(x)));
     const people = names.filter((x) => new RegExp(`\\b${x.replace(/[.@+]/g, '\\$&')}\\b`).test(low));
     const subjects = [...new Set([...ids, ...people, ...ACT_WORDS.filter((w) => low.includes(w))])];
-    const found: string[] = []; let worst: Claim['status'] = 'system-evidenced'; const missing: string[] = [];
+    const found: string[] = []; let worst: Claim['status'] = 'vendor record'; const missing: string[] = [];
     for (const d of eventDates) {
       // Among qualifying lines, the strongest kind wins (a system record over a client's own document, whose length
       // lets it name many subjects), then the line naming most of the claim's subjects.

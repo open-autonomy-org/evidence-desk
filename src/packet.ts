@@ -87,6 +87,17 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
         if (off.length || unruled) add({ ...base, key: `trigger:${ev.data.controls.join('+')}:${f.path.split('/').pop()}`, item: `${off.length} of ${t.rows.length} deployments`, detail: `${off.length ? `not started from the declared tag (${off.map((r) => `${r.ref} by ${r.run_event}`).join(', ')})` : 'every deployment started from the declared tag'}${unruled ? '; no active tag ruleset restricts who may create the declared tag' : ''}`, occurred: day(t.rows.map((r) => r.created_at).sort()[0] ?? '') }); }
       // A configuration change made by someone not on the roster, or by no one the vendor can name, and a rules change
       // that weakened the rules.
+      // A token created in the period while the same owner's earlier token was never revoked: a rotation that left the
+      // old credential live.
+      if (f.path.includes('/cloudflare-changes-')) {
+        const tokens = t.rows.filter((r) => /^token\b/.test(r.resource));
+        for (const owner of new Set(tokens.map((r) => r.actor))) {
+          const made = tokens.filter((r) => r.actor === owner && r.action === 'create'), gone = tokens.filter((r) => r.actor === owner && r.action === 'delete');
+          const madeIn = made.filter((r) => inside(r.at, period)), goneIn = gone.filter((r) => inside(r.at, period));
+          if (madeIn.length > goneIn.length)
+            add({ ...base, key: `token-not-revoked:${owner}`, controls: 'AC-05', item: `${owner}: ${madeIn.length} token(s) created, ${goneIn.length} revoked in the period`, detail: `more tokens were created (${madeIn.map((r) => day(r.at)).join(', ')}) than revoked: a rotation that left an older token live, or a new token to account for`, occurred: day(madeIn.at(-1)!.at) });
+        }
+      }
       if (t.columns.includes('actor_on_roster')) for (const r of t.rows.filter((r) => r.actor_on_roster === 'no' || r.actor_on_roster === 'unknown'))
         add({ ...base, key: `config-actor:${f.path.split('/').pop()!.replace(/-\d+\.csv$/, '')}:${r.id || `${r.ruleset_id}:${r.version}`}`, item: r.change || `${r.resource} ${r.old_value} → ${r.new_value}`, detail: r.actor ? `changed by ${r.actor}, who is not on the roster` : 'changed by no one the vendor names (a token without a user)', occurred: day(r.at) });
       if (t.columns.includes('weakens')) for (const r of t.rows.filter((r) => r.weakens === 'yes'))
@@ -124,9 +135,16 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
         // A finding is resolved by the first later audit in which its item passes.
         const runs = [...t.rows].sort((a, b) => a.at.localeCompare(b.at));
         const statusOf = (r: Record<string, string>, item: string) => { try { return (JSON.parse(r.items || '[]') as { item: string; status: string }[]).find((x) => x.item === item)?.status ?? ''; } catch { return ''; } };
+        // One matter, one exception: a finding the audits raise week after week is one row, from the first audit that
+        // raised it to the audit that found its item passing again.
+        const open = new Map<string, { first: Record<string, string>; last: Record<string, string>; text: string; n: number }>();
+        const close = (item: string, by?: Record<string, string>) => { const m = open.get(item); if (!m) return; open.delete(item);
+          add({ ...base, key: `audit-finding:${m.first.id}:${item}`, item: `internal audit finding ${item}`, detail: `${m.text} (raised by ${m.n} audit(s), ${day(m.first.at)} to ${day(m.last.at)})`, occurred: day(m.first.at), detected: day(m.first.at), resolved: by ? day(by.at) : '', closed_by: by ? `the internal audit ${by.id} found ${item} passing` : '' }); };
         for (const r of runs) { let found: string[] = []; try { found = JSON.parse(r.findings || '[]'); } catch { found = r.findings ? [r.findings] : []; }
-          found.forEach((x, i) => { const item = /^C\d+/.exec(x)?.[0] ?? ''; const later = item ? runs.find((y) => y.at > r.at && statusOf(y, item) === 'pass') : undefined;
-            add({ ...base, key: `audit-finding:${r.id}:${i + 1}`, item: `internal audit ${r.id}`, detail: x, occurred: day(r.at), resolved: later ? day(later.at) : '', closed_by: later ? `the internal audit ${later.id} found ${item} passing` : '' }); }); }
+          const raised = new Map(found.map((x) => [/^C\d+/.exec(x)?.[0] ?? x, x]));
+          for (const item of [...open.keys()]) if (!raised.has(item) && statusOf(r, item) === 'pass') close(item, r);
+          for (const [item, text] of raised) { const m = open.get(item); if (m) { m.last = r; m.n += 1; } else open.set(item, { first: r, last: r, text, n: 1 }); } }
+        for (const item of [...open.keys()]) close(item);
         const at = t.rows.map((r) => Date.parse(r.at)).filter((x) => !Number.isNaN(x)).sort((a, b) => a - b);
         const edges = [Date.parse(`${period.start}T00:00:00Z`), ...at, Date.parse(`${period.end}T23:59:59Z`)];
         const gaps = edges.slice(1).map((x, i) => [edges[i], x]).filter(([a, b]) => b - a > 8 * 864e5);
@@ -257,6 +275,10 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     provenance.push({ evidence: x.data.id, file: f.path, recorded_by: x.data.recorded_by, recorded: recorded, revisions: String(log.length), history: log.join('; '), dates_after_recorded: later.join(';') });
     if (later.length) add({ key: `document-dated-after:${x.data.id}`, source: `client document ${x.data.id}`, controls: x.data.controls.join(';'), item: f.path.split('/').pop()!, detail: `recorded ${recorded} but describes ${later.join(', ')}: written or edited after the day it claims (revisions: ${log.length})`, occurred: recorded, detected: day(createdAt), resolved: '', file: f.path });
   }
+  for (const reg of [...packaged].filter((p) => p.startsWith('registers/'))) {
+    const log = git('log', '--format=%h %cI %an %s', '--', reg).split('\n').filter(Boolean);
+    provenance.push({ evidence: 'register', file: reg, recorded_by: '', recorded: '', revisions: String(log.length), history: log.join('; '), dates_after_recorded: '' });
+  }
   const views = new Map<string, string>();
   views.set('review/evidence-provenance.csv', writeCsv({ columns: ['evidence', 'file', 'recorded_by', 'recorded', 'revisions', 'history', 'dates_after_recorded'], rows: provenance }));
   views.set('review/access-changes.csv', writeCsv({ columns: ['at', 'system', 'account', 'change', 'role', 'snapshot'], rows: accessChanges(root, ws, period) }));
@@ -324,6 +346,9 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       return { from: r.at, until, days: String(Math.round((Date.parse(until) - Date.parse(r.at)) / 864e5 * 10) / 10), deployment: r.deployment, author: r.author, commit: r.commit, github_deployment: r.github_deployment, ref: r.github_ref, approved: r.github_approved,
         change_path: r.matched === 'yes' ? 'reviewed and approved' : 'outside the change path', pull_requests: prs.map((m) => `#${m.number}`).join(';') };
     });
+    // Changes merged after the last approved deployment never reached production in the period.
+    const undeployed = merged.filter((m) => m.merged_at > shippedUpTo && m.merged_at.slice(0, 10) <= period.end);
+    if (undeployed.length) timeline.push({ from: undeployed[0].merged_at, until: `${period.end}T23:59:59Z`, days: '', deployment: '', author: '', commit: '', github_deployment: '', ref: '', approved: '', change_path: 'merged, not deployed by the period end', pull_requests: undeployed.map((m) => `#${m.number}`).join(';') });
     views.set('review/production-timeline.csv', writeCsv({ columns: ['from', 'until', 'days', 'deployment', 'author', 'commit', 'github_deployment', 'ref', 'approved', 'change_path', 'pull_requests'], rows: timeline }));
   }
   views.set('review/coverage.csv', writeCsv({ columns: ['criterion', 'category', 'title', 'controls', 'controls_with_evidence', 'check_only', 'not_provided', 'requested', 'exceptions', 'status'], rows: byCriterion }));
