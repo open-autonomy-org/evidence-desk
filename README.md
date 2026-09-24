@@ -76,6 +76,8 @@ bun src/cli.ts audit ~/acme-soc2 q3 import-return ~/q3-package         # bring t
 bun src/cli.ts firm ~/firm/firm.json --serve                            # the firm's view across its clients
 ```
 
+The audit firm's side, what it receives and how to test it, is in [docs/for-auditors.md](docs/for-auditors.md).
+
 Answer customers from the same facts, and publish a trust center you host yourself:
 
 ```bash
