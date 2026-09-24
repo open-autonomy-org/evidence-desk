@@ -178,11 +178,12 @@ function projectIncidents(ws: Workspace, e: Engagement): string {
   return rows.length ? `\nIncidents the project recorded in its records/ during the period, every severity:\n${rows.map((r) => `- ${r.detected_at.slice(0, 10)} ${r.id} (${r.severity}, ${r.status}): ${r.summary}${r.notification ? `. Notification: ${r.notification}` : ''}${r.review ? `. Review: ${r.review}` : ''}`).join('\n')}\n` : '';
 }
 
+// Every file an exception can be derived from, as if the whole workspace were packaged.
+const derivable = (ws: Workspace) => new Set([...ws.evidence.flatMap((x) => [x.path, ...x.data.files.map((f) => f.path)]), ...listUnder(ws.root, 'sources'), ...ws.runs.map((r) => r.path)]);
 // The deviations the workspace already knows about in the engagement's period, as the package's exceptions register
 // would list them: a draft names them so management decides what to disclose rather than asserting past them.
 function knownExceptions(ws: Workspace, e: Engagement) {
-  const everything = new Set([...ws.evidence.flatMap((x) => [x.path, ...x.data.files.map((f) => f.path)]), ...listUnder(ws.root, 'sources/open-autonomy/completeness'), ...(existsSync(join(ws.root, 'sources/github/attribution.json')) ? ['sources/github/attribution.json'] : [])]);
-  const csv = buildViews(ws.root, ws, e, [], everything, now()).get('review/exceptions.csv')!;
+  const csv = buildViews(ws.root, ws, e, [], derivable(ws), now()).get('review/exceptions.csv')!;
   return parseCsv(csv, 'exceptions').rows.filter((x) => !x.key.startsWith('interim:'));
 }
 const deviationList = (ex: Record<string, string>[]) => ex.map((x) => `- ${x.occurred || x.detected} ${x.item}: ${x.detail}${x.controls ? ` (${x.controls.replaceAll(';', ', ')})` : ''}${x.resolved ? `; resolved ${x.resolved}` : ''}`).join('\n');
@@ -627,8 +628,7 @@ export function respondToException(root: string, id: string, key: string, text: 
   if (!text.trim()) throw new Error('the response needs --response <text>');
   const ws = loadWorkspace(root);
   const e = readEngagement(root, id).data;
-  const all = new Set([...ws.evidence.map((x) => x.path), ...listUnder(root, 'sources'), ...ws.runs.map((r) => r.path)]);
-  const known = parseCsv(buildViews(root, ws, e, listRequests(root, id), all, now()).get('review/exceptions.csv')!, 'exceptions.csv').rows.map((r) => r.key);
+  const known = parseCsv(buildViews(root, ws, e, listRequests(root, id), derivable(ws), now()).get('review/exceptions.csv')!, 'exceptions.csv').rows.map((r) => r.key);
   if (!known.includes(key)) throw new Error(`${key} is not an exception the workspace derives for engagement ${id}; take the key from review/exceptions.csv`);
   if (!(loadWorkspace(root).registers.people?.data.rows ?? []).some((r) => r.id === by)) throw new Error(`${by || '(none)'} is not in registers/people.csv`);
   const rel = `${base(id)}/exceptions.json`;
