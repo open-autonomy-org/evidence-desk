@@ -530,8 +530,10 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
     const acts = ACT_WORDS.filter((w) => new RegExp(`\\b${w}`).test(low)).map((w) => new RegExp(`\\b${w.replace(/-/g, '\\-')}`));
     const found: string[] = []; const support: string[] = []; let worst: Claim['status'] = 'vendor record'; const missing: string[] = [];
     for (const d of eventDates) {
-      // Among qualifying lines, the strongest kind wins (a system record over a client's own document, whose length
-      // lets it name many subjects), then the line naming most of the claim's subjects.
+      // Among qualifying lines, the one naming more of the claim's ids wins (a vendor row that merely shares the date and a
+      // person must not stand for the record that states the fact); between lines naming as many, a vendor's record over
+      // the client's (a long document names many subjects), then the one naming most of its other subjects.
+      const idScore = (l: typeof lines[number]) => ids.filter((x) => l.text.includes(x)).length;
       const score = (l: typeof lines[number]) => ids.filter((x) => l.text.includes(x)).length * 3 + subjects.filter((x) => l.text.includes(x)).length;
       // Lines with the date that name one of the claim's ids; failing those, lines naming at least two of its subjects.
       // A line evidences the claim's fact, not only its subject: it records one of the acts the claim states.
@@ -540,7 +542,7 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
       // A person named on the day is as specific as an id.
       const withPerson = people.length ? onDay.filter((l) => people.some((x) => l.text.includes(x))) : [];
       const hits = (withId.length ? withId : withPerson.length ? withPerson : onDay.filter((l) => subjects.filter((x) => l.text.includes(x)).length >= Math.min(2, subjects.length || 2)))
-        .sort((a, b) => rank[a.kind] - rank[b.kind] || score(b) - score(a));
+        .sort((a, b) => idScore(b) - idScore(a) || rank[a.kind] - rank[b.kind] || score(b) - score(a));
       if (!hits.length) { missing.push(d); continue; }
       support.push(...hits.map((l) => `${l.text} ${l.acts ?? ''}`));
 
