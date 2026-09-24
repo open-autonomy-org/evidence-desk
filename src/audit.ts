@@ -565,10 +565,12 @@ files under \`workspace/${base(id)}/requests/\` (add to each thread with side "f
 add sample items) and send the folder back. A hash shows that a file is unchanged; it does not show who made it.
 \`review/workspace.bundle\` is the workspace's Git history up to the commit the manifest names: \`git clone\` it and
 \`git log\` any file to see who committed it and when, and that the file here is the one committed.
+The package's digest is the SHA-256 of \`manifest.json\`; \`audit verify\` prints it. Record it when the package
+arrives, by a channel the client does not control, and any later change to any file will show against it.
 \`manifest.json\` lists what stays in the workspace under \`omitted\`${dangling ? `, including ${dangling} file(s) a packaged file cites that the workspace does not hold` : ''}. This README is hashed with the views.
 `;
 
-export function exportPackage(root: string, id: string, out: string): { files: number; omitted: string[] } {
+export function exportPackage(root: string, id: string, out: string): { files: number; omitted: string[]; digest: string } {
   const e = readEngagement(root, id);
   if (existsSync(out) && readdirSync(out).length) throw new Error(`${out} is not empty`);
   const ws = loadWorkspace(root);
@@ -753,10 +755,12 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     request_versions: Object.fromEntries(reqs.map((r) => [r.data.id, r.version])) };
   valid('audit-package', manifest, 'the package manifest');
   writeFileSync(join(out, 'manifest.json'), pretty(manifest));
-  return { files: files.length, omitted: manifest.omitted };
+  // The package's digest: the SHA-256 of its manifest, which hashes every other file. The firm records it on receipt, by
+  // its own channel, and any later change to any file shows against a value the client does not hold.
+  return { files: files.length, omitted: manifest.omitted, digest: sha256(Buffer.from(pretty(manifest))) };
 }
 
-export function verifyPackage(dir: string): { ok: boolean; problems: string[]; files: number } {
+export function verifyPackage(dir: string): { ok: boolean; problems: string[]; files: number; digest?: string } {
   const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
   const errs = check(schema('audit-package'), manifest);
   if (errs.length) return { ok: false, problems: errs, files: 0 };
@@ -784,7 +788,7 @@ export function verifyPackage(dir: string): { ok: boolean; problems: string[]; f
     const heads = execFileSync('git', ['bundle', 'list-heads', bundle], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     if (!heads.includes(manifest.workspace.commit)) problems.push(`review/workspace.bundle does not hold the workspace commit ${manifest.workspace.commit}`);
   } catch { problems.push('review/workspace.bundle is not a readable Git bundle'); }
-  return { ok: !problems.length, problems, files: manifest.files.length };
+  return { ok: !problems.length, problems, files: manifest.files.length, digest: sha256(readFileSync(join(dir, 'manifest.json'))) };
 }
 
 // Brings the firm's side of a returned package into the workspace. Messages are merged, samples the firm added are

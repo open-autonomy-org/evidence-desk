@@ -474,7 +474,7 @@ async function main(argv: string[]): Promise<number> {
       if (dirArg === 'package-serve') { serveFirm('package', resolve(rest[0] ?? ''), Number(one(a, 'port') ?? 4880)); return -1; }
       if (cmd === 'audit' && dirArg === 'verify') {
         const r = verifyPackage(resolve(rest[0] ?? ''));
-        out(json, r, () => r.ok ? `Verified: all ${r.files} files match the manifest, and nothing unlisted is present.` : `Does not verify:\n  ${r.problems.join('\n  ')}`);
+        out(json, r, () => r.ok ? `Verified: all ${r.files} files match the manifest, and nothing unlisted is present.\nPackage digest (SHA-256 of manifest.json): ${r.digest}` : `Does not verify:\n  ${r.problems.join('\n  ')}`);
         return r.ok ? 0 : 1;
       }
       const [id, action, ...more] = rest;
@@ -537,7 +537,7 @@ async function main(argv: string[]): Promise<number> {
         const o = one(a, 'out');
         if (!o) throw new Error('export needs --out <folder>');
         const r = exportPackage(dir, id, resolve(o));
-        out(json, r, () => `Exported ${r.files} files to ${resolve(o)}.`);
+        out(json, r, () => `Exported ${r.files} files to ${resolve(o)}.\nPackage digest (SHA-256 of manifest.json): ${r.digest}; give it to the firm by a channel of its own.`);
         return 0;
       }
       if (action === 'import-return') {
