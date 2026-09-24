@@ -178,6 +178,15 @@ function projectIncidents(ws: Workspace, e: Engagement): string {
   return rows.length ? `\nIncidents the project recorded in its records/ during the period, every severity:\n${rows.map((r) => `- ${r.detected_at.slice(0, 10)} ${r.id} (${r.severity}, ${r.status}): ${r.summary}${r.notification ? `. Notification: ${r.notification}` : ''}${r.review ? `. Review: ${r.review}` : ''}`).join('\n')}\n` : '';
 }
 
+// The deviations the workspace already knows about in the engagement's period, as the package's exceptions register
+// would list them: a draft names them so management decides what to disclose rather than asserting past them.
+function knownExceptions(ws: Workspace, e: Engagement) {
+  const everything = new Set([...ws.evidence.map((x) => x.path), ...listUnder(ws.root, 'sources/open-autonomy/completeness'), ...(existsSync(join(ws.root, 'sources/github/attribution.json')) ? ['sources/github/attribution.json'] : [])]);
+  const csv = buildViews(ws.root, ws, e, [], everything, now()).get('review/exceptions.csv')!;
+  return parseCsv(csv, 'exceptions').rows.filter((x) => !x.key.startsWith('interim:'));
+}
+const deviationList = (ex: Record<string, string>[]) => ex.map((x) => `- ${x.occurred || x.detected} ${x.item}: ${x.detail}${x.controls ? ` (${x.controls.replaceAll(';', ', ')})` : ''}${x.resolved ? `; resolved ${x.resolved}` : ''}`).join('\n');
+
 function description(ws: Workspace, e: Engagement): string {
   const a = ws.scope?.data.answers ?? {};
   const org = ws.manifest?.data.organization ?? '';
@@ -227,7 +236,12 @@ ${openAutonomySection(ws)}
 ## DC4 System incidents
 
 ${incidents.length ? incidents.map((i) => `- ${i.data.detected_at.slice(0, 10)} ${i.data.title} (${i.data.severity}, ${i.data.status})${i.data.review ? `: ${i.data.review}` : ''}`).join('\n') : 'No high or critical incident is recorded for this period.'}
-${projectIncidents(ws, e)}
+${projectIncidents(ws, e)}${(() => { const ex = knownExceptions(ws, e); return ex.length ? `
+Deviations the workspace found during the period (the package's review/exceptions.csv):
+${deviationList(ex)}
+
+[State which of these deviations are incidents to disclose here, with the effect and resolution of each.]
+` : ''; })()}
 Sources: incidents/${projectIncidents(ws, e) ? `, ${latestPopulation(ws, 'incidents')!.data.files[0].path}` : ''}.
 
 ## DC5 Applicable trust services criteria and related controls
@@ -281,7 +295,12 @@ and belief, that:
 1. The description presents the system that was designed and implemented ${when} in accordance with those criteria.
 2. The controls stated in the description were suitably designed ${when} to provide reasonable assurance that our
    service commitments and system requirements would be achieved if the controls operated effectively${e.type === 'type2' ? ', and they operated effectively throughout that period' : ''}.
-
+${(() => { const ex = e.type === 'type2' ? knownExceptions(ws, e) : []; return ex.length ? `
+[The workspace found ${ex.length} deviation(s) during the period, listed below and in the package's review/exceptions.csv.
+Unless management concludes that none prevented a service commitment from being achieved, end point 2 with "except for
+the matters described in the following paragraph" and describe them there.]
+${deviationList(ex)}
+` : ''; })()}
 [Name, title]
 [Signature]
 [Date]
@@ -327,6 +346,19 @@ export function draft(root: string, id: string, kind: 'description' | 'assertion
 // ── Packages ────────────────────────────────────────────────────────────────────────────────────────────────────
 // Exports exactly what the engagement's requests point at, plus the engagement, its drafts, and the controls and
 // approved policy texts those requests name. Refuses when a referenced file is missing or no longer matches its record.
+// The package's own README, hashed in the manifest with the other derived views.
+const readme = (organization: string, engagement: string, created: string, id: string, dangling: number) => `# SOC 2 audit package: ${organization}, engagement ${engagement}
+
+Created ${created}. Start with \`review/index.html\`: the exceptions register, each automated check across the
+period, every request with its evidence, and the control matrix, each line linked to the file it comes from
+(\`review/*.csv\` hold the same tables). The views were derived from \`workspace/\` when the package was made; the
+manifest shows they are unchanged since, not that they were derived correctly: every line names its source file. \`manifest.json\` lists every file under \`workspace/\` and \`review/\` with its SHA-256. Check it with
+\`evidence-desk audit verify <this folder>\`, or compare the hashes with any SHA-256 tool. To respond, edit the request
+files under \`workspace/${base(id)}/requests/\` (add to each thread with side "firm", set status "accepted" or "returned",
+add sample items) and send the folder back. A hash shows that a file is unchanged; it does not show who made it.
+\`manifest.json\` lists what stays in the workspace under \`omitted\`${dangling ? `, including ${dangling} file(s) a packaged file cites that the workspace does not hold` : ''}. This README is hashed with the views.
+`;
+
 export function exportPackage(root: string, id: string, out: string): { files: number; omitted: string[] } {
   const e = readEngagement(root, id);
   if (existsSync(out) && readdirSync(out).length) throw new Error(`${out} is not empty`);
@@ -377,7 +409,17 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   for (const f of listUnder(root, 'registers')) paths.add(f);
   if (existsSync(join(root, base(id), 'exceptions.json'))) paths.add(`${base(id)}/exceptions.json`);
   const period = e.data.period ?? { start: e.data.as_of ?? '', end: e.data.as_of ?? '' };
-  for (const r of ws.runs) if (r.data.started_at.slice(0, 10) >= period.start && r.data.started_at.slice(0, 10) <= period.end) paths.add(r.path);
+  // Each run travels with what it decided from: every collector's snapshot and the evidence it recorded, so a daily
+  // reading in a check's history traces to the vendor's answer that day.
+  const evidenceById = new Map(ws.evidence.map((x) => [x.data.id, x]));
+  for (const r of ws.runs) if (r.data.started_at.slice(0, 10) >= period.start && r.data.started_at.slice(0, 10) <= period.end) {
+    paths.add(r.path);
+    for (const c of r.data.collectors) {
+      if (c.snapshot) { if (existsSync(join(root, c.snapshot))) paths.add(c.snapshot); else problems.push(`${c.snapshot} (run ${r.data.id}) is missing`); }
+      const rec = c.evidence ? evidenceById.get(c.evidence) : undefined;
+      if (rec) { paths.add(rec.path); for (const f of rec.data.files) if (existsSync(join(root, f.path))) paths.add(f.path); }
+    }
+  }
   for (const f of ['sources/open-autonomy/latest.json', ...listUnder(root, 'sources/open-autonomy/completeness')]) if (existsSync(join(root, f))) paths.add(f);
   const cited = new Set([...reqs.flatMap((r) => r.data.controls), ...ws.evidence.filter((x) => paths.has(x.path)).flatMap((x) => x.data.controls)]);
   for (const cid of cited) {
@@ -390,6 +432,24 @@ export function exportPackage(root: string, id: string, out: string): { files: n
       if (p && v) { paths.add(p.path); paths.add(v.archived); }
     }
   }
+  // Every workspace file a packaged file cites travels with it (a form's definition, the snapshot a description names,
+  // a record an exception points to), until nothing new is cited; a cited file the workspace does not hold is listed in
+  // the manifest's omissions with what cites it, so the firm never meets a dangling reference unexplained.
+  for (const r of ws.responses) if (paths.has(`forms/responses/${r.data.id}.json`)) { const f = ws.forms.find((x) => x.data.id === r.data.form); if (f) paths.add(f.path); }
+  const cites = /(?<![\w/.:@-])((?:evidence|sources|checks|forms|reviews|incidents|policies|registers|controls|audits)\/[\w.@+-]+(?:\/[\w.@+-]+)*\.(?:json|csv|md|txt|pdf|xlsx|yaml|yml|png|jpe?g))/g;
+  const absent = new Map<string, string>();
+  for (let scanned = new Set<string>(), round = 0; round < 10; round++) {
+    const fresh = [...paths].filter((p) => !scanned.has(p) && /\.(json|md|csv|txt)$/.test(p) && !p.endsWith('.raw.json'));
+    if (!fresh.length) break;
+    for (const p of fresh) {
+      scanned.add(p);
+      for (const m of readFileSync(join(root, p), 'utf8').matchAll(cites)) {
+        const ref = m[1];
+        try { inside(root, ref); } catch { continue; }
+        if (existsSync(join(root, ref))) paths.add(ref); else if (!absent.has(ref)) absent.set(ref, p);
+      }
+    }
+  }
   if (problems.length) throw new Error(`the package cannot be exported:\n  ${problems.join('\n  ')}`);
   mkdirSync(out, { recursive: true });
   const files = [...paths].sort().map((p) => {
@@ -400,27 +460,21 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     return { path: p, sha256: h.sha256, bytes: h.bytes };
   });
   const created = now();
-  const derived = [...buildViews(root, ws, e.data, reqs, paths, created)].sort(([a], [b]) => a.localeCompare(b)).map(([p, text]) => {
+  const omitted = ['Evidence no request names and records unrelated to the engagement stay in the workspace; the control matrix lists every control with its evidence ids, and the firm may ask for any of it.',
+    ...[...absent].sort(([a], [b]) => a.localeCompare(b)).map(([ref, by]) => `${ref}: cited by ${by}, and not in the workspace`)];
+  const views = buildViews(root, ws, e.data, reqs, paths, created);
+  views.set('README.md', readme(ws.manifest?.data.organization ?? '', e.data.id, created, id, omitted.length - 1));
+  const derived = [...views].sort(([a], [b]) => a.localeCompare(b)).map(([p, text]) => {
     const dest = join(out, p);
     mkdirSync(dirname(dest), { recursive: true });
     writeFileSync(dest, text);
     return { path: p, sha256: sha256(Buffer.from(text)), bytes: Buffer.byteLength(text) };
   });
   const manifest = { schema: 'evidence-desk.audit-package/1', engagement: e.data.id, organization: ws.manifest?.data.organization ?? '', created_at: created, files, derived,
-    omitted: ['Evidence no request names and records unrelated to the engagement stay in the workspace; the control matrix lists every control with its evidence ids, and the firm may ask for any of it.'],
+    omitted,
     request_versions: Object.fromEntries(reqs.map((r) => [r.data.id, r.version])) };
   valid('audit-package', manifest, 'the package manifest');
   writeFileSync(join(out, 'manifest.json'), pretty(manifest));
-  writeFileSync(join(out, 'README.md'), `# SOC 2 audit package: ${manifest.organization}, engagement ${e.data.id}
-
-Created ${manifest.created_at}. Start with \`review/index.html\`: the exceptions register, each automated check across the
-period, every request with its evidence, and the control matrix, each line linked to the file it comes from
-(\`review/*.csv\` hold the same tables). The views were derived from \`workspace/\` when the package was made; the
-manifest shows they are unchanged since, not that they were derived correctly: every line names its source file. \`manifest.json\` lists every file under \`workspace/\` and \`review/\` with its SHA-256. Check it with
-\`evidence-desk audit verify <this folder>\`, or compare the hashes with any SHA-256 tool. To respond, edit the request
-files under \`workspace/${base(id)}/requests/\` (add to each thread with side "firm", set status "accepted" or "returned",
-add sample items) and send the folder back. A hash shows that a file is unchanged; it does not show who made it.
-`);
   return { files: files.length, omitted: manifest.omitted };
 }
 

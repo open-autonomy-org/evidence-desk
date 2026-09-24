@@ -14,7 +14,7 @@ declare const Bun: { YAML: { parse(text: string): unknown } };
 
 export type Seam = { id: string; scope: string; door: string; record: string };
 export type Snapshot = {
-  schema: string; repository: string; repository_path?: string; commit: string; read_at: string; account: string; kit: { skew: string; version: string } | null;
+  schema: string; repository: string; repository_path?: string; remote_url?: string; remote_branches?: string[]; commit: string; read_at: string; account: string; kit: { skew: string; version: string } | null;
   team: { id: string; name: string; github?: string; discord?: string; scopes: string[] }[];
   agents: { profile: string; models: { name: string; provider: string; model: string; credential?: string }[]; jobs: { name: string; schedule: string; skills: string[] }[] }[];
   seams: Seam[] | null; vendor_accounts: { id: string; vendor: string; account: string }[];
@@ -79,8 +79,13 @@ export function readProject(repo: string, commitish = 'HEAD'): Snapshot {
   for (const host of gated.flatMap((g) => g.egress)) vendors.add(vendorOfHost(host));
 
   const seamsDoc = config.seams as { seams?: Seam[]; vendor_accounts?: Snapshot['vendor_accounts'] } | undefined;
+  // Where the checkout came from: the remote it tracks and which of the remote's branches hold the commit read, so a
+  // reader can fetch the same commit from the code host rather than trust the local folder.
+  let remote = '';
+  try { remote = git(repo, 'remote', 'get-url', 'origin').trim(); } catch { /* a checkout with no origin */ }
+  const remoteBranches = remote ? git(repo, 'branch', '-r', '--contains', commit, '--format=%(refname:short)').split('\n').map((x) => x.trim()).filter((x) => x.startsWith('origin/') && x !== 'origin/HEAD') : [];
   const snap: Snapshot = {
-    schema: 'evidence-desk.open-autonomy/1', repository: String(config.account ?? repo), repository_path: repo, commit, read_at: now(), account: String(config.account ?? ''),
+    schema: 'evidence-desk.open-autonomy/1', repository: String(config.account ?? repo), repository_path: repo, remote_url: remote.replace(/\/\/[^/@]*@/, '//'), remote_branches: remoteBranches, commit, read_at: now(), account: String(config.account ?? ''),
     kit: kit ? (({ skew, version }) => ({ skew, version }))(JSON.parse(kit)) : null,
     team, agents, seams: seamsDoc?.seams ?? null, vendor_accounts: seamsDoc?.vendor_accounts ?? [],
     rules: { pr_landing: workflows.some((w) => /land\.ya?ml$/.test(w)), production_deploy: production, production_workflows: gated },
@@ -263,6 +268,9 @@ export function collectSeamRecords(root: string, input: { repo: string; start: s
     const files = git(input.repo, 'ls-tree', '-r', '--name-only', snap.commit, '--', folder).split('\n').filter((f) => f.endsWith('.json'));
     const rows: string[] = [];
     const findings: string[] = [];
+    // Each record's whole history on the named commit's line: a record edited after it was added (a timeline written
+    // after the fact, a severity lowered) shows every change with its author and both dates.
+    const history: string[] = [];
     for (const f of files) {
       let r: Record<string, unknown>;
       try { r = JSON.parse(show(input.repo, snap.commit, f) ?? ''); } catch { findings.push(`${f} is not a JSON record`); continue; }
@@ -270,16 +278,20 @@ export function collectSeamRecords(root: string, input: { repo: string; start: s
       if (!/^\d{4}-\d{2}-\d{2}$/.test(when)) { findings.push(`${f} has no ${kind.date}`); continue; }
       if (when < input.start || when > input.end) continue;
       const added = git(input.repo, 'log', '--diff-filter=A', '--format=%H%x09%an <%ae>%x09%aI', snap.commit, '--', f).trim().split('\n').pop()!.split('\t');
+      const changes = git(input.repo, 'log', '--format=%H%x09%cI', snap.commit, '--', f).trim().split('\n').filter(Boolean);
+      history.push(`=== ${f}\n${git(input.repo, 'log', '-p', '--format=commit %H%nauthor %an <%ae> %aI%ncommitter %cn <%ce> %cI%n%n    %s%n', snap.commit, '--', f).trim()}\n`);
       const finding = kind.finding(r);
       if (finding) findings.push(finding);
-      rows.push([f, ...kind.columns.map((c) => r[c]), added[0], added[1], added[2]].map(csv).join(','));
+      rows.push([f, ...kind.columns.map((c) => r[c]), added[0], added[1], added[2], changes[0]?.split('\t')[1] ?? '', changes.length].map(csv).join(','));
     }
-    const rel = `evidence/files/populations/${seam.id}-${input.start}-${input.end}-${Date.now()}.csv`;
-    writeVersioned(root, rel, [['file', ...kind.columns, 'added_commit', 'added_by', 'added_at'].join(','), ...rows].join('\n') + '\n', null);
+    const stem = `evidence/files/populations/${seam.id}-${input.start}-${input.end}-${Date.now()}`;
+    const rel = `${stem}.csv`;
+    writeVersioned(root, rel, [['file', ...kind.columns, 'added_commit', 'added_by', 'added_at', 'last_changed_at', 'changes'].join(','), ...rows].join('\n') + '\n', null);
+    writeVersioned(root, `${stem}.history.txt`, `${snap.account} at ${snap.commit}: git log -p ${snap.commit} -- <file> for each ${seam.id} record in the period\n\n${history.join('\n')}`, null);
     const controls = kind.controls.filter((x) => applicable.has(x));
     const evidence = !controls.length ? null : addEvidence(root, {
-      title: `Population: ${rows.length} ${seam.id} records, ${input.start} to ${input.end}`, controls, files: [rel], recorded_by: input.by,
-      period: { start: input.start, end: input.end }, source: { kind: 'open-autonomy', name: `${seam.id} seam`, commit: snap.commit, query: `git ls-tree ${snap.commit} -- ${folder}; each file's ${kind.date} in the period, with the commit that added it` },
+      title: `Population: ${rows.length} ${seam.id} records, ${input.start} to ${input.end}`, controls, files: [rel, `${stem}.history.txt`], recorded_by: input.by,
+      period: { start: input.start, end: input.end }, source: { kind: 'open-autonomy', name: `${seam.id} seam`, commit: snap.commit, query: `git ls-tree ${snap.commit} -- ${folder}; each file's ${kind.date} in the period, with the commit that added it, and git log -p ${snap.commit} -- <file> for its full history` },
       notes: `Complete by construction for ${folder} at ${snap.commit.slice(0, 12)}: every record file there is read. The seam is held by scope ${seam.scope}.${findings.length ? ` Findings: ${findings.join('; ')}.` : ''}`,
     });
     const latest = `sources/open-autonomy/seam-records/${seam.id}.json`;

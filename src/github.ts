@@ -13,12 +13,25 @@ import { clockDate, now } from './clock.ts';
 
 const API = 'https://api.github.com';
 
+// Every request a collection makes, with the time GitHub answered and GitHub's own id for the request, so the firm can
+// ask GitHub about any response in the raw file.
+let requests: { path: string; status: number; date: string; request_id: string }[] = [];
+
 async function get(path: string): Promise<unknown> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error('GITHUB_TOKEN is not set; export a read-only token for the account');
   const r = await fetch(`${API}${path}`, { headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28' } });
+  requests.push({ path, status: r.status, date: r.headers.get('date') ?? '', request_id: r.headers.get('x-github-request-id') ?? '' });
   if (!r.ok) throw new Error(`GET ${path} answered ${r.status}: ${(await r.text()).slice(0, 200)}`);
   return r.json();
+}
+
+// Starts a collection's request log and names whose token reads: the account the firm should expect behind every
+// response.
+async function provenance(): Promise<Record<string, unknown>> {
+  requests = [];
+  const me = await get('/user') as { login?: string };
+  return { api: API, token_owner: me.login ?? '', collected_at: now(), requests };
 }
 
 // Every page until an empty or short one; the page count is part of the completeness basis.
@@ -35,20 +48,21 @@ async function all<T>(path: string): Promise<{ items: T[]; pages: number }> {
 const inPeriod = (at: string | null | undefined, start: string, end: string) => !!at && at.slice(0, 10) >= start && at.slice(0, 10) <= end;
 const applicableOf = (root: string, ids: string[]) => { const a = new Set(loadWorkspace(root).controls.filter((c) => c.data.applicable).map((c) => c.data.id)); return ids.filter((c) => a.has(c)); };
 
-type Pull = { number: number; title: string; user?: { login?: string }; merged_at: string | null; merged_by?: { login?: string } };
-type Review = { user?: { login?: string }; state: string; submitted_at?: string };
+type Pull = { number: number; title: string; user?: { login?: string }; created_at?: string; merged_at: string | null; merged_by?: { login?: string } | null };
+type Review = { user?: { login?: string }; state: string; submitted_at?: string; commit_id?: string };
 
 // Changes that reached the default branch in the period, from the system of record: every merged pull request with its
 // approvals, reconciled against every commit on the default branch in the period. A commit no merged pull request
 // carries (a push straight to the branch) is a row of its own with no approval, so the population cannot hide it. The
 // raw responses are kept beside the table so the derivation can be re-performed.
 export async function collectChanges(root: string, input: { repo: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; unknown: number; notIndependent: number; direct: number }> {
+  const source = await provenance();
   const meta = await get(`/repos/${input.repo}`) as { default_branch: string };
   const branch = meta.default_branch;
   const pulls = await all<Pull & { merge_commit_sha?: string | null; base?: { ref?: string } }>(`/repos/${input.repo}/pulls?state=closed&sort=created&direction=asc`);
   const intoBranch = pulls.items.filter((p) => p.merged_at && (p.base?.ref ?? branch) === branch);
   const merged = intoBranch.filter((p) => inPeriod(p.merged_at, input.start, input.end));
-  const raw: Record<string, unknown> = { repository: meta, pulls: pulls.items, reviews: {}, pull_commits: {} };
+  const raw: Record<string, unknown> = { provenance: source, repository: meta, pulls: pulls.items, pull_details: {}, reviews: {}, pull_commits: {} };
   const rows: Record<string, string>[] = [];
   // Every commit any merged pull request into the branch carries, whenever it merged: a pull request merged after the
   // period can carry commits dated inside it.
@@ -62,6 +76,9 @@ export async function collectChanges(root: string, input: { repo: string; start:
     if (commits.length >= 250) capped.push(p.number);
   }
   for (const p of merged) {
+    // The list omits who merged; the pull request itself says.
+    const detail = await get(`/repos/${input.repo}/pulls/${p.number}`) as Pull & { head?: { sha?: string } };
+    (raw.pull_details as Record<string, unknown>)[p.number] = detail;
     const reviews = (await all<Review>(`/repos/${input.repo}/pulls/${p.number}/reviews`)).items;
     const commits = (await all<{ sha: string }>(`/repos/${input.repo}/pulls/${p.number}/commits`)).items;
     (raw.reviews as Record<string, unknown>)[p.number] = reviews; (raw.pull_commits as Record<string, unknown>)[p.number] = commits;
@@ -72,7 +89,12 @@ export async function collectChanges(root: string, input: { repo: string; start:
     const author = p.user?.login ?? '';
     const approvers = [...new Set(approvals.map((r) => r.user?.login ?? ''))];
     const independent = !approvals.length ? 'no' : !author || approvers.some((a) => !a || a === 'twin') ? 'unknown' : approvers.some((a) => a !== author) ? 'yes' : 'no';
-    rows.push({ kind: 'pull request', number: String(p.number), commit: p.merge_commit_sha ?? '', title: p.title, author, merged_at: p.merged_at ?? '', merged_by: p.merged_by?.login ?? '', approvals: String(approvals.length), approvers: approvers.join(';'), independent_approval: independent });
+    // An approval given before a later push approved something other than what merged.
+    const head = detail.head?.sha ?? '';
+    const onFinal = !approvals.length ? '' : !head ? 'unknown' : approvals.some((r) => r.commit_id === head && r.user?.login !== author) ? 'yes' : 'no';
+    const approvedAt = approvals.map((r) => r.submitted_at ?? '').sort().at(-1) ?? '';
+    rows.push({ kind: 'pull request', number: String(p.number), commit: p.merge_commit_sha ?? '', title: p.title, author, opened_at: detail.created_at ?? '', approved_at: approvedAt, merged_at: p.merged_at ?? '', merged_by: detail.merged_by?.login ?? '',
+      approvals: String(approvals.length), approvers: approvers.join(';'), approval_on_merged_head: onFinal, independent_approval: independent });
   }
   const onBranch = (await all<{ sha: string; commit?: { message?: string; author?: { name?: string; date?: string }; committer?: { date?: string } }; author?: { login?: string } | null }>(
     `/repos/${input.repo}/commits?sha=${encodeURIComponent(branch)}&since=${input.start}T00:00:00Z&until=${input.end}T23:59:59Z`)).items;
@@ -88,19 +110,19 @@ export async function collectChanges(root: string, input: { repo: string; start:
     if (!found.some((p) => p.merged_at && (p.base?.ref ?? branch) === branch)) unmatched.push(c);
   }
   for (const c of unmatched) {
-    rows.push({ kind: 'direct push', number: '', commit: c.sha, title: (c.commit?.message ?? '').split('\n')[0], author: c.author?.login ?? c.commit?.author?.name ?? '', merged_at: c.commit?.committer?.date ?? '', merged_by: '', approvals: '0', approvers: '', independent_approval: 'no' });
+    rows.push({ kind: 'direct push', number: '', commit: c.sha, title: (c.commit?.message ?? '').split('\n')[0], author: c.author?.login ?? c.commit?.author?.name ?? '', opened_at: '', approved_at: '', merged_at: c.commit?.committer?.date ?? '', merged_by: '', approvals: '0', approvers: '', approval_on_merged_head: '', independent_approval: 'no' });
   }
   const stem = `evidence/files/populations/github-changes-${input.repo.replace('/', '-')}-${input.start}-${input.end}-${Date.now()}`;
-  writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['kind', 'number', 'commit', 'title', 'author', 'merged_at', 'merged_by', 'approvals', 'approvers', 'independent_approval'], rows }), null);
+  writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['kind', 'number', 'commit', 'title', 'author', 'opened_at', 'approved_at', 'merged_at', 'merged_by', 'approvals', 'approvers', 'approval_on_merged_head', 'independent_approval'], rows }), null);
   writeVersioned(root, `${stem}.raw.json`, JSON.stringify(raw, null, 2) + '\n', null);
-  const query = `GET /repos/${input.repo}/pulls?state=closed (all ${pulls.pages} page(s)), keeping those merged into ${branch} ${input.start}..${input.end}; GET /repos/${input.repo}/pulls/{n}/reviews and /commits for each; GET /repos/${input.repo}/commits?sha=${branch}&since&until for the period, reconciling every commit against every merged pull request into ${branch} and, for any left, GET /repos/${input.repo}/commits/{sha}/pulls`;
+  const query = `GET /repos/${input.repo}/pulls?state=closed (all ${pulls.pages} page(s)), keeping those merged into ${branch} ${input.start}..${input.end}; GET /repos/${input.repo}/pulls/{n}, /reviews and /commits for each; GET /repos/${input.repo}/commits?sha=${branch}&since&until for the period, reconciling every commit against every merged pull request into ${branch} and, for any left, GET /repos/${input.repo}/commits/{sha}/pulls`;
   const unknown = rows.filter((r) => r.independent_approval === 'unknown').length;
   const notIndependent = rows.filter((r) => r.independent_approval === 'no').length;
   const direct = rows.filter((r) => r.kind === 'direct push').length;
   const evidence = addEvidence(root, {
     title: `Population: ${rows.length} changes to ${input.repo}'s ${branch}, ${input.start} to ${input.end}`, controls: applicableOf(root, ['CHG-01', 'CHG-02']), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'github', query },
-    notes: `Complete: every page of closed pull requests and of the branch's commits in the period was read, and every commit is either carried by a merged pull request or listed as a direct push (${direct})${capped.length ? `; GitHub lists at most 250 commits of a pull request, and #${capped.join(', #')} reached that cap, so their later commits were matched through the per-commit lookup` : ''}. ${notIndependent} reached the branch without an approval from someone other than the author; independence could not be established for ${unknown}. Raw responses: ${stem}.raw.json.`,
+    notes: `Complete: every page of closed pull requests and of the branch's commits in the period was read, and every commit is either carried by a merged pull request or listed as a direct push (${direct})${capped.length ? `; GitHub lists at most 250 commits of a pull request, and #${capped.join(', #')} reached that cap, so their later commits were matched through the per-commit lookup` : ''}. ${notIndependent} reached the branch without an approval from someone other than the author; independence could not be established for ${unknown}; ${rows.filter((r) => r.approval_on_merged_head === 'no').length} were approved only on an earlier commit than the one merged. Raw responses, with GitHub's request id and answer time for each and the account whose token read them (${source.token_owner}): ${stem}.raw.json.`,
   });
   return { evidence, rows: rows.length, unknown, notIndependent, direct };
 }
@@ -113,23 +135,35 @@ type Approval = { state: string; user?: { login?: string }; environments?: { nam
 // its statuses, and the run's approvals are the environment's required reviewers acting. An approval by someone other
 // than the person who started the run is independent.
 export async function collectDeployments(root: string, input: { repo: string; environment: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; unapproved: number }> {
+  const source = await provenance();
+  // Who may act at the two production seams an Open Autonomy project declares: starting a deploy and approving the
+  // environment. Each is a scope on the roster; a person acting without it acted outside the declared design.
+  const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
+  const snap = latest ? JSON.parse(latest.text) as Snapshot : null;
+  const holders = (seamId: string): Set<string> | null => {
+    const seam = snap?.seams?.find((x) => x.id === seamId);
+    return seam ? new Set(snap!.team.filter((m) => m.scopes.includes(seam.scope) && m.github).map((m) => m.github!.toLowerCase())) : null;
+  };
+  const deployers = holders('production-deploy'), releasers = holders('release-approval');
+  const holds = (set: Set<string> | null, logins: string[]) => !set || !logins.length ? '' : logins.every((l) => set.has(l.toLowerCase())) ? 'yes' : 'no';
   const deps = await all<Deployment>(`/repos/${input.repo}/deployments?environment=${encodeURIComponent(input.environment)}`);
   const rows: Record<string, string>[] = [];
-  const raw: Record<string, unknown> = { deployments: deps.items, statuses: {}, runs: {}, approvals: {} };
+  const raw: Record<string, unknown> = { provenance: source, deployments: deps.items, statuses: {}, runs: {}, approvals: {} };
   for (const d of deps.items.filter((x) => inPeriod(x.created_at, input.start, input.end))) {
     const statuses = (await all<Status>(`/repos/${input.repo}/deployments/${d.id}/statuses`)).items;
     (raw.statuses as Record<string, unknown>)[d.id] = statuses;
     const last = statuses[0];
     const runID = statuses.map((x) => /\/actions\/runs\/(\d+)/.exec(x.log_url ?? x.target_url ?? '')?.[1]).find(Boolean) ?? '';
-    let startedBy = '', approvedBy = '', runFound = false;
+    let startedBy = '', approvedBy = '', runFound = false, runSha = '', runEvent = '', runConclusion = '';
     if (runID) {
       // A run deleted or past retention is not an error for the population: its approval is unknown.
-      type RunDoc = { actor?: { login?: string } | null; triggering_actor?: { login?: string } | null };
+      type RunDoc = { actor?: { login?: string } | null; triggering_actor?: { login?: string } | null; head_sha?: string; event?: string; status?: string; conclusion?: string | null };
       const run = await (get(`/repos/${input.repo}/actions/runs/${runID}`) as Promise<RunDoc>).catch((e: Error): RunDoc | null => { if (/answered 404/.test(e.message)) return null; throw e; });
       if (run) {
         runFound = true;
         (raw.runs as Record<string, unknown>)[runID] = run;
         startedBy = [...new Set([run.actor?.login, run.triggering_actor?.login].filter(Boolean))].join(';');
+        runSha = run.head_sha ?? ''; runEvent = run.event ?? ''; runConclusion = run.status === 'completed' ? run.conclusion ?? '' : run.status ?? '';
         const approvals = await get(`/repos/${input.repo}/actions/runs/${runID}/approvals`) as Approval[];
         (raw.approvals as Record<string, unknown>)[runID] = approvals;
         approvedBy = [...new Set(approvals.filter((a) => a.state === 'approved' && (a.environments ?? []).some((e) => e.name === input.environment)).map((a) => a.user?.login ?? ''))].join(';');
@@ -137,20 +171,22 @@ export async function collectDeployments(root: string, input: { repo: string; en
     }
     const approvers = approvedBy ? approvedBy.split(';') : [];
     const starters = startedBy ? startedBy.split(';') : [];
-    // Independent when someone other than whoever started or re-ran the run approved it.
-    const independent = !runFound ? 'unknown' : !approvers.length ? 'no' : !starters.length || approvers.some((a) => !a) ? 'unknown' : approvers.some((a) => !starters.includes(a)) ? 'yes' : 'no';
+    // Independent when someone other than whoever started or re-ran the run approved it, and the run approved is the one
+    // that built the commit deployed: an approval of a run on another commit does not cover this deployment.
+    const shaMatch = !runFound ? '' : runSha === d.sha ? 'yes' : 'no';
+    const independent = !runFound ? 'unknown' : !approvers.length || shaMatch === 'no' ? 'no' : !starters.length || approvers.some((a) => !a) ? 'unknown' : approvers.some((a) => !starters.includes(a)) ? 'yes' : 'no';
     rows.push({ id: String(d.id), ref: d.ref, sha: d.sha, created_at: d.created_at, creator: d.creator?.login ?? '', final_state: last?.state ?? 'none', final_at: last?.created_at ?? '',
-      run: runID, started_by: startedBy, approved_by: approvedBy, independent_approval: independent });
+      run: runID, run_event: runEvent, run_commit: runSha, commit_match: shaMatch, run_conclusion: runConclusion, started_by: startedBy, starter_holds_seam: holds(deployers, starters), approved_by: approvedBy, approver_holds_seam: holds(releasers, approvers), independent_approval: independent });
   }
   const stem = `evidence/files/populations/github-deployments-${input.repo.replace('/', '-')}-${input.environment}-${input.start}-${input.end}-${Date.now()}`;
   const rel = `${stem}.csv`;
   writeVersioned(root, `${stem}.raw.json`, JSON.stringify(raw, null, 2) + '\n', null);
-  writeVersioned(root, rel, writeCsv({ columns: ['id', 'ref', 'sha', 'created_at', 'creator', 'final_state', 'final_at', 'run', 'started_by', 'approved_by', 'independent_approval'], rows }), null);
+  writeVersioned(root, rel, writeCsv({ columns: ['id', 'ref', 'sha', 'created_at', 'creator', 'final_state', 'final_at', 'run', 'run_event', 'run_commit', 'commit_match', 'run_conclusion', 'started_by', 'starter_holds_seam', 'approved_by', 'approver_holds_seam', 'independent_approval'], rows }), null);
   const unapproved = rows.filter((r) => r.independent_approval !== 'yes').length;
   const evidence = addEvidence(root, {
     title: `Population: ${rows.length} deployments of ${input.repo} to ${input.environment}, ${input.start} to ${input.end}`, controls: applicableOf(root, ['CHG-03']), files: [rel, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'github', query: `GET /repos/${input.repo}/deployments?environment=${input.environment} (all ${deps.pages} page(s)); GET /repos/${input.repo}/deployments/{id}/statuses for each; GET /repos/${input.repo}/actions/runs/{run} and /approvals for the run each status links` },
-    notes: `Complete: every page of deployments to the environment was read. ${unapproved} without an independent approval of the ${input.environment} environment (no linked run, no approval, or approved only by the person who started it).`,
+    notes: `Complete: every page of deployments to the environment was read. ${unapproved} without an independent approval of the ${input.environment} environment (no linked run, no approval, a run on another commit than the one deployed, or approved only by the person who started it); ${rows.filter((r) => r.run && r.run_conclusion !== 'success').length} whose run did not conclude successfully${snap ? `; against ${snap.account}'s declared seams at ${snap.commit.slice(0, 12)} (production-deploy started by members holding its scope, release-approval given by members holding its), ${rows.filter((r) => r.starter_holds_seam === 'no').length} started and ${rows.filter((r) => r.approver_holds_seam === 'no').length} approved by someone without the scope` : ''}. Raw responses, with GitHub's request id and answer time for each and the account whose token read them (${source.token_owner}): ${stem}.raw.json.`,
   });
   return { evidence, rows: rows.length, unapproved };
 }
@@ -229,16 +265,16 @@ export function signedActs(root: string): Act[] {
   // or a new owner is not a new decision), and the person who made it is the row's owner as the row stood when the
   // decision was made, so reassigning the row later neither takes the decision over nor asks the new owner to remake it.
   for (const r of ws.registers.risks?.data.rows ?? []) if (r.treatment && r.treatment !== 'undecided') acts.push({ key: `risk-decision:${r.id}`, kind: 'risk-decision', file: 'registers/risks.csv', person: r.owner ?? '', label: `treatment of risk ${r.id} (${r.title})`,
-    extract: (rows) => { const x = rowOf(rows, r.id); return x && x.treatment && x.treatment !== 'undecided' ? { treatment: x.treatment } : null; }, personAt: (rows) => rowOf(rows, r.id)?.owner ?? '' });
+    extract: (rows) => { const x = rowOf(rows, r.id); return x && x.treatment && x.treatment !== 'undecided' ? { risk: r.id, treatment: x.treatment } : null; }, personAt: (rows) => rowOf(rows, r.id)?.owner ?? '' });
   for (const v of ws.registers.vendors?.data.rows ?? []) if (v.last_review) acts.push({ key: `vendor-review:${v.id}`, kind: 'vendor-review', file: 'registers/vendors.csv', person: v.owner ?? '', label: `review of vendor ${v.id} on ${v.last_review}`,
-    extract: (rows) => { const x = rowOf(rows, v.id); return x?.last_review ? { last_review: x.last_review } : null; }, personAt: (rows) => rowOf(rows, v.id)?.owner ?? '' });
+    extract: (rows) => { const x = rowOf(rows, v.id); return x?.last_review ? { vendor: v.id, last_review: x.last_review } : null; }, personAt: (rows) => rowOf(rows, v.id)?.owner ?? '' });
   return acts;
 }
 export type AttributionStatus = 'verified' | 'names no one' | 'no GitHub account on the roster' | 'not on the default branch' | 'changed since merged'
   | 'not on GitHub' | 'no merged pull request' | 'recorded by someone else' | 'history unreadable';
-export type Attribution = { key: string; kind: Act['kind']; file: string; person: string; label: string; value_sha256: string; commit: string; pull: string; author: string; expected: string; status: AttributionStatus };
+export type Attribution = { key: string; kind: Act['kind']; file: string; person: string; label: string; value_sha256: string; commit: string; committed_at: string; pull: string; author: string; expected: string; status: AttributionStatus };
 export const actDigest = (v: unknown) => createHash('sha256').update(JSON.stringify(v ?? null)).digest('hex');
-const writeCsvFile = (root: string, rel: string, rows: Attribution[]) => writeVersioned(root, rel, writeCsv({ columns: ['key', 'kind', 'file', 'person', 'label', 'value_sha256', 'commit', 'pull', 'author', 'expected', 'status'], rows }), null);
+const writeCsvFile = (root: string, rel: string, rows: Attribution[]) => writeVersioned(root, rel, writeCsv({ columns: ['key', 'kind', 'file', 'person', 'label', 'value_sha256', 'commit', 'committed_at', 'pull', 'author', 'expected', 'status'], rows }), null);
 export async function collectAttribution(root: string, input: { repo: string; by: string }): Promise<{ record: string; file: string; evidence: null; rows: Attribution[] }> {
   if (!/^[\w.-]+\/[\w.-]+$/.test(input.repo)) throw new Error('--repo names the workspace\'s own GitHub repository as owner/name');
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
@@ -260,7 +296,7 @@ export async function collectAttribution(root: string, input: { repo: string; by
   for (const act of signedActs(root)) {
     const now = readAct(act.file, readVersioned(root, act.file)?.text);
     const current = now === UNREADABLE ? null : act.extract(now);
-    const row: Attribution = { key: act.key, kind: act.kind, file: act.file, person: act.person, label: act.label, value_sha256: actDigest(current), commit: '', pull: '', author: '', expected: '', status: 'verified' };
+    const row: Attribution = { key: act.key, kind: act.kind, file: act.file, person: act.person, label: act.label, value_sha256: actDigest(current), commit: '', committed_at: '', pull: '', author: '', expected: '', status: 'verified' };
     rows.push(row);
     const holds = (c: string): boolean | undefined => { const v = at(c, act.file); return v === UNREADABLE ? undefined : actDigest(act.extract(v)) === row.value_sha256; };
     // The default branch's own line (first parents), newest first: the act was introduced by the newest commit whose
@@ -283,7 +319,7 @@ export async function collectAttribution(root: string, input: { repo: string; by
       if (!before) break;
     }
     if (unreadable) { row.status = 'history unreadable'; continue; }
-    row.commit = intro;
+    row.commit = intro; row.committed_at = git('show', '-s', '--format=%cI', intro);
     // Who the act names: for a register row, its owner as the row stood at the commit that made the decision.
     if (act.personAt) { const v = at(intro, act.file); row.person = v === UNREADABLE ? '' : act.personAt(v); }
     row.expected = snap.team.find((m) => m.id === row.person)?.github ?? '';

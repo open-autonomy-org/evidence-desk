@@ -170,6 +170,8 @@ export function approvePolicy(root: string, id: string, approvedBy: string, text
   if (!people.includes(approvedBy)) throw new Error(`approver ${approvedBy} is not in registers/people.csv`);
   const left = placeholders(text.text);
   if (left.length) throw new Error(`fill in ${left.map((p) => `{{${p}}}`).join(', ')} before approving`);
+  // A template's own drafting comment says it is not yet the organization's policy.
+  if (/<!--\s*Template adapted from/.test(text.text)) throw new Error(`policies/${id}.md is still the catalog template: adapt it to how the organization operates and remove its drafting comment before approving`);
   const last = rec.data.versions.at(-1);
   if (last && last.sha256 === text.version) throw new Error(`version ${last.version} already approved this exact text`);
   const version = (last?.version ?? 0) + 1;
