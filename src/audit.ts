@@ -87,15 +87,20 @@ export function actOnRequest(root: string, id: string, requestId: string, versio
   if (!change.by.trim()) throw new Error('say who is acting');
   if (change.side === 'client' && !(ws.registers.people?.data.rows ?? []).some((r) => r.id === change.by)) throw new Error(`${change.by} is not in registers/people.csv`);
   const evidenceIds = new Set(ws.evidence.map((e) => e.data.id));
+  // Evidence answers a request only if it speaks to one of the request's controls: attaching a record about something
+  // else is refused rather than left for the firm to find.
+  const fits = (id: string) => { const x = ws.evidence.find((y) => y.data.id === id)!; if (req.controls.length && !x.data.controls.some((c) => req.controls.includes(c))) throw new Error(`evidence ${id} (${x.data.controls.join(', ') || 'no control'}) speaks to none of ${req.id}'s controls (${req.controls.join(', ')})`); };
   const notes: string[] = [];
   if (change.evidence) {
     if (change.side !== 'client') throw new Error('evidence is submitted by the client');
     for (const e of change.evidence) if (!evidenceIds.has(e)) throw new Error(`evidence ${e} does not exist`);
+    for (const e of change.evidence) fits(e);
     req.evidence = [...new Set([...req.evidence, ...change.evidence])];
     notes.push(`attached ${change.evidence.join(', ')}`);
   }
   if (change.population) {
     if (!evidenceIds.has(change.population)) throw new Error(`evidence ${change.population} does not exist`);
+    fits(change.population);
     req.population = change.population;
     notes.push(`population ${change.population}`);
   }
@@ -145,10 +150,12 @@ const inPeriod = (at: string, e: Engagement) => e.type === 'type2' ? at.slice(0,
 // How an Open Autonomy project builds and runs the system, from its declarations at the commit last read: the agents and
 // their schedules, where people act and who may, and how a change lands and reaches production.
 // The latest population a GitHub collector recorded for the engagement's period, with its rows.
+// Identified by the collector's file name, never by title words: several populations are "changes to" something.
 function periodPopulation(ws: Workspace, e: Engagement, kind: 'changes to' | 'deployments of') {
-  const ev = ws.evidence.filter((x) => x.data.source?.kind === 'collector' && x.data.title.startsWith('Population:') && x.data.title.includes(kind) && x.data.period && e.period && x.data.period.start <= e.period.start && x.data.period.end >= e.period.end)
+  const stem = kind === 'changes to' ? '/github-changes-' : '/github-deployments-';
+  const ev = ws.evidence.filter((x) => x.data.source?.kind === 'collector' && x.data.files.some((f) => f.path.includes(stem) && f.path.endsWith('.csv')) && x.data.period && e.period && x.data.period.start <= e.period.start && x.data.period.end >= e.period.end)
     .sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
-  const csv = ev?.data.files.find((f) => f.path.endsWith('.csv'));
+  const csv = ev?.data.files.find((f) => f.path.includes(stem) && f.path.endsWith('.csv'));
   return ev && csv ? { id: ev.data.id, rows: parseCsv(readFileSync(join(ws.root, csv.path), 'utf8'), csv.path).rows } : null;
 }
 const tally = (xs: string[]) => [...xs.reduce((m, x) => m.set(x, (m.get(x) ?? 0) + 1), new Map<string, number>())].map(([k, n]) => `${k || '(unknown)'} ${n}`).join(', ');
@@ -486,7 +493,14 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     if (!fresh.length) break;
     for (const p of fresh) {
       scanned.add(p);
-      for (const m of readFileSync(join(root, p), 'utf8').matchAll(cites)) {
+      const text = readFileSync(join(root, p), 'utf8');
+      // An evidence record cited by id travels too, with its files.
+      for (const m of text.matchAll(/\bEV-\d{8}-[0-9a-f]{6}\b/g)) {
+        const rec = ws.evidence.find((x) => x.data.id === m[0]);
+        if (rec) { paths.add(rec.path); for (const f of rec.data.files) if (existsSync(join(root, f.path))) paths.add(f.path); }
+        else if (!absent.has(m[0])) absent.set(m[0], p);
+      }
+      for (const m of text.matchAll(cites)) {
         const ref = m[1];
         try { inside(root, ref); } catch { continue; }
         if (existsSync(join(root, ref))) paths.add(ref); else if (!absent.has(ref)) absent.set(ref, p);

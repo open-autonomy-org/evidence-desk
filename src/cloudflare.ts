@@ -74,7 +74,7 @@ export async function collectCloudflareChanges(root: string, input: { account: s
   const evidence = addEvidence(root, {
     title: `Population: ${rows.length} configuration changes to Cloudflare account ${account.name}, ${input.start} to ${input.end}`, controls: ['OPS-04', 'AC-02'].filter((c) => applicable.has(c)), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'cloudflare', query: `${queries.join('; ')} (all pages)` },
-    notes: `Complete: every page of the account's audit log for the period. ${unnamed} made by someone not on the roster or not named. Raw responses with each answer's cf-ray: ${stem}.raw.json.`,
+    notes: `Complete: every page of the account's audit log for the period. ${unnamed} made by someone not on the roster or not named. Raw responses: ${stem}.raw.json${cfAnswers.every((x) => x.cf_ray) ? ", with each answer's Date and cf-ray" : ", with each answer's Date; Cloudflare sent no cf-ray on some"}.`,
   });
   return { evidence, rows: rows.length, unnamed };
 }

@@ -8,9 +8,10 @@ def latest(pred):
     m = sorted([e for e in ev if pred(e)], key=lambda e: e['collected_at'])
     return m[-1]['id'] if m else None
 seam = lambda n: (lambda e: e.get('source', {}).get('name') == n)
-titled = lambda t: (lambda e: e['title'].startswith('Population:') and t in e['title'])
+# Collector populations by their file name: several titles say "changes to".
+stem = lambda t: (lambda e: any(t in f['path'] and f['path'].endswith('.csv') for f in e['files']))
 # The first of a request's controls that has a population decides which one it is.
-by_control = [('CHG-04', seam('break-glass seam')), ('CHG-03', titled('deployments of')), ('CHG-01', titled('changes to')),
+by_control = [('CHG-04', seam('break-glass seam')), ('CHG-03', stem('/github-deployments-')), ('CHG-01', stem('/github-changes-')),
               ('OPS-03', seam('incidents seam')), ('AC-05', seam('credentials seam')), ('OPS-01', seam('escalations seam')),
               ('GOV-06', seam('escalations seam')), ('HR-03', seam('team roster')), ('AC-02', seam('team roster')), ('HR-04', seam('team roster'))]
 for r in csv.DictReader(open(requests)):

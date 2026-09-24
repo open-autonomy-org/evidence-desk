@@ -114,10 +114,18 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   // Each reading names the collector snapshot it was decided from, with that snapshot's hash, so a pass is traceable to
   // what the vendor answered that day.
   const hashOf = (p: string) => existsSync(join(root, p)) ? createHash('sha256').update(readFileSync(join(root, p))).digest('hex') : 'missing';
-  const history = new Map<string, { at: string; status: string; detail: string; controls: string[]; run: string; snapshot: string; snapshot_sha256: string }[]>();
+  // When the vendor answered, from the snapshot's response headers: a reading the vendor answered far from its run
+  // (a cached or replayed answer, a wrong clock) is not a reading of that day.
+  const answeredAt = new Map<string, string>();
+  const answered = (p: string) => { if (!answeredAt.has(p)) { let d = ''; try { const r = (JSON.parse(readFileSync(join(root, p), 'utf8')) as { responses?: { date?: string }[] }).responses ?? []; const t = r.map((x) => Date.parse(x.date ?? '')).filter((x) => !Number.isNaN(x)); d = t.length ? new Date(Math.min(...t)).toISOString() : ''; } catch { /* missing snapshot */ } answeredAt.set(p, d); } return answeredAt.get(p)!; };
+  const history = new Map<string, { at: string; status: string; detail: string; controls: string[]; run: string; snapshot: string; snapshot_sha256: string; answered_at: string }[]>();
   for (const r of runs) for (const res of r.data.results) {
     const snap = r.data.collectors.find((c) => c.id === res.collector)?.snapshot ?? '';
-    (history.get(res.check) ?? history.set(res.check, []).get(res.check)!).push({ at: r.data.started_at, status: res.status, detail: res.detail, controls: res.controls, run: r.path, snapshot: snap, snapshot_sha256: snap ? hashOf(snap) : '' });
+    (history.get(res.check) ?? history.set(res.check, []).get(res.check)!).push({ at: r.data.started_at, status: res.status, detail: res.detail, controls: res.controls, run: r.path, snapshot: snap, snapshot_sha256: snap ? hashOf(snap) : '', answered_at: snap ? answered(snap) : '' });
+  }
+  for (const [check, rows] of history) {
+    const off = rows.filter((x) => x.answered_at && Math.abs(Date.parse(x.answered_at) - Date.parse(x.at)) > 864e5);
+    if (off.length) add({ key: `answered-off:${check}`, occurred: day(off[0].at), source: `automated check ${check}`, controls: off[0].controls.join(';'), item: `${off.length} reading(s)`, detail: `the vendor's answer is dated more than a day from the run (first: run ${off[0].at}, answered ${off[0].answered_at}); those readings do not show the day they claim`, detected: day(off[0].at), resolved: '', file: off[0].snapshot });
   }
   for (const [check, rows] of history) {
     let streak: typeof rows = [];
@@ -131,7 +139,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   const days = (() => { const out: string[] = []; for (let t = Date.parse(`${period.start}T00:00:00Z`); t <= Date.parse(`${period.end}T00:00:00Z`); t += 864e5) out.push(new Date(t).toISOString().slice(0, 10)); return out; })();
   const coverage = new Map<string, { days: number; pass: number; fail: number; error: number }>();
   for (const [check, rows] of history) {
-    views.set(`review/check-history/${check}.csv`, writeCsv({ columns: ['at', 'status', 'detail', 'run', 'snapshot', 'snapshot_sha256'], rows: rows.map((r) => ({ at: r.at, status: r.status, detail: r.detail, run: r.run, snapshot: r.snapshot, snapshot_sha256: r.snapshot_sha256 })) }));
+    views.set(`review/check-history/${check}.csv`, writeCsv({ columns: ['at', 'answered_at', 'status', 'detail', 'run', 'snapshot', 'snapshot_sha256'], rows: rows.map((r) => ({ at: r.at, answered_at: r.answered_at, status: r.status, detail: r.detail, run: r.run, snapshot: r.snapshot, snapshot_sha256: r.snapshot_sha256 })) }));
     const seen = new Set(rows.map((r) => day(r.at)));
     coverage.set(check, { days: days.filter((d) => seen.has(d)).length, pass: rows.filter((r) => r.status === 'pass').length, fail: rows.filter((r) => r.status === 'fail').length, error: rows.filter((r) => r.status === 'error').length });
   }

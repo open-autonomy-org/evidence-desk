@@ -46,8 +46,9 @@ for r in csv.DictReader(open(os.path.join(D,'review/exceptions.csv'))):
               [cf_changes,snap('2026-08-19','cloudflare'),snap('2026-08-21','cloudflare')])
     elif k.startswith('self-review:'):
         f=one(f"reviews/access/{k.split(':')[1]}.json")
-        R[k]=("Sam reviewed this system and kept Sam's own access; no one else reviewed it in Q3. From Q4, Maya reviews Sam's accounts "
-              "and Sam reviews Maya's.",[f])
+        R[k]=("Sam reviewed this system and decided on Sam's own access. Maya approved the pull request that recorded the review; that "
+              "approval was not a review of Sam's access, and the review file records no second decision on it. From Q4, Maya reviews Sam's "
+              "accounts and Sam reviews Maya's.",[f])
     elif k.startswith('attribution:'):
         R[k]=("Maya recorded this decision of Sam's while setting up the workspace on 2026-06-23, before the period. It was recorded "
               "by the wrong account, and we do not claim otherwise."+(" Sam re-rated R-3 on 2026-08-28 in a pull request from Sam's own "
