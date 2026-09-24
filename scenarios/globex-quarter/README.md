@@ -45,7 +45,9 @@ another.
 
 ## The blind review
 
-Copy the package into a folder of its own, and give a fresh agent only that folder and this brief:
+One reviewer's score swings by a point from run to run, so each package goes to five reviewers in parallel, each
+with its own copy of the package in a folder of its own and only this brief; the round's score is their mean, reported
+with the spread, and a change is judged by the asks that recur across them:
 
 > You are an experienced audit senior at a CPA firm, Example & Co. You have run many SOC 2 Type II engagements, and you
 > have received PBC packets exported from Vanta, Drata and Secureframe. Your client, Globex, has sent you its audit
@@ -69,6 +71,6 @@ Copy the package into a folder of its own, and give a fresh agent only that fold
 > 5. **Top 10 changes.** Rank the ten changes to the packet or the tool that would most reduce your effort or raise
 >    your confidence.
 
-Ten such reviews shaped the package. They scored it 4, 4.5, 6, 6.5, 6.5, 6, 6.5, 7, 6.5 and 6.5, and the later
-ones judged it better than the best competitor packet their reviewer had seen. Their remaining asks are in the
+Thirteen single reviews shaped the package. They scored it 4, 4.5, 6, 6.5, 6.5, 6, 6.5, 7, 6.5, 6.5, 7, 7.5 and 6.5,
+and the later ones judged it better than the best competitor packet their reviewer had seen. Their remaining asks are in the
 roadmap.
