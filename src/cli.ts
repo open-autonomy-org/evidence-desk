@@ -571,7 +571,7 @@ async function main(argv: string[]): Promise<number> {
     case 'trust': {
       if (rest[0] !== 'build' || !one(a, 'out')) throw new Error('trust needs build --out <folder>');
       const r = buildTrustCenter(dir, resolve(one(a, 'out')!));
-      out(json, r, () => `Built ${resolve(one(a, 'out')!)}/index.html publishing: ${r.published.join(', ') || 'only the headline and contact'}.`);
+      out(json, r, () => `Built ${resolve(one(a, 'out')!)}/index.html publishing: ${r.published.join(', ') || 'only the headline and contact'}.${r.badges.map((b) => `\n  badges/${b.id}.svg  ${b.label}: ${b.message}`).join('')}`);
       return 0;
     }
     case 'questionnaire': {

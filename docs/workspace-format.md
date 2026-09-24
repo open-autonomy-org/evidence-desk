@@ -219,6 +219,13 @@ claimed. A self-attestation (such as CSA STAR Level 1) is the organization's own
 Without an auditor's document the page shows readiness instead: evidence for how many applicable controls, how many
 criteria in scope are ready, and an audit under way only where an engagement records one.
 
+**Badges.** The same statements are written as images for a README or a project page: `badges/<id>.svg`, one per
+current document (green for an auditor's report or certificate, blue and labelled self-attested for a
+self-attestation), and a grey readiness badge for each framework in `evidence-desk.json` that no auditor's document
+covers ("SOC 2: readiness 23/46 controls", ISO/IEC 27001 counted in requirements). `badges.json` lists them with
+their message, colour, the document each rests on and the date built. They are written only when `trust.json`
+publishes the report section, and say nothing the page does not.
+
 A questionnaire is imported from a CSV, or the first worksheet of an Excel (.xlsx) workbook, with a question column. Each question is first matched against the answer
 library; a reviewed answer whose cited files are unchanged is reused as reviewed, and one whose facts changed is marked
 `needs-review`. Otherwise the answer is drafted by quoting the applicable controls, the reasons for excluded ones, and

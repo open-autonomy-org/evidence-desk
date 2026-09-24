@@ -11,7 +11,8 @@ import { parseCsv, writeCsv } from './csv.ts';
 import { fileHash, readVersioned, writeVersioned } from './files.ts';
 import { categories, categoryAnswer } from './catalog.ts';
 import { loadWorkspace, type Workspace } from './workspace.ts';
-import { certifications, claimOf } from './certifications.ts';
+import { badgeSvg, badgesOf, certifications, claimOf, type Badge } from './certifications.ts';
+import { frameworkState } from './frameworks.ts';
 import { computeGaps } from './gaps.ts';
 import { clockDate, now } from './clock.ts';
 
@@ -32,7 +33,7 @@ function link(contact: string, subject?: string): string | null {
 }
 
 // ── Trust center ────────────────────────────────────────────────────────────────────────────────────────────────
-export function buildTrustCenter(root: string, out: string): { published: string[] } {
+export function buildTrustCenter(root: string, out: string): { published: string[]; badges: Badge[] } {
   const t = readVersioned(root, 'trust.json');
   if (!t) throw new Error('trust.json is missing; it lists what the trust center may publish (see docs/workspace-format.md)');
   const cfg = JSON.parse(t.text);
@@ -43,6 +44,7 @@ export function buildTrustCenter(root: string, out: string): { published: string
   const contact = String(a.security_contact ?? '');
   const published: string[] = [];
   const sections: string[] = [];
+  let badges: Badge[] = [];
   if (cfg.publish.categories) {
     const inScope = ['CC', ...Object.entries(categoryAnswer).filter(([, q]) => a[q] === true).map(([c]) => c)];
     sections.push(`<section><h2>What our program covers</h2><ul>${inScope.map((c) => `<li>${esc(categories[c])}</li>`).join('')}</ul></section>`);
@@ -61,6 +63,14 @@ export function buildTrustCenter(root: string, out: string): { published: string
     const underway = open.map((e) => `An audit by ${e.firm} ${e.type === 'type1' ? `as of ${e.as_of}` : `covering ${e.period?.start} to ${e.period?.end}`} is under way.`);
     sections.push(`<section><h2>Audits and certifications</h2>${held.length ? `<ul>${held.map((c) => `<li>${esc(claimOf(c))}</li>`).join('')}</ul>` : ''}<p>${esc([...(held.some((c) => c.kind !== 'self-attestation') ? [] : ['No audit report or certificate is held yet.']), ...underway, readiness].join(' '))}</p></section>`);
     published.push('audits, certifications and readiness');
+    // The same statements as badges: one per document held, and readiness for each framework the program maps that no
+    // auditor's document covers.
+    const readinessOf = (ws.manifest?.data.frameworks ?? ['soc2']).map((f: string) => {
+      if (f === 'soc2') return { framework: 'SOC 2', matches: /soc ?2/i, ready: g.summary.controls_ready, of: g.summary.controls_applicable, unit: 'controls' };
+      const st = frameworkState(ws, f);
+      return { framework: st.title, matches: new RegExp(f.replace(/^iso/i, 'ISO.*'), 'i'), ready: st.summary.ready, of: st.summary.requirements - st.summary.excluded, unit: 'requirements' };
+    });
+    badges = badgesOf(held, readinessOf);
   }
   const pol = (cfg.publish.policies ?? []) as string[];
   if (pol.length) {
@@ -94,7 +104,13 @@ ${contact ? `<section><h2>Security contact</h2><p>${link(contact) ? `<a href="${
 `;
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, 'index.html'), html);
-  return { published };
+  if (badges.length) {
+    mkdirSync(join(out, 'badges'), { recursive: true });
+    for (const b of badges) writeFileSync(join(out, 'badges', `${b.id}.svg`), badgeSvg(b));
+    writeFileSync(join(out, 'badges.json'), pretty({ schema: 'evidence-desk.badges/1', organization: org, as_of: now().slice(0, 10), badges: badges.map((b) => ({ ...b, svg: `badges/${b.id}.svg` })) }));
+    published.push(`${badges.length} badges`);
+  }
+  return { published, badges };
 }
 
 // ── Questionnaires ──────────────────────────────────────────────────────────────────────────────────────────────
