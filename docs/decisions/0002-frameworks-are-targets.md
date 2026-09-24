@@ -184,6 +184,11 @@ only when targeted.
   not apply" passages. For library controls, SOC 2's deliverables are unchanged.
 - Audit engagements, the system description and `audit export` are SOC 2's and are unchanged, since SOC 2 is always a
   target.
+- A policy created because another target needs it (the privacy policy, for ISO/IEC 27001's A.5.34) is, once approved,
+  among the policies the SOC 2 system description lists and a GOV-04 record `audit export` sends: true statements about
+  the program, not a change in what SOC 2 covers.
+- Changing targets never changes a control's applicability, so a person's own exclusion survives `target` and `drop`;
+  they only create what became needed. A plain `adopt` re-derives applicability from the scoping answers, as before.
 
 ## Constitution review
 

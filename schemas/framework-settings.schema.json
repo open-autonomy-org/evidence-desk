@@ -12,10 +12,9 @@
       "const": "evidence-desk.framework-settings/1"
     },
     "framework": {
-      "enum": [
-        "iso27001"
-      ],
-      "description": "A framework Evidence Desk maps, other than SOC 2 (catalog/frameworks/)."
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "The id of a catalog in catalog/frameworks/, other than SOC 2 (checked when the workspace is read)."
     },
     "exclusions": {
       "type": "object",

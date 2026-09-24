@@ -639,9 +639,10 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
     case 'frameworks': {
-      if (rest[0] === 'target') targetFramework(dir, rest[1] ?? '');
-      else if (rest[0] === 'drop') dropFramework(dir, rest[1] ?? '');
-      else if (rest[0] && rest[0] !== 'available') throw new Error('frameworks takes: available | target <framework> | drop <framework>');
+      if (rest[0] && !['available', 'target', 'drop'].includes(rest[0])) throw new Error('frameworks takes: available | target <framework> | drop <framework>');
+      const changed = rest[0] === 'target' ? targetFramework(dir, rest[1] ?? '') : rest[0] === 'drop' ? dropFramework(dir, rest[1] ?? '') : null;
+      if (changed && !json && (changed.created.length || changed.policies.length || changed.forms.length))
+        console.log(`Created for the targets: ${[...changed.created.map((x) => `control ${x}`), ...changed.policies.map((x) => `policy ${x}`), ...changed.forms.map((x) => `form ${x}`)].join(', ')}.`);
       const ws = loadWorkspace(dir);
       const targets = targetsOf(ws);
       if (rest[0] === 'available') {
@@ -691,12 +692,19 @@ async function main(argv: string[]): Promise<number> {
     }
     case 'gaps': {
       const asOf = one(a, 'as-of');
-      const g = computeGaps(loadWorkspace(dir), asOf ? new Date(`${asOf}T23:59:59Z`) : clockDate());
-      out(json, g, () => {
+      const gws = loadWorkspace(dir);
+      const at = asOf ? new Date(`${asOf}T23:59:59Z`) : clockDate();
+      const g = computeGaps(gws, at);
+      // Beside SOC 2, each target's readiness and its steps still open: every requirement not ready, and why.
+      const targets = targetsOf(gws).filter((f) => f !== 'soc2').map((f) => { const st = frameworkState(gws, f, at);
+        return { id: f, title: st.title, ready: st.summary.ready, of: st.summary.requirements - st.summary.excluded,
+          steps: st.requirements.filter((r) => r.status === 'gaps' || r.status === 'unaddressed').map((r) => ({ requirement: r.id, title: r.title, gaps: r.gaps })) }; });
+      out(json, { ...g, targets }, () => {
         const s = g.summary;
         const lines = [`As of ${g.as_of}: ${s.controls_ready}/${s.controls_applicable} controls ready (${s.controls_excluded} excluded), ${s.criteria_ready}/${s.criteria_in_scope} criteria ready.`];
         if (g.program.length) lines.push('', 'Program:', ...g.program.map((x) => `  - ${x}`));
         for (const c of g.controls.filter((c) => c.gaps.length)) lines.push('', `${c.id} ${c.title}:`, ...c.gaps.map((x) => `  - ${x}`));
+        for (const t of targets) lines.push('', `${t.title}: ${t.ready}/${t.of} requirements ready. Steps still open:`, ...t.steps.map((x) => `  - ${x.requirement} ${x.title}: ${x.gaps.join('; ')}`));
         return lines.join('\n');
       });
       return 0;

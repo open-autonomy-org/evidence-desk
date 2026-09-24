@@ -72,7 +72,10 @@ export const render = (text: string, answers: Scope['answers']): string =>
 // SOC 2 criterion has a file, so SOC 2's deliverables can name it even when excluded; a control with none gets one only
 // once a target needs it. The policies and forms that needed controls name are created. An existing control only has its
 // applicability updated; owners, statuses, notes and edited text are never touched, and no file is ever deleted.
-export function adopt(root: string): { created: string[]; changed: string[]; policies: string[]; forms: string[] } {
+// `createOnly` is what a change of targets runs: targets decide what is needed, never what applies, so it only creates
+// the files, policies and forms that became needed and leaves every control's applicability, and a person's own
+// exclusion, as it is.
+export function adopt(root: string, opts: { createOnly?: boolean } = {}): { created: string[]; changed: string[]; policies: string[]; forms: string[] } {
   const ws = loadWorkspace(root);
   if (!ws.scope) throw new Error('scope.json is missing or invalid');
   const missing = unanswered(ws.scope.data);
@@ -84,7 +87,7 @@ export function adopt(root: string): { created: string[]; changed: string[]; pol
     const rel = `controls/${lib.id}.json`;
     const existing = ws.controls.find((c) => c.data.id === lib.id);
     if (!existing) {
-      if (!lib.criteria.length && !libraryNeeded(ws, lib.id)) continue;
+      if (!lib.criteria.length && (reason || !libraryNeeded(ws, lib.id))) continue;
       const c: Control = { schema: 'evidence-desk.control/1', id: lib.id, title: lib.title, description: lib.description, criteria: lib.criteria,
         frequency: lib.frequency, policies: lib.policies, evidence_expected: lib.evidence, applicable: !reason, owner: '', status: 'not-started', catalog: lib.id };
       if (reason) c.exclusion_reason = reason;
@@ -93,7 +96,7 @@ export function adopt(root: string): { created: string[]; changed: string[]; pol
       out.created.push(lib.id);
       continue;
     }
-    if (existing.data.catalog !== lib.id) continue;
+    if (existing.data.catalog !== lib.id || opts.createOnly) continue;
     const wantApplicable = !reason;
     if (existing.data.applicable !== wantApplicable || (reason && existing.data.exclusion_reason !== reason)) {
       const c = { ...existing.data, applicable: wantApplicable };
@@ -103,9 +106,9 @@ export function adopt(root: string): { created: string[]; changed: string[]; pol
     }
   }
   // What the program's work needs, from the controls as they now stand.
-  const now = loadWorkspace(root);
-  const inPlay = neededControls(now);
-  const needed = new Set(now.controls.filter((c) => inPlay.has(c.data.id)).flatMap((c) => c.data.policies));
+  const after = loadWorkspace(root);
+  const inPlay = neededControls(after);
+  const needed = new Set(after.controls.filter((c) => inPlay.has(c.data.id)).flatMap((c) => c.data.policies));
   for (const id of needed) {
     if (ws.policies.some((p) => p.data.id === id)) continue;
     const t = policyTemplates.find((x) => x.id === id);

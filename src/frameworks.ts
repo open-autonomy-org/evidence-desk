@@ -8,7 +8,7 @@ import type { Workspace } from './workspace.ts';
 import { clockDate } from './clock.ts';
 import { frameworkCatalogs, type FrameworkCatalog, type FrameworkRequirement } from './catalog.ts';
 import { inSoc2Scope } from './targets.ts';
-import { adopt } from './actions.ts';
+import { adopt, unanswered } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
 
 export type Requirement = FrameworkRequirement;
@@ -32,24 +32,31 @@ export function readSettings(root: string, id: string): { data: Settings; versio
 }
 
 // Targets (docs/decisions/0002-frameworks-are-targets.md): the frameworks the program aims at. Adding or dropping one
-// changes the list; once the control set is adopted, adoption runs again so the needed controls' files, policies and
-// forms exist. Nothing is deleted: a dropped framework's settings and evidence stay for when it is targeted again.
-function setTargets(root: string, next: (current: string[]) => string[]): string[] {
+// changes the list; once the control set is adopted, the files, policies and forms that became needed are created
+// (applicability is scoping's, so no control's is touched). Nothing is deleted: a dropped framework's settings and
+// evidence stay for when it is targeted again.
+function setTargets(root: string, next: (current: string[]) => string[]): { targets: string[]; created: string[]; policies: string[]; forms: string[] } {
   const m = readVersioned(root, 'evidence-desk.json');
   if (!m) throw new Error('evidence-desk.json is missing');
   const doc = JSON.parse(m.text);
   const targets = next(doc.frameworks ?? ['soc2']);
-  if (targets.join() === (doc.frameworks ?? []).join()) return targets;
+  const none = { targets, created: [], policies: [], forms: [] };
+  if (targets.join() === (doc.frameworks ?? []).join()) return none;
+  // Refuse before writing anything when the adoption the change needs could not run.
+  const ws = loadWorkspace(root);
+  const adopted = ws.controls.length > 0;
+  if (adopted && (!ws.scope || unanswered(ws.scope.data).length)) throw new Error(`answer the scoping questions first: ${ws.scope ? unanswered(ws.scope.data).join(', ') : 'scope.json is missing'}`);
   doc.frameworks = targets;
   writeVersioned(root, 'evidence-desk.json', JSON.stringify(doc, null, 2) + '\n', m.version);
-  if (loadWorkspace(root).controls.length) adopt(root);
-  return targets;
+  if (!adopted) return none;
+  const r = adopt(root, { createOnly: true });
+  return { targets, created: r.created, policies: r.policies, forms: r.forms };
 }
-export function targetFramework(root: string, id: string): string[] {
+export function targetFramework(root: string, id: string): ReturnType<typeof setTargets> {
   if (id !== 'soc2') framework(id);
   return setTargets(root, (t) => (t.includes(id) ? t : [...t, id]));
 }
-export function dropFramework(root: string, id: string): string[] {
+export function dropFramework(root: string, id: string): ReturnType<typeof setTargets> {
   if (id === 'soc2') throw new Error('SOC 2 is always a target: Evidence Desk is the program for companies pursuing SOC 2 (docs/decisions/0002-frameworks-are-targets.md)');
   return setTargets(root, (t) => t.filter((x) => x !== id));
 }
