@@ -223,6 +223,14 @@ export function addEvidence(root: string, input: {
   const files = input.files.map((f) => {
     const outside = resolve(f);
     const isOutside = f.startsWith('/') || f.startsWith('.') || !existsSync(join(root, f));
+    // A workspace file that keeps changing (a register, a policy's current text, a top-level settings file) is captured
+    // as it stands: the evidence is that version, and the file may be edited afterwards without breaking it.
+    const living = !isOutside && (f.startsWith('registers/') || !f.includes('/') || /^policies\/[^/]+\.md$/.test(f));
+    if (living) {
+      const rel = `evidence/files/${id}/${basename(f)}`;
+      writeVersioned(root, rel, readFileSync(join(root, f)), null);
+      return { path: rel, ...fileHash(root, rel)! };
+    }
     if (!isOutside) { const h = fileHash(root, f); if (!h) throw new Error(`${f} is not a file`); return { path: f, ...h }; }
     if (!existsSync(outside)) throw new Error(`${f} does not exist`);
     const rel = `evidence/files/${id}/${basename(outside)}`;
