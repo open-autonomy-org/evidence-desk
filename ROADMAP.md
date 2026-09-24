@@ -69,7 +69,7 @@ Agents do the work; people act at a few controlled seams that Open Autonomy spec
 declarations and seams supply the controls and evidence that automation can; the humans supply the rest. This
 integration is optional: core use never requires Open Autonomy.
 **Differentiator D1, not counted in the parity headline:** a project on Open Autonomy's `soc2` template reaches SOC2
-readiness out of the box, owned by `open-autonomy-soc2-ready` (the template and Evidence Desk's side have landed; the end-to-end demonstration is outstanding).
+readiness out of the box, owned by `open-autonomy-soc2-ready` (landed and demonstrated end to end; publication of kit 3.3.0 is outstanding).
 
 **Extrapolation starts here.** The outcome boundaries, sequence and the design choices inside each outcome
 are the owner-side agent's judgment, not measured user research. Differentiation hypothesis: the same
@@ -86,7 +86,7 @@ Build mode (owner, 2026-09-23): the owner's coding session builds the outcomes h
 the plan is done; the fleet resumes once the product works. Outcomes below are `Dispatch: hold` so a fleet start
 does not duplicate that work.
 
-Sequence: `open-autonomy-soc2-ready` (the aim; its end-to-end demonstration is outstanding), then
+Sequence: `open-autonomy-soc2-ready` (the aim; publication of the template is outstanding), then
 `evidence-automation` (further collectors wait on twins). The workspace
 format, control library, policy templates, CLI and local app, the operation of the program, reading Open Autonomy
 projects, collectors and checks, the audit cycle, the trust center and questionnaires, and ISO 27001 have landed; see [CHANGELOG.md](CHANGELOG.md) and
@@ -120,33 +120,29 @@ facts about people and their devices (including the host that runs the agents), 
 assessment and the signed assertion, vendors' own assurance reports, external tests, and agreements executed with
 customers. The gap view says which facts came from where.
 
-Landed: Open Autonomy's `soc2` template (kit 3.3.0, not yet published), which is self-build with the seams declared
-in `config.yaml`, releases approved only by the code host's gate, direction bound only as an issue, comment or commit
-by a verified roster member, and `records/` for incidents, break-glass changes, credential lifecycle and escalations;
-the kit's `check` refuses a seam no roster member can act at. In Evidence Desk: reading a project at a commit (roster,
-agent setup, seams, landing and production rules, vendors) with scope and register filling that reports rather than
-overwrites; the seam inventory with its findings; roster completeness against a vendor account's administrators;
-populations of merged changes with approvals, production deployments, roster history and each `records/` seam, whose
-unreviewed incidents, unreviewed break-glass changes and unanswered escalations are gap findings; onboarding forms
-applying to roster members.
+Landed: Open Autonomy's `soc2` template (kit 3.3.0), which is self-build with the seams declared in `config.yaml`,
+releases approved only by the code host's gate, direction bound only as an issue, comment or commit by a verified
+roster member, `records/` for people's acts and `COMPLIANCE.md` for the program; the kit's `check` refuses a seam no
+roster member can act at. In Evidence Desk: reading a project at a commit with scope and register filling that reports
+rather than overwrites; the seam inventory; roster completeness against each declared vendor account; populations of
+merged changes with approval independence, production deployments with their creator, roster history and each
+`records/` seam; every act a person signs attributed to that person's own merged pull request; obligations as issues
+assigned to their owners.
 
-Demonstrated in the World against the GitHub twin, on a synthetic project created from the `soc2` template: the gap
-view's program section fell from seven Open Autonomy findings (unheld seams, an uncompared vendor account, uncollected
-records) to the empty risk register once the roster held its scopes and the records were collected; a closed incident
-without a review and an unanswered escalation showed as findings until recorded. What remains per control is people's
-acts: control and policy owners, policy approval, onboarding, the risk assessment, and the outside firms.
+Demonstrated end to end in the World against the GitHub twin, following the template's `COMPLIANCE.md` on a synthetic
+project with the kit's production workflow and a quarter of history (three merged changes, one without an independent
+approval; two tag deployments): two roster members onboarded through their own pull requests, the owner's approvals and
+risk assessment and the reviewer's access review attributed (28 of 28 signed acts), an administrator outside the roster
+found and then removed by the access review, and the change-review, protected-history, dependency and secret-scanning
+checks passing. The gap view's program section is empty. What remains per control is people's statements and acts
+(each control's status, management and internal reviews, the system description, vendor due diligence) and what no
+repository holds: infrastructure and data handling in vendor consoles (AC-07 to AC-09, AC-11, CONF-01, CONF-02,
+OPS-05 to OPS-07), the penetration test and the CPA firm.
 
-Landed since: each act a person signs (onboarding responses, access review sign-offs, policy approvals, incident
-closings) must be merged from a pull request that person opened into the workspace repository's default branch, and
-recurring obligations become issues assigned to their owners, closed once met; demonstrated against the GitHub twin with
-verified acts and acts pushed without a pull request, recorded by someone else, never merged and edited after merging.
-
-Outstanding: register rows (risk decisions, vendor reviews) are not yet attributed to a person's pull request; the demonstration has no production
-workflow (a template project gains it at `setup --with production`), so deployment populations were not exercised on
-it. The GitHub twin identifies who opened a pull request or submitted a review only for callers holding a personal
-token it minted (twin main d88ec450), so approval independence still reads as unknown for seeds using the World's shared
-token; it does not create `main` on `auto_init`; the published twin package (0.1.2) predates both fixes and still
-serves a review's verb as its state.
+Outstanding: kit 3.3.0 is not yet published, so `create --skew soc2` works only from an Open Autonomy checkout (a human
+release step in Open Autonomy). Register rows (risk decisions, vendor reviews) are not yet attributed to a person's pull
+request. The organization two-factor check was not re-run against the twin since the twin began reporting the
+requirement (twin main 6c478353). The published twin package (0.1.2) predates the twin fixes this demonstration used.
 
 Completion:
 - One command turns an Open Autonomy project into a workspace at a named commit: `agent.json` profiles, jobs and models, the `team` roster with scopes, the declared seams, the landing and production rules, and the vendors named by its dependencies and deploy egress; each fact carries that commit as provenance and maps to the controls and criteria it evidences. A later change surfaces as a changed design fact, never a silent overwrite.

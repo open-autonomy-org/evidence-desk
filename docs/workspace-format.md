@@ -135,8 +135,8 @@ open pull request branch is not told apart from them. Register rows (risks, vend
 who is not on the roster is a finding. The rows are written under `evidence/files/populations/` for the audit and are
 not recorded as evidence of any control: evidence dates decide when a periodic control is next due.
 
-`remind` keeps one issue labelled `evidence-desk` in the workspace repository for each owned obligation that is due or
-overdue, assigned to the owner's GitHub account on the roster (unassigned when GitHub refuses the assignee), updated when
+`remind --within <days>` keeps one issue labelled `evidence-desk` in the workspace repository for each owned obligation
+that is overdue or due within those days, assigned to the owner's GitHub account on the roster (unassigned when GitHub refuses the assignee), updated when
 it becomes overdue and closed once the workspace no longer shows it owed (met, or its owner or title changed, which opens
 its successor); obligations no one owns share one issue that lists them. The daily workflow that `ci-template` writes runs
 the attribution check (where an Open Autonomy roster was imported) and the reminders with the repository's own token.

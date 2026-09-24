@@ -32,6 +32,10 @@ const VENDOR_OF: Record<string, string> = {
   'openai-codex': 'OpenAI', 'open-autonomy.org': 'Open Autonomy platform (model valve and books)',
 };
 
+// A host's vendor by its registrable domain: every GitHub host (codeload, objects.githubusercontent.com) is GitHub.
+const VENDOR_OF_DOMAIN: Record<string, string> = { 'github.com': 'GitHub', 'githubusercontent.com': 'GitHub', 'npmjs.org': 'npm', 'cloudflare.com': 'Cloudflare', 'open-autonomy.org': VENDOR_OF['open-autonomy.org'] };
+const vendorOfHost = (host: string) => VENDOR_OF[host] ?? Object.entries(VENDOR_OF_DOMAIN).find(([d]) => host === d || host.endsWith(`.${d}`))?.[1] ?? host;
+
 export function readProject(repo: string, commitish = 'HEAD'): Snapshot {
   const commit = git(repo, 'rev-parse', commitish).trim();
   const configText = show(repo, commit, '.open-autonomy/config.yaml');
@@ -69,7 +73,7 @@ export function readProject(repo: string, commitish = 'HEAD'): Snapshot {
   const vendors = new Set<string>(['GitHub']);
   for (const a of agents) for (const m of a.models) vendors.add(VENDOR_OF[m.provider] ?? (m.provider === 'custom' || m.provider.endsWith('-valve') ? VENDOR_OF['open-autonomy.org'] : m.provider));
   if (config.platform) vendors.add(VENDOR_OF['open-autonomy.org']);
-  for (const host of production?.egress ?? []) vendors.add(VENDOR_OF[host] ?? host);
+  for (const host of production?.egress ?? []) vendors.add(vendorOfHost(host));
 
   const seamsDoc = config.seams as { seams?: Seam[]; vendor_accounts?: Snapshot['vendor_accounts'] } | undefined;
   const snap: Snapshot = {
@@ -113,6 +117,10 @@ export function diffSnapshots(before: Snapshot | null, after: Snapshot): string[
 }
 
 const pretty = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
+
+// The controls a project's declarations evidence: the program and its roles, change and deployment rules, credential
+// custody by name, vendors and the agents' configuration.
+export const DECLARATION_CONTROLS = ['GOV-01', 'CHG-01', 'CHG-03', 'AC-05', 'VND-01', 'OPS-04', 'HR-06'];
 
 export type ImportReport = { commit: string; snapshot: string; changed: string[]; seams: string[]; added: string[]; conflicts: string[]; evidence: string | null };
 
@@ -166,7 +174,7 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
   register('systems', { id: 'repository', name: `${snap.account} source repository`, kind: 'source code and automation', description: 'Code and the agent setup, changed only through reviewed pull requests', in_scope: 'yes' });
 
   const applicable = new Set(loadWorkspace(root).controls.filter((c) => c.data.applicable).map((c) => c.data.id));
-  const controls = ['GOV-01', 'CHG-01', 'CHG-03', 'AC-05', 'VND-01', 'OPS-04', 'HR-06'].filter((c) => applicable.has(c));
+  const controls = DECLARATION_CONTROLS.filter((c) => applicable.has(c));
   if (controls.length) report.evidence = addEvidence(root, {
     title: `Open Autonomy declarations at ${snap.commit.slice(0, 12)}: roster, agents, seams, landing and production rules`, controls, files: [report.snapshot], recorded_by: by,
     source: { kind: 'open-autonomy', name: snap.account, commit: snap.commit, query: `git show ${snap.commit}:.open-autonomy/config.yaml .open-autonomy/agent.json .github/workflows/` },
@@ -177,8 +185,11 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
 // The roster's history as a population: every commit that changed `team` in the period, with who made it and which
 // people or scopes it added or removed. Complete by construction: git log lists every commit touching the file.
 export function collectRosterHistory(root: string, input: { repo: string; start: string; end: string; by: string }): { evidence: string; rows: number } {
-  const log = git(input.repo, 'log', '--format=%H%x09%an%x09%ae%x09%aI%x09%s', `--since=${input.start}T00:00:00Z`, `--until=${input.end}T23:59:59Z`, '--', '.open-autonomy/config.yaml')
-    .split('\n').filter(Boolean).map((l) => { const [sha, name, email, at, subject] = l.split('\t'); return { sha, name, email, at, subject }; });
+  // Every commit touching the file, filtered by date here: git's --since stops walking at the first older commit, so a
+  // history whose dates are not monotonic (clock skew, rebased or imported commits) would silently lose changes.
+  const inPeriod = (at: string) => { const d = new Date(at).toISOString().slice(0, 10); return d >= input.start && d <= input.end; };
+  const log = git(input.repo, 'log', '--format=%H%x09%an%x09%ae%x09%aI%x09%s', '--', '.open-autonomy/config.yaml')
+    .split('\n').filter(Boolean).map((l) => { const [sha, name, email, at, subject] = l.split('\t'); return { sha, name, email, at, subject }; }).filter((c) => inPeriod(c.at));
   const teamAt = (ref: string): Map<string, string[]> => {
     const text = show(input.repo, ref, '.open-autonomy/config.yaml');
     const members = text ? ((Bun.YAML.parse(text) as any).team?.members ?? []) as any[] : [];
@@ -204,7 +215,7 @@ export function collectRosterHistory(root: string, input: { repo: string; start:
   const applicable = new Set(loadWorkspace(root).controls.filter((x) => x.data.applicable).map((x) => x.data.id));
   const evidence = addEvidence(root, {
     title: `Population: ${rows.length} changes to who holds authority, ${input.start} to ${input.end}`, controls: ['AC-02', 'HR-03', 'HR-04'].filter((x) => applicable.has(x)), files: [rel], recorded_by: input.by,
-    period: { start: input.start, end: input.end }, source: { kind: 'open-autonomy', name: 'team roster', query: `git log --since=${input.start} --until=${input.end} -- .open-autonomy/config.yaml, comparing team at each commit and its parent` },
+    period: { start: input.start, end: input.end }, source: { kind: 'open-autonomy', name: 'team roster', query: `git log -- .open-autonomy/config.yaml, keeping commits authored ${input.start}..${input.end} (UTC), comparing team at each commit and its parent` },
     notes: 'Complete by construction: every commit touching the roster file in the period is listed.',
   });
   return { evidence, rows: rows.length };

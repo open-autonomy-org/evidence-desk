@@ -51,7 +51,7 @@ GITHUB_TOKEN=... bun src/cli.ts collect ~/acme-soc2 github-changes --repo acme/i
 bun src/cli.ts collect ~/acme-soc2 roster-history --repo ~/acme-inbox --period 2026-07-01..2026-09-30 --by ana
 bun src/cli.ts collect ~/acme-soc2 seam-records --repo ~/acme-inbox --period 2026-07-01..2026-09-30 --by ana
 GITHUB_TOKEN=... bun src/cli.ts collect ~/acme-soc2 attribution --repo acme/compliance --by ana
-GITHUB_TOKEN=... bun src/cli.ts remind ~/acme-soc2 --repo acme/compliance
+GITHUB_TOKEN=... bun src/cli.ts remind ~/acme-soc2 --repo acme/compliance --within 30
 ```
 
 Checks run against your own systems with your own read-only credentials, from the Checks page or the command line,

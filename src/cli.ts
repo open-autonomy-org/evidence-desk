@@ -38,7 +38,8 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   respond <dir> <form> --person <id> --answer <question>=<answer> ...
                                           record a person's answers (graded; passing responses become evidence)
   obligations <dir> [--person <id>] [--as-of YYYY-MM-DD]   what is owed, by whom and when
-  remind <dir> --repo <owner/name>        keep one issue per due or overdue obligation in the workspace's repository
+  remind <dir> --repo <owner/name> --within <days>
+                                          keep one issue per obligation overdue or due within the days, in the workspace's repository
   access-review <dir> start --system <id> --reviewer <person> --period <start>..<end> --listing <file> --generated-by <how>
   access-review <dir> <id> [--decide <account>=keep|remove|modify ...] [--done <account>=<date> ...]
                      [--person <account>=<person> ...] [--privileged <account>] [--sign-off --by <person>]
@@ -336,7 +337,7 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => [`Read ${r.commit.slice(0, 12)} into ${r.snapshot}.`,
           r.added.length ? `Filled: ${r.added.join(', ')}.` : 'Nothing new to fill.',
           ...r.changed.map((c) => `Changed: ${c}`), ...r.conflicts.map((c) => `Differs: ${c}`), ...r.seams.map((c) => `Seam: ${c}`),
-          r.evidence ? `Recorded ${r.evidence}.` : ''].filter(Boolean).join('\n'));
+          r.evidence ? `Recorded ${r.evidence}.` : 'No control is adopted yet, so the declarations are not recorded as evidence: import again after adopt.'].filter(Boolean).join('\n'));
         return 0;
       }
       if (rest[0] === 'completeness') {
@@ -355,7 +356,9 @@ async function main(argv: string[]): Promise<number> {
     }
     case 'remind': {
       const asOf = one(a, 'as-of');
-      const r = await syncReminders(dir, { repo: one(a, 'repo') ?? '', ...(asOf ? { asOf: new Date(`${asOf}T00:00:00Z`) } : {}) });
+      const within = Number(one(a, 'within'));
+      if (!Number.isInteger(within) || within < 0) throw new Error('remind needs --within <days>: how far ahead an obligation is worth a reminder');
+      const r = await syncReminders(dir, { repo: one(a, 'repo') ?? '', within, ...(asOf ? { asOf: new Date(`${asOf}T00:00:00Z`) } : {}) });
       out(json, r, () => [`Reminders: ${r.opened.length} opened, ${r.retitled.length} retitled, ${r.closed.length} closed, ${r.kept} unchanged.`, ...r.opened.map((t) => `  opened: ${t}`), ...r.retitled.map((t) => `  retitled: ${t}`), ...r.closed.map((t) => `  closed: ${t}`)].join('\n'));
       return 0;
     }
