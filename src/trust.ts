@@ -33,6 +33,46 @@ function link(contact: string, subject?: string): string | null {
 }
 
 // ── Trust center ────────────────────────────────────────────────────────────────────────────────────────────────
+// What the organization may say about audits and certifications, the one source of the trust page's section, its badges
+// and a statement published elsewhere. A claim of being audited or certified rests on a document an independent auditor
+// or certifying body issued, held in certifications/ with its hash; a self-attestation says it is one. Without such a
+// document it is readiness: how far the program is, and an audit under way only where an engagement records one.
+export function reportOf(root: string): { claims: string[]; status: string[]; badges: Badge[] } {
+  const ws = loadWorkspace(root);
+  const held = certifications(root).filter((c) => c.current);
+  const dir = join(root, 'audits');
+  const open = (existsSync(dir) ? readdirSync(dir) : []).filter((d) => existsSync(join(dir, d, 'engagement.json'))).map((d) => JSON.parse(readFileSync(join(dir, d, 'engagement.json'), 'utf8')))
+    .filter((e) => e.status !== 'closed');
+  const g = computeGaps(ws);
+  const readiness = `Readiness: evidence for ${g.summary.controls_ready} of ${g.summary.controls_applicable} applicable controls; ${g.summary.criteria_ready} of ${g.summary.criteria_in_scope} criteria in scope ready.`;
+  const underway = open.map((e) => `An audit by ${e.firm} ${e.type === 'type1' ? `as of ${e.as_of}` : `covering ${e.period?.start} to ${e.period?.end}`} is under way.`);
+  // Readiness for each framework the program maps that no auditor's document covers.
+  const readinessOf = (ws.manifest?.data.frameworks ?? ['soc2']).map((f: string) => {
+    if (f === 'soc2') return { framework: 'SOC 2', matches: /soc ?2/i, ready: g.summary.controls_ready, of: g.summary.controls_applicable, unit: 'controls' };
+    const st = frameworkState(ws, f);
+    return { framework: st.title, matches: new RegExp(f.replace(/^iso/i, 'ISO.*'), 'i'), ready: st.summary.ready, of: st.summary.requirements - st.summary.excluded, unit: 'requirements' };
+  });
+  return { claims: held.map(claimOf), status: [...(held.some((c) => c.kind !== 'self-attestation') ? [] : ['No audit report or certificate is held yet.']), ...underway, readiness],
+    badges: badgesOf(held, readinessOf, now().slice(0, 10)) };
+}
+
+// The same words as the trust page's section, published as the owner's statement on an Open Autonomy project page (its
+// ADR 0012): the badges, and the section's text as the body. Only what trust.json publishes: without the report
+// section there is nothing to publish. The key is the project's steer key, which the owner mints and keeps.
+export async function publishStatement(root: string, input: { baseUrl: string; key: string }): Promise<{ status: number; body: Record<string, unknown>; badges: Badge[] }> {
+  const t = readVersioned(root, 'trust.json');
+  if (!t) throw new Error('trust.json is missing; it lists what may be published (see docs/workspace-format.md)');
+  const cfg = JSON.parse(t.text);
+  valid('trust', cfg, 'trust.json');
+  if (!cfg.publish.report) throw new Error('trust.json does not publish the audits and certifications section, so there is nothing to publish');
+  const r = reportOf(root);
+  const statement = { id: 'compliance', title: 'Compliance', source: { name: 'Evidence Desk', url: 'https://github.com/open-autonomy-org/evidence-desk' }, as_of: now().slice(0, 10),
+    badges: r.badges.map((b) => ({ label: b.label, message: b.message, tone: b.tone, until: b.until })),
+    body_md: [...r.claims.map((c) => `- ${c}`), ...(r.claims.length ? [''] : []), r.status.join(' ')].join('\n') };
+  const res = await fetch(`${input.baseUrl.replace(/\/$/, '')}/agent/statement`, { method: 'POST', headers: { authorization: `Bearer ${input.key}`, 'content-type': 'application/json' }, body: JSON.stringify(statement) });
+  return { status: res.status, body: await res.json().catch(() => ({})) as Record<string, unknown>, badges: r.badges };
+}
+
 export function buildTrustCenter(root: string, out: string): { published: string[]; badges: Badge[] } {
   const t = readVersioned(root, 'trust.json');
   if (!t) throw new Error('trust.json is missing; it lists what the trust center may publish (see docs/workspace-format.md)');
@@ -51,26 +91,10 @@ export function buildTrustCenter(root: string, out: string): { published: string
     published.push('categories in scope');
   }
   if (cfg.publish.report) {
-    // A claim of being audited or certified rests on a document an independent auditor or certifying body issued, held
-    // in certifications/ with its hash; a self-attestation says it is one. Without such a document the page shows
-    // readiness: how far the program is, and an audit under way only where an engagement records one.
-    const held = certifications(root).filter((c) => c.current);
-    const dir = join(root, 'audits');
-    const open = (existsSync(dir) ? readdirSync(dir) : []).filter((d) => existsSync(join(dir, d, 'engagement.json'))).map((d) => JSON.parse(readFileSync(join(dir, d, 'engagement.json'), 'utf8')))
-      .filter((e) => e.status !== 'closed');
-    const g = computeGaps(ws);
-    const readiness = `Readiness: evidence for ${g.summary.controls_ready} of ${g.summary.controls_applicable} applicable controls; ${g.summary.criteria_ready} of ${g.summary.criteria_in_scope} criteria in scope ready.`;
-    const underway = open.map((e) => `An audit by ${e.firm} ${e.type === 'type1' ? `as of ${e.as_of}` : `covering ${e.period?.start} to ${e.period?.end}`} is under way.`);
-    sections.push(`<section><h2>Audits and certifications</h2>${held.length ? `<ul>${held.map((c) => `<li>${esc(claimOf(c))}</li>`).join('')}</ul>` : ''}<p>${esc([...(held.some((c) => c.kind !== 'self-attestation') ? [] : ['No audit report or certificate is held yet.']), ...underway, readiness].join(' '))}</p></section>`);
+    const r = reportOf(root);
+    sections.push(`<section><h2>Audits and certifications</h2>${r.claims.length ? `<ul>${r.claims.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}<p>${esc(r.status.join(' '))}</p></section>`);
     published.push('audits, certifications and readiness');
-    // The same statements as badges: one per document held, and readiness for each framework the program maps that no
-    // auditor's document covers.
-    const readinessOf = (ws.manifest?.data.frameworks ?? ['soc2']).map((f: string) => {
-      if (f === 'soc2') return { framework: 'SOC 2', matches: /soc ?2/i, ready: g.summary.controls_ready, of: g.summary.controls_applicable, unit: 'controls' };
-      const st = frameworkState(ws, f);
-      return { framework: st.title, matches: new RegExp(f.replace(/^iso/i, 'ISO.*'), 'i'), ready: st.summary.ready, of: st.summary.requirements - st.summary.excluded, unit: 'requirements' };
-    });
-    badges = badgesOf(held, readinessOf);
+    badges = r.badges;
   }
   const pol = (cfg.publish.policies ?? []) as string[];
   if (pol.length) {

@@ -223,8 +223,18 @@ criteria in scope are ready, and an audit under way only where an engagement rec
 current document (green for an auditor's report or certificate, blue and labelled self-attested for a
 self-attestation), and a grey readiness badge for each framework in `evidence-desk.json` that no auditor's document
 covers ("SOC 2: readiness 23/46 controls", ISO/IEC 27001 counted in requirements). `badges.json` lists them with
-their message, colour, the document each rests on and the date built. They are written only when `trust.json`
-publishes the report section, and say nothing the page does not.
+their message, tone, colour, the document each rests on, the day each stops standing (`until`) and the date built.
+They are written only when `trust.json` publishes the report section, and say nothing the page does not.
+
+**On an Open Autonomy project page.** `evidence-desk trust <dir> publish` sends the same badges, with the section's
+text as the body, to an Open Autonomy project as the owner's statement "Compliance" (Open Autonomy's ADR 0012): a row
+in the dashboard's rail under "Stated by the owner", its page, and a README badge row the platform serves. It needs
+`OPEN_AUTONOMY_BASE_URL` (the platform, ending in `/v1`) and `OPEN_AUTONOMY_KEY`, the project's steer key, which the
+owner mints and keeps with the workspace, never in the project's repository. Each badge stands until its `until`: a
+certificate's expiry; an audit report's period end plus one year (the usual reliance window, after which customers ask
+for a bridge letter), or its issue date plus one year where it records no period; a self-attestation's issue date plus
+one year; readiness 30 days after it was counted. Publish again when anything changes, and at least monthly while
+readiness is shown; an unchanged publication is not a new revision there.
 
 A questionnaire is imported from a CSV, or the first worksheet of an Excel (.xlsx) workbook, with a question column. Each question is first matched against the answer
 library; a reviewed answer whose cited files are unchanged is reused as reviewed, and one whose facts changed is marked

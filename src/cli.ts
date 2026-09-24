@@ -12,7 +12,7 @@ import { serve } from './server.ts';
 import { serveFirm } from './firm-server.ts';
 import { decide, enableFramework, frameworkState, statementOfApplicability } from './frameworks.ts';
 import { writeCsv } from './csv.ts';
-import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, reviewAnswer, staleLibrary } from './trust.ts';
+import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, publishStatement, reviewAnswer, staleLibrary } from './trust.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { computeObligations } from './obligations.ts';
 import { collectAccessChanges } from './access.ts';
@@ -101,6 +101,8 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   firm <firm.json> [--serve [--port <n>]] each client's engagements, requests and readiness, client by client
   audit package-serve <package folder> [--port <n>]   the firm's page for answering a received package
   trust <dir> build --out <folder>        build the static trust center from what trust.json allows
+  trust <dir> publish                     publish its audits, certifications and readiness to an Open Autonomy project page
+                                          (OPEN_AUTONOMY_BASE_URL, and OPEN_AUTONOMY_KEY: the project's steer key)
   questionnaire <dir> import <csv> --name <name>   draft answers from workspace facts, citing them
   questionnaire <dir> <id>                the questions, answers, sources and review state
   questionnaire <dir> <id> answer <question> --answer <text> --by <person> [--source <path>,...]
@@ -569,7 +571,18 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
     case 'trust': {
-      if (rest[0] !== 'build' || !one(a, 'out')) throw new Error('trust needs build --out <folder>');
+      if (rest[0] === 'publish') {
+        // The owner's statement on an Open Autonomy project page, on the project's steer key (never a flag: a command line is logged).
+        const baseUrl = process.env.OPEN_AUTONOMY_BASE_URL, key = process.env.OPEN_AUTONOMY_KEY;
+        if (!baseUrl || !key) throw new Error('trust publish needs OPEN_AUTONOMY_BASE_URL (the platform, ending in /v1) and OPEN_AUTONOMY_KEY (the project\'s steer key) in the environment');
+        const r = await publishStatement(dir, { baseUrl, key });
+        const rev = r.body.revision as { revision?: number; changes?: string[] } | undefined;
+        const err = typeof r.body.error === 'string' ? r.body.error : (r.body.error as { code?: string } | undefined)?.code;
+        out(json, r.body, () => r.status === 200 ? (r.body.unchanged ? 'Published statement unchanged; no new revision.' : `Published the Compliance statement, revision ${rev?.revision}: ${rev?.changes?.join(', ')}.${r.badges.map((b) => `\n  ${b.label}: ${b.message} (until ${b.until})`).join('')}`)
+          : `The platform refused the statement (${r.status}): ${err ?? 'unknown'}${r.body.field ? ` at ${r.body.field}` : ''}.`);
+        return r.status === 200 ? 0 : 1;
+      }
+      if (rest[0] !== 'build' || !one(a, 'out')) throw new Error('trust needs build --out <folder>, or publish');
       const r = buildTrustCenter(dir, resolve(one(a, 'out')!));
       out(json, r, () => `Built ${resolve(one(a, 'out')!)}/index.html publishing: ${r.published.join(', ') || 'only the headline and contact'}.${r.badges.map((b) => `\n  badges/${b.id}.svg  ${b.label}: ${b.message}`).join('')}`);
       return 0;

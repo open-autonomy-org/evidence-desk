@@ -53,20 +53,28 @@ export function claimOf(c: Certification): string {
 
 // ── Badges ──────────────────────────────────────────────────────────────────────────────────────────────────────
 // The same statements as images, for a README or a project page: one per document held, and a readiness badge for a
-// framework no auditor's document covers. A badge never says more than the trust center does.
-export type Badge = { id: string; label: string; message: string; color: string; basis: string };
+// framework no auditor's document covers. A badge never says more than the trust center does. Each carries its tone
+// and the day it stops standing (`until`), so a copy published elsewhere (an Open Autonomy project page) lapses on its
+// own: a certificate at its expiry; an audit report a year after its period ends (the usual reliance window, after
+// which customers ask for a bridge letter), or after it was issued where it records no period; a self-attestation a
+// year after it was made; readiness 30 days after it was counted, so a publisher that stops leaves no stale count.
+export type Tone = 'positive' | 'info' | 'neutral';
+export type Badge = { id: string; label: string; message: string; tone: Tone; until: string; color: string; basis: string };
+const COLOR: Record<Tone, string> = { positive: '#2f855a', info: '#2b6cb0', neutral: '#718096' };
+const plusDays = (day: string, n: number) => new Date(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+const plusYear = (day: string) => `${Number(day.slice(0, 4)) + 1}${day.slice(4)}`.replace(/-02-29$/, '-02-28');
+// Short enough for any badge row: a label of 40 characters and a message of 60.
+const fit = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n - 1)}…`);
 
-// A readiness entry names what an auditor's document for its framework would be called, so a held report or certificate
-// replaces it.
-export function badgesOf(held: Certification[], readiness: { framework: string; matches: RegExp; ready: number; of: number; unit: string }[]): Badge[] {
+export function badgesOf(held: Certification[], readiness: { framework: string; matches: RegExp; ready: number; of: number; unit: string }[], asOf: string): Badge[] {
   const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const out: Badge[] = held.map((c) => ({ id: slug(`${c.framework}-${c.kind}`), label: c.framework,
-    message: c.kind === 'certificate' ? `certified until ${c.valid_until}` : c.kind === 'audit report' ? `audited by ${c.issuer}, ${c.issued_on}` : `self-attested ${c.issued_on}`,
-    color: c.kind === 'self-attestation' ? '#2b6cb0' : '#2f855a', basis: c.file }));
+  const badge = (id: string, label: string, message: string, tone: Tone, until: string, basis: string): Badge => ({ id: slug(id), label: fit(label, 40), message: fit(message, 60), tone, until, color: COLOR[tone], basis });
+  const out: Badge[] = held.map((c) => c.kind === 'certificate' ? badge(`${c.framework}-${c.kind}`, c.framework, `certified until ${c.valid_until}`, 'positive', c.valid_until!, c.file)
+    : c.kind === 'audit report' ? badge(`${c.framework}-${c.kind}`, c.framework, `audited by ${c.issuer}, ${c.issued_on}`.length <= 60 ? `audited by ${c.issuer}, ${c.issued_on}` : `audited ${c.issued_on}`, 'positive', plusYear(c.period?.end ?? c.issued_on), c.file)
+    : badge(`${c.framework}-${c.kind}`, c.framework, `self-attested ${c.issued_on}`, 'info', plusYear(c.issued_on), c.file));
   for (const r of readiness) {
     if (held.some((c) => c.kind !== 'self-attestation' && r.matches.test(c.framework))) continue;
-    out.push({ id: slug(`${r.framework}-readiness`), label: r.framework, color: r.ready === r.of ? '#b7791f' : '#718096', basis: 'readiness',
-      message: `readiness ${r.ready}/${r.of} ${r.unit}` });
+    out.push(badge(`${r.framework}-readiness`, r.framework, `readiness ${r.ready}/${r.of} ${r.unit}`, 'neutral', plusDays(asOf, 30), 'readiness'));
   }
   return out;
 }
