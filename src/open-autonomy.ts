@@ -113,6 +113,8 @@ export function diffSnapshots(before: Snapshot | null, after: Snapshot): string[
   cmp('The seams', before.seams, after.seams);
   cmp('The vendor accounts', before.vendor_accounts, after.vendor_accounts);
   cmp('The landing and production rules', before.rules, after.rules);
+  // A vendor the project stops naming keeps its register row (removing it is a person's decision), so say so.
+  for (const v of before.vendors.filter((x) => !after.vendors.includes(x))) out.push(`The project no longer names ${v} as a vendor; its row in registers/vendors.csv stays until someone removes it`);
   return out;
 }
 
@@ -122,7 +124,7 @@ const pretty = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
 // custody by name, vendors and the agents' configuration.
 export const DECLARATION_CONTROLS = ['GOV-01', 'CHG-01', 'CHG-03', 'AC-05', 'VND-01', 'OPS-04', 'HR-06'];
 
-export type ImportReport = { commit: string; snapshot: string; changed: string[]; seams: string[]; added: string[]; conflicts: string[]; evidence: string | null };
+export type ImportReport = { commit: string; snapshot: string; changed: string[]; seams: string[]; added: string[]; conflicts: string[]; evidence: string | null; evidence_existing?: boolean };
 
 // Records the snapshot, fills what it determines and is still empty, reports what differs from what people entered,
 // and records the design facts as evidence for the controls they speak to.
@@ -175,7 +177,14 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
 
   const applicable = new Set(loadWorkspace(root).controls.filter((c) => c.data.applicable).map((c) => c.data.id));
   const controls = DECLARATION_CONTROLS.filter((c) => applicable.has(c));
-  if (controls.length) report.evidence = addEvidence(root, {
+  // Evidence of the declarations is recorded when they change, not each time they are read: the daily workflow reads a
+  // project whose agents commit constantly, and a fresh record each day would date a governance or vendor control as newly
+  // evidenced, since evidence dates decide when it is next due. Unchanged declarations reuse the latest record.
+  const recorded = loadWorkspace(root).evidence.filter((e) => e.data.source?.kind === 'open-autonomy' && e.data.source?.name === snap.account && controls.every((c) => e.data.controls.includes(c)))
+    .sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at));
+  const already = prev && !report.changed.length ? recorded.at(-1) : recorded.find((e) => e.data.source?.commit === snap.commit);
+  if (already) { report.evidence = already.data.id; report.evidence_existing = true; }
+  else if (controls.length) report.evidence = addEvidence(root, {
     title: `Open Autonomy declarations at ${snap.commit.slice(0, 12)}: roster, agents, seams, landing and production rules`, controls, files: [report.snapshot], recorded_by: by,
     source: { kind: 'open-autonomy', name: snap.account, commit: snap.commit, query: `git show ${snap.commit}:.open-autonomy/config.yaml .open-autonomy/agent.json .github/workflows/` },
   });

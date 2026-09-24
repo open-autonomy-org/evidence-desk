@@ -10,6 +10,7 @@ import { parseCsv } from './csv.ts';
 import { fileHash, readVersioned, sha256, writeVersioned } from './files.ts';
 import { categories, categoryAnswer, criteria } from './catalog.ts';
 import { computeGaps } from './gaps.ts';
+import type { Snapshot } from './open-autonomy.ts';
 import { loadWorkspace, type Workspace } from './workspace.ts';
 
 export type Engagement = { schema: string; id: string; type: 'type1' | 'type2'; as_of?: string; period?: { start: string; end: string }; firm: string; contact?: string; status: string; created_at: string };
@@ -137,6 +138,31 @@ export function actOnRequest(root: string, id: string, requestId: string, versio
 // ── Drafts ──────────────────────────────────────────────────────────────────────────────────────────────────────
 const inPeriod = (at: string, e: Engagement) => e.type === 'type2' ? at.slice(0, 10) >= e.period!.start && at.slice(0, 10) <= e.period!.end : at.slice(0, 10) <= e.as_of!;
 
+// How an Open Autonomy project builds and runs the system, from its declarations at the commit last read: the agents and
+// their schedules, where people act and who may, and how a change lands and reaches production.
+function openAutonomySection(ws: Workspace): string {
+  const latest = readVersioned(ws.root, 'sources/open-autonomy/latest.json');
+  if (!latest) return '';
+  const snap = JSON.parse(latest.text) as Snapshot;
+  const holders = (scope: string) => snap.team.filter((m) => m.scopes.includes(scope)).map((m) => m.name).join(', ') || '[no one holds it]';
+  const prod = snap.rules.production_deploy;
+  return `
+How the system is built and operated (the Open Autonomy project ${snap.account} at ${snap.commit.slice(0, 12)}):
+
+Agents do the development work; each runs on a schedule with its models, and people act only at the declared seams.
+${snap.agents.map((a) => `- Agent profile ${a.profile}: ${a.jobs.map((j) => `${j.name} (${j.schedule})`).join(', ') || 'no scheduled jobs'}; models ${a.models.map((m) => `${m.provider} ${m.model}`).join(', ') || 'none'}`).join('\n')}
+
+Where people act:
+${(snap.seams ?? []).map((x) => `- ${x.id}: held by ${x.scope} (${holders(x.scope)}), through ${x.door}; record: ${x.record}`).join('\n') || '- [the project declares no seams]'}
+
+Change and release: ${snap.rules.pr_landing ? 'every change lands through a reviewed pull request' : '[describe how changes land]'}; ${prod ? `production is deployed by ${prod.workflow}${prod.tag_trigger ? ` from a ${prod.tag_trigger} tag` : ''} through the ${prod.environment} environment's required reviewers, with outbound access limited to ${prod.egress.join(', ') || '[none listed]'}` : '[describe how a change reaches production]'}.
+
+Subservice organizations: ${snap.vendors.join(', ')}.
+
+Sources: sources/open-autonomy/${snap.commit.slice(0, 12)}.json (the project's .open-autonomy/config.yaml, agent.json and workflows).
+`;
+}
+
 function description(ws: Workspace, e: Engagement): string {
   const a = ws.scope?.data.answers ?? {};
   const org = ws.manifest?.data.organization ?? '';
@@ -182,7 +208,7 @@ ${ws.policies.filter((p) => p.data.versions.length).map((p) => `- ${p.data.title
 Data: ${rows('systems').map((s) => s.data).filter(Boolean).join('; ') || '[describe the data the system holds]'}.
 
 Sources: scope.json, registers/systems.csv, registers/people.csv, policies/.
-
+${openAutonomySection(ws)}
 ## DC4 System incidents
 
 ${incidents.length ? incidents.map((i) => `- ${i.data.detected_at.slice(0, 10)} ${i.data.title} (${i.data.severity}, ${i.data.status})${i.data.review ? `: ${i.data.review}` : ''}`).join('\n') : 'No high or critical incident is recorded for this period.'}

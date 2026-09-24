@@ -139,10 +139,10 @@ checks passing. The gap view's program section is empty. What remains per contro
 repository holds: infrastructure and data handling in vendor consoles (AC-07 to AC-09, AC-11, CONF-01, CONF-02,
 OPS-05 to OPS-07), the penetration test and the CPA firm.
 
-Outstanding: kit 3.3.0 is not yet published, so `create --skew soc2` works only from an Open Autonomy checkout (a human
-release step in Open Autonomy). Register rows (risk decisions, vendor reviews) are not yet attributed to a person's pull
-request. The organization two-factor check was not re-run against the twin since the twin began reporting the
-requirement (twin main 6c478353). The published twin package (0.1.2) predates the twin fixes this demonstration used.
+Outstanding: kit 3.3.0 is not yet published, so `create --skew soc2` works only from an Open Autonomy checkout. The
+published twin package (0.1.2) predates the twin fixes this demonstration used. Since the demonstration: risk decisions
+and vendor reviews are attributed like every other signed act, and the organization two-factor check passes against the
+twin with an owner's token.
 
 Completion:
 - One command turns an Open Autonomy project into a workspace at a named commit: `agent.json` profiles, jobs and models, the `team` roster with scopes, the declared seams, the landing and production rules, and the vendors named by its dependencies and deploy egress; each fact carries that commit as provenance and maps to the controls and criteria it evidences. A later change surfaces as a changed design fact, never a silent overwrite.
@@ -170,10 +170,12 @@ data as evidence, failures and errors as gaps with their history, a daily GitHub
 that gates nothing, a Checks page) and the GitHub collector with five checks, demonstrated against the GitHub twin
 through a failing run, remediation and a passing run.
 
+Landed since: the Cloudflare collector (member two-factor, minimum TLS, HTTPS-only; administrators for roster
+completeness), demonstrated against the Cloudflare twin through failing checks, remediation through Cloudflare's API and
+passing checks; production deployments with the environment approval of the run that made each.
+
 Outstanding, each blocked on a twin first: identity (Google Workspace directory, Okta), an HR system, a device manager,
-and cloud posture (the AWS twin covers S3 and data services but not IAM or CloudTrail; the Cloudflare twin covers the
-deploy plane but not account members or security settings). For a project on Open Autonomy's `soc2` template the next
-collector is Cloudflare, once its twin covers account members and security settings.
+and cloud posture on AWS (the AWS twin covers S3 and data services but not IAM or CloudTrail).
 
 Completion:
 - A collector contract (inputs, credential source, output snapshot format, provenance including the generating query) documented so a customer or their agent can write a new collector.

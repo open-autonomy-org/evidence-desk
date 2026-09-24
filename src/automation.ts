@@ -9,8 +9,9 @@ import { check as validate, schema } from './schema.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { addEvidence } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
+import { cf, cfAccount, cfAll, cfIsAdmin } from './cloudflare.ts';
 
-export type CollectorSettings = { id: 'github'; enabled: boolean; params: Record<string, string> };
+export type CollectorSettings = { id: 'github' | 'cloudflare'; enabled: boolean; params: Record<string, string> };
 type Snapshot = { data: Record<string, unknown>; queries: string[] };
 type Result = { check: string; collector: string; controls: string[]; status: 'pass' | 'fail' | 'error'; detail: string };
 export type Run = { schema: string; id: string; started_at: string; finished_at: string; by: string;
@@ -107,7 +108,53 @@ const github: CollectorDef = {
   ],
 };
 
-export const COLLECTORS: CollectorDef[] = [github];
+// ── Cloudflare ─────────────────────────────────────────────────────────────────────────────────────────────────
+const TLS_ORDER = ['1.0', '1.1', '1.2', '1.3'];
+const cloudflare: CollectorDef = {
+  id: 'cloudflare', title: 'Cloudflare account and zones', credentials: ['CLOUDFLARE_API_TOKEN'],
+  params: [{ name: 'account', prompt: 'Account id or name' }, { name: 'zones', prompt: 'Zones to check, comma-separated names (all of the account\'s zones when empty)' }],
+  async collect(p) {
+    const queries: string[] = [];
+    if (!p.account) throw new Error('set the account parameter');
+    const account = await cfAccount(p.account, queries);
+    const members = (await cfAll(`/accounts/${account.id}/members`, queries)).map((m) => ({ email: m.user?.email ?? m.email, status: m.status, roles: (m.roles ?? []).map((r: any) => r.name), admin: cfIsAdmin(m), two_factor: m.user?.two_factor_authentication_enabled === true }));
+    const wanted = list(p.zones);
+    const zones = (await cfAll(`/zones?account.id=${account.id}`, queries)).filter((z) => !wanted.length || wanted.includes(z.name));
+    const missing = wanted.filter((n) => !zones.some((z) => z.name === n));
+    if (missing.length) throw new Error(`zones not found in the account: ${missing.join(', ')}`);
+    const settings: Record<string, Record<string, string | null>> = {};
+    for (const z of zones) {
+      settings[z.name] = {};
+      for (const s of ['min_tls_version', 'always_use_https']) { const r = await cf(`/zones/${z.id}/settings/${s}`, queries); settings[z.name][s] = r.status === 200 ? String(r.result?.value) : null; }
+    }
+    return { data: { account: { id: account.id, name: account.name, enforce_twofactor: account.settings?.enforce_twofactor === true }, members, zones: settings }, queries };
+  },
+  checks: [
+    { id: 'cloudflare-2fa', title: 'Every Cloudflare member uses two-factor authentication', controls: ['AC-01'], evaluate: (d) => {
+      if (d.account.enforce_twofactor) return { status: 'pass', detail: 'the account enforces two-factor authentication' };
+      const without = (d.members as any[]).filter((m) => m.status === 'accepted' && !m.two_factor).map((m) => m.email);
+      return without.length ? { status: 'fail', detail: `the account does not enforce it, and these members have none: ${without.join(', ')}` } : { status: 'pass', detail: 'every accepted member has two-factor authentication (the account does not enforce it)' };
+    } },
+    { id: 'cloudflare-tls', title: 'Zones accept only TLS 1.2 or later', controls: ['AC-09'], evaluate: (d) => {
+      const zones = Object.entries(d.zones as Record<string, any>);
+      if (!zones.length) return { status: 'error', detail: 'no zone was read' };
+      const unread = zones.filter(([, s]) => s.min_tls_version === null).map(([z]) => z);
+      if (unread.length) return { status: 'error', detail: `the minimum TLS version of ${unread.join(', ')} could not be read` };
+      const weak = zones.filter(([, s]) => TLS_ORDER.indexOf(s.min_tls_version) < TLS_ORDER.indexOf('1.2')).map(([z, s]) => `${z} (${s.min_tls_version})`);
+      return weak.length ? { status: 'fail', detail: `older TLS accepted by ${weak.join(', ')}` } : { status: 'pass', detail: 'TLS 1.2 or later everywhere' };
+    } },
+    { id: 'cloudflare-https', title: 'Zones redirect every request to HTTPS', controls: ['AC-09'], evaluate: (d) => {
+      const zones = Object.entries(d.zones as Record<string, any>);
+      if (!zones.length) return { status: 'error', detail: 'no zone was read' };
+      const unread = zones.filter(([, s]) => s.always_use_https === null).map(([z]) => z);
+      if (unread.length) return { status: 'error', detail: `the HTTPS redirect of ${unread.join(', ')} could not be read` };
+      const off = zones.filter(([, s]) => s.always_use_https !== 'on').map(([z, s]) => `${z} (${s.always_use_https})`);
+      return off.length ? { status: 'fail', detail: `plain HTTP served by ${off.join(', ')}` } : { status: 'pass', detail: 'always HTTPS' };
+    } },
+  ],
+};
+
+export const COLLECTORS: CollectorDef[] = [github, cloudflare];
 
 export function readSettings(root: string): { settings: CollectorSettings[]; version: string | null } {
   const r = readVersioned(root, 'collectors.json');
@@ -181,7 +228,10 @@ export function ciWorkflow(settings: CollectorSettings[]): string {
   return `name: Evidence Desk checks
 # Runs the workspace's enabled collectors and checks every day and commits the results. A failing check fails this
 # run so GitHub notifies you; it gates nothing. Store each credential below as a repository secret with read-only access
-# (a GitHub token as EVIDENCE_DESK_GITHUB_TOKEN: GitHub reserves the GITHUB_ prefix). It then checks who recorded each
+# (a GitHub token as EVIDENCE_DESK_GITHUB_TOKEN: GitHub reserves the GITHUB_ prefix). With an imported Open Autonomy
+# project it reads the project's public repository again (the repository named in sources/open-autonomy/latest.json;
+# whoever can change this repository can change which project is read), so a changed roster, seam or vendor shows the next
+# day, and a project that cannot be read fails the run. It checks who recorded each
 # signed act (with an imported Open Autonomy roster) and keeps one issue per due or overdue obligation, assigned to the
 # person who owes it, using this repository's own workflow token.
 on:
@@ -211,6 +261,14 @@ jobs:
         id: run
         continue-on-error: true
 ${secrets.length ? `        env:\n${secrets.map((s) => `          ${s}: \${{ secrets.${secretName(s)} }}`).join('\n')}\n` : ''}        run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" run . --by "\${{ vars.EVIDENCE_DESK_RECORDER }}"
+      - name: Read the Open Autonomy project again
+        id: reread
+        if: hashFiles('sources/open-autonomy/latest.json') != ''
+        continue-on-error: true
+        run: |
+          account=$(bun -e "console.log(JSON.parse(require('fs').readFileSync('sources/open-autonomy/latest.json', 'utf8')).account)")
+          git clone -q "https://github.com/$account.git" "$RUNNER_TEMP/project"
+          bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" open-autonomy . import --repo "$RUNNER_TEMP/project" --by "\${{ vars.EVIDENCE_DESK_RECORDER }}"
       - name: Check who recorded each signed act
         if: hashFiles('sources/open-autonomy/latest.json') != ''
         continue-on-error: true
@@ -221,15 +279,15 @@ ${secrets.length ? `        env:\n${secrets.map((s) => `          ${s}: \${{ sec
         run: |
           git config user.name "Evidence Desk checks"
           git config user.email "evidence-desk@users.noreply.github.com"
-          git add checks evidence sources
+          git add checks evidence sources registers scope.json
           git diff --cached --quiet || git commit -m "Evidence Desk checks"
           git push
       - name: Remind people of what they owe
         env:
           GITHUB_TOKEN: \${{ github.token }}
         run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" remind . --repo "\${{ github.repository }}" --within 30
-      - name: Fail when a check failed
-        if: steps.run.outcome == 'failure'
+      - name: Fail when a check failed or the project could not be read
+        if: steps.run.outcome == 'failure' || steps.reread.outcome == 'failure'
         run: exit 1
 `;
 }

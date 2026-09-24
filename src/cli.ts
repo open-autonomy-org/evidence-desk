@@ -337,7 +337,7 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => [`Read ${r.commit.slice(0, 12)} into ${r.snapshot}.`,
           r.added.length ? `Filled: ${r.added.join(', ')}.` : 'Nothing new to fill.',
           ...r.changed.map((c) => `Changed: ${c}`), ...r.conflicts.map((c) => `Differs: ${c}`), ...r.seams.map((c) => `Seam: ${c}`),
-          r.evidence ? `Recorded ${r.evidence}.` : 'None of the controls the declarations evidence is adopted yet, so they are not recorded as evidence: import again after adopt.'].filter(Boolean).join('\n'));
+          r.evidence ? (r.evidence_existing ? `The declarations are unchanged since ${r.evidence} recorded them.` : `Recorded ${r.evidence}.`) : 'None of the controls the declarations evidence is adopted yet, so they are not recorded as evidence: import again after adopt.'].filter(Boolean).join('\n'));
         return 0;
       }
       if (rest[0] === 'completeness') {
@@ -366,7 +366,7 @@ async function main(argv: string[]): Promise<number> {
       if (rest[0] === 'attribution') {
         const r = await collectAttribution(dir, { repo: one(a, 'repo') ?? '', by: one(a, 'by') ?? '' });
         const bad = r.rows.filter((x) => x.status !== 'verified');
-        out(json, r, () => [`${r.rows.length - bad.length} of ${r.rows.length} signed acts recorded by the person's own GitHub account (${r.record}, ${r.file}).`, ...bad.map((x) => `  ${x.person}: ${x.label}: ${x.status}${x.author ? ` (${x.author})` : ''}`)].join('\n'));
+        out(json, r, () => [`${r.rows.length - bad.length} of ${r.rows.length} signed acts recorded by the person's own GitHub account (${r.record}, ${r.file}).`, ...bad.map((x) => `  ${x.person || '(no one)'}: ${x.label}: ${x.status}${x.author ? ` (${x.author})` : ''}`)].join('\n'));
         return 0;
       }
       const [start, end] = (one(a, 'period') ?? '').split('..');
@@ -380,7 +380,7 @@ async function main(argv: string[]): Promise<number> {
       }
       if (rest[0] === 'github-deployments') {
         const r = await collectDeployments(dir, { repo, environment: one(a, 'environment') ?? 'production', start, end, by });
-        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} deployments.`);
+        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} deployments; ${r.unapproved} without an independent approval of the environment.`);
         return 0;
       }
       if (rest[0] === 'roster-history') {

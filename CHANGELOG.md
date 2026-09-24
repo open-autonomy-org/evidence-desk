@@ -7,6 +7,14 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Added a Cloudflare collector: two-factor authentication for every member, and each zone's minimum TLS version and
+  HTTPS-only redirect; roster completeness reads a Cloudflare account's administrators from the API. The deployment
+  population follows each deployment to its Actions run for who started it and who approved the environment, and
+  whether that approval was independent. `collect attribution` also covers a risk's treatment and a vendor's review, and
+  an act that names no one is a finding. The daily workflow reads an imported Open Autonomy project again, and the system
+  description draft states how the project builds and runs the system. An import says which vendors the project stopped
+  naming. Verified in the World against the GitHub and Cloudflare twins
+  ([volter-ai/twin 3cc17d00, 5259999c, 3aa85aaf](https://github.com/volter-ai/twin/commits/main)).
 - Demonstrated a project on Open Autonomy's `soc2` template end to end, which fixed: egress hosts of one vendor
   (`codeload.github.com`, `objects.githubusercontent.com`) are that vendor, not vendors of their own; roster history walks
   the branch's first-parent line and dates each change by when it reached the branch, so no change is lost to a history
