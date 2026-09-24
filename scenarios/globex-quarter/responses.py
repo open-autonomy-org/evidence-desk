@@ -31,6 +31,11 @@ for r in json.load(open(X)):
               "token; the Cloudflare deployments population lists the same deploy, and management's response to that deployment's exception "
               "gives what happened and what follows. No one acknowledged the failing reading before Sam's break-glass record of 2026-09-11.",
               [cf_changes,snap('2026-09-10','cloudflare'),glass])
+    elif k.startswith('unacknowledged:'):
+        R[k]=("No escalation record answers the failing reading of 2026-09-10: no one acknowledged it, and Sam's break-glass record of "
+              "2026-09-11 is the first record the organization made of the deploy. We accept it as a deviation from alert handling; from "
+              "Q4 the owner of a failing daily check acknowledges it the same day as an escalation record.",
+              [one('evidence/files/populations/escalations-*.csv'),snap('2026-09-10','cloudflare'),glass])
     elif k.startswith('check:cloudflare-https'):
         R[k]=("Sam turned Always Use HTTPS off on relay.globex.test at 16:00 UTC on 2026-08-19 while testing a redirect, and Maya turned it back "
               "on at 10:00 UTC on 2026-08-21 (the account audit log in the configuration-changes population). The daily check found it on 08-19, and Maya "

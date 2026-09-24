@@ -443,14 +443,15 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
     for (const f of x.data.files) if (!kindOfFile.has(f.path)) kindOfFile.set(f.path, k);
   }
   for (const p of packaged) if (!kindOfFile.has(p) && /^(sources\/|reviews\/|policies\/|forms\/responses\/|registers\/)/.test(p)) kindOfFile.set(p, p.startsWith('sources/github/') || p.startsWith('sources/open-autonomy/completeness/') ? 'vendor record' : 'client record');
-  const lines: { file: string; n: number; text: string; kind: 'vendor record' | 'client record' | 'client narrative' }[] = [];
+  // A table row's acts are named by its columns (merged_at, approvers), so a row carries its header as \`acts\`.
+  const lines: { file: string; n: number; text: string; acts?: string; kind: 'vendor record' | 'client record' | 'client narrative' }[] = [];
   for (const [p, kind] of kindOfFile) {
     if (!/\.(csv|json|md|txt)$/.test(p) || p.endsWith('.raw.json') || !existsSync(join(root, p))) continue;
     // A table's unit is its row; a document's (and a record's history) is the whole file, whose date may sit in its
     // heading and its facts below.
     const body = readFileSync(join(root, p), 'utf8');
     if (/\.(md|txt)$/.test(p)) { if (/20\d\d-\d\d-\d\d/.test(body)) lines.push({ file: p, n: 1, text: body.toLowerCase(), kind }); }
-    else body.split('\n').forEach((text, i) => { if (/20\d\d-\d\d-\d\d/.test(text)) lines.push({ file: p, n: i + 1, text: text.toLowerCase(), kind }); });
+    else { const rows = body.split('\n'); const header = p.endsWith('.csv') ? rows[0].toLowerCase().replace(/_/g, ' ') : ''; rows.forEach((text, i) => { if (/20\d\d-\d\d-\d\d/.test(text)) lines.push({ file: p, n: i + 1, text: text.toLowerCase(), acts: header, kind }); }); }
   }
   const period = e.period ?? { start: e.as_of ?? '', end: e.as_of ?? '' };
   // The access changes the daily snapshots show are system evidence of their day.
@@ -496,13 +497,15 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
     // by a line that names the exception's subject.
     if (!ids.length && !people.length && t.about) ids.push(...t.about.filter((x) => lines.some((l) => l.text.includes(x))));
     const subjects = [...new Set([...ids, ...people, ...ACT_WORDS.filter((w) => low.includes(w))])];
+    const acts = ACT_WORDS.filter((w) => new RegExp(`\\b${w}`).test(low)).map((w) => new RegExp(`\\b${w.replace(/-/g, '\\-')}`));
     const found: string[] = []; let worst: Claim['status'] = 'vendor record'; const missing: string[] = [];
     for (const d of eventDates) {
       // Among qualifying lines, the strongest kind wins (a system record over a client's own document, whose length
       // lets it name many subjects), then the line naming most of the claim's subjects.
       const score = (l: typeof lines[number]) => ids.filter((x) => l.text.includes(x)).length * 3 + subjects.filter((x) => l.text.includes(x)).length;
       // Lines with the date that name one of the claim's ids; failing those, lines naming at least two of its subjects.
-      const onDay = lines.filter((l) => l.text.includes(d));
+      // A line evidences the claim's fact, not only its subject: it records one of the acts the claim states.
+      const onDay = lines.filter((l) => l.text.includes(d) && (!acts.length || acts.some((w) => w.test(l.text) || w.test(l.acts ?? ''))));
       const withId = ids.length ? onDay.filter((l) => ids.some((x) => l.text.includes(x))) : [];
       // A person named on the day is as specific as an id.
       const withPerson = people.length ? onDay.filter((l) => people.some((x) => l.text.includes(x))) : [];

@@ -64,7 +64,9 @@ counts only what the package holds.
 
 An exception's `closed_by` says what ended it: a later passing reading (which shows the condition stopped, not that
 anyone remediated it) or a later completeness check. A check that reports events, such as a bypass of the branch
-rules or a Worker deployed by a person, is never closed by a quiet day.
+rules or a Worker deployed by a person, is never closed by a quiet day. Where the package holds the escalations
+population, a failing check that no escalation record names on or after its first failing reading is an exception of
+its own: the failure reached no one.
 
 The manifest's `workspace` names the workspace repository's commit at export, its origin and the remote branches
 holding it: the hosted repository's history dates every record independently of the package. A file a packaged file

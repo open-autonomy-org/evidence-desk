@@ -235,11 +235,18 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     const off = rows.filter((x) => x.answered_at && Math.abs(Date.parse(x.answered_at) - Date.parse(x.at)) > 864e5);
     if (off.length) add({ key: `answered-off:${check}`, occurred: day(off[0].at), source: `automated check ${check}`, controls: off[0].controls.join(';'), item: `${off.length} reading(s)`, detail: `the vendor's answer is dated more than a day from the run (first: run ${off[0].at}, answered ${off[0].answered_at}); those readings do not show the day they claim`, detected: day(off[0].at), resolved: '', file: off[0].snapshot });
   }
+  // A failing check reaches a person: an escalation record names the check and was received on or after its first
+  // failing reading. Where the package holds the escalations population, a failure no record answers is an exception.
+  const escFile = evidence.flatMap((x) => x.data.files).find((f) => f.path.includes('/escalations-') && f.path.endsWith('.csv'));
+  const escalations = escFile ? parseCsv(readFileSync(join(root, escFile.path), 'utf8'), escFile.path).rows : null;
   for (const [check, rows] of history) {
     let streak: typeof rows = [];
+    const answeredBy = (from: string) => escalations?.find((x) => `${x.channel} ${x.summary}`.includes(check) && day(x.received_at) >= day(from));
+    const unacknowledged = () => { if (!escalations || !streak.length || answeredBy(streak[0].at)) return;
+      add({ key: `unacknowledged:${check}:${streak[0].run.split('/').pop()!.replace(/\.json$/, '')}`, occurred: day(streak[0].at), source: `automated check ${check}`, controls: 'OPS-01;MON-01', item: `check ${check} failing from ${day(streak[0].at)}`, detail: `no escalation record names the check on or after its first failing reading (${escFile!.path})`, detected: day(streak[0].at), resolved: '', file: streak[0].run }); };
     const close = (end?: { at: string; run: string }) => { if (!streak.length) return; add({ key: `check:${check}:${streak[0].run.split('/').pop()!.replace(/\.json$/, '')}`, occurred: day(streak[0].at), source: `automated check ${check}`, controls: streak[0].controls.join(';'), item: `${streak.length} failing reading(s)`, detail: streak.at(-1)!.detail, detected: day(streak[0].at), resolved: end && !EVENT_CHECKS.has(check) ? day(end.at) : '', closed_by: !end ? '' : EVENT_CHECKS.has(check) ? `not closed by a reading: the check reports events, and ${day(end.at)}'s reading found none new` : `the reading of ${day(end.at)} passed again (${end.run}); remediation is management's to show`, file: streak[0].run }); streak = []; };
-    for (const row of rows) { if (row.status === 'fail') streak.push(row); else if (row.status === 'pass') close(row); }
-    close();
+    for (const row of rows) { if (row.status === 'fail') streak.push(row); else if (row.status === 'pass') { unacknowledged(); close(row); } }
+    unacknowledged(); close();
   }
 
   // Every identity seen acting in the package's populations, what kind it is, and whether an access review in the
