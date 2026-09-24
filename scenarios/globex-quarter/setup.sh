@@ -5,7 +5,8 @@ mkdir -p $RT/evidence-desk-oa; sed "s|\${TWIN_CHECKOUT}|${TWIN_CHECKOUT:?set TWI
 timeout 60 $V down evidence-desk-oa --root $RT 2>&1 | tail -1
 timeout 90 $V up $RT/evidence-desk-oa/world.config.json --name evidence-desk-oa --env-file $RT/evidence-desk-oa/app.env --root $RT --owner globex-quarter 2>&1 | tail -1
 clock 2026-06-15T09:00:00Z; seed - org; for u in maya-gx sam-gx lee-gx globex-dev globex-review; do seed - token $u > $STATE/tok-$u; done
-seed - member globex-dev member; seed - member globex-review member
+seed maya-gx member globex-dev member; seed maya-gx member globex-review member
+for u in sam-gx globex-dev globex-review; do seed $u accept; done
 seed - cf; for u in maya sam deploy; do seed - cftoken $u@globex.test > $STATE/cftok-$u@globex.test; done
 cfas maya@globex.test min_tls_version 1.2; cfas maya@globex.test always_use_https on
 rm -rf $D && mkdir -p $D

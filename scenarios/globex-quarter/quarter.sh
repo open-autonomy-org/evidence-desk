@@ -52,7 +52,7 @@ PY
 Relay has no servers or office network: requests reach it only through Cloudflare's edge (zone relay.globex.test), where TLS 1.2+ and HTTPS-only are enforced and checked daily. Outbound calls from the deploy workflow are limited to its egress allow-list. There is no company hardware holding customer data; engineers' laptops hold none (device attestations). Customer data is disposed of by the 30-day expiry and on account closure." ;;
     2026-08-05) zsh $S/onboard.sh lee lee-gx maya-gx ${1}T13:00:00Z "MacBook Air 13 (macOS 26)" | tail -1
       # GitHub access once the agreements are signed, and the roles record updated for the new engineer.
-      clock ${1}T14:00:00Z; seed - member lee-gx member
+      clock ${1}T14:00:00Z; seed maya-gx member lee-gx member; seed lee-gx accept
       clock ${1}T15:00:00Z; evdoc maya maya-gx sam-gx HR-06 roles-and-responsibilities-2026-08-05.md "Security roles and responsibilities (Lee Park joins)" "# Roles, from 2026-08-05
 Maya Chen, owner: security program, policies, production deploys, access and vendor reviews. Sam Okafor, engineer: release review, change review, access review of Maya's accounts. Lee Park, engineer (joined 2026-08-03, GitHub access 2026-08-05 after the agreements): direction. Agents: development and the weekly internal audit, through reviewed pull requests only." ;;
     2026-08-12) clock ${1}T22:40:00Z; change sam fix/signature-header "Hotfix: accept the legacy signature header"; clock ${1}T22:50:00Z; pr_relay sam-gx fix/signature-header "Hotfix: accept the legacy signature header" maya-gx

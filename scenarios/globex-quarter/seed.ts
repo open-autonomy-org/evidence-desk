@@ -36,8 +36,10 @@ if (step === 'org') {
   for (const name of ['relay', 'compliance']) await call('POST', '/orgs/globex/repos', { name, private: name === 'compliance' });
   await call('PUT', '/_twin/orgs/globex/two-factor-requirement', { enabled: true });
   console.log('org globex');
-} else if (step === 'member') { // member <login> <role>
-  await call('PUT', `/orgs/globex/memberships/${a}`, { role: b }); console.log('member', a, b);
+} else if (step === 'member') { // member <login> <role>: an admin invites the account; it is a member once it accepts
+  await call('PUT', `/orgs/globex/memberships/${a}`, { role: b }, T); console.log('member', a, b);
+} else if (step === 'accept') { // accept: the invited account accepts, with its own token
+  const m = await call('PATCH', '/user/memberships/orgs/globex', { state: 'active' }, T); console.log('accepted', m.user?.login, m.state);
 } else if (step === 'token') {
   console.log((await call('POST', `/_twin/users/${a}/tokens`, {})).token);
 } else if (step === 'protect') { // the ruleset and gated production environment the kit's setup would make
