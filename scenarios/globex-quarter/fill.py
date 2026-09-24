@@ -33,7 +33,7 @@ open(d,'w').write(s)
 t=open(a).read()
 t=re.sub(r'<!-- Drafted by Evidence Desk.*?-->\n\n', '', t, flags=re.S)
 qual=_sub(open(here+'/qualification.md').read().strip()) if os.path.exists(here+'/qualification.md') else None
-if qual: t=re.sub(r"\[The workspace found \d+ deviation\(s\).*?\]\n(- .*\n)+", qual+'\n', t, flags=re.S); t=t.replace('and they operated effectively throughout that period.', 'and they operated effectively throughout that period, except for the matters described in the following paragraph.') if qual else t
+if qual: t=re.sub(r"\[The workspace found \d+ deviation\(s\).*?\]\n((?:- |Of design:|Of operation:).*\n)+", qual+'\n', t, flags=re.S); t=t.replace('and they operated effectively throughout that period.', 'and they operated effectively throughout that period, except for the matters described in the following paragraph.') if qual else t
 # Management names each exception still open at the period's end that its matters do not already name, from the
 # register the package will carry, and says when the system began operating if that was inside the period.
 if len(sys.argv)>3 and os.path.exists(sys.argv[3]):
