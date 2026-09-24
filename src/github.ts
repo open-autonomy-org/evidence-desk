@@ -46,16 +46,28 @@ export async function collectChanges(root: string, input: { repo: string; start:
   const meta = await get(`/repos/${input.repo}`) as { default_branch: string };
   const branch = meta.default_branch;
   const pulls = await all<Pull & { merge_commit_sha?: string | null; base?: { ref?: string } }>(`/repos/${input.repo}/pulls?state=closed&sort=created&direction=asc`);
-  const merged = pulls.items.filter((p) => inPeriod(p.merged_at, input.start, input.end) && (p.base?.ref ?? branch) === branch);
+  const intoBranch = pulls.items.filter((p) => p.merged_at && (p.base?.ref ?? branch) === branch);
+  const merged = intoBranch.filter((p) => inPeriod(p.merged_at, input.start, input.end));
   const raw: Record<string, unknown> = { repository: meta, pulls: pulls.items, reviews: {}, pull_commits: {} };
   const rows: Record<string, string>[] = [];
+  // Every commit any merged pull request into the branch carries, whenever it merged: a pull request merged after the
+  // period can carry commits dated inside it.
   const carried = new Set<string>();
+  const capped: number[] = [];
+  for (const p of intoBranch.filter((x) => !merged.includes(x))) {
+    const commits = (await all<{ sha: string }>(`/repos/${input.repo}/pulls/${p.number}/commits`)).items;
+    (raw.pull_commits as Record<string, unknown>)[p.number] = commits;
+    for (const c of commits) carried.add(c.sha);
+    if (p.merge_commit_sha) carried.add(p.merge_commit_sha);
+    if (commits.length >= 250) capped.push(p.number);
+  }
   for (const p of merged) {
     const reviews = (await all<Review>(`/repos/${input.repo}/pulls/${p.number}/reviews`)).items;
     const commits = (await all<{ sha: string }>(`/repos/${input.repo}/pulls/${p.number}/commits`)).items;
     (raw.reviews as Record<string, unknown>)[p.number] = reviews; (raw.pull_commits as Record<string, unknown>)[p.number] = commits;
     for (const c of commits) carried.add(c.sha);
     if (p.merge_commit_sha) carried.add(p.merge_commit_sha);
+    if (commits.length >= 250) capped.push(p.number);
     const approvals = reviews.filter((r) => r.state === 'APPROVED');
     const author = p.user?.login ?? '';
     const approvers = [...new Set(approvals.map((r) => r.user?.login ?? ''))];
@@ -65,20 +77,30 @@ export async function collectChanges(root: string, input: { repo: string; start:
   const onBranch = (await all<{ sha: string; commit?: { message?: string; author?: { name?: string; date?: string }; committer?: { date?: string } }; author?: { login?: string } | null }>(
     `/repos/${input.repo}/commits?sha=${encodeURIComponent(branch)}&since=${input.start}T00:00:00Z&until=${input.end}T23:59:59Z`)).items;
   raw.branch_commits = onBranch;
+  // A commit no listed pull request carries is asked about once more: GitHub associates rebased and squashed commits with
+  // the pull request that produced them. Only a commit with no merged pull request into the branch is a direct push.
+  const lookups: Record<string, unknown> = {};
+  raw.commit_pulls = lookups;
+  const unmatched: typeof onBranch = [];
   for (const c of onBranch.filter((x) => !carried.has(x.sha))) {
+    const found = await get(`/repos/${input.repo}/commits/${c.sha}/pulls`) as { merged_at: string | null; base?: { ref?: string } }[];
+    lookups[c.sha] = found;
+    if (!found.some((p) => p.merged_at && (p.base?.ref ?? branch) === branch)) unmatched.push(c);
+  }
+  for (const c of unmatched) {
     rows.push({ kind: 'direct push', number: '', commit: c.sha, title: (c.commit?.message ?? '').split('\n')[0], author: c.author?.login ?? c.commit?.author?.name ?? '', merged_at: c.commit?.committer?.date ?? '', merged_by: '', approvals: '0', approvers: '', independent_approval: 'no' });
   }
   const stem = `evidence/files/populations/github-changes-${input.repo.replace('/', '-')}-${input.start}-${input.end}-${Date.now()}`;
   writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['kind', 'number', 'commit', 'title', 'author', 'merged_at', 'merged_by', 'approvals', 'approvers', 'independent_approval'], rows }), null);
   writeVersioned(root, `${stem}.raw.json`, JSON.stringify(raw, null, 2) + '\n', null);
-  const query = `GET /repos/${input.repo}/pulls?state=closed (all ${pulls.pages} page(s)), keeping those merged into ${branch} ${input.start}..${input.end}; GET /repos/${input.repo}/pulls/{n}/reviews and /commits for each; GET /repos/${input.repo}/commits?sha=${branch}&since&until for the period, reconciling every commit against the merged pull requests`;
+  const query = `GET /repos/${input.repo}/pulls?state=closed (all ${pulls.pages} page(s)), keeping those merged into ${branch} ${input.start}..${input.end}; GET /repos/${input.repo}/pulls/{n}/reviews and /commits for each; GET /repos/${input.repo}/commits?sha=${branch}&since&until for the period, reconciling every commit against every merged pull request into ${branch} and, for any left, GET /repos/${input.repo}/commits/{sha}/pulls`;
   const unknown = rows.filter((r) => r.independent_approval === 'unknown').length;
   const notIndependent = rows.filter((r) => r.independent_approval === 'no').length;
   const direct = rows.filter((r) => r.kind === 'direct push').length;
   const evidence = addEvidence(root, {
     title: `Population: ${rows.length} changes to ${input.repo}'s ${branch}, ${input.start} to ${input.end}`, controls: applicableOf(root, ['CHG-01', 'CHG-02']), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'github', query },
-    notes: `Complete: every page of closed pull requests and of the branch's commits in the period was read, and every commit is either carried by a merged pull request or listed as a direct push (${direct}). ${notIndependent} reached the branch without an approval from someone other than the author; independence could not be established for ${unknown}. Raw responses: ${stem}.raw.json.`,
+    notes: `Complete: every page of closed pull requests and of the branch's commits in the period was read, and every commit is either carried by a merged pull request or listed as a direct push (${direct})${capped.length ? `; GitHub lists at most 250 commits of a pull request, and #${capped.join(', #')} reached that cap, so their later commits were matched through the per-commit lookup` : ''}. ${notIndependent} reached the branch without an approval from someone other than the author; independence could not be established for ${unknown}. Raw responses: ${stem}.raw.json.`,
   });
   return { evidence, rows: rows.length, unknown, notIndependent, direct };
 }

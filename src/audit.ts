@@ -7,7 +7,7 @@ import { dirname, join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { check, schema } from './schema.ts';
 import { parseCsv } from './csv.ts';
-import { fileHash, readVersioned, sha256, writeVersioned } from './files.ts';
+import { fileHash, inside, readVersioned, sha256, writeVersioned } from './files.ts';
 import { categories, categoryAnswer, criteria } from './catalog.ts';
 import { computeGaps } from './gaps.ts';
 import type { Snapshot } from './open-autonomy.ts';
@@ -336,17 +336,25 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   const draftDir = join(root, base(id), 'drafts');
   const problems: string[] = [];
   // Drafts go to the firm only once management has finished them, and every source a draft cites travels with it.
-  if (existsSync(draftDir)) for (const f of readdirSync(draftDir)) {
+  // A cited path must stay inside the workspace; a folder the draft cites that is empty or absent backs a "none".
+  if (existsSync(draftDir)) for (const f of readdirSync(draftDir, { withFileTypes: true }).filter((x) => x.isFile()).map((x) => x.name)) {
     const rel = `${base(id)}/drafts/${f}`;
     const text = readFileSync(join(root, rel), 'utf8');
-    if (text.includes('<!-- Drafted by Evidence Desk') || /\[[^\]\n]{3,}\](?!\()/.test(text)) problems.push(`${rel} still has its drafting comment or a [bracketed] item to fill`);
+    const prose = text.replace(/```[\s\S]*?```/g, '');
+    if (text.includes('<!-- Drafted by Evidence Desk') || /\[[^\]]{3,}\](?![(\[])/.test(prose)) problems.push(`${rel} still has its drafting comment or a [bracketed] item to fill`);
     paths.add(rel);
-    for (const line of text.split('\n').filter((l) => l.startsWith('Sources:'))) for (const tok of line.slice(8).split(/[,;]/).map((t) => t.trim().replace(/\s*\(.*$/, '').replace(/\.$/, ''))) {
-      if (!/^[\w.-]+(\/[\w.*-]*)*$/.test(tok) || !(tok.includes('/') || /\.(json|csv|md)$/.test(tok))) continue;
-      const globbed = tok.includes('*') || tok.endsWith('/') ? listUnder(root, tok.replace(/\*.*$/, '').replace(/\/$/, '')).filter((x) => !tok.includes('*') || new RegExp(`^${tok.replace(/[.]/g, '\\.').replace(/\*/g, '[^/]*')}$`).test(x)) : [tok];
-      if (tok.endsWith('/') && !globbed.length) continue; // an empty or absent folder: the draft's "none" rests on it
-      if (!globbed.length || globbed.some((x) => !existsSync(join(root, x)))) problems.push(`${rel} cites ${tok}, which is not in the workspace`);
-      else for (const x of globbed) paths.add(x);
+    for (const line of prose.split('\n').filter((l) => /^\s*(?:[-*]\s*)?\**Sources:?\**:?/.test(l))) {
+      for (const raw of line.replace(/^\s*(?:[-*]\s*)?\**Sources:?\**:?/, '').replace(/\([^)]*\)/g, '').split(/[,;]/)) {
+        const tok = raw.trim().replace(/\.$/, '');
+        if (!(tok.includes('/') || /\.(json|csv|md)$/.test(tok)) || /\s/.test(tok)) continue;
+        const folder = tok.endsWith('/') || tok.includes('*');
+        const dir = tok.replace(/\*.*$/, '').replace(/\/$/, '');
+        try { inside(root, dir); } catch { problems.push(`${rel} cites ${tok}, which is not a path inside the workspace`); continue; }
+        const globbed = folder ? listUnder(root, dir).filter((x) => !tok.includes('*') || new RegExp(`^${tok.replace(/[.]/g, '\\.').replace(/\*/g, '[^/]*')}$`).test(x)) : [tok];
+        if (folder && !globbed.length) continue;
+        if (!globbed.length || globbed.some((x) => !existsSync(join(root, x)))) problems.push(`${rel} cites ${tok}, which is not in the workspace`);
+        else for (const x of globbed) paths.add(x);
+      }
     }
   }
   const evidenceIds = new Set(reqs.flatMap((r) => [...r.data.evidence, ...(r.data.population ? [r.data.population] : []), ...(r.data.samples ?? []).flatMap((s) => s.evidence ?? [])]));
@@ -407,7 +415,8 @@ export function exportPackage(root: string, id: string, out: string): { files: n
 
 Created ${manifest.created_at}. Start with \`review/index.html\`: the exceptions register, each automated check across the
 period, every request with its evidence, and the control matrix, each line linked to the file it comes from
-(\`review/*.csv\` hold the same tables). \`manifest.json\` lists every file under \`workspace/\` and \`review/\` with its SHA-256. Check it with
+(\`review/*.csv\` hold the same tables). The views were derived from \`workspace/\` when the package was made; the
+manifest shows they are unchanged since, not that they were derived correctly: every line names its source file. \`manifest.json\` lists every file under \`workspace/\` and \`review/\` with its SHA-256. Check it with
 \`evidence-desk audit verify <this folder>\`, or compare the hashes with any SHA-256 tool. To respond, edit the request
 files under \`workspace/${base(id)}/requests/\` (add to each thread with side "firm", set status "accepted" or "returned",
 add sample items) and send the folder back. A hash shows that a file is unchanged; it does not show who made it.
@@ -562,6 +571,11 @@ export function packageState(dir: string) {
 export function respondToException(root: string, id: string, key: string, text: string, by: string): { file: string } {
   readEngagement(root, id);
   if (!text.trim()) throw new Error('the response needs --response <text>');
+  const ws = loadWorkspace(root);
+  const e = readEngagement(root, id).data;
+  const all = new Set([...ws.evidence.map((x) => x.path), ...listUnder(root, 'sources'), ...ws.runs.map((r) => r.path)]);
+  const known = parseCsv(buildViews(root, ws, e, listRequests(root, id), all, now()).get('review/exceptions.csv')!, 'exceptions.csv').rows.map((r) => r.key);
+  if (!known.includes(key)) throw new Error(`${key} is not an exception the workspace derives for engagement ${id}; take the key from review/exceptions.csv`);
   if (!(loadWorkspace(root).registers.people?.data.rows ?? []).some((r) => r.id === by)) throw new Error(`${by || '(none)'} is not in registers/people.csv`);
   const rel = `${base(id)}/exceptions.json`;
   const cur = readVersioned(root, rel);
