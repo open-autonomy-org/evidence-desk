@@ -479,3 +479,34 @@ export async function collectRuleChanges(root: string, input: { repo: string; st
   });
   return { evidence, rows: rows.length, weakening };
 }
+
+// The non-human identities with access to production, as GitHub and the project's declarations list them now: deploy
+// keys, repository and environment secrets (with when each was last set), the organization's app installations, and
+// the Open Autonomy project's agents with their models. The subjects an access review of machines covers.
+export async function collectNonHumanAccess(root: string, input: { repo: string; org: string; environment: string; by: string }): Promise<{ evidence: string; rows: number }> {
+  const source = await provenance();
+  const raw: Record<string, unknown> = { provenance: source };
+  const tryGet = async (path: string) => { try { return await get(path); } catch (e) { return { unavailable: (e as Error).message.slice(0, 160) }; } };
+  const rows: Record<string, string>[] = [];
+  const keys = await tryGet(`/repos/${input.repo}/keys`) as any; raw.deploy_keys = keys;
+  if (Array.isArray(keys)) for (const k of keys) rows.push({ kind: 'deploy key', name: String(k.title ?? k.id), scope: input.repo, access: k.read_only ? 'read' : 'write', created_at: String(k.created_at ?? ''), last_set: '', detail: '' });
+  const secrets = await tryGet(`/repos/${input.repo}/actions/secrets`) as any; raw.repository_secrets = secrets;
+  for (const s of secrets?.secrets ?? []) rows.push({ kind: 'repository secret', name: s.name, scope: input.repo, access: 'every workflow', created_at: String(s.created_at ?? ''), last_set: String(s.updated_at ?? ''), detail: '' });
+  const envSecrets = await tryGet(`/repos/${input.repo}/environments/${encodeURIComponent(input.environment)}/secrets`) as any; raw.environment_secrets = envSecrets;
+  for (const s of envSecrets?.secrets ?? []) rows.push({ kind: 'environment secret', name: s.name, scope: `${input.repo} ${input.environment}`, access: `jobs approved into ${input.environment}`, created_at: String(s.created_at ?? ''), last_set: String(s.updated_at ?? ''), detail: '' });
+  const installs = await tryGet(`/orgs/${input.org}/installations`) as any; raw.app_installations = installs;
+  for (const i of installs?.installations ?? []) rows.push({ kind: 'app installation', name: String(i.app_slug ?? i.id), scope: `${input.org} (${i.repository_selection ?? ''})`, access: Object.entries(i.permissions ?? {}).map(([k, v]) => `${k}:${v}`).join(' '), created_at: String(i.created_at ?? ''), last_set: String(i.updated_at ?? ''), detail: '' });
+  const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
+  if (latest) { const snap = JSON.parse(latest.text) as Snapshot; raw.agents = snap.agents;
+    for (const a of snap.agents) rows.push({ kind: 'agent', name: a.profile, scope: snap.account, access: 'the project repository through the landing workflow', created_at: '', last_set: '', detail: `models ${a.models.map((m) => `${m.provider} ${m.model}`).join(', ') || 'none'}; jobs ${a.jobs.map((j) => j.name).join(', ') || 'none'}` }); }
+  const stem = `evidence/files/listings/nonhuman-access-${input.repo.replace('/', '-')}-${clockDate().toISOString().slice(0, 10)}-${Date.now()}`;
+  writeVersioned(root, `${stem}.raw.json`, JSON.stringify(raw, null, 2) + '\n', null);
+  writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['kind', 'name', 'scope', 'access', 'created_at', 'last_set', 'detail'], rows }), null);
+  const unread = ['deploy_keys', 'repository_secrets', 'environment_secrets', 'app_installations'].filter((k) => (raw[k] as { unavailable?: string })?.unavailable);
+  const evidence = addEvidence(root, {
+    title: `Non-human access to ${input.repo} as of ${clockDate().toISOString().slice(0, 10)}: ${rows.length} identities`, controls: applicableOf(root, ['AC-03', 'AC-05']), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
+    source: { kind: 'collector', name: 'github', query: `GET /repos/${input.repo}/keys, /actions/secrets, /environments/${input.environment}/secrets; GET /orgs/${input.org}/installations; the project's agents from its declarations` },
+    notes: `A listing as of its date, not a population over a period.${unread.length ? ` Not readable with the token: ${unread.join(', ')}.` : ''} Secret values are never read; last_set is when each was last written. Raw responses: ${stem}.raw.json.`,
+  });
+  return { evidence, rows: rows.length };
+}

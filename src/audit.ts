@@ -455,6 +455,10 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   // The latest attribution check travels with every package: it names the pull request behind each person's act, which
   // the firm traces, and it is a record of the program rather than evidence of any one control.
   if (readVersioned(root, 'sources/github/attribution.json')) paths.add('sources/github/attribution.json');
+  // So does the latest listing of non-human access: the machines an access review covers, and what a recorded credential
+  // rotation is checked against.
+  const machines = ws.evidence.filter((x) => x.data.files.some((f) => f.path.includes('/nonhuman-access-'))).sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
+  if (machines) { paths.add(machines.path); for (const f of machines.data.files) if (existsSync(join(root, f.path))) paths.add(f.path); }
   // What a firm reconciles against: the registers, every control the included evidence cites, the checks run during the
   // period, the project's declarations and each roster completeness check.
   for (const f of listUnder(root, 'registers')) paths.add(f);

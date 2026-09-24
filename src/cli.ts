@@ -16,8 +16,8 @@ import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, reviewAnswe
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { computeObligations } from './obligations.ts';
 import { collectRosterHistory, collectSeamRecords, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
-import { checkCompleteness, collectChanges, collectDeployments, collectAttribution, collectRuleChanges, syncReminders } from './github.ts';
-import { collectCloudflareChanges } from './cloudflare.ts';
+import { checkCompleteness, collectChanges, collectDeployments, collectAttribution, collectNonHumanAccess, collectRuleChanges, syncReminders } from './github.ts';
+import { collectCloudflareChanges, collectWorkerDeployments } from './cloudflare.ts';
 import { COLLECTORS, checkTitle, ciWorkflow, configureCollector, readSettings, runChecks } from './automation.ts';
 import { respondToException, actOnRequest, createEngagement, draft, exportPackage, firmSummary, importRequests, importReturn, listRequests, readEngagement, verifyPackage } from './audit.ts';
 import { clockDate } from './clock.ts';
@@ -60,10 +60,14 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                                           populations from GitHub with their queries (needs GITHUB_TOKEN)
   collect <dir> cloudflare-changes --account <id or name> --period <start>..<end> --by <person>
                                           the account's audit log: who changed what (needs CLOUDFLARE_API_TOKEN)
+  collect <dir> cloudflare-deployments --account <id or name> --script <worker> --period <start>..<end> --by <person>
+                                          what reached production on Cloudflare, matched to the GitHub deployments
   collect <dir> roster-history --repo <checkout> --period <start>..<end> --by <person>
                                           every change to the Open Autonomy roster, from git
   collect <dir> seam-records --repo <checkout> --period <start>..<end> --by <person>
                                           the acts an Open Autonomy project records under records/, from git
+  collect <dir> nonhuman-access --repo <owner/name> --org <org> [--environment <name>] --by <person>
+                                          deploy keys, secrets, app installations and agents with access (needs GITHUB_TOKEN)
   collect <dir> attribution --repo <owner/name of the workspace's repository> --by <person>
                                           whether each signed act was merged from its person's own GitHub pull request
   collectors <dir> [<id> [--enable|--disable] [--set key=value ...]]
@@ -376,6 +380,11 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => [`${r.rows.length - bad.length} of ${r.rows.length} signed acts recorded by the person's own GitHub account (${r.record}, ${r.file}).`, ...bad.map((x) => `  ${x.person || '(no one)'}: ${x.label}: ${x.status}${x.author ? ` (${x.author})` : ''}`)].join('\n'));
         return 0;
       }
+      if (rest[0] === 'nonhuman-access') {
+        const r = await collectNonHumanAccess(dir, { repo: one(a, 'repo') ?? '', org: one(a, 'org') ?? '', environment: one(a, 'environment') ?? 'production', by: one(a, 'by') ?? '' });
+        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} non-human identities.`);
+        return 0;
+      }
       const [start, end] = (one(a, 'period') ?? '').split('..');
       if (!start || !end) throw new Error('collect needs --period <start>..<end>');
       const by = one(a, 'by') ?? '';
@@ -410,7 +419,12 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => `Recorded ${r.evidence}: ${r.rows} Cloudflare configuration changes; ${r.unnamed} by someone not on the roster or not named.`);
         return 0;
       }
-      throw new Error('collect needs github-changes, github-deployments, github-rule-changes, cloudflare-changes, roster-history, seam-records or attribution');
+      if (rest[0] === 'cloudflare-deployments') {
+        const r = await collectWorkerDeployments(dir, { account: one(a, 'account') ?? '', script: one(a, 'script') ?? '', start, end, by });
+        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} Worker deployments; ${r.unmatched} with no matching GitHub deployment.`);
+        return 0;
+      }
+      throw new Error('collect needs github-changes, github-deployments, github-rule-changes, cloudflare-changes, cloudflare-deployments, roster-history, seam-records or attribution');
     }
     case 'collectors': {
       if (rest[0]) configureCollector(dir, rest[0], { ...(a.flags.has('enable') ? { enabled: true } : a.flags.has('disable') ? { enabled: false } : {}), ...(a.flags.has('set') ? { params: pairs(a.flags.get('set')!) } : {}) });

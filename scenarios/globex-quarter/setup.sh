@@ -31,6 +31,7 @@ PY
 git -C $D/relay init -q -b main && git -C $D/relay add -A && gcommit $D/relay maya "Relay from the Open Autonomy soc2 template: roster, seams, production door"
 U=$($V url evidence-desk-oa github --root $RT); git -C $D/relay remote add origin $U/globex/relay.git && gpush $D/relay main
 seed maya-gx protect | sed -n 's/^env //p' > $STATE/env-id; echo "env $(cat $STATE/env-id)"
+seed maya-gx secret CLOUDFLARE_API_TOKEN
 clock 2026-06-22T10:00:00Z; W=$D/compliance
 ed init $W --org "Globex" | head -1; ed open-autonomy $W import --repo $D/relay --by maya | tail -1
 ed scope $W --set services="Relay: receives customers' webhooks, stores them for 30 days and replays them on request" infrastructure="Cloudflare Workers and Durable Objects (global)" security_contact=security@globex.test availability=true confidentiality=true processing_integrity=false privacy=false hosts_customer_data=true has_office=false background_checks_required=false | tail -1
