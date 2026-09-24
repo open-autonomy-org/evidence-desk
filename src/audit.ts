@@ -232,7 +232,10 @@ function description(ws: Workspace, e: Engagement): string {
   const rows = (name: 'people' | 'systems' | 'vendors') => ws.registers[name]?.data.rows ?? [];
   const incidents = ws.incidents.filter((i) => inPeriod(i.data.detected_at, e) && (i.data.severity === 'high' || i.data.severity === 'critical'));
   const approvals = ws.policies.flatMap((p) => p.data.versions.filter((v) => inPeriod(v.approved_at, e)).map((v) => `${p.data.title} version ${v.version} approved ${v.approved_at.slice(0, 10)}`));
-  const when = e.type === 'type1' ? `as of ${e.as_of}` : `for the period ${e.period!.start} to ${e.period!.end}`;
+  // The same period the assertion covers: from the day a system created inside the period began operating.
+  const cfgD = e.type === 'type2' ? periodPopulation(ws, e, 'configuration of') : null;
+  const bornD = (cfgD?.rows ?? []).filter((r) => r.action === 'create' && r.resource.startsWith('script ')).map((r) => r.at.slice(0, 10)).sort()[0];
+  const when = e.type === 'type1' ? `as of ${e.as_of}` : bornD && bornD > e.period!.start ? `from ${bornD}, when the system began operating, to ${e.period!.end}` : `for the period ${e.period!.start} to ${e.period!.end}`;
   return `# Description of ${org}'s system ${when}
 
 <!-- Drafted by Evidence Desk from the workspace on ${now().slice(0, 10)}. Each section names its sources. Review every section,
@@ -746,8 +749,8 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   const omitted = ['Evidence outside the engagement window and evidence of excluded controls stay in the workspace; the control matrix lists every control with its evidence ids, and the firm may ask for any of it.',
     ...[...absent].sort(([a], [b]) => a.localeCompare(b)).map(([ref, by]) => `${ref}: cited by ${by}, and not in the workspace`),
     // Each committed file the package leaves out, by name, so the firm need not diff the history to find it.
-    ...(() => { try { return execFileSync('git', ['-C', root, 'ls-files'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).split('\n').filter((f) => f && !paths.has(f) && f !== 'evidence-desk.json')
-      .map((f) => `${f}: ${f.startsWith('evidence/') ? 'evidence outside the window or of an excluded control' : f.startsWith('checks/runs/') ? 'a check run outside the period' : f.startsWith('.github/') || f === 'collectors.json' || f === 'trust.json' ? 'the workspace\'s own configuration' : 'not cited by any packaged file'}`); } catch { return []; } })()];
+    ...(() => { try { return execFileSync('git', ['-C', root, 'ls-files'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).split('\n').filter((f) => f && !paths.has(f))
+      .map((f) => `${f}: ${f.startsWith('evidence/') ? 'evidence outside the window or of an excluded control' : f.startsWith('checks/runs/') ? 'a check run outside the period' : f.startsWith('.github/') || f === 'collectors.json' || f === 'trust.json' || f === 'evidence-desk.json' ? 'the workspace\'s own configuration' : 'not cited by any packaged file'}`); } catch { return []; } })()];
   const described = existsSync(join(root, base(id), 'drafts', 'description.md')) ? readFileSync(join(root, base(id), 'drafts', 'description.md'), 'utf8') : null;
   // The workspace's own history on its default line: who merged each change to the program's records and when, so a
   // register edit or an attribution row can be traced to the commit and pull request that made it.
@@ -757,7 +760,7 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   } catch { /* a workspace that is not a Git repository has no history to ship */ }
   views.set('review/claims.csv', writeCsv({ columns: ['source', 'status', 'claim', 'detail'], rows: claimsLedger(root, ws, e.data, id, paths, created.slice(0, 10)) }));
   if (described) views.set('review/description-lint.csv', writeCsv({ columns: ['rule', 'status', 'detail'], rows: lintDescription(ws, e.data, described, assertionOf(root, id)) }));
-  views.set('README.md', readme(ws.manifest?.data.organization ?? '', e.data.id, created, id, omitted.length - 1));
+  views.set('README.md', readme(ws.manifest?.data.organization ?? '', e.data.id, created, id, absent.size));
   const derived = [...views].sort(([a], [b]) => a.localeCompare(b)).map(([p, text]) => {
     const dest = join(out, p);
     mkdirSync(dirname(dest), { recursive: true });

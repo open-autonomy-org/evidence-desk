@@ -53,16 +53,23 @@ if len(sys.argv)>3 and os.path.exists(sys.argv[3]):
             line=m.group(0).lower()
             if x.get('occurred') and x['occurred'] in line and any(w in line for w in words): return m
         return None
+    grouped={}
     for x in add:
         m=covering(x)
         if m:
-            t=t[:m.end()]+f" (exceptions register: {x['key']})"+t[m.end():]; continue
+            grouped.setdefault(m.group(1), []).append(x['key']); continue
         # A matter goes with the others, before the signature.
         sig=t.find('\nSigned by:'); sig=len(t) if sig<0 else sig
         t=t[:sig].rstrip('\n')+f"\n\n({chr(n)}) {x['item']}: {x['detail']}{' (of design: it stood through the period)' if x.get('nature')=='design' else ''}.\n\n"+t[sig:].lstrip('\n'); n+=1
     # A matter of design qualifies the design statement as well as the operating one.
     if any(x.get('nature')=='design' for x in _json.load(open(sys.argv[3]))) and 'except for the matters of design' not in t:
         t=t.replace('to provide reasonable assurance that our', 'to provide reasonable assurance, except for the matters of design described below, that our',1)
+    # Each matter cites every register row it covers: the rows its text names, and the views grouped under it.
+    rows=_json.load(open(sys.argv[3]))
+    def cite(m):
+        keys=[x['key'] for x in rows if x['item'] in m.group(0)]+grouped.get(m.group(1), [])
+        return m.group(0)+(f" (exceptions register: {', '.join(dict.fromkeys(keys))})" if keys and '(exceptions register:' not in m.group(0) else '')
+    t=re.sub(r'^\(([a-z])\) .*$', cite, t, flags=re.M)
 born=re.search(r'Worker (\S+) was created on (\d{4}-\d\d-\d\d) by (\S+)', s)
 if born and born.group(2) not in t:
     t=t.replace('The matters are:', f"Relay began operating on {born.group(2)}, when {born.group(3)} created the {born.group(1)} Worker; these statements cover it from then.\n\nThe matters are:")

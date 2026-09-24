@@ -47,6 +47,10 @@ for r in json.load(open(X)):
               "period's end, and Sam still held Cloudflare Administrator. We accept it as a deviation: revoking the token and reducing "
               "Sam's personal access to read-only are Q4 actions, so that only the deploy service account can deploy.",
               [one('evidence/files/populations/cloudflare-tokens-*.csv'),workers])
+    elif k.startswith('audit-passed-over:'):
+        R[k]=(f"{r['item']} (the register lists each audit and each deviation). The weekly internal audit read only the repository's main and did not look at "
+              "the deviations the package found. We accept it as a deviation of monitoring; from Q4 the audit reads the package's "
+              "exceptions register before judging each item.",[r['file']])
     elif k.startswith('admitted-gap:'):
         R[k]=("Our management review records that no reviewer independent of both people with security duties existed in the period, and "
               "that the weekly internal audit is run by the project's own agent. We accept it as a design deficiency in monitoring "

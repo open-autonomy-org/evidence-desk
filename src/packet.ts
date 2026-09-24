@@ -453,6 +453,24 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     const said = /[^.\n]*\b(?:no (?:\w+ ){0,4}independent|not independent|nobody independent|no one independent)\b[^.\n]*/i.exec(text)?.[0].trim();
     if (said) add({ key: `admitted-gap:${ev.data.id}`, source: `evidence ${ev.data.id} (${ev.data.title})`, controls: ev.data.controls.join(';'), item: `management's own record states there is no independent review (${ev.data.id})`, detail: `"${said}"`, occurred: day(ev.data.collected_at), detected: collectedOf(f.path), resolved: '', found_by: 'this package, reading management\'s own records', file: f.path });
   }
+  // The internal audit passing a checklist item while a deviation of that item's controls stood: the audit looked and did
+  // not see it. The items' controls are the SOC 2 checklist's own table, as the latest import read it.
+  const latestCommit = String((latestSnapOf(root) as { commit?: string } | null)?.commit ?? '').slice(0, 12);
+  const checklistFile = join(root, 'sources/open-autonomy', latestCommit, 'docs/decisions/SOC2-CHECKLIST.md');
+  const auditFile = evidence.flatMap((x) => x.data.files).find((f) => f.path.includes('/internal-audits-') && f.path.endsWith('.csv'));
+  if (latestCommit && existsSync(checklistFile) && auditFile) {
+    const itemControls = new Map([...readFileSync(checklistFile, 'utf8').matchAll(/^\| (C\d+) [^|]*\|[^|]*\| ([^|]+) \|/gm)].map((m) => [m[1], m[2].split(',').map((c) => c.trim())]));
+    const audits = parseCsv(readFileSync(join(root, auditFile.path), 'utf8'), auditFile.path).rows.filter((r) => inside(r.at, period));
+    const missed = new Map<string, { audits: string[]; keys: Set<string> }>();
+    for (const a of audits) for (const it of (JSON.parse(a.items || '[]') as { item: string; status: string }[]).filter((x) => x.status === 'pass')) {
+      const ctl = itemControls.get(it.item) ?? [];
+      const standing = exceptions.filter((x) => !x.key.startsWith('audit-') && x.occurred && x.occurred <= day(a.at) && (!x.resolved || x.resolved > day(a.at)) && x.controls.split(';').some((c) => ctl.includes(c)));
+      if (!standing.length) continue;
+      const m = missed.get(it.item) ?? { audits: [], keys: new Set<string>() };
+      m.audits.push(a.id); standing.forEach((x) => m.keys.add(x.key)); missed.set(it.item, m);
+    }
+    for (const [item, m] of missed) add({ key: `audit-passed-over:${item}`, source: `internal audits (${auditFile.path})`, controls: 'MON-04', item: `internal audit passed ${item} ${m.audits.length} time(s) while deviations of its controls stood`, detail: `${m.audits.join(', ')} passed ${item} (${(itemControls.get(item) ?? []).join(', ')}) while these stood: ${[...m.keys].join(', ')}`, occurred: m.audits[0].slice(0, 10), detected: collectedOf(auditFile.path), resolved: '', found_by: 'this package, comparing each internal audit\'s passes with the exceptions standing at its date', file: auditFile.path });
+  }
   // One event, one exception, for hand-made settings too: the change check's failing reading of the day a person changed
   // a setting (or put it back), and its unacknowledged sibling, belong to that setting's out-of-path exception.
   for (const u of exceptions.filter((x) => x.key.startsWith('out-of-path-change:'))) {

@@ -7,6 +7,10 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- An internal audit that passed a checklist item while a deviation of that item's controls stood is an exception, one
+  per item, with the items' controls read from the imported SOC 2 checklist. The drafted description covers the same
+  period as the assertion. The manifest lists the workspace marker among omitted files, and the README counts only
+  cited files that are missing.
 - Management's own record stating that no independent review exists is a design exception. The assertion is drafted
   from the day a system created inside the period began operating. The manifest lists each committed file the package
   leaves out, with why. The drafted description states the declared two-stage review as declared, beside what operated,
