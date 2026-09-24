@@ -74,6 +74,7 @@ ed init $W --org "Globex" | head -1; ed open-autonomy $W import --repo $D/relay 
 ed scope $W --set services="Relay: receives customers' webhooks, stores them for 30 days and replays them on request" infrastructure="Cloudflare Workers and Durable Objects (global)" security_contact=security@globex.test availability=true confidentiality=true processing_integrity=false privacy=false hosts_customer_data=true has_office=false background_checks_required=false | tail -1
 ed adopt $W | tail -1; ed open-autonomy $W import --repo $D/relay --by maya | tail -1
 ed register $W people --update maya email=maya@globex.test start_date=2026-06-01 | grep -i error; ed register $W people --update sam email=sam@globex.test start_date=2026-06-01 | grep -i error
+ed register $W systems --add id=deploy-account name="deploy@globex.test" kind="service account" description="The Cloudflare account the deploy workflow's token belongs to (Workers Admin); no person holds it" data="none" in_scope=yes | grep -i error
 ed register $W systems --add id=cloudflare-account name="Cloudflare account (globex-cloudflare)" kind="hosting and edge" description="Runs the Relay workers and holds customer payloads" data="customer webhook payloads" in_scope=yes | grep -i error
 git -C $W init -q -b main && git -C $W add -A && gcommit $W maya "Globex compliance workspace: scoped and adopted"
 git -C $W remote add origin $U/globex/compliance.git && gpush $W main

@@ -65,13 +65,16 @@ export async function collectCloudflareChanges(root: string, input: { account: s
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
   const team = latest ? (JSON.parse(latest.text) as Snapshot).team.map((m) => m.id) : [];
   const emails = new Set((ws.registers.people?.data.rows ?? []).filter((p) => !team.length || team.includes(p.id)).map((p) => (p.email ?? '').toLowerCase()).filter(Boolean));
+  // A service account the organization declares in its systems register (kind "service account", its name the
+  // account's email) is a known actor, not a person: the deploy pipeline's credential acts as it.
+  const services = new Set((ws.registers.systems?.data.rows ?? []).filter((x) => /service account/i.test(x.kind ?? '')).map((x) => (x.name ?? '').toLowerCase()).filter(Boolean));
   const val = (v: unknown) => v == null ? '' : typeof v === 'string' ? v : JSON.stringify(v);
-  const rows = entries.map((x: any) => ({ at: String(x.when ?? ''), actor: String(x.actor?.email ?? ''), actor_on_roster: !x.actor?.email ? 'unknown' : emails.has(String(x.actor.email).toLowerCase()) ? 'yes' : 'no',
+  const rows = entries.map((x: any) => ({ at: String(x.when ?? ''), actor: String(x.actor?.email ?? ''), actor_on_roster: !x.actor?.email ? 'unknown' : emails.has(String(x.actor.email).toLowerCase()) ? 'yes' : services.has(String(x.actor.email).toLowerCase()) ? 'service account' : 'no',
     action: String(x.action?.type ?? ''), resource: `${x.resource?.type ?? ''} ${x.resource?.id ?? ''}`.trim(), zone: String(x.metadata?.zone_name ?? ''), old_value: val(x.oldValue), new_value: val(x.newValue), id: String(x.id ?? '') }));
   const stem = `evidence/files/populations/cloudflare-changes-${account.id.slice(0, 8)}-${input.start}-${input.end}-${Date.now()}`;
   writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: [...cfAnswers] }, account, entries }, null, 2) + '\n', null);
   writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['at', 'actor', 'actor_on_roster', 'action', 'resource', 'zone', 'old_value', 'new_value', 'id'], rows }), null);
-  const unnamed = rows.filter((r) => r.actor_on_roster !== 'yes').length;
+  const unnamed = rows.filter((r) => r.actor_on_roster === 'no' || r.actor_on_roster === 'unknown').length;
   const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
   const evidence = addEvidence(root, {
     title: `Population: ${rows.length} configuration changes to Cloudflare account ${account.name}, ${input.start} to ${input.end}`, controls: ['OPS-04', 'AC-02'].filter((c) => applicable.has(c)), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
