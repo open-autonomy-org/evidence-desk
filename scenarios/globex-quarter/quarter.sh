@@ -2,7 +2,7 @@
 source ${0:A:h}/lib.sh
 W=$D/compliance; ENV=$(cat $STATE/env-id); n_deploy=0
 pr_relay() { local n=$(seed $1 pr relay $2 "$3"); [ -n "$4" ] && seed $4 approve relay $n >/dev/null; seed ${5:-$4} merge relay $n >/dev/null; git -C $D/relay checkout -q main && timeout 30 git -C $D/relay pull -q --no-rebase origin main 2>&1 | grep -v "no common"; echo "relay PR $n by $1 ${4:+approved by $4}"; }
-deploy() { n_deploy=$((n_deploy+1)); local t=$(now); GIT_COMMITTER_DATE="$t" git -C $D/relay -c user.name=$1 -c user.email=$1@globex.test tag -a -m "deploy-v$n_deploy" deploy-v$n_deploy && gpush $D/relay deploy-v$n_deploy; seed $2 deploy deploy-v$n_deploy $(tok $3) $ENV; }
+deploy() { n_deploy=$((n_deploy+1)); local t=$(now); GIT_COMMITTER_DATE="$t" git -C $D/relay -c user.name=$1 -c user.email=$1@globex.test tag -a -m "deploy-v$n_deploy" deploy-v$n_deploy && gpush $D/relay deploy-v$n_deploy; (cd $ED && timeout 60 $V attach evidence-desk-oa --root $RT -- env CF_AS=$(cat $STATE/cftok-maya@globex.test) bun $S/seed.ts deploy $(tok $2) deploy-v$n_deploy $(tok $3) $ENV 2>&1 | grep -v WARN); }
 record() { # record <person> <login> <approver> <file under records/> <json> <message>
   git -C $D/relay checkout -q main && git -C $D/relay checkout -q -b rec-$(date +%s%N); mkdir -p $(dirname $D/relay/records/$4); printf '%s\n' "$5" > $D/relay/records/$4; git -C $D/relay add records; gcommit $D/relay $1 "$6"; local b=$(git -C $D/relay branch --show-current); gpush $D/relay $b; git -C $D/relay checkout -q main; pr_relay $2 $b "$6" $3; }
 completeness() { ed open-autonomy $W completeness --account github --by maya | tail -1; ed open-autonomy $W completeness --account cloudflare --by maya | tail -1; git -C $W add -A; gcommit $W maya "Roster completeness, $(now | cut -c1-10)"; gpush $W main; }
@@ -40,12 +40,14 @@ PY
       clock ${1}T16:30:00Z
       record maya maya-gx sam-gx incidents/2026-08-26-replay-headers.json '{"kind":"incident","id":"replay-headers","detected_at":"2026-08-26T08:10:00Z","severity":"high","status":"closed","summary":"Replay requests could return another customer'"'"'s request headers (never bodies) because the replay cache key omitted the tenant; introduced by PR #4, deployed 2026-08-12 23:05 UTC (deploy-v3), fixed by PR #7, deployed 2026-08-26 12:30 UTC (deploy-v4)","notification":"Replay logs for 2026-08-12 23:05 to 2026-08-26 12:30 show 3 customers whose replays returned another tenant'"'"'s headers; each was told on 2026-08-26 at 15:00 UTC with the window and the headers involved","review":"Cause: PR #4, a hotfix Sam merged after hours on 2026-08-12 as an organization administrator, bypassing the required review, dropped the tenant from the cache key. Exposure: 13.5 days. Fixed: the cache keys on tenant and request id (PR #7, deploy-v4). Corrective actions decided: remove the ruleset'"'"'s administrator bypass so every change needs an approving review, and rotate the deploy token as a precaution."}' "Incident replay-headers: closed with review" ;;
     2026-08-27) clock ${1}T09:30:00Z; seed maya-gx nobypass
+      clock ${1}T09:50:00Z; seed maya-gx secret CLOUDFLARE_API_TOKEN
       clock ${1}T10:00:00Z; record maya maya-gx sam-gx credentials/2026-08-27-deploy-token.json '{"kind":"credential","id":"deploy-token","at":"2026-08-27T09:50:00Z","by":"maya","custody_name":"CLOUDFLARE_API_TOKEN","action":"rotated","reason":"Rotated after incident replay-headers as a precaution"}' "Credential: deploy token rotated" ;;
     2026-08-28) clock ${1}T10:00:00Z; git -C $W checkout -q main && git -C $W checkout -q -b sam/risk-r3-rescore
       ed register $W risks --update R-3 likelihood=4 description="Two engineers; the 2026-08-12 hotfix bypassed review and caused incident replay-headers. Administrator bypass removed 2026-08-27." | grep -i error
       git -C $W add -A; gcommit $W sam "R-3 re-rated after incident replay-headers"; wspr sam-gx sam/risk-r3-rescore "R-3 re-rated after incident replay-headers" maya-gx ;;
     2026-09-02) clock ${1}T11:00:00Z; change lee feat/replay-filter "Filter replays by status code"; pr_relay lee-gx feat/replay-filter "Filter replays by status code" sam-gx ;;
     2026-09-03) clock ${1}T10:00:00Z; deploy lee lee-gx maya-gx ;;
+    2026-09-10) clock ${1}T18:20:00Z; (cd $ED && timeout 60 $V attach evidence-desk-oa --root $RT -- env CF_AS=$(cat $STATE/cftok-sam@globex.test) bun $S/seed.ts wrangler - "raise the replay limit (from Sam's laptop)" 2>&1 | grep -v WARN) ;;
     2026-09-15) clock ${1}T10:00:00Z; completeness
       git -C $W checkout -q main && git -C $W checkout -q -b sam/access-review-q3; mkdir -p $W/evidence/files/listings
       { echo "account,role"; seed - ghmembers; } > $W/evidence/files/listings/github-globex-members-2026-09-15.csv

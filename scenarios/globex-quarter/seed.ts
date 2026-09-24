@@ -17,6 +17,14 @@ async function cfcall(method: string, path: string, body?: unknown) {
   return j.result;
 }
 const [step, token, a, b, c] = process.argv.slice(2);
+// What wrangler deploy sends: the Worker's metadata (with wrangler's tag and message annotations) and its module.
+async function wrangler(tag: string, message: string) {
+  const form = new FormData();
+  form.append('metadata', JSON.stringify({ main_module: 'index.js', compatibility_date: '2026-06-01', annotations: { ...(tag ? { 'workers/tag': tag } : {}), 'workers/message': message } }));
+  form.append('index.js', new Blob(['export default { fetch() { return new Response("relay"); } };'], { type: 'application/javascript+module' }), 'index.js');
+  const r = await fetch(`${cf}/accounts/${ACCOUNT}/workers/scripts/relay`, { method: 'PUT', headers: { authorization: `Bearer ${process.env.CF_AS || process.env.CLOUDFLARE_API_TOKEN}` }, body: form });
+  if (!r.ok) throw new Error(`wrangler deploy ${r.status} ${(await r.text()).slice(0, 200)}`);
+}
 const T = token === '-' ? undefined : token;
 if (step === 'org') {
   await call('PATCH', '/orgs/globex', { name: 'Globex' });
@@ -47,12 +55,19 @@ if (step === 'org') {
   await call('POST', `/_twin/repos/globex/relay/actions/runs/${run.id}/complete`, { conclusion: 'success' });
   const d = await call('POST', '/repos/globex/relay/deployments', { ref: a, environment: 'production', auto_merge: false, required_contexts: [] }, T);
   await call('POST', `/repos/globex/relay/deployments/${d.id}/statuses`, { state: 'success', log_url: `https://github.com/globex/relay/actions/runs/${run.id}` }, T);
+  // The run's job: wrangler deploy with the environment's Cloudflare token (Maya's, CF_AS), tagged with the commit.
+  await wrangler(d.sha, a);
   console.log('deploy', a, run.id, d.sha.slice(0, 12));
 } else if (step === 'cf') {
   const r = await fetch(`${process.env.CLOUDFLARE_TWIN_URL}/client/v4/twin/bootstrap`, { method: 'POST', headers: { authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`, 'content-type': 'application/json' }, body: JSON.stringify({
     accounts: [{ id: ACCOUNT, name: 'globex-cloudflare', settings: { enforce_twofactor: true } }], zones: [{ id: ZONE, account_id: ACCOUNT, name: 'relay.globex.test' }],
     members: [{ account_id: ACCOUNT, email: 'maya@globex.test', roles: ['Super Administrator - All Privileges'], two_factor: true }, { account_id: ACCOUNT, email: 'sam@globex.test', roles: ['Administrator'], two_factor: true }] }) });
   console.log('cloudflare', r.status);
+} else if (step === 'wrangler') { // wrangler - <message>: a deploy straight from someone's laptop, CF_AS their token, no commit tag
+  await wrangler('', a); console.log('wrangler', a);
+} else if (step === 'secret') { // secret <token> <name>: the production environment's secret set (or rotated) by that person
+  await call('PUT', `/repos/globex/relay/environments/production/secrets/${a}`, { encrypted_value: Buffer.from(`${a}:${Date.now()}`).toString('base64'), key_id: 'twin' }, T);
+  console.log('secret', a);
 } else if (step === 'cftoken') { // cftoken - <email>: a person's Cloudflare API token, minted as in the dashboard
   console.log((await cfcall('POST', `/twin/users/${a}/tokens`)).token);
 } else if (step === 'cfset') { console.log(a, (await cfcall('PATCH', `/zones/${ZONE}/settings/${a}`, { value: b })).value);

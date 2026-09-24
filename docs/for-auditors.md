@@ -85,6 +85,12 @@ query that produced it (evidence a person added by hand says so).
 - **Configuration changes**: who changed the default branch's rules, from each ruleset's version history on GitHub
   (with what changed and whether it weakened them), and who changed the Cloudflare account, from its audit log (with
   the old and new value). A change by someone not on the roster, or by no one the vendor names, is an exception.
+- **What reached production on Cloudflare**: every deployment of the Worker, with who made it and the commit its
+  version was tagged with, matched to the GitHub deployments; one no approved GitHub deployment accounts for is an
+  exception.
+- **Non-human access**: deploy keys, repository and environment secrets (with when each was last set), app installations
+  and the project's agents, as of the collection. A recorded credential rotation the secret's own date does not show is
+  an exception.
 - **Seam records** (incidents, break-glass changes, credentials, escalations) are listed with each record's full git
   history (`*.history.txt`): a record edited after it was added shows every change with its author and dates.
 - **Continuous checks** (two-factor enforcement, required review and protected history, bypasses of the default

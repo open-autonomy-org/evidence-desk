@@ -53,6 +53,13 @@ for r in csv.DictReader(open(os.path.join(D,'review/exceptions.csv'))):
         R[k]=("Maya recorded this decision of Sam's while setting up the workspace on 2026-06-23, before the period. It was recorded "
               "by the wrong account, and we do not claim otherwise."+(" Sam re-rated R-3 on 2026-08-28 in a pull request from Sam's own "
               "account (review/workspace-history.txt)." if 'R-3' in k else ""),['sources/github/attribution.json'])
+    elif k.startswith('unmatched-deploy:'):
+        R[k]=("Sam deployed the relay Worker from a laptop on 2026-09-10 with Sam's own Cloudflare token, to raise the replay limit. "
+              "It went through no pull request, no GitHub deployment and no environment approval. We accept this as a change-management "
+              "failure: the deploy token is the only Cloudflare credential that may deploy from Q4, and personal tokens lose the "
+              "Workers edit permission.",[one('evidence/files/populations/cloudflare-worker-deployments-*.csv')])
+    elif k.startswith('rotation-unconfirmed:'):
+        R[k]=("The rotation is recorded; the secret's own date in the non-human access listing is the check.",[one('evidence/files/listings/nonhuman-access-*.csv')])
     elif k.startswith('config-actor:') or k.startswith('weakened:'):
         R[k]=("This change is in the collected change history; management has not yet reviewed it.",[cf_changes if 'cloudflare' in k else rule_changes])
     else: print('UNHANDLED',k,file=sys.stderr)

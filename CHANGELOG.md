@@ -7,6 +7,11 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- What reached production is reconciled: `collect cloudflare-deployments` matches every Worker deployment to the GitHub
+  deployments by commit, and a deploy no approved GitHub deployment accounts for is an exception. `collect
+  nonhuman-access` lists deploy keys, secrets, app installations and agents; a recorded credential rotation the secret's
+  own date does not show is an exception. Coverage tells a control backed only by an automated check from one with an
+  evidence record. Twin: volter-ai/twin 399be247.
 - Configuration changes are populations: `collect github-rule-changes` reads each ruleset's version history (who changed
   the rules, what changed, whether it weakened them) and `collect cloudflare-changes` the Cloudflare account's audit log
   (who changed what, old and new value). A change by someone not on the roster or not named is an exception. The package
