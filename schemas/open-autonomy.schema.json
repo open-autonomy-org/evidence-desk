@@ -23,6 +23,19 @@
     "repository": {
       "type": "string"
     },
+    "repository_path": {
+      "type": "string",
+      "description": "The local checkout the snapshot was read from"
+    },
+    "remote_url": {
+      "type": "string",
+      "description": "The checkout's origin remote, credentials removed; empty when it has none"
+    },
+    "remote_branches": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "The origin branches that contain the commit read"
+    },
     "commit": {
       "type": "string",
       "pattern": "^[0-9a-f]{40}$"

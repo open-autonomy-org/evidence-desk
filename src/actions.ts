@@ -8,8 +8,8 @@ import { writeCsv } from './csv.ts';
 import { fileHash, readVersioned, writeVersioned, inside } from './files.ts';
 import { categoryAnswer, criterionCategory, formTemplates, library, policyTemplates, questions } from './catalog.ts';
 import { loadWorkspace, MANIFEST, REGISTERS, type Control, type Evidence, type Policy, type RegisterName, type Scope } from './workspace.ts';
+import { clockDate, now } from './clock.ts';
 
-const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const pretty = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
 function valid(schemaName: string, data: unknown, what: string): void {
   const errs = check(schema(schemaName), data);
@@ -170,6 +170,8 @@ export function approvePolicy(root: string, id: string, approvedBy: string, text
   if (!people.includes(approvedBy)) throw new Error(`approver ${approvedBy} is not in registers/people.csv`);
   const left = placeholders(text.text);
   if (left.length) throw new Error(`fill in ${left.map((p) => `{{${p}}}`).join(', ')} before approving`);
+  // A template's own drafting comment says it is not yet the organization's policy.
+  if (/<!--\s*Template adapted from/.test(text.text)) throw new Error(`policies/${id}.md is still the catalog template: adapt it to how the organization operates and remove its drafting comment before approving`);
   const last = rec.data.versions.at(-1);
   if (last && last.sha256 === text.version) throw new Error(`version ${last.version} already approved this exact text`);
   const version = (last?.version ?? 0) + 1;
@@ -217,10 +219,18 @@ export function addEvidence(root: string, input: {
   if (!input.controls.length) throw new Error('name at least one control this evidence supports');
   if (!input.files.length) throw new Error('name at least one file');
   if (!(ws.registers.people?.data.rows ?? []).some((r) => r.id === input.recorded_by)) throw new Error(`recorder ${input.recorded_by} is not in registers/people.csv`);
-  const id = `EV-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${randomBytes(3).toString('hex')}`;
+  const id = `EV-${clockDate().toISOString().slice(0, 10).replaceAll('-', '')}-${randomBytes(3).toString('hex')}`;
   const files = input.files.map((f) => {
     const outside = resolve(f);
     const isOutside = f.startsWith('/') || f.startsWith('.') || !existsSync(join(root, f));
+    // A workspace file that keeps changing (a register, a policy's current text, a top-level settings file) is captured
+    // as it stands: the evidence is that version, and the file may be edited afterwards without breaking it.
+    const living = !isOutside && (f.startsWith('registers/') || !f.includes('/') || /^policies\/[^/]+\.md$/.test(f));
+    if (living) {
+      const rel = `evidence/files/${id}/${basename(f)}`;
+      writeVersioned(root, rel, readFileSync(join(root, f)), null);
+      return { path: rel, ...fileHash(root, rel)! };
+    }
     if (!isOutside) { const h = fileHash(root, f); if (!h) throw new Error(`${f} is not a file`); return { path: f, ...h }; }
     if (!existsSync(outside)) throw new Error(`${f} does not exist`);
     const rel = `evidence/files/${id}/${basename(outside)}`;

@@ -1,6 +1,7 @@
 // The calendar of what is owed and when, derived from the workspace: periodic controls, each person's onboarding,
 // annual and offboarding obligations, vendor reviews, risk reviews, vulnerability deadlines and open incidents.
 import type { Workspace } from './workspace.ts';
+import { clockDate } from './clock.ts';
 
 export type Obligation = { kind: 'control' | 'person' | 'vendor' | 'risk' | 'vulnerability' | 'incident'; what: string; controls: string[]; who: string; subject?: string; due: string; state: 'done' | 'due' | 'overdue'; done_on?: string };
 
@@ -9,7 +10,7 @@ const INTERVAL_DAYS: Record<string, number> = { daily: 1, weekly: 7, monthly: 31
 const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
 const dateOf = (d: string) => Date.parse(`${d}T00:00:00Z`);
 
-export function computeObligations(ws: Workspace, asOf = new Date()): Obligation[] {
+export function computeObligations(ws: Workspace, asOf = clockDate()): Obligation[] {
   const today = asOf.getTime();
   const out: Obligation[] = [];
   const state = (due: number): Obligation['state'] => (due < today - DAY ? 'overdue' : 'due');

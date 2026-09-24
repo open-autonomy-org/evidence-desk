@@ -18,7 +18,8 @@ import { computeObligations } from './obligations.ts';
 import { collectRosterHistory, collectSeamRecords, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
 import { checkCompleteness, collectChanges, collectDeployments, collectAttribution, syncReminders } from './github.ts';
 import { COLLECTORS, checkTitle, ciWorkflow, configureCollector, readSettings, runChecks } from './automation.ts';
-import { actOnRequest, createEngagement, draft, exportPackage, firmSummary, importRequests, importReturn, listRequests, readEngagement, verifyPackage } from './audit.ts';
+import { respondToException, actOnRequest, createEngagement, draft, exportPackage, firmSummary, importRequests, importReturn, listRequests, readEngagement, verifyPackage } from './audit.ts';
+import { clockDate } from './clock.ts';
 
 const USAGE = `evidence-desk <command> <workspace> [options]
 
@@ -73,6 +74,8 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                      [--evidence <id>,...] [--population <evidence id>] [--select <item>,...]
                      [--sample <item>=provided|exception] [--sample-evidence <item>=<evidence id>]
   audit <dir> <id> draft description|assertion|bridge [--to <date>]
+  audit <dir> <id> exception <key> --response <text> --by <person> [--cite <workspace file> ...]
+                                          management's response to an exception the package lists
   audit <dir> <id> export --out <folder>  a package of exactly what the requests point at, with hashes
   audit <dir> <id> import-return <folder> bring the firm's responses in from a returned package
   audit verify <package folder>           check a package's files against its manifest, offline
@@ -273,7 +276,7 @@ async function main(argv: string[]): Promise<number> {
     case 'obligations': {
       const asOf = one(a, 'as-of');
       const who = one(a, 'person');
-      const list = computeObligations(loadWorkspace(dir), asOf ? new Date(`${asOf}T23:59:59Z`) : new Date()).filter((o) => !who || o.who === who);
+      const list = computeObligations(loadWorkspace(dir), asOf ? new Date(`${asOf}T23:59:59Z`) : clockDate()).filter((o) => !who || o.who === who);
       out(json, list, () => list.map((o) => `${o.state.padEnd(8)} ${o.due}  ${(o.who || '-').padEnd(10)} ${o.what}${o.controls.length ? ` [${o.controls.join(', ')}]` : ''}`).join('\n') || 'Nothing owed.');
       return 0;
     }
@@ -375,7 +378,7 @@ async function main(argv: string[]): Promise<number> {
       const repo = one(a, 'repo') ?? '';
       if (rest[0] === 'github-changes') {
         const r = await collectChanges(dir, { repo, start, end, by });
-        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} merged changes; ${r.notIndependent} without an independent approval; independence unknown for ${r.unknown}.`);
+        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} changes (${r.direct} direct pushes); ${r.notIndependent} without an independent approval; independence unknown for ${r.unknown}.`);
         return 0;
       }
       if (rest[0] === 'github-deployments') {
@@ -443,6 +446,13 @@ async function main(argv: string[]): Promise<number> {
         const reqs = listRequests(dir, id).map((r) => r.data);
         out(json, { engagement: e, requests: reqs }, () => [`${e.id}: ${e.type === 'type1' ? `Type 1 as of ${e.as_of}` : `Type 2, ${e.period!.start} to ${e.period!.end}`}, ${e.firm}, ${e.status}`,
           ...reqs.map((r) => `  ${r.id.padEnd(10)} ${r.status.padEnd(9)} ${r.kind.padEnd(10)} ${r.title}${r.samples?.length ? ` [${r.samples.map((x) => `${x.item}:${x.status}`).join(', ')}]` : ''}`)].join('\n'));
+        return 0;
+      }
+      if (action === 'exception') {
+        const key = rest[2];
+        if (!key) throw new Error('exception needs the exception key from the package\'s review/exceptions.csv');
+        const r = respondToException(dir, id, key, one(a, 'response') ?? '', one(a, 'by') ?? '', a.flags.get('cite') ?? []);
+        out(json, r, () => `Recorded management's response to ${key} in ${r.file}.`);
         return 0;
       }
       if (action === 'requests') {
@@ -561,7 +571,7 @@ async function main(argv: string[]): Promise<number> {
       const ws = loadWorkspace(dir);
       if (!(ws.manifest?.data.frameworks ?? []).includes('iso27001')) throw new Error(`ISO 27001 is not enabled; run: evidence-desk frameworks ${dirArg} enable iso27001`);
       const t = statementOfApplicability(ws);
-      const text = o.endsWith('.md') ? [`# Statement of applicability: ${ws.manifest?.data.organization ?? ''}`, '', `Generated ${new Date().toISOString().slice(0, 10)} from the workspace. ISO/IEC 27001:2022 Annex A identifiers with this project's titles.`, '',
+      const text = o.endsWith('.md') ? [`# Statement of applicability: ${ws.manifest?.data.organization ?? ''}`, '', `Generated ${clockDate().toISOString().slice(0, 10)} from the workspace. ISO/IEC 27001:2022 Annex A identifiers with this project's titles.`, '',
         '| Control | Title | Included | Justification | Implementation | Evidence |', '|---|---|---|---|---|---|', ...t.rows.map((r) => `| ${r.control} | ${r.title} | ${r.included} | ${r.justification.replaceAll('|', '/')} | ${r.implementation} | ${r.evidence.split(';').filter(Boolean).length} |`)].join('\n') + '\n'
         : writeCsv(t);
       writeFileSync(resolve(o), text);
@@ -570,7 +580,7 @@ async function main(argv: string[]): Promise<number> {
     }
     case 'gaps': {
       const asOf = one(a, 'as-of');
-      const g = computeGaps(loadWorkspace(dir), asOf ? new Date(`${asOf}T23:59:59Z`) : new Date());
+      const g = computeGaps(loadWorkspace(dir), asOf ? new Date(`${asOf}T23:59:59Z`) : clockDate());
       out(json, g, () => {
         const s = g.summary;
         const lines = [`As of ${g.as_of}: ${s.controls_ready}/${s.controls_applicable} controls ready (${s.controls_excluded} excluded), ${s.criteria_ready}/${s.criteria_in_scope} criteria ready.`];

@@ -10,6 +10,7 @@ import { readVersioned } from './files.ts';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { checkTitle, readSettings, COLLECTORS } from './automation.ts';
+import { clockDate } from './clock.ts';
 
 const INTERVAL_DAYS: Record<string, number> = { daily: 1, weekly: 7, monthly: 31, quarterly: 92, annual: 366 };
 
@@ -24,7 +25,7 @@ export type Gaps = {
   criteria: CriterionGaps[];
 };
 
-export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
+export function computeGaps(ws: Workspace, asOf = clockDate()): Gaps {
   const program: string[] = [];
   const scope = ws.scope?.data;
   if (!scope) program.push('scope.json is missing or invalid');

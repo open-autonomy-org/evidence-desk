@@ -9,10 +9,11 @@ import { check as validate, schema } from './schema.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { addEvidence } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
-import { cf, cfAccount, cfAll, cfIsAdmin } from './cloudflare.ts';
+import { cf, cfAccount, cfAll, cfAnswers, cfIsAdmin } from './cloudflare.ts';
+import { clockDate, now } from './clock.ts';
 
 export type CollectorSettings = { id: 'github' | 'cloudflare'; enabled: boolean; params: Record<string, string> };
-type Snapshot = { data: Record<string, unknown>; queries: string[] };
+type Snapshot = { data: Record<string, unknown>; queries: string[]; responses?: { path: string; status: number; date: string; request_id: string }[] };
 type Result = { check: string; collector: string; controls: string[]; status: 'pass' | 'fail' | 'error'; detail: string };
 export type Run = { schema: string; id: string; started_at: string; finished_at: string; by: string;
   collectors: { id: string; status: 'ok' | 'error'; error?: string; snapshot?: string; evidence?: string }[]; results: Result[] };
@@ -20,15 +21,17 @@ export type Run = { schema: string; id: string; started_at: string; finished_at:
 type CheckDef = { id: string; title: string; controls: string[]; evaluate(d: Record<string, any>): { status: Result['status']; detail: string } };
 type CollectorDef = { id: CollectorSettings['id']; title: string; params: { name: string; prompt: string }[]; credentials: string[]; collect(p: Record<string, string>): Promise<Snapshot>; checks: CheckDef[] };
 
-const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const list = (v: string | undefined) => (v ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 
 // ── GitHub ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// Each GitHub answer's status, Date and x-github-request-id, kept in the snapshot so any reading can be raised with GitHub.
+let ghAnswers: { path: string; status: number; date: string; request_id: string }[] = [];
 async function gh(path: string, queries: string[]): Promise<{ status: number; body: any }> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error('GITHUB_TOKEN is not set');
   queries.push(`GET ${path}`);
   const r = await fetch(`https://api.github.com${path}`, { headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28' } });
+  ghAnswers.push({ path, status: r.status, date: r.headers.get('date') ?? '', request_id: r.headers.get('x-github-request-id') ?? '' });
   const text = await r.text();
   return { status: r.status, body: text ? JSON.parse(text) : null };
 }
@@ -48,6 +51,7 @@ const github: CollectorDef = {
   params: [{ name: 'org', prompt: 'Organization login' }, { name: 'repos', prompt: 'Repositories to check, comma-separated owner/name' }],
   async collect(p) {
     const queries: string[] = [];
+    ghAnswers = [];
     if (!p.org) throw new Error('set the org parameter');
     const org = (await gh(`/orgs/${p.org}`, queries)).body;
     const admins = (await ghAll(`/orgs/${p.org}/members?role=admin`, queries)).map((m) => m.login);
@@ -61,10 +65,14 @@ const github: CollectorDef = {
       const rules = await Promise.all(((rulesets.status === 200 ? rulesets.body : []) as any[]).map(async (rs) => (await gh(`/repos/${repo}/rulesets/${rs.id}`, queries)).body));
       const dependabot = await gh(`/repos/${repo}/dependabot/alerts?state=open&per_page=100`, queries);
       const secrets = await gh(`/repos/${repo}/secret-scanning/alerts?state=open&per_page=100`, queries);
+      // GitHub keeps rule insights for a month and filters them by a window back from now: a daily run reads the last
+      // day, so consecutive runs cover every bypass of the repository's rules.
+      const bypasses = await gh(`/repos/${repo}/rulesets/rule-suites?time_period=day&rule_suite_result=bypass&per_page=100`, queries);
       repos[repo] = { default_branch: branch, protection: protection.status === 200 ? protection.body : null, rulesets: rules,
+        rule_bypasses: bypasses.status === 200 ? bypasses.body : { unavailable: bypasses.status },
         dependabot: dependabot.status === 200 ? dependabot.body : { unavailable: dependabot.status }, secret_scanning: secrets.status === 200 ? secrets.body : { unavailable: secrets.status } };
     }
-    return { data: { org: { login: org?.login, two_factor_requirement_enabled: org?.two_factor_requirement_enabled }, admins, repos }, queries };
+    return { data: { org: { login: org?.login, two_factor_requirement_enabled: org?.two_factor_requirement_enabled }, admins, repos }, queries, responses: ghAnswers };
   },
   checks: [
     { id: 'github-org-2fa', title: 'The organization requires two-factor authentication', controls: ['AC-01'], evaluate: (d) =>
@@ -76,7 +84,22 @@ const github: CollectorDef = {
         const ruled = (r.rulesets as any[]).some((rs) => rs.enforcement === 'active' && (rs.rules ?? []).some((x: any) => x.type === 'pull_request' && (x.parameters?.required_approving_review_count ?? 0) >= 1));
         return !classic && !ruled;
       }).map(([k]) => k);
-      return bad.length ? { status: 'fail', detail: `no required approving review on the default branch of ${bad.join(', ')}` } : { status: 'pass', detail: 'every checked repository requires an approving review' };
+      // A review someone may always skip is not required of them: a ruleset listing bypass actors in "always" mode fails
+      // the check, naming who may bypass; "pull_request" mode (bypass only by opening a pull request) does not.
+      const always = Object.entries(d.repos as Record<string, any>).flatMap(([k, r]) => (r.rulesets as any[]).filter((rs) => rs.enforcement === 'active' && (rs.rules ?? []).some((x: any) => x.type === 'pull_request'))
+        .flatMap((rs) => (rs.bypass_actors ?? []).filter((b: any) => (b.bypass_mode ?? 'always') === 'always').map((b: any) => `${k} ruleset ${rs.name}: ${b.actor_type}${b.actor_id != null ? ` ${b.actor_id}` : ''}`)));
+      return bad.length ? { status: 'fail', detail: `no required approving review on the default branch of ${bad.join(', ')}` }
+        : always.length ? { status: 'fail', detail: `the required review can always be bypassed by ${always.join('; ')}` }
+        : { status: 'pass', detail: 'every checked repository requires an approving review that no one may always bypass' };
+    } },
+    { id: 'github-rule-bypass', title: 'No one bypassed the default branch rules in the last day', controls: ['CHG-01'], evaluate: (d) => {
+      const seen: string[] = [];
+      for (const [repo, r] of Object.entries(d.repos as Record<string, any>)) {
+        if (!r.rule_bypasses) continue;
+        if (!Array.isArray(r.rule_bypasses)) return { status: 'error', detail: `rule insights for ${repo} are not available (${r.rule_bypasses.unavailable}); the token needs repository administration read access` };
+        for (const x of r.rule_bypasses) seen.push(`${repo} ${String(x.ref).replace('refs/heads/', '')} by ${x.actor_name} at ${x.pushed_at} (rule suite ${x.id}, ${String(x.after_sha ?? '').slice(0, 12)})`);
+      }
+      return seen.length ? { status: 'fail', detail: `bypassed: ${seen.join('; ')}` } : { status: 'pass', detail: 'no bypass' };
     } },
     { id: 'github-history-protected', title: 'The default branch cannot be force-pushed or deleted', controls: ['CHG-03', 'OPS-04'], evaluate: (d) => {
       const bad = Object.entries(d.repos as Record<string, any>).filter(([, r]) => {
@@ -84,7 +107,11 @@ const github: CollectorDef = {
         const ruled = (r.rulesets as any[]).some((rs) => rs.enforcement === 'active' && ['non_fast_forward', 'deletion'].every((t) => (rs.rules ?? []).some((x: any) => x.type === t)));
         return !classic && !ruled;
       }).map(([k]) => k);
-      return bad.length ? { status: 'fail', detail: `history of the default branch can be rewritten or deleted in ${bad.join(', ')}` } : { status: 'pass', detail: 'protected' };
+      // As with review, a rule someone may always bypass does not bind them.
+      const always = Object.entries(d.repos as Record<string, any>).flatMap(([k, r]) => (r.rulesets as any[]).filter((rs) => rs.enforcement === 'active' && (rs.rules ?? []).some((x: any) => x.type === 'non_fast_forward' || x.type === 'deletion'))
+        .flatMap((rs) => (rs.bypass_actors ?? []).filter((b: any) => (b.bypass_mode ?? 'always') === 'always').map((b: any) => `${k} ruleset ${rs.name}: ${b.actor_type}${b.actor_id != null ? ` ${b.actor_id}` : ''}`)));
+      return bad.length ? { status: 'fail', detail: `history of the default branch can be rewritten or deleted in ${bad.join(', ')}` }
+        : always.length ? { status: 'fail', detail: `force-push and deletion protection can always be bypassed by ${always.join('; ')}` } : { status: 'pass', detail: 'protected, with no one who may always bypass it' };
     } },
     { id: 'github-dependabot', title: 'No critical or high dependency alert is open for more than 30 days', controls: ['CHG-05', 'MON-03'], evaluate: (d) => {
       const late: string[] = [];
@@ -92,7 +119,7 @@ const github: CollectorDef = {
         if (!Array.isArray(r.dependabot)) return { status: 'error', detail: `dependency alerts for ${repo} are not available (${r.dependabot.unavailable}); enable Dependabot alerts or grant the token access` };
         for (const a of r.dependabot) {
           const sev = a.security_advisory?.severity ?? a.security_vulnerability?.severity ?? a.severity;
-          if ((sev === 'critical' || sev === 'high') && Date.parse(a.created_at) < Date.now() - 30 * 864e5) late.push(`${repo}#${a.number} (${sev}, open since ${String(a.created_at).slice(0, 10)})`);
+          if ((sev === 'critical' || sev === 'high') && Date.parse(a.created_at) < clockDate().getTime() - 30 * 864e5) late.push(`${repo}#${a.number} (${sev}, open since ${String(a.created_at).slice(0, 10)})`);
         }
       }
       return late.length ? { status: 'fail', detail: late.join('; ') } : { status: 'pass', detail: 'none overdue' };
@@ -115,6 +142,7 @@ const cloudflare: CollectorDef = {
   params: [{ name: 'account', prompt: 'Account id or name' }, { name: 'zones', prompt: 'Zones to check, comma-separated names (all of the account\'s zones when empty)' }],
   async collect(p) {
     const queries: string[] = [];
+    cfAnswers.length = 0;
     if (!p.account) throw new Error('set the account parameter');
     const account = await cfAccount(p.account, queries);
     const members = (await cfAll(`/accounts/${account.id}/members`, queries)).map((m) => ({ email: m.user?.email ?? m.email, status: m.status, roles: (m.roles ?? []).map((r: any) => r.name), admin: cfIsAdmin(m), two_factor: m.user?.two_factor_authentication_enabled === true }));
@@ -127,7 +155,7 @@ const cloudflare: CollectorDef = {
       settings[z.name] = {};
       for (const s of ['min_tls_version', 'always_use_https']) { const r = await cf(`/zones/${z.id}/settings/${s}`, queries); settings[z.name][s] = r.status === 200 ? String(r.result?.value) : null; }
     }
-    return { data: { account: { id: account.id, name: account.name, enforce_twofactor: account.settings?.enforce_twofactor === true }, members, zones: settings }, queries };
+    return { data: { account: { id: account.id, name: account.name, enforce_twofactor: account.settings?.enforce_twofactor === true }, members, zones: settings }, queries, responses: cfAnswers.map((x) => ({ path: x.path, status: x.status, date: x.date, request_id: x.cf_ray })) };
   },
   checks: [
     { id: 'cloudflare-2fa', title: 'Every Cloudflare member uses two-factor authentication', controls: ['AC-01'], evaluate: (d) => {
@@ -183,7 +211,7 @@ export async function runChecks(root: string, by: string, only?: string): Promis
   const enabled = readSettings(root).settings.filter((s) => s.enabled && (!only || s.id === only));
   if (!enabled.length) throw new Error(only ? `${only} is not enabled` : 'no collector is enabled; configure one with `evidence-desk collectors`');
   const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
-  const id = `RUN-${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}-${randomBytes(2).toString('hex')}`;
+  const id = `RUN-${clockDate().toISOString().replace(/[-:]/g, '').slice(0, 15)}-${randomBytes(2).toString('hex')}`;
   const run: Run = { schema: 'evidence-desk.check-run/1', id, started_at: now(), finished_at: '', by, collectors: [], results: [] };
   for (const s of enabled) {
     const def = COLLECTORS.find((c) => c.id === s.id)!;
@@ -195,7 +223,7 @@ export async function runChecks(root: string, by: string, only?: string): Promis
       continue;
     }
     const rel = `evidence/files/collected/${s.id}/${id}.json`;
-    writeVersioned(root, rel, JSON.stringify({ collector: s.id, params: s.params, collected_at: now(), queries: snap.queries, data: snap.data }, null, 2) + '\n', null);
+    writeVersioned(root, rel, JSON.stringify({ collector: s.id, params: s.params, collected_at: now(), queries: snap.queries, ...(snap.responses ? { responses: snap.responses } : {}), data: snap.data }, null, 2) + '\n', null);
     const controls = [...new Set(def.checks.flatMap((c) => c.controls))].filter((c) => applicable.has(c));
     const evidence = controls.length ? addEvidence(root, { title: `${def.title}: collected by run ${id}`, controls, files: [rel], recorded_by: by,
       source: { kind: 'collector', name: s.id, query: snap.queries.join('; ') } }) : undefined;

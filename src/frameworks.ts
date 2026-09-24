@@ -7,6 +7,7 @@ import { check, schema } from './schema.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { computeGaps } from './gaps.ts';
 import type { Workspace } from './workspace.ts';
+import { clockDate } from './clock.ts';
 
 export type Requirement = { id: string; group: string; title: string; controls: string[]; annex_a?: boolean };
 export type Settings = { schema: string; framework: string; exclusions?: Record<string, string>; mappings?: Record<string, string[]> };
@@ -53,7 +54,7 @@ export function decide(root: string, id: string, requirement: string, input: { e
 
 export type RequirementState = { id: string; group: string; title: string; controls: string[]; status: 'ready' | 'gaps' | 'excluded' | 'unaddressed'; reason?: string; gaps: string[]; evidence: string[]; implementation: 'implemented' | 'partial' | 'not implemented' | 'not applicable' };
 
-export function frameworkState(ws: Workspace, id: string, asOf = new Date()) {
+export function frameworkState(ws: Workspace, id: string, asOf = clockDate()) {
   const fw = framework(id);
   const settings = readSettings(ws.root, id).data;
   const soc2 = computeGaps(ws, asOf);

@@ -2,26 +2,30 @@
 // answers them; the company drafts its system description, assertion and bridge letter from workspace facts; and the two
 // sides exchange a point-in-time package the firm can verify offline and return. Evidence Desk never forms an opinion:
 // it records requests, answers, samples, exceptions and who said what.
+import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { check, schema } from './schema.ts';
-import { parseCsv } from './csv.ts';
-import { fileHash, readVersioned, sha256, writeVersioned } from './files.ts';
+import { parseCsv, writeCsv } from './csv.ts';
+import { fileHash, inside, readVersioned, sha256, writeVersioned } from './files.ts';
 import { categories, categoryAnswer, criteria } from './catalog.ts';
 import { computeGaps } from './gaps.ts';
 import type { Snapshot } from './open-autonomy.ts';
 import { loadWorkspace, type Workspace } from './workspace.ts';
+import { buildViews } from './packet.ts';
+import { now } from './clock.ts';
 
 export type Engagement = { schema: string; id: string; type: 'type1' | 'type2'; as_of?: string; period?: { start: string; end: string }; firm: string; contact?: string; status: string; created_at: string };
 export type Sample = { item: string; status: 'pending' | 'provided' | 'exception'; evidence?: string[]; note?: string };
 export type Message = { at: string; by: string; side: 'client' | 'firm'; text: string };
 export type AuditRequest = { schema: string; id: string; title: string; kind: 'document' | 'population' | 'sample'; controls: string[]; status: 'open' | 'submitted' | 'accepted' | 'returned'; evidence: string[]; population?: string; samples?: Sample[]; thread: Message[] };
 
-const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const pretty = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
 function valid(name: string, data: unknown, what: string) { const e = check(schema(name), data); if (e.length) throw new Error(`${what} is invalid: ${e.join('; ')}`); }
 const base = (id: string) => `audits/${id}`;
+// Every file under a workspace folder, as workspace paths.
+const listUnder = (root: string, dir: string): string[] => existsSync(join(root, dir)) ? readdirSync(join(root, dir), { withFileTypes: true }).flatMap((x) => x.isDirectory() ? listUnder(root, `${dir}/${x.name}`) : [`${dir}/${x.name}`]) : [];
 
 export function readEngagement(root: string, id: string): { data: Engagement; version: string } {
   const r = readVersioned(root, `${base(id)}/engagement.json`);
@@ -140,7 +144,16 @@ const inPeriod = (at: string, e: Engagement) => e.type === 'type2' ? at.slice(0,
 
 // How an Open Autonomy project builds and runs the system, from its declarations at the commit last read: the agents and
 // their schedules, where people act and who may, and how a change lands and reaches production.
-function openAutonomySection(ws: Workspace): string {
+// The latest population a GitHub collector recorded for the engagement's period, with its rows.
+function periodPopulation(ws: Workspace, e: Engagement, kind: 'changes to' | 'deployments of') {
+  const ev = ws.evidence.filter((x) => x.data.source?.kind === 'collector' && x.data.title.startsWith('Population:') && x.data.title.includes(kind) && x.data.period && e.period && x.data.period.start <= e.period.start && x.data.period.end >= e.period.end)
+    .sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
+  const csv = ev?.data.files.find((f) => f.path.endsWith('.csv'));
+  return ev && csv ? { id: ev.data.id, rows: parseCsv(readFileSync(join(ws.root, csv.path), 'utf8'), csv.path).rows } : null;
+}
+const tally = (xs: string[]) => [...xs.reduce((m, x) => m.set(x, (m.get(x) ?? 0) + 1), new Map<string, number>())].map(([k, n]) => `${k || '(unknown)'} ${n}`).join(', ');
+
+function openAutonomySection(ws: Workspace, e: Engagement): string {
   const latest = readVersioned(ws.root, 'sources/open-autonomy/latest.json');
   if (!latest) return '';
   const snap = JSON.parse(latest.text) as Snapshot;
@@ -149,19 +162,46 @@ function openAutonomySection(ws: Workspace): string {
   return `
 How the system is built and operated (the Open Autonomy project ${snap.account} at ${snap.commit.slice(0, 12)}):
 
-Agents do the development work; each runs on a schedule with its models, and people act only at the declared seams.
+The project declares these agents, each on a schedule with its models, and the seams below as the places people act.
 ${snap.agents.map((a) => `- Agent profile ${a.profile}: ${a.jobs.map((j) => `${j.name} (${j.schedule})`).join(', ') || 'no scheduled jobs'}; models ${a.models.map((m) => `${m.provider} ${m.model}`).join(', ') || 'none'}`).join('\n')}
 
 Where people act:
 ${(snap.seams ?? []).map((x) => `- ${x.id}: held by ${x.scope} (${holders(x.scope)}), through ${x.door}; record: ${x.record}`).join('\n') || '- [the project declares no seams]'}
 
-Change and release: ${snap.rules.pr_landing ? 'changes land through pull requests by the project\'s landing workflow [confirm review with the daily required-review check]' : '[describe how changes land]'}; ${prod ? `production is deployed by ${prod.workflow}${prod.tag_trigger ? ` from a ${prod.tag_trigger} tag` : ''} through the ${prod.environment} environment's required reviewers, with outbound access limited to ${prod.egress.join(', ') || '[none listed]'}` : '[describe how a change reaches production]'}.${(snap.rules.production_workflows ?? []).length > 1 ? ` Every run of ${snap.rules.production_workflows!.map((g) => `${g.workflow}${g.tag_trigger ? ` (${g.tag_trigger})` : ''}`).join(', ')} passes the same environment's review.` : ''}
-
+Change and release as declared: ${snap.rules.pr_landing ? 'changes land through pull requests by the project\'s landing workflow' : '[describe how changes land]'}; ${prod ? `production is deployed by ${prod.workflow}${prod.tag_trigger ? ` on a ${prod.tag_trigger} tag` : ''} through the ${prod.environment} environment's required reviewers, with outbound access limited to ${prod.egress.join(', ') || '[none listed]'}` : '[describe how a change reaches production]'}.${(snap.rules.production_workflows ?? []).length > 1 ? ` Every run of ${snap.rules.production_workflows!.map((g) => `${g.workflow}${g.tag_trigger ? ` (${g.tag_trigger})` : ''}`).join(', ')} passes the same environment's review.` : ''}
+${(() => { const c = e.period ? periodPopulation(ws, e, 'changes to') : null; const d = e.period ? periodPopulation(ws, e, 'deployments of') : null; if (!c && !d) return '';
+  const lines: string[] = [];
+  if (c) { const prs = c.rows.filter((r) => r.kind === 'pull request'); const bad = c.rows.filter((r) => r.independent_approval !== 'yes');
+    lines.push(`- ${c.rows.length} change(s) reached the default branch (${c.id}): ${prs.length} through pull requests, opened by ${tally(prs.map((r) => r.author))}; ${c.rows.length - prs.length} pushed directly; ${bad.length ? `${bad.length} without an independent approval (${bad.map((r) => r.number ? `#${r.number}` : r.commit.slice(0, 12)).join(', ')})` : 'every one independently approved'}.`); }
+  if (d) { lines.push(`- ${d.rows.length} production deployment(s) (${d.id}), their runs started by ${tally(d.rows.map((r) => r.run_event))}${d.rows.some((r) => r.commit_match === 'no') ? `; ${d.rows.filter((r) => r.commit_match === 'no').length} approved on a run of another commit` : ''}; started by ${tally(d.rows.map((r) => r.started_by))}; ${d.rows.filter((r) => r.independent_approval === 'yes').length} approved by someone other than the starter.`); }
+  return `As operated in the period:\n${lines.join('\n')}\n`; })()}
 Subservice organizations: ${snap.vendors.join(', ')}.
 
 Sources: sources/open-autonomy/${snap.commit.slice(0, 12)}.json (the project's .open-autonomy/config.yaml, agent.json and workflows).
 `;
 }
+
+// Incidents an Open Autonomy project recorded in its own records/ (collected as the incidents seam's population), every
+// severity, so the description names what the program knows about rather than only what the workspace recorded.
+function latestPopulation(ws: Workspace, seam: string) {
+  return ws.evidence.filter((x) => x.data.source?.kind === 'open-autonomy' && x.data.source?.name === `${seam} seam`).sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
+}
+function projectIncidents(ws: Workspace, e: Engagement): string {
+  const ev = latestPopulation(ws, 'incidents');
+  if (!ev) return '';
+  const rows = parseCsv(readFileSync(join(ws.root, ev.data.files[0].path), 'utf8'), ev.data.files[0].path).rows.filter((r) => inPeriod(r.detected_at, e));
+  return rows.length ? `\nIncidents the project recorded in its records/ during the period, every severity:\n${rows.map((r) => `- ${r.detected_at.slice(0, 10)} ${r.id} (${r.severity}, ${r.status}): ${r.summary}${r.notification ? `. Notification: ${r.notification}` : ''}${r.review ? `. Review: ${r.review}` : ''}`).join('\n')}\n` : '';
+}
+
+// Every file an exception can be derived from, as if the whole workspace were packaged.
+const derivable = (ws: Workspace) => new Set([...ws.evidence.flatMap((x) => [x.path, ...x.data.files.map((f) => f.path)]), ...listUnder(ws.root, 'sources'), ...ws.runs.map((r) => r.path)]);
+// The deviations the workspace already knows about in the engagement's period, as the package's exceptions register
+// would list them: a draft names them so management decides what to disclose rather than asserting past them.
+function knownExceptions(ws: Workspace, e: Engagement) {
+  const csv = buildViews(ws.root, ws, e, [], derivable(ws), now()).get('review/exceptions.csv')!;
+  return parseCsv(csv, 'exceptions').rows.filter((x) => !x.key.startsWith('interim:'));
+}
+const deviationList = (ex: Record<string, string>[]) => ex.map((x) => `- ${x.occurred || x.detected} ${x.item}: ${x.detail}${x.controls ? ` (${x.controls.replaceAll(';', ', ')})` : ''}${x.resolved ? `; resolved ${x.resolved}` : ''}`).join('\n');
 
 function description(ws: Workspace, e: Engagement): string {
   const a = ws.scope?.data.answers ?? {};
@@ -208,12 +248,17 @@ ${ws.policies.filter((p) => p.data.versions.length).map((p) => `- ${p.data.title
 Data: ${rows('systems').map((s) => s.data).filter(Boolean).join('; ') || '[describe the data the system holds]'}.
 
 Sources: scope.json, registers/systems.csv, registers/people.csv, policies/.
-${openAutonomySection(ws)}
+${openAutonomySection(ws, e)}
 ## DC4 System incidents
 
-${incidents.length ? incidents.map((i) => `- ${i.data.detected_at.slice(0, 10)} ${i.data.title} (${i.data.severity}, ${i.data.status})${i.data.review ? `: ${i.data.review}` : ''}`).join('\n') : 'No high or critical incident is recorded for this period.'}
+${incidents.length ? incidents.map((i) => `- ${i.data.detected_at.slice(0, 10)} ${i.data.title} (${i.data.severity}, ${i.data.status})${i.data.review ? `: ${i.data.review}` : ''}`).join('\n') : projectIncidents(ws, e) ? 'The workspace records no incident of its own for this period; the project\'s are below.' : 'No incident is recorded for this period, in the workspace or in the project\'s records.'}
+${projectIncidents(ws, e)}${(() => { const ex = knownExceptions(ws, e); return ex.length ? `
+Deviations the workspace found during the period (the package's review/exceptions.csv):
+${deviationList(ex)}
 
-Sources: incidents/.
+[State which of these deviations are incidents to disclose here, with the effect and resolution of each.]
+` : ''; })()}
+Sources: incidents/${projectIncidents(ws, e) ? `, ${latestPopulation(ws, 'incidents')!.data.files[0].path}` : ''}.
 
 ## DC5 Applicable trust services criteria and related controls
 
@@ -266,7 +311,12 @@ and belief, that:
 1. The description presents the system that was designed and implemented ${when} in accordance with those criteria.
 2. The controls stated in the description were suitably designed ${when} to provide reasonable assurance that our
    service commitments and system requirements would be achieved if the controls operated effectively${e.type === 'type2' ? ', and they operated effectively throughout that period' : ''}.
-
+${(() => { const ex = e.type === 'type2' ? knownExceptions(ws, e) : []; return ex.length ? `
+[The workspace found ${ex.length} deviation(s) during the period, listed below and in the package's review/exceptions.csv.
+Unless management concludes that none prevented a service commitment from being achieved, end point 2 with "except for
+the matters described in the following paragraph" and describe them there.]
+${deviationList(ex)}
+` : ''; })()}
 [Name, title]
 [Signature]
 [Date]
@@ -312,6 +362,47 @@ export function draft(root: string, id: string, kind: 'description' | 'assertion
 // ── Packages ────────────────────────────────────────────────────────────────────────────────────────────────────
 // Exports exactly what the engagement's requests point at, plus the engagement, its drafts, and the controls and
 // approved policy texts those requests name. Refuses when a referenced file is missing or no longer matches its record.
+// Claims a description commonly makes that the packaged populations can refute. Each rule reads the final text; a
+// contradiction stops the export, and every rule's outcome is a row of review/description-lint.csv.
+function lintDescription(ws: Workspace, e: Engagement, text: string): { rule: string; status: 'pass' | 'contradiction' | 'not applicable'; detail: string }[] {
+  const out: ReturnType<typeof lintDescription> = [];
+  const prose = text.replace(/```[\s\S]*?```/g, '');
+  const inc = latestPopulation(ws, 'incidents');
+  const incRows = inc ? parseCsv(readFileSync(join(ws.root, inc.data.files[0].path), 'utf8'), inc.data.files[0].path).rows.filter((r) => inPeriod(r.detected_at, e)) : [];
+  const serious = incRows.filter((r) => r.severity === 'high' || r.severity === 'critical');
+  const noneClaim = /\bno incident is recorded\b/i.test(prose), noSerious = /\bno high or critical incident\b/i.test(prose);
+  out.push(!noneClaim && !noSerious ? { rule: 'incidents', status: 'not applicable', detail: 'the description makes no claim that no incident occurred' }
+    : (noneClaim && incRows.length) || (noSerious && serious.length) ? { rule: 'incidents', status: 'contradiction', detail: `the description says no ${noSerious ? 'high or critical ' : ''}incident is recorded; the incidents population (${inc!.data.id}) holds ${(noSerious ? serious : incRows).map((r) => `${r.id} (${r.severity})`).join(', ')}` }
+    : { rule: 'incidents', status: 'pass', detail: `consistent with ${inc ? inc.data.id : 'no incidents population'}` });
+  const c = e.period ? periodPopulation(ws, e, 'changes to') : null;
+  const unapproved = (c?.rows ?? []).filter((r) => r.independent_approval !== 'yes').map((r) => r.number ? `#${r.number}` : r.commit.slice(0, 12));
+  const reviewClaim = /\b(only|always|every change|all changes)\b(?:[^.\n]|\.(?=\S))*\breview/i.exec(prose);
+  out.push(!reviewClaim || !c ? { rule: 'changes reviewed', status: 'not applicable', detail: reviewClaim ? 'no changes population for the period' : 'the description makes no claim that every change is reviewed' }
+    : unapproved.every((x) => prose.includes(x)) ? { rule: 'changes reviewed', status: 'pass', detail: `"${reviewClaim[0]}"; ${unapproved.length ? `the description names ${unapproved.join(', ')}` : 'every change in the population was independently approved'} (${c.id})` }
+    : { rule: 'changes reviewed', status: 'contradiction', detail: `"${reviewClaim[0]}", but ${unapproved.filter((x) => !prose.includes(x)).join(', ')} in ${c.id} had no independent approval and the description does not name them` });
+  const d = e.period ? periodPopulation(ws, e, 'deployments of') : null;
+  // A sentence runs to a full stop followed by a space; a path's dots (deploy.yml) stay inside it.
+  const tagClaim = /\bdeploy(?:s|ed)?\b(?:[^.\n]|\.(?=\S))*\b(?:from|on) an? \S+ tag\b/i.exec(prose);
+  const other = [...new Set((d?.rows ?? []).map((r) => r.run_event).filter((x) => x && x !== 'push'))];
+  out.push(!tagClaim || !d ? { rule: 'deployment trigger', status: 'not applicable', detail: tagClaim ? 'no deployments population for the period' : 'the description names no deploy trigger' }
+    : !other.length || other.every((x) => prose.includes(x)) ? { rule: 'deployment trigger', status: 'pass', detail: `"${tagClaim[0]}"; runs in ${d.id}: ${tally(d.rows.map((r) => r.run_event))}` }
+    : { rule: 'deployment trigger', status: 'contradiction', detail: `"${tagClaim[0]}", but runs in ${d.id} were started by ${tally(d.rows.map((r) => r.run_event))} and the description does not say so` });
+  return out;
+}
+
+// The package's own README, hashed in the manifest with the other derived views.
+const readme = (organization: string, engagement: string, created: string, id: string, dangling: number) => `# SOC 2 audit package: ${organization}, engagement ${engagement}
+
+Created ${created}. Start with \`review/index.html\`: the exceptions register, each automated check across the
+period, every request with its evidence, and the control matrix, each line linked to the file it comes from
+(\`review/*.csv\` hold the same tables). The views were derived from \`workspace/\` when the package was made; the
+manifest shows they are unchanged since, not that they were derived correctly: every line names its source file. \`manifest.json\` lists every file under \`workspace/\` and \`review/\` with its SHA-256. Check it with
+\`evidence-desk audit verify <this folder>\`, or compare the hashes with any SHA-256 tool. To respond, edit the request
+files under \`workspace/${base(id)}/requests/\` (add to each thread with side "firm", set status "accepted" or "returned",
+add sample items) and send the folder back. A hash shows that a file is unchanged; it does not show who made it.
+\`manifest.json\` lists what stays in the workspace under \`omitted\`${dangling ? `, including ${dangling} file(s) a packaged file cites that the workspace does not hold` : ''}. This README is hashed with the views.
+`;
+
 export function exportPackage(root: string, id: string, out: string): { files: number; omitted: string[] } {
   const e = readEngagement(root, id);
   if (existsSync(out) && readdirSync(out).length) throw new Error(`${out} is not empty`);
@@ -319,9 +410,30 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   const reqs = listRequests(root, id);
   const paths = new Set<string>([`${base(id)}/engagement.json`, ...reqs.map((r) => r.path)]);
   const draftDir = join(root, base(id), 'drafts');
-  if (existsSync(draftDir)) for (const f of readdirSync(draftDir)) paths.add(`${base(id)}/drafts/${f}`);
-  const evidenceIds = new Set(reqs.flatMap((r) => [...r.data.evidence, ...(r.data.population ? [r.data.population] : []), ...(r.data.samples ?? []).flatMap((s) => s.evidence ?? [])]));
   const problems: string[] = [];
+  // Drafts go to the firm only once management has finished them, and every source a draft cites travels with it.
+  // A cited path must stay inside the workspace; a folder the draft cites that is empty or absent backs a "none".
+  if (existsSync(draftDir)) for (const f of readdirSync(draftDir, { withFileTypes: true }).filter((x) => x.isFile()).map((x) => x.name)) {
+    const rel = `${base(id)}/drafts/${f}`;
+    const text = readFileSync(join(root, rel), 'utf8');
+    const prose = text.replace(/```[\s\S]*?```/g, '');
+    if (text.includes('<!-- Drafted by Evidence Desk') || /\[[^\]]{3,}\](?![(\[])/.test(prose)) problems.push(`${rel} still has its drafting comment or a [bracketed] item to fill`);
+    paths.add(rel);
+    for (const line of prose.split('\n').filter((l) => /^\s*(?:[-*]\s*)?\**Sources:?\**:?/.test(l))) {
+      for (const raw of line.replace(/^\s*(?:[-*]\s*)?\**Sources:?\**:?/, '').replace(/\([^)]*\)/g, '').split(/[,;]/)) {
+        const tok = raw.trim().replace(/\.$/, '');
+        if (!(tok.includes('/') || /\.(json|csv|md)$/.test(tok)) || /\s/.test(tok)) continue;
+        const folder = tok.endsWith('/') || tok.includes('*');
+        const dir = tok.replace(/\*.*$/, '').replace(/\/$/, '');
+        try { inside(root, dir); } catch { problems.push(`${rel} cites ${tok}, which is not a path inside the workspace`); continue; }
+        const globbed = folder ? listUnder(root, dir).filter((x) => !tok.includes('*') || new RegExp(`^${tok.replace(/[.]/g, '\\.').replace(/\*/g, '[^/]*')}$`).test(x)) : [tok];
+        if (folder && !globbed.length) continue;
+        if (!globbed.length || globbed.some((x) => !existsSync(join(root, x)))) problems.push(`${rel} cites ${tok}, which is not in the workspace`);
+        else for (const x of globbed) paths.add(x);
+      }
+    }
+  }
+  const evidenceIds = new Set(reqs.flatMap((r) => [...r.data.evidence, ...(r.data.population ? [r.data.population] : []), ...(r.data.samples ?? []).flatMap((s) => s.evidence ?? [])]));
   for (const eid of evidenceIds) {
     const rec = ws.evidence.find((x) => x.data.id === eid);
     if (!rec) { problems.push(`evidence ${eid} is referenced but does not exist`); continue; }
@@ -336,7 +448,25 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   // The latest attribution check travels with every package: it names the pull request behind each person's act, which
   // the firm traces, and it is a record of the program rather than evidence of any one control.
   if (readVersioned(root, 'sources/github/attribution.json')) paths.add('sources/github/attribution.json');
-  for (const cid of new Set(reqs.flatMap((r) => r.data.controls))) {
+  // What a firm reconciles against: the registers, every control the included evidence cites, the checks run during the
+  // period, the project's declarations and each roster completeness check.
+  for (const f of listUnder(root, 'registers')) paths.add(f);
+  if (existsSync(join(root, base(id), 'exceptions.json'))) paths.add(`${base(id)}/exceptions.json`);
+  const period = e.data.period ?? { start: e.data.as_of ?? '', end: e.data.as_of ?? '' };
+  // Each run travels with what it decided from: every collector's snapshot and the evidence it recorded, so a daily
+  // reading in a check's history traces to the vendor's answer that day.
+  const evidenceById = new Map(ws.evidence.map((x) => [x.data.id, x]));
+  for (const r of ws.runs) if (r.data.started_at.slice(0, 10) >= period.start && r.data.started_at.slice(0, 10) <= period.end) {
+    paths.add(r.path);
+    for (const c of r.data.collectors) {
+      if (c.snapshot) { if (existsSync(join(root, c.snapshot))) paths.add(c.snapshot); else problems.push(`${c.snapshot} (run ${r.data.id}) is missing`); }
+      const rec = c.evidence ? evidenceById.get(c.evidence) : undefined;
+      if (rec) { paths.add(rec.path); for (const f of rec.data.files) if (existsSync(join(root, f.path))) paths.add(f.path); }
+    }
+  }
+  for (const f of ['sources/open-autonomy/latest.json', ...listUnder(root, 'sources/open-autonomy/completeness')]) if (existsSync(join(root, f))) paths.add(f);
+  const cited = new Set([...reqs.flatMap((r) => r.data.controls), ...ws.evidence.filter((x) => paths.has(x.path)).flatMap((x) => x.data.controls)]);
+  for (const cid of cited) {
     const c = ws.controls.find((x) => x.data.id === cid);
     if (!c) { problems.push(`control ${cid} does not exist`); continue; }
     paths.add(c.path);
@@ -346,6 +476,27 @@ export function exportPackage(root: string, id: string, out: string): { files: n
       if (p && v) { paths.add(p.path); paths.add(v.archived); }
     }
   }
+  // Every workspace file a packaged file cites travels with it (a form's definition, the snapshot a description names,
+  // a record an exception points to), until nothing new is cited; a cited file the workspace does not hold is listed in
+  // the manifest's omissions with what cites it, so the firm never meets a dangling reference unexplained.
+  const cites = /(?<![\w/.:@-])((?:evidence|sources|checks|forms|reviews|incidents|policies|registers|controls|audits)\/[\w.@+-]+(?:\/[\w.@+-]+)*\.(?:json|csv|md|txt|pdf|xlsx|yaml|yml|png|jpe?g))/g;
+  const absent = new Map<string, string>();
+  for (let scanned = new Set<string>(), round = 0; round < 10; round++) {
+    const fresh = [...paths].filter((p) => !scanned.has(p) && /\.(json|md|csv|txt)$/.test(p) && !p.endsWith('.raw.json'));
+    if (!fresh.length) break;
+    for (const p of fresh) {
+      scanned.add(p);
+      for (const m of readFileSync(join(root, p), 'utf8').matchAll(cites)) {
+        const ref = m[1];
+        try { inside(root, ref); } catch { continue; }
+        if (existsSync(join(root, ref))) paths.add(ref); else if (!absent.has(ref)) absent.set(ref, p);
+      }
+    }
+  }
+  const draftDescription = join(root, base(id), 'drafts', 'description.md');
+  if (existsSync(draftDescription)) for (const l of lintDescription(ws, e.data, readFileSync(draftDescription, 'utf8')).filter((x) => x.status === 'contradiction')) problems.push(`the description contradicts the evidence (${l.rule}): ${l.detail}`);
+  // A packaged response travels with its form's definition (the questions and correct answers it was graded against).
+  for (const r of ws.responses) if (paths.has(`forms/responses/${r.data.id}.json`)) { const f = ws.forms.find((x) => x.data.id === r.data.form); if (f) paths.add(f.path); }
   if (problems.length) throw new Error(`the package cannot be exported:\n  ${problems.join('\n  ')}`);
   mkdirSync(out, { recursive: true });
   const files = [...paths].sort().map((p) => {
@@ -355,18 +506,30 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     const h = fileHash(join(out, 'workspace'), p)!;
     return { path: p, sha256: h.sha256, bytes: h.bytes };
   });
-  const manifest = { schema: 'evidence-desk.audit-package/1', engagement: e.data.id, organization: ws.manifest?.data.organization ?? '', created_at: now(), files,
-    omitted: ['Everything not referenced by this engagement\'s requests: other evidence, registers, people and unrelated records stay in the workspace.'],
+  const created = now();
+  const omitted = ['Evidence no request names and records unrelated to the engagement stay in the workspace; the control matrix lists every control with its evidence ids, and the firm may ask for any of it.',
+    ...[...absent].sort(([a], [b]) => a.localeCompare(b)).map(([ref, by]) => `${ref}: cited by ${by}, and not in the workspace`)];
+  const views = buildViews(root, ws, e.data, reqs, paths, created);
+  const described = existsSync(join(root, base(id), 'drafts', 'description.md')) ? readFileSync(join(root, base(id), 'drafts', 'description.md'), 'utf8') : null;
+  // The workspace's own history on its default line: who merged each change to the program's records and when, so a
+  // register edit or an attribution row can be traced to the commit and pull request that made it.
+  try {
+    const log = execFileSync('git', ['-C', root, 'log', '--first-parent', '--format=%H %cI %an <%ae>%n    %s', 'HEAD', '--', '.'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    views.set('review/workspace-history.txt', `git log --first-parent HEAD -- . in the workspace repository at ${created}\n\n${log}`);
+  } catch { /* a workspace that is not a Git repository has no history to ship */ }
+  if (described) views.set('review/description-lint.csv', writeCsv({ columns: ['rule', 'status', 'detail'], rows: lintDescription(ws, e.data, described) }));
+  views.set('README.md', readme(ws.manifest?.data.organization ?? '', e.data.id, created, id, omitted.length - 1));
+  const derived = [...views].sort(([a], [b]) => a.localeCompare(b)).map(([p, text]) => {
+    const dest = join(out, p);
+    mkdirSync(dirname(dest), { recursive: true });
+    writeFileSync(dest, text);
+    return { path: p, sha256: sha256(Buffer.from(text)), bytes: Buffer.byteLength(text) };
+  });
+  const manifest = { schema: 'evidence-desk.audit-package/1', engagement: e.data.id, organization: ws.manifest?.data.organization ?? '', created_at: created, files, derived,
+    omitted,
     request_versions: Object.fromEntries(reqs.map((r) => [r.data.id, r.version])) };
   valid('audit-package', manifest, 'the package manifest');
   writeFileSync(join(out, 'manifest.json'), pretty(manifest));
-  writeFileSync(join(out, 'README.md'), `# SOC 2 audit package: ${manifest.organization}, engagement ${e.data.id}
-
-Created ${manifest.created_at}. \`manifest.json\` lists every file under \`workspace/\` with its SHA-256. Check it with
-\`evidence-desk audit verify <this folder>\`, or compare the hashes with any SHA-256 tool. To respond, edit the request
-files under \`workspace/${base(id)}/requests/\` (add to each thread with side "firm", set status "accepted" or "returned",
-add sample items) and send the folder back. A hash shows that a file is unchanged; it does not show who made it.
-`);
   return { files: files.length, omitted: manifest.omitted };
 }
 
@@ -384,6 +547,14 @@ export function verifyPackage(dir: string): { ok: boolean; problems: string[]; f
   }
   const walk = (d: string, rel = ''): string[] => readdirSync(join(d, rel), { withFileTypes: true }).flatMap((x) => x.isDirectory() ? walk(d, join(rel, x.name)) : [join(rel, x.name).split('\\').join('/')]);
   for (const f of walk(join(dir, 'workspace'))) if (!listed.has(f)) problems.push(`${f} is in the package but not in the manifest`);
+  const views = new Set<string>();
+  for (const f of (manifest.derived ?? []) as { path: string; sha256: string }[]) {
+    views.add(f.path);
+    const full = join(dir, f.path);
+    if (!existsSync(full)) problems.push(`${f.path} is listed but missing`);
+    else if (sha256(readFileSync(full)) !== f.sha256) problems.push(`${f.path} does not match the manifest`);
+  }
+  if (existsSync(join(dir, 'review'))) for (const f of walk(join(dir, 'review'))) if (!views.has(`review/${f}`)) problems.push(`review/${f} is in the package but not in the manifest`);
   return { ok: !problems.length, problems, files: manifest.files.length };
 }
 
@@ -503,3 +674,24 @@ export function packageState(dir: string) {
   const evidence = Object.fromEntries((manifest.files as { path: string }[]).filter((f) => f.path.startsWith('evidence/records/')).map((f) => { const r = JSON.parse(readFileSync(join(wsDir, f.path), 'utf8')); return [r.id, { title: r.title, files: r.files.map((x: { path: string }) => x.path), source: r.source, period: r.period ?? null, collected_at: r.collected_at }]; }));
   return { organization: manifest.organization, created_at: manifest.created_at, engagement: e, requests, drafts, evidence, verification: verifyPackage(dir) };
 }
+
+// Management's response to an exception the package derives (review/exceptions.csv names each by key): what happened,
+// what was done and by when. It is a person's statement, kept beside the engagement and shown with the exception.
+// A response names the workspace files behind its claims (--cite); each must exist, and it travels in the package.
+export function respondToException(root: string, id: string, key: string, text: string, by: string, cites: string[] = []): { file: string } {
+  readEngagement(root, id);
+  if (!text.trim()) throw new Error('the response needs --response <text>');
+  const ws = loadWorkspace(root);
+  const e = readEngagement(root, id).data;
+  const known = parseCsv(buildViews(root, ws, e, listRequests(root, id), derivable(ws), now()).get('review/exceptions.csv')!, 'exceptions.csv').rows.map((r) => r.key);
+  if (!known.includes(key)) throw new Error(`${key} is not an exception the workspace derives for engagement ${id}; take the key from review/exceptions.csv`);
+  if (!(loadWorkspace(root).registers.people?.data.rows ?? []).some((r) => r.id === by)) throw new Error(`${by || '(none)'} is not in registers/people.csv`);
+  const rel = `${base(id)}/exceptions.json`;
+  const cur = readVersioned(root, rel);
+  for (const c of cites) { inside(root, c); if (!existsSync(join(root, c))) throw new Error(`${c} is not a file in the workspace`); }
+  const doc = cur ? JSON.parse(cur.text) as { responses: Record<string, { text: string; by: string; at: string; cites?: string[] }> } : { responses: {} };
+  doc.responses[key] = { text: text.trim(), by, at: now(), ...(cites.length ? { cites } : {}) };
+  writeVersioned(root, rel, pretty(doc), cur?.version ?? null);
+  return { file: rel };
+}
+

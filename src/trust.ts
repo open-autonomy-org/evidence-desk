@@ -11,13 +11,13 @@ import { parseCsv, writeCsv } from './csv.ts';
 import { fileHash, readVersioned, writeVersioned } from './files.ts';
 import { categories, categoryAnswer } from './catalog.ts';
 import { loadWorkspace, type Workspace } from './workspace.ts';
+import { clockDate, now } from './clock.ts';
 
 type Source = { path: string; sha256: string };
 export type Question = { id: string; question: string; answer: string; sources: Source[]; status: 'unanswered' | 'draft' | 'reviewed' | 'needs-review'; reviewed_by?: string; reviewed_at?: string; from_library?: string };
 export type Questionnaire = { schema: string; id: string; name: string; source?: string; imported_at: string; questions: Question[] };
 type LibraryAnswer = { id: string; question: string; answer: string; sources: Source[]; reviewed_by: string; reviewed_at: string };
 
-const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const pretty = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
 function valid(name: string, data: unknown, what: string) { const e = check(schema(name), data); if (e.length) throw new Error(`${what} is invalid: ${e.join('; ')}`); }
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
@@ -146,7 +146,7 @@ export function importQuestionnaireText(root: string, text: string, file: string
     return { id, question: text, answer: `[Draft from ${hits.map((h) => h.p.label).join(' and ')}; confirm before sending] ${hits.map((h) => h.p.text.replace(/\s+/g, ' ')).join(' ')}`,
       sources: sourcesFor(root, hits.map((h) => h.p.path)), status: 'draft' };
   });
-  const id = `Q-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${randomBytes(2).toString('hex')}`;
+  const id = `Q-${clockDate().toISOString().slice(0, 10).replaceAll('-', '')}-${randomBytes(2).toString('hex')}`;
   const doc: Questionnaire = { schema: 'evidence-desk.questionnaire/1', id, name, source: basename(file), imported_at: now(), questions };
   valid('questionnaire', doc, 'the questionnaire');
   writeVersioned(root, `questionnaires/${id}.json`, pretty(doc), null);
