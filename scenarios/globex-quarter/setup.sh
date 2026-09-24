@@ -5,6 +5,7 @@ mkdir -p $RT/evidence-desk-oa; sed "s|\${TWIN_CHECKOUT}|${TWIN_CHECKOUT:?set TWI
 timeout 60 $V down evidence-desk-oa --root $RT 2>&1 | tail -1
 timeout 90 $V up $RT/evidence-desk-oa/world.config.json --name evidence-desk-oa --env-file $RT/evidence-desk-oa/app.env --root $RT --owner globex-quarter 2>&1 | tail -1
 clock 2026-06-15T09:00:00Z; seed - org; for u in maya-gx sam-gx lee-gx globex-dev globex-review; do seed - token $u > $STATE/tok-$u; done
+seed - member globex-dev member; seed - member globex-review member
 seed - cf; for u in maya sam deploy; do seed - cftoken $u@globex.test > $STATE/cftok-$u@globex.test; done
 cfas maya@globex.test min_tls_version 1.2; cfas maya@globex.test always_use_https on
 rm -rf $D && mkdir -p $D
@@ -74,6 +75,8 @@ ed init $W --org "Globex" | head -1; ed open-autonomy $W import --repo $D/relay 
 ed scope $W --set services="Relay: receives customers' webhooks, stores them for 30 days and replays them on request" infrastructure="Cloudflare Workers and Durable Objects (global)" security_contact=security@globex.test availability=true confidentiality=true processing_integrity=false privacy=false hosts_customer_data=true has_office=false background_checks_required=false | tail -1
 ed adopt $W | tail -1; ed open-autonomy $W import --repo $D/relay --by maya | tail -1
 ed register $W people --update maya email=maya@globex.test start_date=2026-06-01 | grep -i error; ed register $W people --update sam email=sam@globex.test start_date=2026-06-01 | grep -i error
+ed register $W systems --add id=agent-dev name="globex-dev" kind="agent account" description="The development agent's GitHub account: opens pull requests, never merges without an independent review" data="none" in_scope=yes | grep -i error
+ed register $W systems --add id=agent-review name="globex-review" kind="agent account" description="The review agent's GitHub account: reviews and lands pull requests" data="none" in_scope=yes | grep -i error
 ed register $W systems --add id=deploy-account name="deploy@globex.test" kind="service account" description="The Cloudflare account the deploy workflow's token belongs to (Workers Admin); no person holds it" data="none" in_scope=yes | grep -i error
 ed register $W systems --add id=cloudflare-account name="Cloudflare account (globex-cloudflare)" kind="hosting and edge" description="Runs the Relay workers and holds customer payloads" data="customer webhook payloads" in_scope=yes | grep -i error
 git -C $W init -q -b main && git -C $W add -A && gcommit $W maya "Globex compliance workspace: scoped and adopted"

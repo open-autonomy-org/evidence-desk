@@ -23,8 +23,9 @@ for r in csv.DictReader(open(os.path.join(D,'review/exceptions.csv'))):
         R[k]=("Sam deployed the relay Worker from a laptop at 18:20 UTC on 2026-09-10 with a personal Cloudflare token, to raise the replay limit "
               "for a customer whose replay backlog was failing. It bypassed the pull request and the production environment's approval. Sam "
               "recorded it as a break-glass change on 2026-09-11 (records/break-glass/2026-09-10-replay-limit.json), and the same change was "
-              "merged through review that day. We accept it as a deviation from the change path. Personal Cloudflare tokens lost the Workers "
-              "edit permission on 2026-09-26 (management review of 2026-09-25).",[workers,glass_csv,glass])
+              "merged through review and deployed as deploy-v6 at 11:00 UTC that day, so unreviewed code ran for about 17 hours. We accept it as "
+              "a deviation from the change path. Reducing Sam's personal Cloudflare access to read-only is a Q4 action (management review of "
+              "2026-09-25), not yet done.",[workers,glass_csv,glass])
     elif k.startswith('check:cloudflare-https'):
         R[k]=("Sam turned Always Use HTTPS off on relay.globex.test at 16:00 UTC on 2026-08-19 while testing a redirect, and Maya turned it back "
               "on at 10:00 UTC on 2026-08-21 (the account audit log in the configuration-changes population). The daily check found it on 08-19; "

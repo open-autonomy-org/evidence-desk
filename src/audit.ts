@@ -475,6 +475,19 @@ export function exportPackage(root: string, id: string, out: string): { files: n
       else paths.add(f.path);
     }
   }
+  // Evidence no request names still travels when it speaks to an applicable control in the engagement's window: the
+  // firm sees everything the organization holds for the period, not only what its request list happened to ask for.
+  // The daily collector records are left out; their snapshots travel with the check runs.
+  const win = e.data.period ?? { start: e.data.as_of ?? '', end: e.data.as_of ?? '' };
+  const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
+  const yearBefore = new Date(Date.parse(`${win.end}T00:00:00Z`) - 365 * 864e5).toISOString().slice(0, 10);
+  for (const rec of ws.evidence.filter((x) => x.data.controls.some((c) => applicable.has(c)) && !/collected by run/.test(x.data.title))) {
+    const inWindow = rec.data.period ? rec.data.period.start <= win.end && rec.data.period.end >= win.start : rec.data.collected_at.slice(0, 10) >= yearBefore && rec.data.collected_at.slice(0, 10) <= win.end;
+    if (!inWindow || paths.has(rec.path)) continue;
+    const ok = rec.data.files.every((f) => fileHash(root, f.path)?.sha256 === f.sha256);
+    if (!ok) continue;
+    paths.add(rec.path); for (const f of rec.data.files) paths.add(f.path);
+  }
   // The latest attribution check travels with every package: it names the pull request behind each person's act, which
   // the firm traces, and it is a record of the program rather than evidence of any one control.
   if (readVersioned(root, 'sources/github/attribution.json')) paths.add('sources/github/attribution.json');
@@ -555,7 +568,7 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     return { path: p, sha256: h.sha256, bytes: h.bytes };
   });
   const created = now();
-  const omitted = ['Evidence no request names and records unrelated to the engagement stay in the workspace; the control matrix lists every control with its evidence ids, and the firm may ask for any of it.',
+  const omitted = ['Evidence outside the engagement window, evidence of excluded controls, and the daily collector records (whose snapshots travel with the check runs) stay in the workspace; the control matrix lists every control with its evidence ids, and the firm may ask for any of it.',
     ...[...absent].sort(([a], [b]) => a.localeCompare(b)).map(([ref, by]) => `${ref}: cited by ${by}, and not in the workspace`)];
   const views = buildViews(root, ws, e.data, reqs, paths, created);
   const described = existsSync(join(root, base(id), 'drafts', 'description.md')) ? readFileSync(join(root, base(id), 'drafts', 'description.md'), 'utf8') : null;
