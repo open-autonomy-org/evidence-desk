@@ -48,7 +48,9 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
     }
     // Each roster member's latest passed response per form must have been recorded by their own GitHub account.
     const attributed = readVersioned(ws.root, 'sources/github/onboarding-attribution.json');
-    const rows = attributed ? (JSON.parse(attributed.text) as { rows: { response: string; status: string; author: string }[] }).rows : null;
+    const record = attributed ? JSON.parse(attributed.text) as { roster_commit: string; rows: { response: string; sha256: string; status: string; author: string }[] } : null;
+    const rows = record?.rows ?? null;
+    if (record && record.roster_commit !== snap.commit) program.push(`Open Autonomy: onboarding was checked against the roster at ${record.roster_commit.slice(0, 12)}, not ${snap.commit.slice(0, 12)} (collect onboarding-attribution)`);
     const titles = new Map(ws.forms.map((f) => [f.data.id, f.data.title]));
     const latestBy = new Map<string, { id: string; person: string; form: string }>();
     for (const r of ws.responses) if (r.data.passed && snap.team.some((m) => m.id === r.data.person)) {
@@ -58,7 +60,7 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
     }
     if (latestBy.size && !rows) program.push('Open Autonomy: onboarding responses have not been checked against the members\' GitHub accounts (collect onboarding-attribution)');
     else for (const r of latestBy.values()) {
-      const row = rows!.find((x) => x.response === r.id);
+      const row = rows!.find((x) => x.response === r.id && x.sha256 === ws.responses.find((y) => y.data.id === r.id)!.version);
       if (!row) program.push(`Open Autonomy: ${r.person}'s ${titles.get(r.form) ?? r.form} (${r.id}) has not been checked against their GitHub account`);
       else if (row.status !== 'verified') program.push(`Open Autonomy: ${r.person}'s ${titles.get(r.form) ?? r.form} (${r.id}) is not recorded by their own GitHub account: ${row.status}${row.author ? ` (${row.author})` : ''}`);
     }

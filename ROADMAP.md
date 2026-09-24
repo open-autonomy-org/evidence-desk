@@ -136,13 +136,14 @@ records) to the empty risk register once the roster held its scopes and the reco
 without a review and an unanswered escalation showed as findings until recorded. What remains per control is people's
 acts: control and policy owners, policy approval, onboarding, the risk assessment, and the outside firms.
 
-Landed since: each onboarding response is checked as recorded by the member's own GitHub account (the pull request
-that merged it), demonstrated against the GitHub twin with a verified response, responses pushed without a pull request, and one opened by someone else.
+Landed since: every change to an onboarding response must be merged from a pull request its member opened into the
+workspace repository's default branch; demonstrated against the GitHub twin with a verified response and responses
+pushed without a pull request, changed by someone else, never merged, and edited after merging.
 
 Outstanding: recurring human reviews are not yet scheduled from the project; the demonstration has no production
 workflow (a template project gains it at `setup --with production`), so deployment populations were not exercised on
 it. The GitHub twin identifies who opened a pull request or submitted a review only for callers holding a personal
-token it minted (twin main a0e3a2e3), so approval independence still reads as unknown for seeds using the World's shared
+token it minted (twin main d88ec450), so approval independence still reads as unknown for seeds using the World's shared
 token; it does not create `main` on `auto_init`; the published twin package (0.1.2) predates both fixes and still
 serves a review's verb as its state.
 

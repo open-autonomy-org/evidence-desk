@@ -121,9 +121,12 @@ export async function checkCompleteness(root: string, input: { account: string; 
 
 // Whether each onboarding response was recorded by the member it names, through a seam's door (ADR 0008): the
 // workspace is a Git repository on GitHub, a member records a response in a pull request of their own, and GitHub
-// says who opened it. The commit that added each response file is read from the workspace's history; its merged
-// pull request's author is compared with the member's GitHub account on the Open Autonomy roster.
-export type Attribution = { response: string; person: string; form: string; commit: string; pull: string; author: string; expected: string; status: 'verified' | 'uncommitted' | 'no merged pull request' | 'opened by someone else' | 'no GitHub account on the roster' };
+// says who opened it. Every commit on the default branch that touched a response file must have come from a pull
+// request merged into that branch and opened by the member's GitHub account on the Open Autonomy roster, and the file
+// must be as merged. Residual: a collaborator who pushes to a member's open pull request branch is not told apart.
+export type AttributionStatus = 'verified' | 'no GitHub account on the roster' | 'not on the default branch' | 'changed since merged'
+  | 'not on GitHub' | 'no merged pull request' | 'changed by someone else';
+export type Attribution = { response: string; person: string; form: string; sha256: string; commits: string; pulls: string; author: string; expected: string; status: AttributionStatus };
 export async function collectOnboardingAttribution(root: string, input: { repo: string; by: string }): Promise<{ record: string; evidence: string | null; rows: Attribution[] }> {
   if (!/^[\w.-]+\/[\w.-]+$/.test(input.repo)) throw new Error('--repo names the workspace\'s own GitHub repository as owner/name');
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
@@ -131,34 +134,53 @@ export async function collectOnboardingAttribution(root: string, input: { repo: 
   const snap = JSON.parse(latest.text) as Snapshot;
   const git = (...args: string[]) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   try { git('rev-parse', '--show-toplevel'); } catch { throw new Error('the workspace is not a Git repository; responses are recorded through pull requests to it'); }
+  if (git('rev-parse', '--is-shallow-repository') === 'true') throw new Error('the workspace is a shallow clone; fetch its full history (git fetch --unshallow) so every change to a response can be traced');
+  const branch = (await get(`/repos/${input.repo}`) as { default_branch: string }).default_branch;
+  const ref = `origin/${branch}`;
+  try { git('rev-parse', '--verify', '--quiet', ref); } catch { throw new Error(`${ref} is not in the workspace; fetch it (git fetch origin ${branch})`); }
   const prefix = git('rev-parse', '--show-prefix');
+  const pullsOf = async (sha: string): Promise<(Pull & { base?: { ref?: string } })[] | null> => {
+    try { return await get(`/repos/${input.repo}/commits/${sha}/pulls`) as (Pull & { base?: { ref?: string } })[]; }
+    catch (e) { if (/answered (404|422)/.test((e as Error).message)) return null; throw e; }
+  };
   const ws = loadWorkspace(root);
   const rows: Attribution[] = [];
   for (const r of ws.responses) {
     const d = r.data;
+    const file = `forms/responses/${d.id}.json`;
     const expected = snap.team.find((m) => m.id === d.person)?.github ?? '';
-    const base = { response: d.id, person: d.person, form: d.form, commit: '', pull: '', author: '', expected };
-    if (!expected) { rows.push({ ...base, status: 'no GitHub account on the roster' }); continue; }
-    const commit = git('log', '--diff-filter=A', '--format=%H', '--', `forms/responses/${d.id}.json`).split('\n').filter(Boolean).pop() ?? '';
-    if (!commit) { rows.push({ ...base, status: 'uncommitted' }); continue; }
-    const pulls = await get(`/repos/${input.repo}/commits/${commit}/pulls`) as Pull[];
-    const merged = pulls.find((p) => p.merged_at);
-    if (!merged) { rows.push({ ...base, commit, status: 'no merged pull request' }); continue; }
-    const author = merged.user?.login ?? '';
-    rows.push({ ...base, commit, pull: String(merged.number), author, status: author.toLowerCase() === expected.toLowerCase() ? 'verified' : 'opened by someone else' });
+    const row: Attribution = { response: d.id, person: d.person, form: d.form, sha256: r.version, commits: '', pulls: '', author: '', expected, status: 'verified' };
+    rows.push(row);
+    if (!expected) { row.status = 'no GitHub account on the roster'; continue; }
+    const commits = git('log', '--no-renames', '--format=%H', ref, '--', file).split('\n').filter(Boolean);
+    row.commits = commits.join(' ');
+    if (!commits.length) { row.status = 'not on the default branch'; continue; }
+    let merged: string;
+    try { merged = execFileSync('git', ['-C', root, 'show', `${ref}:${prefix}${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); } catch { row.status = 'not on the default branch'; continue; }
+    if (merged !== readVersioned(root, file)?.text) { row.status = 'changed since merged'; continue; }
+    const pulls: string[] = [], authors: string[] = [];
+    for (const sha of commits) {
+      const found = await pullsOf(sha);
+      if (!found) { row.status = 'not on GitHub'; break; }
+      const pr = found.find((p) => p.merged_at && p.base?.ref === branch);
+      if (!pr) { row.status = 'no merged pull request'; break; }
+      pulls.push(String(pr.number)); authors.push(pr.user?.login ?? '');
+      if ((pr.user?.login ?? '').toLowerCase() !== expected.toLowerCase()) { row.status = 'changed by someone else'; break; }
+    }
+    row.pulls = [...new Set(pulls)].join(' ');
+    row.author = [...new Set(authors)].join(' ');
   }
   const rel = 'sources/github/onboarding-attribution.json';
-  const record = { schema: 'evidence-desk.onboarding-attribution/1', repo: input.repo, workspace_path: prefix, checked_at: now(), roster_commit: snap.commit, rows };
+  const record = { schema: 'evidence-desk.onboarding-attribution/1', repo: input.repo, branch, workspace_path: prefix, checked_at: now(), roster_commit: snap.commit, rows };
   writeVersioned(root, rel, JSON.stringify(record, null, 2) + '\n', readVersioned(root, rel)?.version ?? null);
   const verified = rows.filter((x) => x.status === 'verified');
   const forms = new Map(ws.forms.map((f) => [f.data.id, f.data.controls]));
   const controls = applicableOf(root, [...new Set(verified.flatMap((x) => forms.get(x.form) ?? []))]);
   const csv = `evidence/files/populations/onboarding-attribution-${Date.now()}.csv`;
-  writeVersioned(root, csv, writeCsv({ columns: ['response', 'person', 'form', 'commit', 'pull', 'author', 'expected', 'status'], rows }), null);
+  writeVersioned(root, csv, writeCsv({ columns: ['response', 'person', 'form', 'sha256', 'commits', 'pulls', 'author', 'expected', 'status'], rows }), null);
   const evidence = controls.length ? addEvidence(root, {
     title: `${verified.length} of ${rows.length} onboarding responses recorded by the member's own GitHub account`, controls, files: [csv], recorded_by: input.by,
-    source: { kind: 'collector', name: 'github', query: `git log --diff-filter=A for each forms/responses file; GET /repos/${input.repo}/commits/{sha}/pulls for each commit, comparing the merged pull request's author with the roster at ${snap.commit.slice(0, 12)}` },
+    source: { kind: 'collector', name: 'github', query: `git log --no-renames ${ref} for each forms/responses file; GET /repos/${input.repo}/commits/{sha}/pulls for every commit, requiring a pull request merged into ${branch} and opened by the member on the roster at ${snap.commit.slice(0, 12)}` },
   }) : null;
   return { record: rel, evidence, rows };
 }
-

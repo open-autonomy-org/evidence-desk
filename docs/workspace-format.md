@@ -124,10 +124,12 @@ finds them; a declared seam never collected is a finding too.
 
 Onboarding at a seam: the workspace is kept in a private GitHub repository the roster members can open pull requests
 to, and each member records their own responses (`respond`, or the People page of their own `serve`) in a pull request
-they open. `collect onboarding-attribution` reads, for every response file, the commit that added it (`git log
---diff-filter=A`) and the merged pull request GitHub associates with that commit, and compares the pull request's
-author with the member's GitHub account on the roster. A roster member's latest passed response to a form that was not
-merged from a pull request, or was opened by someone else, is a finding in the gap view.
+they open. `collect onboarding-attribution` reads, on the default branch, every commit that touched each response file
+(`git log --no-renames origin/<default>`), and requires GitHub to associate each with a pull request merged into the
+default branch and opened by the member's GitHub account on the roster, and the file to be unchanged since. A shallow
+clone is refused. A roster member's latest passed response to a form that fails any of these, or changed after the
+check, is a finding in the gap view, as is a check made against an earlier roster. A collaborator who pushes a commit to
+a member's open pull request branch is not told apart from the member.
 
 `evidence-desk collect` writes populations under `evidence/files/populations/` with the requests that produced them:
 merged pull requests with their approvals and whether an approval came from someone other than the author (`unknown`
