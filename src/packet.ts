@@ -112,10 +112,14 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     const checks = [...history.entries()].filter(([, rows]) => rows[0]?.controls.includes(d.id)).map(([k]) => `${k} ${coverage.get(k)!.days}/${days.length} days`);
     // What the workspace holds for the control in the period, packaged or not: an applicable control with none has no
     // evidence of operating, which the firm should see without asking.
-    const held = ws.evidence.filter((x) => x.data.controls.includes(d.id) && (x.data.period ? x.data.period.start <= period.end && x.data.period.end >= period.start : inside(x.data.collected_at, period))).length;
+    // An annual control's evidence counts from the twelve months before the period's end: a policy approved in June is in
+    // force for a July-to-September period.
+    const since = d.frequency === 'annual' ? new Date(Date.parse(`${period.end}T00:00:00Z`) - 365 * 864e5).toISOString().slice(0, 10) : period.start;
+    const window = { start: since < period.start ? since : period.start, end: period.end };
+    const held = ws.evidence.filter((x) => x.data.controls.includes(d.id) && (x.data.period ? x.data.period.start <= window.end && x.data.period.end >= window.start : inside(x.data.collected_at, window))).length;
     return { control: d.id, title: d.title, criteria: d.criteria.join(';'), frequency: d.frequency, owner: d.owner, status: d.status, applicable: d.applicable ? 'yes' : 'no', exclusion_reason: d.exclusion_reason ?? '',
       requests: reqs.filter((r) => r.data.controls.includes(d.id)).map((r) => r.data.id).join(';'), evidence: ids.join(';'), check_history: checks.join('; '),
-      evidence_in_period: d.applicable ? (held || checks.length ? `${held} record(s)${checks.length ? ` and ${checks.length} check(s)` : ''}` : 'none') : '',
+      evidence_in_period: d.applicable ? (held || checks.length ? `${held} record(s)${window.start < period.start ? ` since ${window.start}` : ''}${checks.length ? ` and ${checks.length} check(s)` : ''}` : 'none') : '',
       exceptions: String(exceptions.filter((x) => x.controls.split(';').includes(d.id)).length) };
   });
   views.set('review/controls-matrix.csv', writeCsv({ columns: ['control', 'title', 'criteria', 'frequency', 'owner', 'status', 'applicable', 'exclusion_reason', 'requests', 'evidence', 'check_history', 'evidence_in_period', 'exceptions'], rows: matrix }));
