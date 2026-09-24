@@ -67,8 +67,8 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
     else for (const a of acts) {
       const value = actDigest(a.extract(readAct(a.file, readVersioned(ws.root, a.file)?.text)));
       const row = record!.rows.find((x) => x.key === a.key && x.value_sha256 === value);
-      if (!row) program.push(`Open Autonomy: ${a.person}'s ${a.label} has not been checked against their GitHub account`);
-      else if (row.status !== 'verified') program.push(`Open Autonomy: ${a.person}'s ${a.label} is not recorded by their own GitHub account: ${row.status}${row.author ? ` (${row.author})` : ''}`);
+      if (!row) program.push(`Open Autonomy: ${a.person || '(no one)'}'s ${a.label} has not been checked against their GitHub account`);
+      else if (row.status !== 'verified') program.push(`Open Autonomy: ${a.person || '(no one)'}'s ${a.label} is not recorded by their own GitHub account: ${row.status}${row.author ? ` (${row.author})` : ''}`);
     }
     for (const seam of (snap.seams ?? []).filter((x) => x.door === 'commit' && x.record.startsWith('records/') && RECORD_KINDS[x.id])) {
       const got = readVersioned(ws.root, `sources/open-autonomy/seam-records/${seam.id}.json`);

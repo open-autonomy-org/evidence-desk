@@ -125,7 +125,8 @@ finds them; a declared seam never collected is a finding too.
 
 Signed acts at a seam: the workspace is kept in a private GitHub repository the roster members can open pull requests
 to, and each person records the acts the workspace names them in (a form response, an access review's sign-off, a
-policy's latest approval, the update that closed an incident) in a pull request they open. `collect attribution`
+policy's latest approval, the update that closed an incident, a risk's treatment decided by its owner, a vendor's
+review recorded by its owner) in a pull request they open. `collect attribution`
 finds, on the default branch's first-parent line (`git log --first-parent origin/<default>`), the commit that brought
 each act to its present content, and requires GitHub to associate it with a pull request merged into the default branch and opened by the
 person's GitHub account on the roster; the working file must hold the act as merged. A shallow clone is refused. A
@@ -143,8 +144,9 @@ the attribution check (where an Open Autonomy roster was imported) and the remin
 
 `evidence-desk collect` writes populations under `evidence/files/populations/` with the requests that produced them:
 merged pull requests with their approvals and whether an approval came from someone other than the author (`unknown`
-when the source does not identify both), production deployments with their final state, and every change to the roster
-from git history.
+when the source does not identify both), production deployments with their final state and, through the Actions run each
+deployment's status links, who started the run, who approved the environment and whether that approval was independent,
+and every change to the roster from git history.
 
 ## Collectors and checks
 
@@ -160,7 +162,14 @@ gates nothing.
 
 The GitHub collector covers two-factor enforcement for the organization, a required approving review and protected
 history on each checked repository's default branch, overdue critical and high Dependabot alerts, and open
-secret-scanning alerts.
+secret-scanning alerts. The Cloudflare collector (`CLOUDFLARE_API_TOKEN`, an account id or name and optionally zone
+names) covers two-factor authentication for every accepted member (or the account enforcing it), and each zone's minimum
+TLS version (1.2 or later) and HTTPS-only redirect. Roster completeness reads a Cloudflare account's administrators
+(members with an administrator role) from the same API.
+
+With an imported Open Autonomy project, the daily workflow clones the project's public repository and imports it again,
+committing what changed; the system description draft (`audit … draft description`) then states how the project builds
+and runs the system: its agents and schedules, where people act and who may, and how a change reaches production.
 
 ## Audits
 

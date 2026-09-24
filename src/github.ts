@@ -176,7 +176,7 @@ export function signedActs(root: string): Act[] {
     extract: (rows) => { const x = rowOf(rows, v.id); return x?.last_review ? { last_review: x.last_review, owner: x.owner } : null; } });
   return acts;
 }
-export type AttributionStatus = 'verified' | 'no GitHub account on the roster' | 'not on the default branch' | 'changed since merged'
+export type AttributionStatus = 'verified' | 'names no one' | 'no GitHub account on the roster' | 'not on the default branch' | 'changed since merged'
   | 'not on GitHub' | 'no merged pull request' | 'recorded by someone else';
 export type Attribution = { key: string; kind: Act['kind']; file: string; person: string; label: string; value_sha256: string; commit: string; pull: string; author: string; expected: string; status: AttributionStatus };
 export const actDigest = (v: unknown) => createHash('sha256').update(JSON.stringify(v ?? null)).digest('hex');
@@ -204,6 +204,7 @@ export async function collectAttribution(root: string, input: { repo: string; by
     const expected = snap.team.find((m) => m.id === act.person)?.github ?? '';
     const row: Attribution = { key: act.key, kind: act.kind, file: act.file, person: act.person, label: act.label, value_sha256: actDigest(current), commit: '', pull: '', author: '', expected, status: 'verified' };
     rows.push(row);
+    if (!act.person) { row.status = 'names no one'; continue; }
     if (!expected) { row.status = 'no GitHub account on the roster'; continue; }
     // The default branch's own line (first parents), newest first: the act was introduced by the newest commit whose
     // first parent did not hold it. A merge commit maps to the pull request it merged; a pull request's branch commits

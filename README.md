@@ -59,6 +59,7 @@ and can run every day in the workspace's own repository:
 
 ```bash
 bun src/cli.ts collectors ~/acme-soc2 github --enable --set org=acme repos=acme/inbox
+bun src/cli.ts collectors ~/acme-soc2 cloudflare --enable --set account=acme-cloudflare
 GITHUB_TOKEN=... bun src/cli.ts run ~/acme-soc2 --by ana
 bun src/cli.ts ci-template ~/acme-soc2
 ```
