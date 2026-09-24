@@ -664,7 +664,9 @@ export function exportPackage(root: string, id: string, out: string): { files: n
       if (rec) { paths.add(rec.path); for (const f of rec.data.files) if (existsSync(join(root, f.path))) paths.add(f.path); }
     }
   }
-  for (const f of ['sources/open-autonomy/latest.json', ...listUnder(root, 'sources/open-autonomy/completeness')]) if (existsSync(join(root, f))) paths.add(f);
+  // The latest import travels with the documents it read: the decisions, the SOC 2 checklist, the internal audit's job.
+  const latestCommit = existsSync(join(root, 'sources/open-autonomy/latest.json')) ? String((JSON.parse(readFileSync(join(root, 'sources/open-autonomy/latest.json'), 'utf8')) as { commit?: string }).commit ?? '').slice(0, 12) : '';
+  for (const f of ['sources/open-autonomy/latest.json', ...listUnder(root, 'sources/open-autonomy/completeness'), ...(latestCommit ? listUnder(root, `sources/open-autonomy/${latestCommit}`) : [])]) if (existsSync(join(root, f))) paths.add(f);
   const cited = new Set([...reqs.flatMap((r) => r.data.controls), ...ws.evidence.filter((x) => paths.has(x.path)).flatMap((x) => x.data.controls)]);
   for (const cid of cited) {
     const c = ws.controls.find((x) => x.data.id === cid);

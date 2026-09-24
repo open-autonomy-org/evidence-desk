@@ -7,6 +7,9 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- The Open Autonomy import keeps the documents it read at that commit (the architecture decisions, the SOC 2
+  checklist and the internal-audit job's instructions) under `sources/open-autonomy/<commit>/`, and the package carries
+  them, so the firm can read what each checklist item and each weekly audit checks.
 - A day of the period with no check run is an exception, and the Cloudflare change check reads from the last run that
   happened. That check fails on any production setting a person changed by hand. The change that puts a setting back
   closes its exception and is named in it. Evidence recorded after the period and before the package travels with it.

@@ -157,6 +157,10 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
 
   const snapText = pretty(snap);
   if (!readVersioned(root, report.snapshot)) writeVersioned(root, report.snapshot, snapText, null);
+  // The documents that define what the project must keep true and what its internal audit checks, as they stood at the
+  // commit read: the architecture decisions, the SOC 2 checklist, and the internal-audit job's instructions.
+  const docs = git(repo, 'ls-tree', '-r', '--name-only', snap.commit, 'docs/decisions/', 'hermes/skills/open-autonomy/internal-audit/').split('\n').filter((f) => f.endsWith('.md'));
+  for (const f of docs) { const rel = `sources/open-autonomy/${snap.commit.slice(0, 12)}/${f}`; if (!readVersioned(root, rel)) writeVersioned(root, rel, git(repo, 'show', `${snap.commit}:${f}`) + '\n', null); }
   writeVersioned(root, latestRel, snapText, prevText?.version ?? null);
 
   const source = `Open Autonomy ${snap.account} at ${snap.commit.slice(0, 12)}`;
