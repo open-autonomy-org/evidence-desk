@@ -162,7 +162,8 @@ export async function collectOnboardingAttribution(root: string, input: { repo: 
     for (const sha of commits) {
       const found = await pullsOf(sha);
       if (!found) { row.status = 'not on GitHub'; break; }
-      const pr = found.find((p) => p.merged_at && p.base?.ref === branch);
+      const into = found.filter((p) => p.merged_at && p.base?.ref === branch);
+      const pr = into.find((p) => (p.user?.login ?? '').toLowerCase() === expected.toLowerCase()) ?? into[0];
       if (!pr) { row.status = 'no merged pull request'; break; }
       pulls.push(String(pr.number)); authors.push(pr.user?.login ?? '');
       if ((pr.user?.login ?? '').toLowerCase() !== expected.toLowerCase()) { row.status = 'changed by someone else'; break; }
