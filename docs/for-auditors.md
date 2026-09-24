@@ -65,7 +65,7 @@ counts only what the package holds.
 
 An exception's `closed_by` says what ended it: a later passing reading (which shows the condition stopped, not that
 anyone remediated it) or a later completeness check. A check that reports events, such as a bypass of the branch
-rules or a Worker deployed by a person, is never closed by a quiet day. Where the package holds the escalations
+rules or a Worker deployed by a person, is never closed by a quiet day. A day of the period with no check run is an exception of its own. Where the package holds the escalations
 population, a failing check that no escalation record names on or after its first failing reading is an exception of
 its own: the failure reached no one. A production setting a person changed with no break-glass record that day, an access review that kept an account
 an earlier exception names, and a record made by someone without its seam's scope are exceptions. A release whose
@@ -141,7 +141,8 @@ query that produced it (evidence a person added by hand says so).
   history (`*.history.txt`): a record edited after it was added shows every change with its author and dates.
 - **Continuous checks** (two-factor enforcement, required review and protected history, bypasses of the default
   branch's rules, dependency and secret-scanning alerts, TLS and HTTPS settings, and who made each change in the
-  Cloudflare account's audit log, with every Worker deploy made by a service account) run daily in the workspace
+  Cloudflare account's audit log since the last run, with every Worker deploy and setting change made by a service
+  account) run daily in the workspace
   repository;
   each result, the snapshot it was decided from and its first failure date are kept.
 

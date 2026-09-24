@@ -425,9 +425,9 @@ function lintDescription(ws: Workspace, e: Engagement, text: string, assertionTe
   // Every deviation the register holds, resolved or not: the assertion's "except for" is management's account of each.
   const open = knownExceptions(ws, e);
   const signed = assertionText || both;
-  // Named means the row's own item (release deploy-v6, sam@globex.test's token cf-…): an id alone can appear in another
-  // matter about something else.
-  const missing = open.filter((x) => !signed.includes(x.item));
+  // Named means the row's own item (release deploy-v6, sam@globex.test's token cf-…) or its register key, which a matter
+  // covering several rows of one event cites: an id alone can appear in another matter about something else.
+  const missing = open.filter((x) => !signed.includes(x.item) && !signed.includes(x.key));
   out.push(!open.length ? { rule: 'open exceptions disclosed', status: 'not applicable', detail: 'the register holds no deviation' }
     : missing.length ? { rule: 'open exceptions disclosed', status: 'contradiction', detail: `${missing.length} deviation(s) the assertion does not name: ${missing.map((x) => `${ident(x)} (${x.key})`).join('; ')}` }
     : { rule: 'open exceptions disclosed', status: 'pass', detail: `the assertion names each of the ${open.length} deviation(s) in the register` });
@@ -625,7 +625,10 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
   const yearBefore = new Date(Date.parse(`${win.end}T00:00:00Z`) - 365 * 864e5).toISOString().slice(0, 10);
   for (const rec of ws.evidence.filter((x) => x.data.controls.some((c) => applicable.has(c)) && !/collected by run/.test(x.data.title))) {
-    const inWindow = rec.data.period ? rec.data.period.start <= win.end && rec.data.period.end >= win.start : rec.data.collected_at.slice(0, 10) >= yearBefore && rec.data.collected_at.slice(0, 10) <= win.end;
+    // A record made after the period and before the package (the description's review, a subsequent event) is part of
+    // what the firm tests the period with.
+    const upTo = now().slice(0, 10) > win.end ? now().slice(0, 10) : win.end;
+    const inWindow = rec.data.period ? rec.data.period.start <= win.end && rec.data.period.end >= win.start : rec.data.collected_at.slice(0, 10) >= yearBefore && rec.data.collected_at.slice(0, 10) <= upTo;
     if (!inWindow || paths.has(rec.path)) continue;
     const ok = rec.data.files.every((f) => fileHash(root, f.path)?.sha256 === f.sha256);
     if (!ok) continue;
@@ -707,7 +710,11 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   // The assertion goes out signed: a signer, a signature and a date, not left to the firm to chase.
   const assertionFile = join(root, base(id), 'drafts', 'assertion.md');
   if (existsSync(assertionFile)) { const a = readFileSync(assertionFile, 'utf8');
-    if (!/^Signed by: \S/m.test(a) || !/^Signature: \S/m.test(a) || !/^Date: 20\d\d-\d\d-\d\d\b/m.test(a)) problems.push(`${base(id)}/drafts/assertion.md is not signed (Signed by, Signature and Date lines)`); }
+    if (!/^Signed by: \S/m.test(a) || !/^Signature: \S/m.test(a) || !/^Date: 20\d\d-\d\d-\d\d\b/m.test(a)) problems.push(`${base(id)}/drafts/assertion.md is not signed (Signed by, Signature and Date lines)`);
+    // A signature dated after the commit that holds it was written before its day: it is pre-dated.
+    const signed = /^Date: (20\d\d-\d\d-\d\d)/m.exec(a)?.[1];
+    try { const committed = execFileSync('git', ['-C', root, 'log', '-1', '--format=%cI', '--', `${base(id)}/drafts/assertion.md`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim().slice(0, 10);
+      if (signed && committed && signed > committed) problems.push(`${base(id)}/drafts/assertion.md is signed ${signed} in a commit of ${committed}: a signature is dated the day it is given`); } catch { /* not a Git repository */ } }
   // Every request goes out answered: an open one the client never responded to is the firm's to chase, not to receive.
   for (const r of reqs.filter((x) => x.data.status === 'open')) problems.push(`request ${r.data.id} (${r.data.title}) has no response from the client`);
   // Every exception the package raises goes out with management's response: the firm should never receive a

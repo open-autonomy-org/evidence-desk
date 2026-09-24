@@ -2,6 +2,9 @@
 source ${0:A:h}/lib.sh
 W=$D/compliance; Q=2026-07-01..2026-09-30; OUT=${PACKAGE_OUT:-$STATE/package}
 asmaya() { (cd $ED && timeout 180 $V attach evidence-desk-oa --root $RT -- env GITHUB_TOKEN=$(tok maya-gx) bun src/cli.ts "$@" 2>&1 | grep -v WARN); }
+# The external monitor's September export, taken once the month is over.
+clock 2026-10-01T09:00:00Z; evdoc maya maya-gx sam-gx OPS-06 uptime-2026-09.csv "Relay availability, September 2026 (external monitor export)" "month,checks,failed,availability,longest_outage_minutes
+2026-09,43200,3,99.993%,1"
 clock 2026-10-02T10:00:00Z; git -C $W checkout -q main
 asmaya collect $W github-changes --repo globex/relay --period $Q --by maya
 asmaya collect $W github-deployments --repo globex/relay --environment production --period $Q --by maya

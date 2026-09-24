@@ -20,7 +20,7 @@ export type Run = { schema: string; id: string; started_at: string; finished_at:
 
 // Who the organization says may act: its people's addresses and the service accounts its systems register declares.
 // A collector that judges who acted records the roster it judged against in its snapshot.
-type Roster = { people: string[]; service_accounts: string[] };
+type Roster = { people: string[]; service_accounts: string[]; since?: string };
 type CheckDef = { id: string; title: string; controls: string[]; evaluate(d: Record<string, any>): { status: Result['status']; detail: string } };
 type CollectorDef = { id: CollectorSettings['id']; title: string; params: { name: string; prompt: string }[]; credentials: string[]; collect(p: Record<string, string>, roster: Roster): Promise<Snapshot>; checks: CheckDef[] };
 
@@ -169,7 +169,8 @@ const cloudflare: CollectorDef = {
     }
     // The account's audit log for the last day: consecutive daily runs cover every change, so a change made outside the
     // change path is found the day it is made, not when the audit package is built.
-    const since = new Date(clockDate().getTime() - 86_400_000).toISOString();
+    // From the last run that happened, so a day without a run leaves no gap in what is read; a first run reads a day.
+    const since = roster.since ?? new Date(clockDate().getTime() - 86_400_000).toISOString();
     const changes = (await cfAll(`/accounts/${account.id}/audit_logs?since=${since}&direction=asc`, queries)).map((x) => ({ at: String(x.when ?? ''), actor: String(x.actor?.email ?? '').toLowerCase(), action: String(x.action?.type ?? ''), resource: `${x.resource?.type ?? ''} ${x.resource?.id ?? ''}`.trim() }));
     return { data: { account: { id: account.id, name: account.name, enforce_twofactor: account.settings?.enforce_twofactor === true }, members, zones: settings, changes_since: since, changes, roster }, queries, responses: cfAnswers.map((x) => ({ path: x.path, status: x.status, date: x.date, request_id: x.cf_ray, body: x.body })) };
   },
@@ -195,13 +196,15 @@ const cloudflare: CollectorDef = {
       const off = zones.filter(([, s]) => s.always_use_https !== 'on').map(([z, s]) => `${z} (${s.always_use_https})`);
       return off.length ? { status: 'fail', detail: `plain HTTP served by ${off.join(', ')}` } : { status: 'pass', detail: 'always HTTPS' };
     } },
-    { id: 'cloudflare-change-actors', title: 'Every Cloudflare change of the last day was made by someone on the roster, and every Worker deploy by a service account', controls: ['CHG-03', 'OPS-04'], evaluate: (d) => {
+    { id: 'cloudflare-change-actors', title: 'Every Cloudflare change since the last run was made by someone on the roster, and every Worker deploy and setting change by a service account', controls: ['CHG-03', 'OPS-04'], evaluate: (d) => {
       if (!Array.isArray(d.changes)) return { status: 'error', detail: 'the account audit log was not read' };
       const services = new Set<string>(d.roster.service_accounts), known = new Set<string>([...d.roster.people, ...services]);
       const found = (d.changes as { at: string; actor: string; action: string; resource: string }[]).flatMap((c) =>
         !c.actor ? [`${c.at} ${c.action} ${c.resource} by no one the log names`]
         : !known.has(c.actor) ? [`${c.at} ${c.action} ${c.resource} by ${c.actor}, who is not on the roster`]
-        : c.resource.startsWith('script ') && !services.has(c.actor) ? [`${c.at} Worker ${c.resource.slice(7)} deployed by ${c.actor}, a person, not the pipeline's service account`] : []);
+        : c.resource.startsWith('script ') && !services.has(c.actor) ? [`${c.at} Worker ${c.resource.slice(7)} deployed by ${c.actor}, a person, not the pipeline's service account`]
+        // A production setting a person changed by hand has no reviewed change behind it, whoever the person is.
+        : c.resource.startsWith('zone_setting ') && !services.has(c.actor) ? [`${c.at} setting ${c.resource.slice(13)} changed by hand by ${c.actor}`] : []);
       return found.length ? { status: 'fail', detail: found.join('; ') } : { status: 'pass', detail: `${d.changes.length} change(s) since ${d.changes_since}, each by someone on the roster; Worker deploys only by a service account` };
     } },
   ],
@@ -236,7 +239,8 @@ export async function runChecks(root: string, by: string, only?: string): Promis
   const enabled = readSettings(root).settings.filter((s) => s.enabled && (!only || s.id === only));
   if (!enabled.length) throw new Error(only ? `${only} is not enabled` : 'no collector is enabled; configure one with `evidence-desk collectors`');
   const applicable = new Set(ws.controls.filter((c) => c.data.applicable).map((c) => c.data.id));
-  const roster: Roster = cloudflareRoster(root, ws);
+  const last = ws.runs.map((r) => r.data.started_at).sort().at(-1);
+  const roster: Roster = { ...cloudflareRoster(root, ws), ...(last ? { since: last } : {}) };
   const id = `RUN-${clockDate().toISOString().replace(/[-:]/g, '').slice(0, 15)}-${randomBytes(2).toString('hex')}`;
   const run: Run = { schema: 'evidence-desk.check-run/1', id, started_at: now(), finished_at: '', by, collectors: [], results: [] };
   for (const s of enabled) {

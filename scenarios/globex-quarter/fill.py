@@ -40,7 +40,18 @@ if len(sys.argv)>3 and os.path.exists(sys.argv[3]):
     import json as _json
     add=[x for x in _json.load(open(sys.argv[3])) if x['item'] not in t]
     letters=re.findall(r'^\(([a-z])\) ', t, flags=re.M); n=ord(max(letters))+1 if letters else ord('a')
+    # One matter per event: a row whose date and subject an existing matter already carries is cited there by its key.
+    STOP={'which','their','there','period','change','changed','production','record','records','daily','check','after','before','outside','person','token'}
+    def covering(x):
+        words={w for w in re.findall(r'[a-z0-9@._-]{5,}', (x['item']+' '+x['detail']).lower()) if w not in STOP}
+        for m in re.finditer(r'^\(([a-z])\) .*$', t, flags=re.M):
+            line=m.group(0).lower()
+            if x.get('occurred') and x['occurred'] in line and any(w in line for w in words): return m
+        return None
     for x in add:
+        m=covering(x)
+        if m:
+            t=t[:m.end()]+f" (exceptions register: {x['key']})"+t[m.end():]; continue
         # A matter goes with the others, before the signature.
         sig=t.find('\nSigned by:'); sig=len(t) if sig<0 else sig
         t=t[:sig].rstrip('\n')+f"\n\n({chr(n)}) {x['item']}: {x['detail']}{' (of design: it stood through the period)' if x.get('nature')=='design' else ''}.\n\n"+t[sig:].lstrip('\n'); n+=1
@@ -50,7 +61,7 @@ if len(sys.argv)>3 and os.path.exists(sys.argv[3]):
 born=re.search(r'Worker (\S+) was created on (\d{4}-\d\d-\d\d) by (\S+)', s)
 if born and born.group(2) not in t:
     t=t.replace('The matters are:', f"Relay began operating on {born.group(2)}, when {born.group(3)} created the {born.group(1)} Worker; these statements cover it from then.\n\nThe matters are:")
-t=t.replace('[Name, title]','Maya Chen, Chief Executive Officer').replace('[Signature]','/s/ Maya Chen').replace('[Date]','2026-10-05')
+# The signature waits for the day management signs (finish.sh).
 open(a,'w').write(t)
 left=re.findall(r'\[[^\]]{3,}\](?![(\[])', s+t)
 print('placeholders left:', left)

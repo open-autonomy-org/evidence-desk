@@ -7,6 +7,11 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- A day of the period with no check run is an exception, and the Cloudflare change check reads from the last run that
+  happened. That check fails on any production setting a person changed by hand. The change that puts a setting back
+  closes its exception and is named in it. Evidence recorded after the period and before the package travels with it.
+  An assertion may cite the register rows one matter covers by their keys; a signature dated after the commit that
+  holds it is refused.
 - `audit recollect <package>` lets the firm read the change, deployment, Worker deployment, Cloudflare configuration
   and token populations again with its own read-only tokens, against a scratch copy of the package's workspace, and
   lists every row only the package has, every row it lacks and every row whose fields differ.

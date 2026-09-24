@@ -34,7 +34,7 @@ Maya Chen, owner: security program, policies, production deploys, access and ven
 Participants: Maya Chen, Sam Okafor. Scenario: a customer's API key is posted publicly. Walked the incident runbook: detection via the community bot, containment (revoke the key, rotate the customer's keys), notification within 72 hours, record under records/incidents/. Gaps found: no template for the customer notice (added to the runbook the same day). Duration 50 minutes." ;;
     2026-07-29) clock ${1}T11:00:00Z; evdoc maya maya-gx sam-gx CONF-01,CONF-02 data-handling.md "Data classification and retention for Relay" "# Data classification and retention
 Customer webhook payloads and their headers: confidential; stored in Durable Objects, encrypted at rest by Cloudflare; retained 30 days, then deleted by the expiry alarm (payload-store ADR). Inbox configuration: internal. API keys: stored hashed. Account contact emails: confidential, kept while the account is open and deleted 30 days after closure." ;;
-    2026-07-31) clock ${1}T18:00:00Z; evdoc maya maya-gx sam-gx OPS-06 uptime-2026-07.csv "Relay availability, July 2026 (external monitor export)" "month,checks,failed,availability,longest_outage_minutes
+    2026-08-01) clock ${1}T09:00:00Z; evdoc maya maya-gx sam-gx OPS-06 uptime-2026-07.csv "Relay availability, July 2026 (external monitor export)" "month,checks,failed,availability,longest_outage_minutes
 2026-07-03 to 2026-07-31 (the Worker went live 2026-07-03),41760,4,99.990%,2" ;;
     2026-08-03) clock ${1}T09:30:00Z
       git -C $D/relay checkout -q main && git -C $D/relay checkout -q -b roster/lee
@@ -76,7 +76,7 @@ Customer payloads are readable only through Relay's API with the customer's own 
     2026-08-28) clock ${1}T10:00:00Z; git -C $W checkout -q main && git -C $W checkout -q -b maya/risk-r3-rescore
       ed register $W risks --update R-3 likelihood=3 description="Two engineers review each other; the 2026-08-12 hotfix passed review with a tenant-isolation bug (incident replay-headers). A tenant-isolation regression test now runs in CI." | grep -i error
       git -C $W add -A; gcommit $W maya "R-3 re-rated after incident replay-headers"; wspr maya-gx maya/risk-r3-rescore "R-3 re-rated after incident replay-headers" sam-gx ;;
-    2026-08-31) clock ${1}T18:00:00Z; evdoc maya maya-gx sam-gx OPS-06 uptime-2026-08.csv "Relay availability, August 2026 (external monitor export)" "month,checks,failed,availability,longest_outage_minutes
+    2026-09-01) clock ${1}T09:00:00Z; evdoc maya maya-gx sam-gx OPS-06 uptime-2026-08.csv "Relay availability, August 2026 (external monitor export)" "month,checks,failed,availability,longest_outage_minutes
 2026-08,44640,9,99.980%,4" ;;
     2026-09-02) clock ${1}T11:00:00Z; change lee feat/replay-filter "Filter replays by status code"; pr_relay lee-gx feat/replay-filter "Filter replays by status code" sam-gx ;;
     2026-09-03) clock ${1}T10:00:00Z; deploy maya maya-gx sam-gx ;;
@@ -114,9 +114,7 @@ Scenario: the payload Durable Objects namespace is deleted. Steps: restore from 
     2026-09-25) clock ${1}T15:00:00Z; evdoc maya maya-gx sam-gx GOV-03,MON-01 management-review-2026-09-25.md "Quarterly management review of the security program" "# Management review, 2026-09-25
 Attendees: Maya Chen (owner), Sam Okafor. Reviewed: the twelve internal audits so far of the quarter and their one recurring finding (C6: no restore test, raised weekly until the 2026-08-20 restore test); incident replay-headers and its corrective actions; the break-glass deploy of 2026-09-10; daily check failures (HTTPS-only off 2026-08-19 to 2026-08-21); availability 99.98%; the penetration test. Independence: Globex has two people with security duties, and no reviewer independent of both exists this period; the auditor's testing is the independent check. Decisions for Q4: Sam's personal Cloudflare access to be reduced to read-only, so that only the deploy service account can deploy; next restore test due by 2026-11-20." ;;
     2026-09-30) clock ${1}T16:00:00Z; evdoc maya maya-gx sam-gx VND-02 bridge-letters-2026-09-30.md "Vendor bridge letters covering the period" "# Bridge letters, 2026-09-30
-Cloudflare: bridge letter dated 2026-09-30 covering 2026-04-01 to 2026-09-30, no material changes to its controls. GitHub: bridge letter dated 2026-09-30 covering the same span, no material changes. Both carry the period until their next SOC 2 reports."
-      clock ${1}T18:00:00Z; evdoc maya maya-gx sam-gx OPS-06 uptime-2026-09.csv "Relay availability, September 2026 (external monitor export)" "month,checks,failed,availability,longest_outage_minutes
-2026-09,43200,3,99.993%,1" ;;
+Cloudflare: bridge letter dated 2026-09-30 covering 2026-04-01 to 2026-09-30, no material changes to its controls. GitHub: bridge letter dated 2026-09-30 covering the same span, no material changes. Both carry the period until their next SOC 2 reports." ;;
   esac
 }
 d=2026-06-26

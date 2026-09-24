@@ -130,8 +130,11 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
         // A change that puts back the value an earlier hand-made change took away is its remedy, not a second deviation.
         const byHand = t.rows.filter((r) => r.actor_on_roster === 'yes' && r.resource.startsWith('zone_setting') && !glass.some((g) => day(g.at) === day(r.at)));
         const restores = (r: Record<string, string>) => byHand.some((x) => x.at < r.at && x.resource === r.resource && x.zone === r.zone && x.old_value === r.new_value);
-        for (const r of byHand.filter((r) => !restores(r)))
-          add({ ...base, key: `out-of-path-change:${r.id}`, controls: 'OPS-04;CHG-04', item: `${r.resource}${r.zone ? ` on ${r.zone}` : ''} changed ${r.old_value || '(unset)'} → ${r.new_value} by ${r.actor}`, detail: `a production setting changed by hand at ${r.at}, outside the reviewed change path, with no break-glass record that day${bgFile ? ` (${bgFile.path})` : ''}`, occurred: day(r.at) });
+        for (const r of byHand.filter((r) => !restores(r))) {
+          // The later change that put the value back, itself made by hand, closes it and is named in it.
+          const back = byHand.find((x) => x.at > r.at && x.resource === r.resource && x.zone === r.zone && x.new_value === r.old_value);
+          add({ ...base, key: `out-of-path-change:${r.id}`, controls: 'OPS-04;CHG-04', item: `${r.resource}${r.zone ? ` on ${r.zone}` : ''} changed ${r.old_value || '(unset)'} → ${r.new_value} by ${r.actor}`, detail: `a production setting changed by hand at ${r.at}, outside the reviewed change path, with no break-glass record that day${bgFile ? ` (${bgFile.path})` : ''}${back ? `; put back to ${back.new_value} by hand by ${back.actor} at ${back.at}, also with no change record` : ''}`, occurred: day(r.at), ...(back ? { resolved: day(back.at), closed_by: `restored by ${back.actor} at ${back.at} (${back.id}), by hand` } : {}) });
+        }
       }
       if (t.columns.includes('actor_on_roster')) for (const r of t.rows.filter((r) => r.actor_on_roster === 'no' || r.actor_on_roster === 'unknown'))
         add({ ...base, key: `config-actor:${f.path.split('/').pop()!.replace(/-\d+\.csv$/, '')}:${r.id || `${r.ruleset_id}:${r.version}`}`, item: r.change || `${r.resource} ${r.old_value} → ${r.new_value}`, detail: r.actor ? `changed by ${r.actor}, who is not on the roster` : 'changed by no one the vendor names (a token without a user)', occurred: day(r.at) });
@@ -250,6 +253,18 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   // Each automated check across the period: every reading, and each run of failing readings as one exception with
   // the reading that ended it.
   const runs = ws.runs.filter((r) => inside(r.data.started_at, period)).sort((a, b) => a.data.started_at.localeCompare(b.data.started_at) || a.path.localeCompare(b.path));
+  // A day of the period no check run read the systems: whatever happened that day went unchecked, however the next run
+  // reads it. Consecutive days are one exception.
+  if (runs.length) {
+    const ran = new Set(runs.map((r) => day(r.data.started_at)));
+    const controls = [...new Set(runs.flatMap((r) => r.data.results.flatMap((x) => x.controls)))].join(';');
+    const first = day(runs[0].data.started_at) > period.start ? day(runs[0].data.started_at) : period.start;
+    let gap: string[] = [];
+    const close = () => { if (!gap.length) return; const next = runs.find((r) => day(r.data.started_at) > gap.at(-1)!);
+      add({ key: `missed-run:${gap[0]}`, source: 'daily checks (checks/runs/)', controls, item: `no daily check run on ${gap[0]}${gap.length > 1 ? ` to ${gap.at(-1)}` : ''}`, detail: `the daily checks read nothing on ${gap.length} day(s); ${next ? `the next run (${next.path}) read from the run before` : 'no run followed in the period'}`, occurred: gap[0], detected: next ? day(next.data.started_at) : '', resolved: next ? day(next.data.started_at) : '', closed_by: next ? `the run of ${day(next.data.started_at)}` : '', found_by: 'this package, comparing the period\'s days with its check runs', file: next?.path ?? runs.at(-1)!.path }); gap = []; };
+    for (let d = first; d <= period.end; d = new Date(Date.parse(`${d}T00:00:00Z`) + 864e5).toISOString().slice(0, 10)) { if (ran.has(d)) close(); else gap.push(d); }
+    close();
+  }
   // Each reading names the collector snapshot it was decided from, with that snapshot's hash, so a pass is traceable to
   // what the vendor answered that day.
   const hashOf = (p: string) => existsSync(join(root, p)) ? createHash('sha256').update(readFileSync(join(root, p))).digest('hex') : 'missing';

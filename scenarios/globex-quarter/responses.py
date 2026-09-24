@@ -35,14 +35,15 @@ for r in json.load(open(X)):
         R[k]=(f"{r['item']}: {r['detail']}. With two release approvers and Maya starting every deployment, a release carrying "
               "Sam's code could only be approved by Sam: release approval was not independent of the author by design. Each of those "
               "changes had an approving review by an account other than its author's before it merged, a person's or the review "
-              "agent's (review/change-releases.csv lists which). We accept it as a design deviation; from Q4 Maya approves any release "
-              "carrying Sam's code, and Lee holds release-review for releases carrying Maya's.",[chg_csv,dep_csv])
+              "agent's (review/change-releases.csv lists which). We accept it as a design deviation; from Q4 Lee holds release-review "
+              "and approves any release carrying Sam's or Maya's code, so that neither the person who starts a deployment nor an author "
+              "of its code approves it.",[chg_csv,dep_csv])
     elif k.startswith('personal-token:'):
         R[k]=(f"{r['item']} is a personal Cloudflare token, live at the period's end, that made no deploy in the period. We accept "
               "that a person held a live token on the production account; reviewing every personal token in the quarterly access "
               "review, and revoking those not needed, is a Q4 action.",[one('evidence/files/populations/cloudflare-tokens-*.csv')])
     elif k.startswith('personal-deploy-token:'):
-        R[k]=(f"{r['item']} is Sam's personal Cloudflare token, the one the laptop deploy was made with; it was still live at the "
+        R[k]=(f"{r['item']} is Sam's personal Cloudflare token; the account audit log attributes the laptop deploy to Sam, not to a particular token. It was still live at the "
               "period's end, and Sam still held Cloudflare Administrator. We accept it as a deviation: revoking the token and reducing "
               "Sam's personal access to read-only are Q4 actions, so that only the deploy service account can deploy.",
               [one('evidence/files/populations/cloudflare-tokens-*.csv'),workers])
