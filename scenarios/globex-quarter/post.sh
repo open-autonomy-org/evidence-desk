@@ -20,7 +20,7 @@ ed audit $W q3 requests --import $S/requests/${REQUESTS:-pbc-r5}.csv | tail -1
 python3 $S/attach.py $W $S/requests/${REQUESTS:-pbc-r5}.csv > $STATE/attach.txt
 while read r kind ids extra; do
   if [ "$kind" = none ]; then ed audit $W q3 request $r --side client --by maya --text "No evidence is recorded for these controls in the period; see the control matrix (review/controls-matrix.csv)." | grep -i error
-  elif [ "$kind" = population ]; then ed audit $W q3 request $r --side client --by maya --text "The population for the period, with the query that produced it and its raw responses${extra:+, and the populations that reconcile it}." --population $ids ${extra:+--evidence $extra} | grep -i error
+  elif [ "$kind" = population ]; then ed audit $W q3 request $r --side client --by maya --text "The population for the period, with the query that produced it and its raw responses${extra:+, and the populations that reconcile it}." --population $ids ${extra:+--evidence} ${extra} | grep -i error
   else ed audit $W q3 request $r --side client --by maya --text "Attached from the workspace; review/index.html lists each item with its source." --evidence $ids | grep -i error; fi
   ed audit $W q3 request $r --side client --by maya --status submitted | grep -i error
 done < $STATE/attach.txt

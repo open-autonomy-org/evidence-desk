@@ -7,6 +7,10 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- The package is not exported while a request has no response from the client. Every person's Cloudflare token live at
+  the period's end is an exception, not only one its owner deployed with. The control matrix and coverage count
+  exceptions from the finished register. An exception the package found is dated by the package, not by the event. A
+  count of the assertion's matters must match the assertion.
 - `collect cloudflare-tokens` lists every API token the account's audit log records, with its owner, creation,
   revocation and whether it was live at the period's end; a person's live token whose owner deployed Workers is an
   exception. A release approved by the author of code it ships is an exception. The assertion must name each exception

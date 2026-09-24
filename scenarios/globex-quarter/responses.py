@@ -32,9 +32,14 @@ for r in json.load(open(X)):
               "gives what happened and what follows. No one acknowledged the failing reading before Sam's break-glass record of 2026-09-11.",
               [cf_changes,snap('2026-09-10','cloudflare'),glass])
     elif k.startswith('release-self-approved:'):
-        R[k]=(f"The release approval of {r['item']} was {r['detail']}: the second stage was not independent of the author, although "
-              "each of those changes had an approving review by another person before it merged (review/change-releases.csv). We "
+        R[k]=(f"The release approval of {r['item']} was {r['detail']}: the second stage was not independent of the author. Each of "
+              "those changes had an approving review by an account other than its author's before it merged, a person's or the review "
+              "agent's (review/change-releases.csv lists which). We "
               "accept it as a deviation. From Q4 a release is approved by someone who wrote none of its code.",[chg_csv,dep_csv])
+    elif k.startswith('personal-token:'):
+        R[k]=(f"{r['item']} is a personal Cloudflare token, live at the period's end, that made no deploy in the period. We accept "
+              "that a person held a live token on the production account; reviewing every personal token in the quarterly access "
+              "review, and revoking those not needed, is a Q4 action.",[one('evidence/files/populations/cloudflare-tokens-*.csv')])
     elif k.startswith('personal-deploy-token:'):
         R[k]=(f"{r['item']} is Sam's personal Cloudflare token, the one the laptop deploy was made with; it was still live at the "
               "period's end, and Sam still held Cloudflare Administrator. We accept it as a deviation: revoking the token and reducing "

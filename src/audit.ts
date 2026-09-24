@@ -474,6 +474,8 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
     [/production deployments?|deployments? (?:to|of) production/, () => count('/github-deployments-')?.length ?? null],
     [/restore tests?/, () => count('/restore-tests-')?.length ?? null],
     [/incidents?/, () => count('/incidents-')?.length ?? null],
+    // A count of what the assertion describes is the number of its matters.
+    [/(?:control )?(?:deviations?|matters?) (?:are |is )?(?:described|listed|named) in the assertion/, () => { const a = assertionOf(root, id); return a ? (a.match(/^\([a-z]\) /gm) ?? []).length : null; }],
   ];
   const texts: { source: string; text: string; about?: string[] }[] = [];
   for (const k of ['description', 'assertion']) { const f = join(root, base(id), 'drafts', `${k}.md`); if (existsSync(f)) texts.push({ source: k, text: readFileSync(f, 'utf8').replace(/```[\s\S]*?```/g, '') }); }
@@ -681,6 +683,8 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   if (existsSync(draftDescription)) for (const l of lintDescription(ws, e.data, readFileSync(draftDescription, 'utf8'), assertionOf(root, id)).filter((x) => x.status === 'contradiction')) problems.push(`the description contradicts the evidence (${l.rule}): ${l.detail}`);
   // A packaged response travels with its form's definition (the questions and correct answers it was graded against).
   for (const r of ws.responses) if (paths.has(`forms/responses/${r.data.id}.json`)) { const f = ws.forms.find((x) => x.data.id === r.data.form); if (f) paths.add(f.path); }
+  // Every request goes out answered: an open one the client never responded to is the firm's to chase, not to receive.
+  for (const r of reqs.filter((x) => x.data.status === 'open')) problems.push(`request ${r.data.id} (${r.data.title}) has no response from the client`);
   // Every exception the package raises goes out with management's response: the firm should never receive a
   // deviation the client has not answered.
   const created = now();

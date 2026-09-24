@@ -102,10 +102,12 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
             add({ ...base, key: `token-not-revoked:${owner}`, controls: 'AC-05', item: `${owner}: ${madeIn.length} token(s) created, ${goneIn.length} revoked in the period`, detail: `more tokens were created (${madeIn.map((r) => day(r.at)).join(', ')}) than revoked: a rotation that left an older token live, or a new token to account for`, occurred: day(madeIn.at(-1)!.at) });
         }
       }
-      // A person's token still live at the period's end, whose owner deployed Workers in the period: a credential that
-      // reaches production outside the pipeline.
-      if (t.columns.includes('owner_worker_deploys_in_period')) for (const r of t.rows.filter((r) => r.owner_kind !== 'service account' && r.live_at_period_end === 'yes' && Number(r.owner_worker_deploys_in_period) > 0))
-        add({ ...base, key: `personal-deploy-token:${r.token}`, controls: 'AC-05;CHG-03', item: `${r.owner}'s token ${r.token}`, detail: `live at the period's end (created ${day(r.created_at)}); its owner deployed Workers ${r.owner_worker_deploys_in_period} time(s) in the period, outside the pipeline's service account`, occurred: day(r.created_at), resolved: '' });
+      // A person's own token still live at the period's end is a credential a person holds on the production account; one
+      // whose owner deployed Workers with it in the period reached production outside the pipeline.
+      if (t.columns.includes('owner_worker_deploys_in_period')) for (const r of t.rows.filter((r) => r.owner_kind !== 'service account' && r.live_at_period_end === 'yes')) {
+        const deployed = Number(r.owner_worker_deploys_in_period) > 0;
+        add({ ...base, key: `${deployed ? 'personal-deploy-token' : 'personal-token'}:${r.token}`, controls: deployed ? 'AC-05;CHG-03' : 'AC-05', item: `${r.owner}'s token ${r.token}`, detail: `a person's API token live at the period's end (created ${day(r.created_at)})${deployed ? `; its owner deployed Workers ${r.owner_worker_deploys_in_period} time(s) in the period, outside the pipeline's service account` : ''}`, occurred: day(r.created_at), resolved: '' });
+      }
       if (t.columns.includes('actor_on_roster')) for (const r of t.rows.filter((r) => r.actor_on_roster === 'no' || r.actor_on_roster === 'unknown'))
         add({ ...base, key: `config-actor:${f.path.split('/').pop()!.replace(/-\d+\.csv$/, '')}:${r.id || `${r.ruleset_id}:${r.version}`}`, item: r.change || `${r.resource} ${r.old_value} → ${r.new_value}`, detail: r.actor ? `changed by ${r.actor}, who is not on the roster` : 'changed by no one the vendor names (a token without a user)', occurred: day(r.at) });
       if (t.columns.includes('weakens')) for (const r of t.rows.filter((r) => r.weakens === 'yes'))
@@ -247,7 +249,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     let streak: typeof rows = [];
     const answeredBy = (from: string) => escalations?.find((x) => `${x.channel} ${x.summary}`.includes(check) && day(x.received_at) >= day(from));
     const unacknowledged = () => { if (!escalations || !streak.length || answeredBy(streak[0].at)) return;
-      add({ key: `unacknowledged:${check}:${streak[0].run.split('/').pop()!.replace(/\.json$/, '')}`, occurred: day(streak[0].at), source: `automated check ${check}`, controls: 'OPS-01;MON-01', item: `check ${check} failing from ${day(streak[0].at)}`, detail: `no escalation record names the check on or after its first failing reading (${escFile!.path})`, detected: day(streak[0].at), resolved: '', found_by: `this package, comparing the check's readings with the escalations population (${escFile!.path})`, file: escFile!.path }); };
+      add({ key: `unacknowledged:${check}:${streak[0].run.split('/').pop()!.replace(/\.json$/, '')}`, occurred: day(streak[0].at), source: `automated check ${check}`, controls: 'OPS-01;MON-01', item: `check ${check} failing from ${day(streak[0].at)}`, detail: `no escalation record names the check on or after its first failing reading (${escFile!.path})`, detected: day(createdAt), resolved: '', found_by: `this package, comparing the check's readings with the escalations population (${escFile!.path})`, file: escFile!.path }); };
     const close = (end?: { at: string; run: string }) => { if (!streak.length) return; add({ key: `check:${check}:${streak[0].run.split('/').pop()!.replace(/\.json$/, '')}`, occurred: day(streak[0].at), source: `automated check ${check}`, controls: streak[0].controls.join(';'), item: `${streak.length} failing reading(s)`, detail: streak.at(-1)!.detail, detected: day(streak[0].at), resolved: end && !EVENT_CHECKS.has(check) ? day(end.at) : '', closed_by: !end ? '' : EVENT_CHECKS.has(check) ? `not closed by a reading: the check reports events, and ${day(end.at)}'s reading found none new` : `the reading of ${day(end.at)} passed again (${end.run}); remediation is management's to show`, file: streak[0].run }); streak = []; };
     for (const row of rows) { if (row.status === 'fail') streak.push(row); else if (row.status === 'pass') { unacknowledged(); close(row); } }
     unacknowledged(); close();
@@ -323,7 +325,8 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       records_in_window: String(held),
       exceptions: String(exceptions.filter((x) => x.controls.split(';').includes(d.id)).length) };
   });
-  views.set('review/controls-matrix.csv', writeCsv({ columns: ['control', 'title', 'criteria', 'frequency', 'owner', 'status', 'applicable', 'exclusion_reason', 'requests', 'evidence_in_package', 'check_history', 'workspace_evidence_in_window', 'records_in_window', 'exceptions'], rows: matrix }));
+  const matrixColumns = ['control', 'title', 'criteria', 'frequency', 'owner', 'status', 'applicable', 'exclusion_reason', 'requests', 'evidence_in_package', 'check_history', 'workspace_evidence_in_window', 'records_in_window', 'exceptions'];
+  views.set('review/controls-matrix.csv', writeCsv({ columns: matrixColumns, rows: matrix }));
 
   // Coverage by criterion: each criterion of the categories in scope, the applicable controls that address it, and whether
   // any of them has evidence or a check in its window. A criterion in scope with none is the first thing a firm asks about.
@@ -385,7 +388,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     const selfApproved = new Map<string, typeof releases>();
     for (const r of releases.filter((x) => x.release_approver_wrote_it === 'yes' && /code|pipeline/.test(x.touches))) selfApproved.set(r.released_in, [...(selfApproved.get(r.released_in) ?? []), r]);
     for (const [release, rs] of selfApproved)
-      add({ key: `release-self-approved:${release}`, source: 'change releases (review/change-releases.csv)', controls: 'CHG-01;CHG-03', item: `release ${release}`, detail: `approved by ${rs[0].release_approved_by}, who wrote ${rs.map((r) => `#${r.number}`).join(', ')} in it`, occurred: day(rs[0].released_at), detected: day(rs[0].released_at), resolved: '', file: ghDep?.path ?? worker.path });
+      add({ key: `release-self-approved:${release}`, source: 'change releases (review/change-releases.csv)', controls: 'CHG-01;CHG-03', item: `release ${release}`, detail: `approved by ${rs[0].release_approved_by}, who wrote ${rs.map((r) => `#${r.number}`).join(', ')} in it`, occurred: day(rs[0].released_at), detected: day(createdAt), resolved: '', found_by: `this package, comparing each release's approver with the authors of the changes it ships`, file: ghDep?.path ?? worker.path });
     views.set('review/production-timeline.csv', writeCsv({ columns: ['from', 'until', 'days', 'deployment', 'author', 'commit', 'github_deployment', 'ref', 'approved', 'change_path', 'pull_requests'], rows: timeline }));
   }
   // One event, one exception: a deploy no approved GitHub deployment accounts for, which the daily change-actors check
@@ -398,10 +401,15 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     u.found_by = `the organization's daily check cloudflare-change-actors, on ${c.detected} (${c.file})`;
     exceptions.splice(exceptions.indexOf(c), 1);
   }
+  // The matrix and coverage count what the register holds once every view has raised its exceptions.
+  for (const m of matrix) m.exceptions = String(exceptions.filter((x) => x.controls.split(';').includes(m.control)).length);
+  views.set('review/controls-matrix.csv', writeCsv({ columns: matrixColumns, rows: matrix }));
+  for (const c of byCriterion) c.exceptions = String(exceptions.filter((x) => x.controls.split(';').some((id) => c.controls.split(';').includes(id))).length);
   // Written after every view that can raise an exception.
   views.set('review/exceptions.csv', writeCsv({ columns: ['key', 'source', 'controls', 'item', 'detail', 'occurred', 'detected', 'resolved', 'closed_by', 'open_at_period_end', 'found_by', 'response', 'responded_by', 'response_cites', 'file'], rows: exceptions.map((x) => ({ ...x, closed_by: x.closed_by ?? '', open_at_period_end: !x.resolved || x.resolved > period.end ? 'yes' : 'no',
       found_by: x.found_by ?? (x.key.startsWith('check:') ? `the organization's daily check, on ${x.detected}` : x.key.startsWith('audit-finding:') ? `the organization's internal audit, on ${x.occurred}` : x.key.startsWith('incident:') ? 'the organization (its incident record)' : `this package's collection, on ${x.detected}`), response_cites: x.response_cites ?? '' })) }));
-  views.set('review/coverage.csv', writeCsv({ columns: ['criterion', 'category', 'title', 'controls', 'controls_with_evidence', 'check_only', 'not_provided', 'requested', 'exceptions', 'status'], rows: byCriterion }));
+  const coverageColumns = ['criterion', 'category', 'title', 'controls', 'controls_with_evidence', 'check_only', 'not_provided', 'requested', 'exceptions', 'status'];
+  views.set('review/coverage.csv', writeCsv({ columns: coverageColumns, rows: byCriterion }));
 
   // The readable page.
   const href = (p: string) => p.split('/').map(encodeURIComponent).join('/');
