@@ -32,8 +32,9 @@ for r in csv.DictReader(open(os.path.join(D,'review/exceptions.csv'))):
               "acknowledged the alert at 08:30 UTC on 2026-08-20 (escalation record); the minimum TLS version stayed 1.2 throughout. The change went through no change record, which we accept as a deviation. We have "
               "no evidence either way about plain-HTTP traffic in the window.",[cf_changes,snap('2026-08-19','cloudflare'),snap('2026-08-21','cloudflare')])
     elif k.startswith('audit-finding:'):
-        R[k]=("The internal audit of 2026-08-17 found no restore test recorded yet this quarter for the payload store. Maya ran and recorded one on "
-              "2026-08-20 (passed), and the audit of 2026-08-24 found C6 passing.",[audits,restores])
+        on=k.split(':')[1][:10]
+        R[k]=(f"The internal audit of {on} found no restore test recorded yet this quarter for the payload store, as each weekly audit did "
+              "until one existed. Maya ran and recorded one on 2026-08-20 (passed), and the audit of 2026-08-24 found C6 passing.",[audits,restores])
     elif k.startswith('incident:'):
         R[k]=("Incident replay-headers: from 2026-08-12 23:05 UTC (deploy-v3) to 2026-08-26 12:30 UTC (deploy-v4), replayed requests could carry "
               "another tenant's headers. The signature-header hotfix changed the cache key; it was reviewed and approved, and no test covered "
