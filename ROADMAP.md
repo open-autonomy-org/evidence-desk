@@ -186,8 +186,16 @@ Completion:
 ## release-next: First release of the rebuilt product
 
 Dispatch: hold
-Release decision: accumulate
-Readiness: pending
+Release decision: request-review
+Target version: 0.1.0
+Target window: 2026-09-25 to 2026-10-02
+Review by: 2026-09-30
+Candidate: 873506fcebf6a64d3d7e1a06baacf2a8c24434c1
+Scope: every outcome in CHANGELOG.md's Unreleased section at the candidate; kit 3.3.0's soc2 template is released separately by Open Autonomy
+Readiness: ready-for-review
+Readiness evidence: a clean clone of the candidate installed with `bun install --frozen-lockfile` in the World; init, import of a synthetic soc2-template project, scope, adopt, validate and gaps ran; the local app served its state and refused a foreign Host; the end-to-end demonstration and its fixes are recorded under open-autonomy-soc2-ready
+Rationale: the parity capabilities and the Open Autonomy soc2 path are landed and demonstrated; the owner asked for every remaining step to be handled, including the release
+Version rationale: the first published version under the release policy in CONTRIBUTING.md (SemVer, 0.x while the workspace format may still change)
 
-No candidate exists. PM proposes version, window and scope once the owner calls the product ready for a first release, under the
-[release procedure](.open-autonomy/PRODUCTION.md). Each release still requires candidate-specific human review.
+To publish, a person reviews the candidate and creates the GitHub release `v0.1.0` at that commit; merging or tagging
+alone publishes nothing. After publication, the changelog's Unreleased entries move under 0.1.0 with the release link.
