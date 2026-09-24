@@ -7,6 +7,10 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- `trust publish` sends the trust center's audits, certifications and readiness to an Open Autonomy project page as the
+  owner's "Compliance" statement, on the project's steer key: the same badges and the same words, each badge dated to
+  lapse on its own (a certificate at its expiry, an audit report a year after its period, a self-attestation a year
+  after it was made, readiness after 30 days). The badges in `badges.json` carry the same tone and date.
 - The organization may say it was audited or certified only with the document: `certifications add` holds an
   auditor's report or a certifying body's certificate (or a self-attestation, shown as one) with its hash, and the
   trust center claims only what those records hold, intact and unexpired. Without one it shows readiness: evidence
