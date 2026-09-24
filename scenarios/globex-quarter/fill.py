@@ -42,8 +42,13 @@ if len(sys.argv)>3 and os.path.exists(sys.argv[3]):
     letters=re.findall(r'^\(([a-z])\) ', t, flags=re.M); n=ord(max(letters))+1 if letters else ord('a')
     # One matter per event: a row whose date and subject an existing matter already carries is cited there by its key.
     STOP={'which','their','there','period','change','changed','production','record','records','daily','check','after','before','outside','person','token'}
+    # Only the views of one event are grouped (its checks' readings, an unanswered alert, the hand-made change, the
+    # unmatched deploy); every other deviation is a matter of its own. A view joins the matter that carries its date and
+    # one of its identifiers (an address, a deployment, a check, a setting).
+    VIEW=('check:','unacknowledged:','out-of-path-change:','unmatched-deploy:')
     def covering(x):
-        words={w for w in re.findall(r'[a-z0-9@._-]{5,}', (x['item']+' '+x['detail']).lower()) if w not in STOP}
+        if not x['key'].startswith(VIEW): return None
+        words={w for w in re.findall(r'[a-z0-9@._-]{5,}', (x['item']+' '+x['detail']).lower()) if w not in STOP and (re.search(r'\d|@', w) or '_' in w or '-' in w)}
         for m in re.finditer(r'^\(([a-z])\) .*$', t, flags=re.M):
             line=m.group(0).lower()
             if x.get('occurred') and x['occurred'] in line and any(w in line for w in words): return m

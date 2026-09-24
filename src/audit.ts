@@ -427,7 +427,10 @@ function lintDescription(ws: Workspace, e: Engagement, text: string, assertionTe
   const signed = assertionText || both;
   // Named means the row's own item (release deploy-v6, sam@globex.test's token cf-…) or its register key, which a matter
   // covering several rows of one event cites: an id alone can appear in another matter about something else.
-  const missing = open.filter((x) => !signed.includes(x.item) && !signed.includes(x.key));
+  // A key cited in a matter counts only where that matter also carries the deviation's date: a key pasted under another
+  // event's matter is not a disclosure of this one.
+  const citedWithDate = (x: Record<string, string>) => signed.split('\n').some((l) => l.includes(x.key) && (!x.occurred || l.includes(x.occurred)));
+  const missing = open.filter((x) => !signed.includes(x.item) && !citedWithDate(x));
   out.push(!open.length ? { rule: 'open exceptions disclosed', status: 'not applicable', detail: 'the register holds no deviation' }
     : missing.length ? { rule: 'open exceptions disclosed', status: 'contradiction', detail: `${missing.length} deviation(s) the assertion does not name: ${missing.map((x) => `${ident(x)} (${x.key})`).join('; ')}` }
     : { rule: 'open exceptions disclosed', status: 'pass', detail: `the assertion names each of the ${open.length} deviation(s) in the register` });
