@@ -140,7 +140,7 @@ checks passing. The gap view's program section is empty. What remains per contro
 repository holds: infrastructure and data handling in vendor consoles (AC-07 to AC-09, AC-11, CONF-01, CONF-02,
 OPS-05 to OPS-07), the penetration test and the CPA firm.
 
-Outstanding: kit 3.3.0 is not yet published, so `create --skew soc2` works only from an Open Autonomy checkout. The
+Kit 3.3.0 is published (`npm create open-autonomy@3.3.0 -- --skew soc2`). Outstanding: the
 published twin package (0.1.2) predates the twin fixes this demonstration used. Since the demonstration: risk decisions
 and vendor reviews are attributed like every other signed act, and the organization two-factor check passes against the
 twin with an owner's token.
