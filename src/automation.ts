@@ -257,11 +257,11 @@ jobs:
           git init -q "$RUNNER_TEMP/evidence-desk"
           git -C "$RUNNER_TEMP/evidence-desk" fetch -q --depth 1 https://github.com/open-autonomy-org/evidence-desk.git ${commit}
           git -C "$RUNNER_TEMP/evidence-desk" checkout -q FETCH_HEAD
-      - name: Run the checks
+${settings.some((x) => x.enabled) ? `      - name: Run the checks
         id: run
         continue-on-error: true
 ${secrets.length ? `        env:\n${secrets.map((s) => `          ${s}: \${{ secrets.${secretName(s)} }}`).join('\n')}\n` : ''}        run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" run . --by "\${{ vars.EVIDENCE_DESK_RECORDER }}"
-      - name: Read the Open Autonomy project again
+` : ''}      - name: Read the Open Autonomy project again
         id: reread
         if: hashFiles('sources/open-autonomy/latest.json') != ''
         continue-on-error: true
@@ -279,7 +279,7 @@ ${secrets.length ? `        env:\n${secrets.map((s) => `          ${s}: \${{ sec
         run: |
           git config user.name "Evidence Desk checks"
           git config user.email "evidence-desk@users.noreply.github.com"
-          git add checks evidence sources registers scope.json
+          for p in checks evidence sources registers scope.json; do if [ -e "$p" ]; then git add "$p"; fi; done
           git diff --cached --quiet || git commit -m "Evidence Desk checks"
           git push
       - name: Remind people of what they owe
