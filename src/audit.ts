@@ -333,6 +333,9 @@ export function exportPackage(root: string, id: string, out: string): { files: n
       else paths.add(f.path);
     }
   }
+  // The latest attribution check travels with every package: it names the pull request behind each person's act, which
+  // the firm traces, and it is a record of the program rather than evidence of any one control.
+  if (readVersioned(root, 'sources/github/attribution.json')) paths.add('sources/github/attribution.json');
   for (const cid of new Set(reqs.flatMap((r) => r.data.controls))) {
     const c = ws.controls.find((x) => x.data.id === cid);
     if (!c) { problems.push(`control ${cid} does not exist`); continue; }

@@ -139,7 +139,7 @@ each act to its present content, and requires GitHub to associate it with a pull
 person's GitHub account on the roster; the working file must hold the act as merged. A shallow clone is refused. A
 roster member's act that fails this (for responses, their latest passed one per form), or changed after the check, is a
 finding in the gap view, as is a check made against an earlier roster. A collaborator who pushes a commit to a person's
-open pull request branch is not told apart from them. Register rows (risks, vendors) are not yet attributed. A signer
+open pull request branch is not told apart from them. A signer
 who is not on the roster is a finding. The rows are written under `evidence/files/populations/` for the audit and are
 not recorded as evidence of any control: evidence dates decide when a periodic control is next due.
 
