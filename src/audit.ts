@@ -169,14 +169,14 @@ function openAutonomySection(ws: Workspace, e: Engagement): string {
   return `
 How the system is built and operated (the Open Autonomy project ${snap.account} at ${snap.commit.slice(0, 12)}):
 
-The project declares these agents, each on a schedule with its models, and the seams below as the places people act.
+The project declares these agents, each on a schedule with its models, and the decisions below that only people make.
 ${snap.agents.map((a) => `- Agent profile ${a.profile}: ${a.jobs.map((j) => `${j.name} (${j.schedule})`).join(', ') || 'no scheduled jobs'}; models ${a.models.map((m) => `${m.provider} ${m.model}`).join(', ') || 'none'}`).join('\n')}
 
 ${snap.decisions?.length ? `Architecture decisions (${snap.decisions.length}), each answering the SOC 2 checklist of the soc2 template (${snap.decisions.filter((d) => d.checklist === 'complete').length} complete):
 ${snap.decisions.map((d) => `- ${d.title} (${d.status || 'no status'}; checklist ${d.checklist})`).join('\n')}
 
 ` : ''}Where people act:
-${(snap.seams ?? []).map((x) => `- ${x.id}: held by ${x.scope} (${holders(x.scope)}), through ${x.door}; record: ${x.record}`).join('\n') || '- [the project declares no seams]'}
+${(snap.seams ?? []).map((x) => `- ${x.id}: made by those holding ${x.scope} (${holders(x.scope)}); recorded in ${x.record.charAt(0).toLowerCase()}${x.record.slice(1)}`).join('\n') || '- [the project declares no decisions reserved to people]'}
 
 Change review works in two stages: agents review and merge each change, and a person holding release-review approves each release, an approval that covers every change the release ships (review/change-releases.csv lists each change with the release that shipped it and who approved that release). The project declares its change and release design: ${snap.rules.pr_landing ? 'changes land through pull requests by the project\'s landing workflow' : '[describe how changes land]'}; ${prod ? `production is to be deployed by ${prod.workflow}${prod.tag_trigger ? ` from a ${prod.tag_trigger} tag` : ''} through the ${prod.environment} environment's required reviewers, with outbound access limited to ${prod.egress.join(', ') || '[none listed]'}` : '[describe how a change reaches production]'}.${(snap.rules.production_workflows ?? []).length > 1 ? ` Every run of ${snap.rules.production_workflows!.map((g) => `${g.workflow}${g.tag_trigger ? ` (${g.tag_trigger})` : ''}`).join(', ')} passes the same environment's review.` : ''}
 ${(() => { const c = e.period ? periodPopulation(ws, e, 'changes to') : null; const d = e.period ? periodPopulation(ws, e, 'deployments of') : null; if (!c && !d) return '';
@@ -260,7 +260,7 @@ ${rows('people').filter((p) => !p.end_date).map((p) => `- ${p.name}${p.role ? `,
 Procedures: the organization's approved policies:
 ${ws.policies.filter((p) => p.data.versions.length).map((p) => `- ${p.data.title}, version ${p.data.versions.at(-1)!.version}`).join('\n') || '- [no policy approved yet]'}
 
-Data: ${rows('systems').map((s) => s.data).filter(Boolean).join('; ') || '[describe the data the system holds]'}.
+Data: ${rows('systems').filter((s) => s.data && !/^none$/i.test(s.data.trim())).map((s) => `${s.name}: ${s.data}`).join('; ') || '[describe the data the system holds]'}.
 
 Sources: scope.json, registers/systems.csv, registers/people.csv, policies/.
 ${openAutonomySection(ws, e)}
@@ -413,13 +413,15 @@ function lintDescription(ws: Workspace, e: Engagement, text: string, assertionTe
     : flat.length && events.length ? { rule: 'deployment trigger', status: 'contradiction', detail: `"${flat[0].trim()}", but runs in ${d.id} were started by ${tally(d.rows.map((r) => r.run_event))}` }
     : events.length && !events.every((x) => prose.includes(x)) ? { rule: 'deployment trigger', status: 'contradiction', detail: `the declared tag trigger is stated, but not that runs in ${d.id} were started by ${tally(d.rows.map((r) => r.run_event))}` }
     : { rule: 'deployment trigger', status: 'pass', detail: `${flat.length ? 'every run started from the tag' : 'the declared trigger and the operated one are both stated'}; runs in ${d.id}: ${tally(d.rows.map((r) => r.run_event))}` });
-  // Every exception still open at the period's end is named in the description or the assertion.
+  // Every exception still open at the period's end is named in the assertion management signs (by its id or the date it
+  // occurred), not only in the description.
   const ident = (x: Record<string, string>) => /#\d+|deploy-v\d+|\b[0-9a-f]{8}(?=[0-9a-f-]*\b)|\bR-\d+\b|[\w.+-]+@[\w-]+\.[\w.-]+|AR-\d{8}-[0-9a-f]{6}/.exec(x.item)?.[0] ?? x.key.split(':')[1] ?? x.key;
   const open = knownExceptions(ws, e).filter((x) => !x.resolved || (e.period && x.resolved > e.period.end));
-  const missing = open.filter((x) => !both.includes(ident(x)));
+  const signed = assertionText || both;
+  const missing = open.filter((x) => !signed.includes(ident(x)) && !(x.occurred && signed.includes(x.occurred)));
   out.push(!open.length ? { rule: 'open exceptions disclosed', status: 'not applicable', detail: 'no exception is open at the period end' }
-    : missing.length ? { rule: 'open exceptions disclosed', status: 'contradiction', detail: `${missing.length} open exception(s) named in neither the description nor the assertion: ${missing.map((x) => `${ident(x)} (${x.key})`).join('; ')}` }
-    : { rule: 'open exceptions disclosed', status: 'pass', detail: `each of the ${open.length} open exception(s) is named` });
+    : missing.length ? { rule: 'open exceptions disclosed', status: 'contradiction', detail: `${missing.length} open exception(s) the assertion does not name: ${missing.map((x) => `${ident(x)} (${x.key})`).join('; ')}` }
+    : { rule: 'open exceptions disclosed', status: 'pass', detail: `the assertion names each of the ${open.length} open exception(s)` });
   return out;
 }
 

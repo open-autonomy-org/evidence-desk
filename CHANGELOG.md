@@ -7,6 +7,12 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Access changes are a population of their own (`collect access-changes`): every account added, removed or re-roled on
+  GitHub and Cloudflare, from the daily member snapshots, with the audit log's exact time where it has one and each
+  person's register dates beside the system's. One deployment outside the change path that the daily check already
+  failed on is one exception, dated by the check. The assertion must name every exception open at the period's end.
+  The drafted description says who holds each decision and where it is recorded, without internal door names, and
+  lists each system's data by system.
 - A failing daily check no escalation record answers is an exception: the alert reached no one. A claim is evidenced
   only by a line that records one of the acts it states (a table row by its columns), not just its date and subject.
   Each change records what it touched (code, pipeline, docs, records) and how many files, in the changes population

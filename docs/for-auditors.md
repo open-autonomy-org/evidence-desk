@@ -115,6 +115,10 @@ query that produced it (evidence a person added by hand says so).
 - **Non-human access**: deploy keys, repository and environment secrets (with when each was last set), app installations
   and the project's agents, as of the collection. A recorded credential rotation the secret's own date does not show is
   an exception.
+- **Access changes** (`collect access-changes`): every account added to, removed from or re-roled on the GitHub
+  organization and the Cloudflare account, from the daily member snapshots compared day over day, with the Cloudflare
+  audit log's exact time and actor where it records the event, and each person's register start and end dates beside
+  the system's date. The roster's own history is a separate population of who holds authority in the project.
 - **Seam records** (incidents, break-glass changes, credentials, escalations) are listed with each record's full git
   history (`*.history.txt`): a record edited after it was added shows every change with its author and dates.
 - **Continuous checks** (two-factor enforcement, required review and protected history, bypasses of the default

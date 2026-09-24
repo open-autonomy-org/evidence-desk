@@ -15,7 +15,7 @@ import type { AuditRequest, Engagement } from './audit.ts';
 // check found it.
 // closed_by says what ended an exception: a later reading passing again (not proof of remediation), a later completeness
 // check no longer finding the administrator; empty while nothing has.
-export type PacketException = { key: string; source: string; controls: string; item: string; detail: string; occurred: string; detected: string; resolved: string; closed_by?: string; response: string; responded_by: string; response_cites?: string; file: string };
+export type PacketException = { key: string; source: string; controls: string; item: string; detail: string; occurred: string; detected: string; resolved: string; closed_by?: string; found_by?: string; response: string; responded_by: string; response_cites?: string; file: string };
 // Checks that report events (something happened in the last day) rather than a standing state: a later passing reading
 // means only that it did not happen again, so it never closes the exception.
 const EVENT_CHECKS = new Set(['github-rule-bypass', 'cloudflare-change-actors']);
@@ -377,9 +377,19 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       add({ key: `release-without-person:#${r.number}`, source: 'change releases (review/change-releases.csv)', controls: 'CHG-01;CHG-03', item: `#${r.number} in ${r.released_in}`, detail: `shipped in a release no person on the roster approved (${r.release_approved_by || 'no approver'})`, occurred: day(r.released_at), detected: day(r.released_at), resolved: '', file: ghDep?.path ?? worker.path });
     views.set('review/production-timeline.csv', writeCsv({ columns: ['from', 'until', 'days', 'deployment', 'author', 'commit', 'github_deployment', 'ref', 'approved', 'change_path', 'pull_requests'], rows: timeline }));
   }
+  // One event, one exception: a deploy no approved GitHub deployment accounts for, which the daily change-actors check
+  // already failed on (the same day, the same account), is that check's finding, dated when the check made it.
+  for (const u of exceptions.filter((x) => x.key.startsWith('unmatched-deploy:'))) {
+    const actor = /made by ([\w.+-]+@[\w.-]+\.[a-z]+)/i.exec(u.detail)?.[1];
+    const c = actor ? exceptions.find((x) => x.key.startsWith('check:cloudflare-change-actors:') && x.occurred === u.occurred && x.detail.includes(actor)) : undefined;
+    if (!c) continue;
+    u.detected = c.detected;
+    u.found_by = `the organization's daily check cloudflare-change-actors, on ${c.detected} (${c.file})`;
+    exceptions.splice(exceptions.indexOf(c), 1);
+  }
   // Written after every view that can raise an exception.
   views.set('review/exceptions.csv', writeCsv({ columns: ['key', 'source', 'controls', 'item', 'detail', 'occurred', 'detected', 'resolved', 'closed_by', 'open_at_period_end', 'found_by', 'response', 'responded_by', 'response_cites', 'file'], rows: exceptions.map((x) => ({ ...x, closed_by: x.closed_by ?? '', open_at_period_end: !x.resolved || x.resolved > period.end ? 'yes' : 'no',
-      found_by: x.key.startsWith('check:') ? `the organization's daily check, on ${x.detected}` : x.key.startsWith('audit-finding:') ? `the organization's internal audit, on ${x.occurred}` : x.key.startsWith('incident:') ? 'the organization (its incident record)' : `this package's collection, on ${x.detected}`, response_cites: x.response_cites ?? '' })) }));
+      found_by: x.found_by ?? (x.key.startsWith('check:') ? `the organization's daily check, on ${x.detected}` : x.key.startsWith('audit-finding:') ? `the organization's internal audit, on ${x.occurred}` : x.key.startsWith('incident:') ? 'the organization (its incident record)' : `this package's collection, on ${x.detected}`), response_cites: x.response_cites ?? '' })) }));
   views.set('review/coverage.csv', writeCsv({ columns: ['criterion', 'category', 'title', 'controls', 'controls_with_evidence', 'check_only', 'not_provided', 'requested', 'exceptions', 'status'], rows: byCriterion }));
 
   // The readable page.

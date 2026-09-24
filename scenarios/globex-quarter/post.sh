@@ -9,6 +9,7 @@ asmaya collect $W github-rule-changes --repo globex/relay --period $Q --by maya
 ed collect $W cloudflare-deployments --account eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee --script relay --period $Q --by maya
 asmaya collect $W nonhuman-access --repo globex/relay --org globex --by maya
 ed collect $W cloudflare-changes --account eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee --period $Q --by maya
+ed collect $W access-changes --period $Q --by maya
 ed collect $W roster-history --repo $D/relay --period $Q --by maya
 ed collect $W seam-records --repo $D/relay --period $Q --by maya
 ed open-autonomy $W import --repo $D/relay --by maya | tail -1

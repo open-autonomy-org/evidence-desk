@@ -15,6 +15,7 @@ import { writeCsv } from './csv.ts';
 import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, reviewAnswer, staleLibrary } from './trust.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { computeObligations } from './obligations.ts';
+import { collectAccessChanges } from './access.ts';
 import { collectRosterHistory, collectSeamRecords, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
 import { checkCompleteness, collectChanges, collectDeployments, collectAttribution, collectNonHumanAccess, collectRuleChanges, syncReminders } from './github.ts';
 import { collectCloudflareChanges, collectWorkerDeployments } from './cloudflare.ts';
@@ -62,6 +63,8 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                                           the account's audit log: who changed what (needs CLOUDFLARE_API_TOKEN)
   collect <dir> cloudflare-deployments --account <id or name> --script <worker> --period <start>..<end> --by <person>
                                           what reached production on Cloudflare, matched to the GitHub deployments
+  collect <dir> access-changes --period <start>..<end> --by <person>
+                                          accounts added, removed or re-roled on GitHub and Cloudflare, day by day
   collect <dir> roster-history --repo <checkout> --period <start>..<end> --by <person>
                                           every change to the Open Autonomy roster, from git
   collect <dir> seam-records --repo <checkout> --period <start>..<end> --by <person>
@@ -400,6 +403,11 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => `Recorded ${r.evidence}: ${r.rows} deployments; ${r.unapproved} without an independent approval of the environment.`);
         return 0;
       }
+      if (rest[0] === 'access-changes') {
+        const r = collectAccessChanges(dir, { start, end, by });
+        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} access changes on GitHub and Cloudflare.`);
+        return 0;
+      }
       if (rest[0] === 'roster-history') {
         const r = collectRosterHistory(dir, { repo: resolve(one(a, 'repo') ?? '.'), start, end, by });
         out(json, r, () => `Recorded ${r.evidence}: ${r.rows} roster changes.`);
@@ -425,7 +433,7 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => `Recorded ${r.evidence}: ${r.rows} Worker deployments; ${r.unmatched} with no matching GitHub deployment.`);
         return 0;
       }
-      throw new Error('collect needs github-changes, github-deployments, github-rule-changes, cloudflare-changes, cloudflare-deployments, roster-history, seam-records or attribution');
+      throw new Error('collect needs github-changes, github-deployments, github-rule-changes, cloudflare-changes, cloudflare-deployments, access-changes, roster-history, seam-records or attribution');
     }
     case 'collectors': {
       if (rest[0]) configureCollector(dir, rest[0], { ...(a.flags.has('enable') ? { enabled: true } : a.flags.has('disable') ? { enabled: false } : {}), ...(a.flags.has('set') ? { params: pairs(a.flags.get('set')!) } : {}) });

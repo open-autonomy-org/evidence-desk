@@ -13,7 +13,7 @@ stem = lambda t: (lambda e: any(t in f['path'] and f['path'].endswith('.csv') fo
 # The first of a request's controls that has a population decides which one it is.
 by_control = [('CHG-04', seam('break-glass seam')), ('CHG-03', stem('/github-deployments-')), ('CHG-01', stem('/github-changes-')),
               ('OPS-03', seam('incidents seam')), ('AC-05', seam('credentials seam')), ('OPS-01', seam('escalations seam')),
-              ('GOV-06', seam('escalations seam')), ('HR-03', seam('team roster')), ('AC-02', seam('team roster')), ('HR-04', seam('team roster'))]
+              ('GOV-06', seam('escalations seam')), ('HR-03', stem('/access-changes-')), ('AC-02', stem('/access-changes-')), ('HR-04', stem('/access-changes-'))]
 for r in csv.DictReader(open(requests)):
     controls = r['controls'].split(';')
     if r['kind'] == 'population':
