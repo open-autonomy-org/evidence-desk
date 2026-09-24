@@ -177,9 +177,12 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
 
   const applicable = new Set(loadWorkspace(root).controls.filter((c) => c.data.applicable).map((c) => c.data.id));
   const controls = DECLARATION_CONTROLS.filter((c) => applicable.has(c));
-  // Evidence of the declarations at a commit is recorded once: re-reading the same commit (the daily workflow does) must
-  // not date a governance or vendor control as freshly evidenced, since evidence dates decide when it is next due.
-  const already = loadWorkspace(root).evidence.find((e) => e.data.source?.kind === 'open-autonomy' && e.data.source?.commit === snap.commit && controls.every((c) => e.data.controls.includes(c)));
+  // Evidence of the declarations is recorded when they change, not each time they are read: the daily workflow reads a
+  // project whose agents commit constantly, and a fresh record each day would date a governance or vendor control as newly
+  // evidenced, since evidence dates decide when it is next due. Unchanged declarations reuse the latest record.
+  const recorded = loadWorkspace(root).evidence.filter((e) => e.data.source?.kind === 'open-autonomy' && e.data.source?.name === snap.account && controls.every((c) => e.data.controls.includes(c)))
+    .sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at));
+  const already = prev && !report.changed.length ? recorded.at(-1) : recorded.find((e) => e.data.source?.commit === snap.commit);
   if (already) { report.evidence = already.data.id; report.evidence_existing = true; }
   else if (controls.length) report.evidence = addEvidence(root, {
     title: `Open Autonomy declarations at ${snap.commit.slice(0, 12)}: roster, agents, seams, landing and production rules`, controls, files: [report.snapshot], recorded_by: by,

@@ -170,8 +170,9 @@ TLS version (1.2 or later) and HTTPS-only redirect. Roster completeness reads a 
 against the people register, whose emails the owner fills in (the roster names GitHub accounts, not emails).
 
 With an imported Open Autonomy project, the daily workflow clones the project's public repository (the one named in
-`sources/open-autonomy/latest.json`) and imports it again, committing what changed; the declarations at a commit are
-recorded as evidence once, so a daily read does not date the controls they evidence as freshly reviewed, and a project
+`sources/open-autonomy/latest.json`) and imports it again, committing what changed; the declarations are recorded as
+evidence when they change, not each time they are read, so a daily read does not date the controls they evidence as
+freshly reviewed, and a project
 that cannot be read fails the run; the system description draft (`audit … draft description`) then states how the project builds
 and runs the system: its agents and schedules, where people act and who may, and how a change reaches production.
 
