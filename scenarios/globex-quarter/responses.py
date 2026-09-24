@@ -47,6 +47,11 @@ for r in json.load(open(X)):
               "period's end, and Sam still held Cloudflare Administrator. We accept it as a deviation: revoking the token and reducing "
               "Sam's personal access to read-only are Q4 actions, so that only the deploy service account can deploy.",
               [one('evidence/files/populations/cloudflare-tokens-*.csv'),workers])
+    elif k.startswith('findings-unregistered:'):
+        R[k]=(f"{r['item']}: the penetration test's findings were tracked in the tester's report and the retest record, not in "
+              "the vulnerability register. The medium finding was fixed in deploy-v7 and closed at the retest of 2026-09-12; the two "
+              "low findings were accepted. We accept that the register was not used; from Q4 every finding is entered in it with an "
+              "owner and a due date.",[r['file'],one('evidence/files/*/pentest-retest-*.md')])
     elif k.startswith('unacknowledged:'):
         R[k]=("No escalation record answers the failing reading of 2026-09-10: no one acknowledged it, and Sam's break-glass record of "
               "2026-09-11 is the first record the organization made of the deploy. We accept it as a deviation from alert handling; from "

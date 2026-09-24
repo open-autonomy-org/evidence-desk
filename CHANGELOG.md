@@ -7,6 +7,8 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- A report that states findings (a penetration test, a scan) while the vulnerability register records none in the
+  period is an exception.
 - The Open Autonomy import keeps the documents it read at that commit (the architecture decisions, the SOC 2
   checklist and the internal-audit job's instructions) under `sources/open-autonomy/<commit>/`, and the package carries
   them, so the firm can read what each checklist item and each weekly audit checks.

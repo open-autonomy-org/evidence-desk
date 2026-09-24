@@ -437,6 +437,16 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       add({ key: 'release-self-approved', source: 'change releases (review/change-releases.csv)', controls: 'CHG-03', item: `${selfApproved.size} of ${shipped.size} releases approved by an author of their code`, detail: [...selfApproved].map(([rel, rs]) => `${rel} approved by ${rs[0].release_approved_by}, who wrote ${rs.map((r) => `#${r.number}`).join(', ')}`).join('; '), occurred: day(first.released_at), detected: collectedOf(ghDep?.path ?? worker.path), resolved: '', found_by: `this package, comparing each release's approver with the authors of the changes it ships`, file: ghDep?.path ?? worker.path }); }
     views.set('review/production-timeline.csv', writeCsv({ columns: ['from', 'until', 'days', 'deployment', 'author', 'commit', 'github_deployment', 'ref', 'approved', 'change_path', 'pull_requests'], rows: timeline }));
   }
+  // A report that states findings (a penetration test, a scan) the vulnerability register never took in: the findings
+  // have no owner, due date or fix to test.
+  const vulns = (ws.registers.vulnerabilities?.data.rows ?? []).filter((r) => !r.found_on || inside(r.found_on, period));
+  const WORD: Record<string, number> = { no: 0, zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
+  for (const ev of evidence.filter((x) => inside(x.data.collected_at, { start: period.start, end: day(createdAt) }))) for (const f of ev.data.files.filter((x) => /\.(md|txt)$/.test(x.path))) {
+    const text = existsSync(join(root, f.path)) ? readFileSync(join(root, f.path), 'utf8') : '';
+    const counts = [...text.matchAll(/\b(\d+|no|zero|one|two|three|four|five|six) (critical|high|medium|low)\b/gi)].map((m) => ({ n: /^\d+$/.test(m[1]) ? Number(m[1]) : WORD[m[1].toLowerCase()] ?? 0, sev: m[2].toLowerCase() })).filter((c) => c.n > 0);
+    if (!counts.length || !/finding/i.test(text) || vulns.length) continue;
+    add({ key: `findings-unregistered:${ev.data.id}`, source: `evidence ${ev.data.id} (${ev.data.title})`, controls: ev.data.controls.join(';'), item: `${counts.map((c) => `${c.n} ${c.sev}`).join(', ')} finding(s) in ${ev.data.id}`, detail: `the report states findings and the vulnerability register (registers/vulnerabilities.csv) records none found in the period`, occurred: day(ev.data.collected_at), detected: collectedOf(f.path), resolved: '', found_by: 'this package, comparing reports that state findings with the vulnerability register', file: f.path });
+  }
   // One event, one exception, for hand-made settings too: the change check's failing reading of the day a person changed
   // a setting (or put it back), and its unacknowledged sibling, belong to that setting's out-of-path exception.
   for (const u of exceptions.filter((x) => x.key.startsWith('out-of-path-change:'))) {
