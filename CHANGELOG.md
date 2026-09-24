@@ -7,6 +7,11 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Questionnaires import from Excel (.xlsx) workbooks as well as CSV (the first worksheet, read with no dependency).
+  Unsaved edits on a page survive another form on it being saved. Sync-service conflict copies beside a record are
+  validation errors naming the record. A new workspace's `AGENTS.md` names the command and holds an agent to leaving a
+  person's act for that person to record; a headless coding-agent session asked to record a colleague's training
+  declined and said what the colleague had to do.
 - Added a Cloudflare collector: two-factor authentication for every member, and each zone's minimum TLS version and
   HTTPS-only redirect; roster completeness reads a Cloudflare account's administrators from the API. The deployment
   population follows each deployment to its Actions run for who started it and who approved the environment, and

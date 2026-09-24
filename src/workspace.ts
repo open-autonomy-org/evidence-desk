@@ -116,9 +116,27 @@ export function loadWorkspace(root: string): Workspace {
     readJson(root, `audits/${d}/engagement.json`, 'engagement', problems);
     for (const f of list(root, `audits/${d}/requests`, '.json')) readJson(root, f, 'audit-request', problems);
   }
+  syncConflicts(root, problems);
   const ws: Workspace = { root, manifest, scope, controls, policies, evidence, forms, responses, accessReviews, incidents, runs, registers, problems };
   crossCheck(ws);
   return ws;
+}
+
+// A workspace kept in a synced folder (Dropbox, Google Drive, iCloud, Syncthing, Nextcloud) can grow a conflict copy
+// beside a record when two people change it at once. The copy is never read, so its changes would be silently lost: each
+// is an error naming the record it copies. Only names beside an existing original count, so an ordinary file is not
+// mistaken for one. Evidence files and audit packages are not records and are left alone.
+const CONFLICT = [/^(.*) \([^)]*conflicted copy[^)]*\)(\.[^.]+)$/i, /^(.*) \(\d+\)(\.[^.]+)$/, /^(.*) \d+(\.[^.]+)$/, /^(.*)\.sync-conflict-[0-9-]+-[A-Za-z0-9]+(\.[^.]+)$/, /^(.*)[-_ ]conflict(?:ed)?[-_ ].*?(\.[^.]+)$/i];
+function syncConflicts(root: string, problems: Problem[]): void {
+  const dirs = ['', 'controls', 'policies', 'registers', 'forms', 'forms/responses', 'reviews/access', 'incidents', 'evidence/records', 'checks/runs', 'questionnaires', 'frameworks', 'sources', 'sources/open-autonomy', 'sources/github'];
+  for (const dir of dirs) {
+    if (!existsSync(join(root, dir))) continue;
+    const names = new Set(readdirSync(join(root, dir)));
+    for (const f of names) for (const re of CONFLICT) {
+      const m = re.exec(f);
+      if (m && names.has(`${m[1]}${m[2]}`)) { problems.push({ severity: 'error', file: dir ? `${dir}/${f}` : f, message: `looks like a sync conflict copy of ${dir ? `${dir}/` : ''}${m[1]}${m[2]}: merge any change it holds into that file, then delete it` }); break; }
+    }
+  }
 }
 
 // References between records: ids match file names, owners are people, links point at records that exist,

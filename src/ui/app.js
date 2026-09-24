@@ -10,7 +10,8 @@ function h(tag, attrs = {}, ...kids) {
   for (const [k, v] of Object.entries(attrs)) {
     if (v === undefined || v === null || v === false) continue;
     if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
-    else if (k === 'value') el.value = v;
+    // The rendered value is also the field's default, so an unsaved edit is the difference between the two.
+    else if (k === 'value') { if ('defaultValue' in el) el.defaultValue = String(v); el.value = v; }
     else el.setAttribute(k, v === true ? '' : String(v));
   }
   for (const k of kids.flat(Infinity)) if (k !== null && k !== undefined && k !== false) el.append(k instanceof Node ? k : String(k));
@@ -50,12 +51,33 @@ async function post(path, payload, okText) {
 window.addEventListener('hashchange', () => { tab = location.hash.slice(1).split('/')[0] || 'overview'; detail = decodeURIComponent(location.hash.split('/')[1] || ''); render(); window.scrollTo(0, 0); });
 document.getElementById('tabs').addEventListener('click', (e) => { const t = e.target.closest('button')?.dataset.tab; if (t) go(t); });
 
+// Unsaved edits survive a re-render of the same page: every save re-renders the whole view from the workspace, and a
+// value typed into another field would otherwise be lost. A field is carried over only where the value it started from
+// is unchanged on disk, so what was saved (or changed elsewhere) always wins over a stale edit.
+function fieldsOf(view) {
+  const seen = new Map();
+  return [...view.querySelectorAll('input, textarea, select')].filter((el) => el.type !== 'file').map((el) => {
+    const form = el.form ? [...view.querySelectorAll('form')].indexOf(el.form) : -1;
+    const base = `${form}|${el.name || el.id || el.tagName}`;
+    const n = seen.get(base) ?? 0; seen.set(base, n + 1);
+    return { key: `${base}|${n}`, el };
+  });
+}
+const initial = (el) => el.type === 'checkbox' || el.type === 'radio' ? el.defaultChecked : el.tagName === 'SELECT' ? [...el.options].map((o) => o.defaultSelected).join() : el.defaultValue;
+const current = (el) => el.type === 'checkbox' || el.type === 'radio' ? el.checked : el.tagName === 'SELECT' ? [...el.options].map((o) => o.selected).join() : el.value;
+const apply = (el, v) => { if (el.type === 'checkbox' || el.type === 'radio') el.checked = v; else if (el.tagName === 'SELECT') v.split(',').forEach((x, i) => { if (el.options[i]) el.options[i].selected = x === 'true'; }); else el.value = v; };
+let rendered = '';
+
 function render() {
   if (!S) return;
   document.getElementById('org').textContent = S.organization;
   for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('active', b.dataset.tab === tab);
   const view = document.getElementById('view');
+  const page = `${tab}/${detail}`;
+  const edits = page === rendered ? fieldsOf(view).filter(({ el }) => current(el) !== initial(el)).map(({ key, el }) => ({ key, from: initial(el), value: current(el) })) : [];
+  rendered = page;
   view.replaceChildren(({ overview, scope, controls, policies, registers, evidence, people: peopleView, obligations, access, incidents, oa: openAutonomy, checks: checksView, audit: auditView, trust: trustView })[tab]?.() ?? overview());
+  if (edits.length) { const now = new Map(fieldsOf(view).map((f) => [f.key, f.el])); for (const e of edits) { const el = now.get(e.key); if (el && initial(el) === e.from) apply(el, e.value); } }
 }
 
 function statusPill(c) {
@@ -645,7 +667,7 @@ function auditView() {
 function trustView() {
   if (detail) return questionnaireView(S.questionnaires.find((q) => q.id === detail));
   const out = h('input', { type: 'text', placeholder: 'Folder to write the site to' });
-  const qfile = h('input', { type: 'file', accept: '.csv' });
+  const qfile = h('input', { type: 'file', accept: '.csv,.xlsx' });
   const qname = h('input', { type: 'text', placeholder: 'Who sent it, for example "BigCo vendor review"' });
   const t = S.trust;
   return h('div', {},
@@ -659,7 +681,7 @@ function trustView() {
       h('div', { class: 'row' }, h('div', { style: 'flex:1' }, out), h('button', { class: 'primary', disabled: !t, onclick: async () => { const r = await post('/api/trust/build', { out: out.value }, null); if (r) notice(`Built index.html publishing ${r.result.published.join(', ') || 'the headline and contact'}. Host the folder anywhere.`, true); } }, 'Build the site'))),
     h('div', { class: 'card' },
       h('h2', { style: 'margin-top:0' }, 'Security questionnaires'),
-      h('p', { class: 'muted' }, 'Upload a CSV with a question column. Each answer is drafted by quoting the workspace records it cites; a person reviews it, and reviewed answers are reused until a fact they cite changes.'),
+      h('p', { class: 'muted' }, 'Upload a CSV or Excel (.xlsx) file with a question column. Each answer is drafted by quoting the workspace records it cites; a person reviews it, and reviewed answers are reused until a fact they cite changes.'),
       h('div', { class: 'grid2' }, h('div', {}, qname), h('div', {}, qfile)),
       h('div', { class: 'row' }, h('button', { class: 'primary', onclick: async () => {
         const f = qfile.files[0]; if (!f) return notice('Choose the CSV.', false);

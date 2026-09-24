@@ -20,7 +20,7 @@ A row counts only when its owning outcome demonstrates it in the running local p
 | 1 | SOC2 control set mapped to the Trust Services Criteria, scoping, gap view | demonstrated |
 | 2 | Policy library: templates, editing, versioned approval | demonstrated |
 | 3 | Registers: systems/assets, people, vendors, risks with treatment | demonstrated |
-| 4 | Operable by the customer's own coding agent and by a nontechnical admin | demonstrated (agent: shipped instructions and external edits; no agent run yet) |
+| 4 | Operable by the customer's own coding agent and by a nontechnical admin | demonstrated (a headless Claude Code session worked a workspace from its shipped instructions) |
 | 5 | Automated evidence collection from cloud, identity, HRIS, code and devices | `evidence-automation` (code: GitHub landed) |
 | 6 | Continuous control checks with visible failures and alerting | demonstrated |
 | 7 | Onboarding/offboarding, policy acknowledgment, training, background checks | demonstrated |

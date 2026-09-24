@@ -6,6 +6,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 
 import { basename, join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { check, schema } from './schema.ts';
+import { questionnaireText } from './xlsx.ts';
 import { parseCsv, writeCsv } from './csv.ts';
 import { fileHash, readVersioned, writeVersioned } from './files.ts';
 import { categories, categoryAnswer } from './catalog.ts';
@@ -152,7 +153,7 @@ export function importQuestionnaireText(root: string, text: string, file: string
   return { id, fromLibrary: questions.filter((q) => q.from_library).length, drafted: questions.filter((q) => q.status === 'draft').length, unanswered: questions.filter((q) => q.status === 'unanswered').length };
 }
 
-export function importQuestionnaire(root: string, file: string, name: string) { return importQuestionnaireText(root, readFileSync(resolve(file), 'utf8'), file, name); }
+export function importQuestionnaire(root: string, file: string, name: string) { return importQuestionnaireText(root, questionnaireText(readFileSync(resolve(file)), file), file, name); }
 
 export function questionnaireCsv(root: string, id: string): string {
   const r = readVersioned(root, `questionnaires/${id}.json`);
