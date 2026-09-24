@@ -418,7 +418,9 @@ function lintDescription(ws: Workspace, e: Engagement, text: string, assertionTe
   const ident = (x: Record<string, string>) => /#\d+|deploy-v\d+|\b[0-9a-f]{8}(?=[0-9a-f-]*\b)|\bR-\d+\b|[\w.+-]+@[\w-]+\.[\w.-]+|AR-\d{8}-[0-9a-f]{6}/.exec(x.item)?.[0] ?? x.key.split(':')[1] ?? x.key;
   const open = knownExceptions(ws, e).filter((x) => !x.resolved || (e.period && x.resolved > e.period.end));
   const signed = assertionText || both;
-  const missing = open.filter((x) => !signed.includes(ident(x)));
+  // Named means the row's own item (release deploy-v6, sam@globex.test's token cf-…): an id alone can appear in another
+  // matter about something else.
+  const missing = open.filter((x) => !signed.includes(x.item));
   out.push(!open.length ? { rule: 'open exceptions disclosed', status: 'not applicable', detail: 'no exception is open at the period end' }
     : missing.length ? { rule: 'open exceptions disclosed', status: 'contradiction', detail: `${missing.length} open exception(s) the assertion does not name: ${missing.map((x) => `${ident(x)} (${x.key})`).join('; ')}` }
     : { rule: 'open exceptions disclosed', status: 'pass', detail: `the assertion names each of the ${open.length} open exception(s)` });
