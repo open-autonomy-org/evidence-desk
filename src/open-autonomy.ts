@@ -115,7 +115,9 @@ export function diffSnapshots(before: Snapshot | null, after: Snapshot): string[
   cmp('The agents, models or schedules', before.agents, after.agents);
   cmp('The seams', before.seams, after.seams);
   cmp('The vendor accounts', before.vendor_accounts, after.vendor_accounts);
-  cmp('The landing and production rules', before.rules, after.rules);
+  // A snapshot read before production_workflows existed is compared without it, so an upgrade alone reports no change.
+  const rules = (r: Snapshot['rules']) => ('production_workflows' in before.rules ? r : { ...r, production_workflows: undefined });
+  cmp('The landing and production rules', rules(before.rules), rules(after.rules));
   // A vendor the project stops naming keeps its register row (removing it is a person's decision), so say so.
   for (const v of before.vendors.filter((x) => !after.vendors.includes(x))) out.push(`The project no longer names ${v} as a vendor; its row in registers/vendors.csv stays until someone removes it`);
   return out;
