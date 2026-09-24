@@ -11,6 +11,7 @@ import { importOpenAutonomy, seamFindings, type Snapshot } from './open-autonomy
 import { existsSync, readdirSync } from 'node:fs';
 import { COLLECTORS, checkTitle, configureCollector, readSettings, runChecks } from './automation.ts';
 import { actOnRequest, draft, exportPackage, importReturn, listRequests, readEngagement } from './audit.ts';
+import { questionnaireText } from './xlsx.ts';
 import { buildTrustCenter, importQuestionnaireText, questionnaireCsv, reviewAnswer } from './trust.ts';
 import { frameworkState } from './frameworks.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
@@ -143,7 +144,7 @@ export function serve(root: string, port: number): void {
         case '/api/audit/export': return send(res, 200, { result: exportPackage(root, s('engagement'), s('out')), state: state(root) });
         case '/api/audit/import-return': return send(res, 200, { result: importReturn(root, s('engagement'), s('dir')), state: state(root) });
         case '/api/trust/build': return send(res, 200, { result: buildTrustCenter(root, s('out')), state: state(root) });
-        case '/api/questionnaire/import': return send(res, 200, { result: importQuestionnaireText(root, Buffer.from(s('data'), 'base64').toString('utf8'), s('filename'), s('name')), state: state(root) });
+        case '/api/questionnaire/import': return send(res, 200, { result: importQuestionnaireText(root, questionnaireText(Buffer.from(s('data'), 'base64'), s('filename')), s('filename'), s('name')), state: state(root) });
         case '/api/questionnaire/answer': reviewAnswer(root, s('id'), s('version'), s('question'), { answer: s('answer'), by: s('by') }); break;
         case '/api/collectors': configureCollector(root, s('id'), { enabled: b.enabled as boolean, params: b.params as Record<string, string> }); break;
         case '/api/run': { const run = await runChecks(root, s('by')); return send(res, 200, { run, state: state(root) }); }

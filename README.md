@@ -79,7 +79,7 @@ bun src/cli.ts firm ~/firm/firm.json --serve                            # the fi
 Answer customers from the same facts, and publish a trust center you host yourself:
 
 ```bash
-bun src/cli.ts questionnaire ~/acme-soc2 import bigco.csv --name "BigCo vendor review"
+bun src/cli.ts questionnaire ~/acme-soc2 import bigco.xlsx --name "BigCo vendor review"   # .csv or .xlsx
 bun src/cli.ts trust ~/acme-soc2 build --out ~/acme-trust
 ```
 
@@ -142,3 +142,18 @@ bun run check
 
 Exercise changes on synthetic workspaces under `$D/artifact-verification/`, including edits made outside the app.
 Other machines establish their own World with the kit's `volter-world init` and a data root outside the checkout.
+
+Collectors, attribution and reminders are exercised in a second World, `evidence-desk-oa`, whose GitHub and Cloudflare
+twins run from a checkout of [volter-ai/twin](https://github.com/volter-ai/twin) at its current main: the published
+twin packages predate personal tokens, run approvals, deployment creators, the organization two-factor setting and
+Cloudflare members and zone settings. Its config (`$D/evidence-desk-oa/world.config.json`) names each twin's `cli.ts
+serve` in that checkout. A twin restarts empty, so seed it through the vendor's own API after each `up`: organization
+memberships, repositories (pushed over git), and a personal token per synthetic person from
+`POST /_twin/users/<login>/tokens`, which that person's pull requests and reviews then carry; Cloudflare accounts,
+zones and members through `POST /client/v4/twin/bootstrap`.
+
+```bash
+"$W" up "$D/evidence-desk-oa/world.config.json" --name evidence-desk-oa --env-file "$D/evidence-desk-oa/app.env" --root "$D" --owner <task>
+"$W" attach evidence-desk-oa --root "$D" -- bun src/cli.ts collect <workspace> attribution --repo acme/compliance --by ana
+"$W" down evidence-desk-oa --root "$D"
+```
