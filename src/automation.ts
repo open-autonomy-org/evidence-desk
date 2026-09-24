@@ -46,6 +46,11 @@ async function ghAll(path: string, queries: string[]): Promise<any[]> {
   throw new Error(`${path} has more than 10,000 results`);
 }
 
+// A ruleset governs the default branch only if it targets branches and its ref_name condition covers the default branch:
+// a tag ruleset (the kit's deploy-tags-admin-only) says nothing about main.
+const onDefaultBranch = (rs: any, branch: string) => (rs.target ?? 'branch') === 'branch' && ((rs.conditions?.ref_name?.include ?? []) as string[]).some((p) => p === '~ALL' || p === '~DEFAULT_BRANCH' || p === `refs/heads/${branch}`)
+  && !((rs.conditions?.ref_name?.exclude ?? []) as string[]).some((p) => p === '~DEFAULT_BRANCH' || p === `refs/heads/${branch}`);
+
 const github: CollectorDef = {
   id: 'github', title: 'GitHub organization and repositories', credentials: ['GITHUB_TOKEN'],
   params: [{ name: 'org', prompt: 'Organization login' }, { name: 'repos', prompt: 'Repositories to check, comma-separated owner/name' }],
@@ -81,12 +86,12 @@ const github: CollectorDef = {
     { id: 'github-change-review', title: 'The default branch requires an approving review', controls: ['CHG-01'], evaluate: (d) => {
       const bad = Object.entries(d.repos as Record<string, any>).filter(([, r]) => {
         const classic = (r.protection?.required_pull_request_reviews?.required_approving_review_count ?? 0) >= 1;
-        const ruled = (r.rulesets as any[]).some((rs) => rs.enforcement === 'active' && (rs.rules ?? []).some((x: any) => x.type === 'pull_request' && (x.parameters?.required_approving_review_count ?? 0) >= 1));
+        const ruled = (r.rulesets as any[]).some((rs) => rs.enforcement === 'active' && onDefaultBranch(rs, r.default_branch) && (rs.rules ?? []).some((x: any) => x.type === 'pull_request' && (x.parameters?.required_approving_review_count ?? 0) >= 1));
         return !classic && !ruled;
       }).map(([k]) => k);
       // A review someone may always skip is not required of them: a ruleset listing bypass actors in "always" mode fails
       // the check, naming who may bypass; "pull_request" mode (bypass only by opening a pull request) does not.
-      const always = Object.entries(d.repos as Record<string, any>).flatMap(([k, r]) => (r.rulesets as any[]).filter((rs) => rs.enforcement === 'active' && (rs.rules ?? []).some((x: any) => x.type === 'pull_request'))
+      const always = Object.entries(d.repos as Record<string, any>).flatMap(([k, r]) => (r.rulesets as any[]).filter((rs) => rs.enforcement === 'active' && onDefaultBranch(rs, r.default_branch) && (rs.rules ?? []).some((x: any) => x.type === 'pull_request'))
         .flatMap((rs) => (rs.bypass_actors ?? []).filter((b: any) => (b.bypass_mode ?? 'always') === 'always').map((b: any) => `${k} ruleset ${rs.name}: ${b.actor_type}${b.actor_id != null ? ` ${b.actor_id}` : ''}`)));
       return bad.length ? { status: 'fail', detail: `no required approving review on the default branch of ${bad.join(', ')}` }
         : always.length ? { status: 'fail', detail: `the required review can always be bypassed by ${always.join('; ')}` }
@@ -104,11 +109,11 @@ const github: CollectorDef = {
     { id: 'github-history-protected', title: 'The default branch cannot be force-pushed or deleted', controls: ['CHG-03', 'OPS-04'], evaluate: (d) => {
       const bad = Object.entries(d.repos as Record<string, any>).filter(([, r]) => {
         const classic = r.protection && r.protection.allow_force_pushes?.enabled !== true && r.protection.allow_deletions?.enabled !== true;
-        const ruled = (r.rulesets as any[]).some((rs) => rs.enforcement === 'active' && ['non_fast_forward', 'deletion'].every((t) => (rs.rules ?? []).some((x: any) => x.type === t)));
+        const ruled = (r.rulesets as any[]).some((rs) => rs.enforcement === 'active' && onDefaultBranch(rs, r.default_branch) && ['non_fast_forward', 'deletion'].every((t) => (rs.rules ?? []).some((x: any) => x.type === t)));
         return !classic && !ruled;
       }).map(([k]) => k);
       // As with review, a rule someone may always bypass does not bind them.
-      const always = Object.entries(d.repos as Record<string, any>).flatMap(([k, r]) => (r.rulesets as any[]).filter((rs) => rs.enforcement === 'active' && (rs.rules ?? []).some((x: any) => x.type === 'non_fast_forward' || x.type === 'deletion'))
+      const always = Object.entries(d.repos as Record<string, any>).flatMap(([k, r]) => (r.rulesets as any[]).filter((rs) => rs.enforcement === 'active' && onDefaultBranch(rs, r.default_branch) && (rs.rules ?? []).some((x: any) => x.type === 'non_fast_forward' || x.type === 'deletion'))
         .flatMap((rs) => (rs.bypass_actors ?? []).filter((b: any) => (b.bypass_mode ?? 'always') === 'always').map((b: any) => `${k} ruleset ${rs.name}: ${b.actor_type}${b.actor_id != null ? ` ${b.actor_id}` : ''}`)));
       return bad.length ? { status: 'fail', detail: `history of the default branch can be rewritten or deleted in ${bad.join(', ')}` }
         : always.length ? { status: 'fail', detail: `force-push and deletion protection can always be bypassed by ${always.join('; ')}` } : { status: 'pass', detail: 'protected, with no one who may always bypass it' };
