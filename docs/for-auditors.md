@@ -24,8 +24,17 @@ manifest's `derived` list (the README too), and every line names the file it com
   detected and was resolved, and management's response.
 - `review/check-history/<check>.csv`: each daily reading with the collector snapshot it was decided from and that
   snapshot's SHA-256; the snapshots are in the package.
-- `review/controls-matrix.csv`: every control, where it is requested, its evidence, and, for an applicable control,
-  what the workspace holds for it in the period; one with none is flagged.
+- `review/controls-matrix.csv`: every control, where it is requested, the evidence in the package, and, for an
+  applicable control, what the workspace holds for it in its window (the period, or the twelve months before the
+  period's end for an annual control); one with none is flagged.
+- `review/coverage.csv`: each criterion of the categories in scope with its applicable controls and which of them have
+  evidence; the page opens with the criteria that have none.
+- `review/description-lint.csv`: the system description's claims about incidents, reviewed changes and how deployments
+  start, checked against the populations. A contradiction stops the export, so a package never carries one.
+
+An exception's `closed_by` says what ended it: a later passing reading (which shows the condition stopped, not that
+anyone remediated it) or a later completeness check. A check that reports events, such as a bypass of the branch
+rules, is never closed by a quiet day.
 
 A file a packaged file cites travels with it; one the workspace does not hold is listed in the manifest's `omitted`
 with the file that cites it.
