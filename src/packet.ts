@@ -437,6 +437,19 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       add({ key: 'release-self-approved', source: 'change releases (review/change-releases.csv)', controls: 'CHG-03', item: `${selfApproved.size} of ${shipped.size} releases approved by an author of their code`, detail: [...selfApproved].map(([rel, rs]) => `${rel} approved by ${rs[0].release_approved_by}, who wrote ${rs.map((r) => `#${r.number}`).join(', ')}`).join('; '), occurred: day(first.released_at), detected: collectedOf(ghDep?.path ?? worker.path), resolved: '', found_by: `this package, comparing each release's approver with the authors of the changes it ships`, file: ghDep?.path ?? worker.path }); }
     views.set('review/production-timeline.csv', writeCsv({ columns: ['from', 'until', 'days', 'deployment', 'author', 'commit', 'github_deployment', 'ref', 'approved', 'change_path', 'pull_requests'], rows: timeline }));
   }
+  // One event, one exception, for hand-made settings too: the change check's failing reading of the day a person changed
+  // a setting (or put it back), and its unacknowledged sibling, belong to that setting's out-of-path exception.
+  for (const u of exceptions.filter((x) => x.key.startsWith('out-of-path-change:'))) {
+    const days = [u.occurred, u.resolved].filter(Boolean);
+    for (const c of exceptions.filter((x) => x.key.startsWith('check:cloudflare-change-actors:') && days.includes(x.occurred) && /setting \S+ changed by hand/.test(x.detail))) {
+      const run = c.key.split(':').slice(2).join(':');
+      const ack = exceptions.find((x) => x.key === `unacknowledged:cloudflare-change-actors:${run}`);
+      u.detail += `; the daily change check failed on it on ${c.occurred}${ack ? ', and no escalation named that check' : ''}`;
+      if (c.occurred === u.occurred) { u.detected = c.detected; u.found_by = `the organization's daily check cloudflare-change-actors, on ${c.detected} (${c.file})`; }
+      exceptions.splice(exceptions.indexOf(c), 1);
+      if (ack) exceptions.splice(exceptions.indexOf(ack), 1);
+    }
+  }
   // One event, one exception: a deploy no approved GitHub deployment accounts for, which the daily change-actors check
   // already failed on (the same day, the same account), is that check's finding, dated when the check made it.
   for (const u of exceptions.filter((x) => x.key.startsWith('unmatched-deploy:'))) {
