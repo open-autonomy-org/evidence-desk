@@ -30,7 +30,7 @@ async function load() {
 }
 async function post(path, payload, okText) {
   const view = document.getElementById('view');
-  const holder = document.activeElement?.closest?.('form, .card');
+  const holder = (trigger instanceof Element ? trigger : document.activeElement)?.closest?.('form, .card');
   const box = holder && view.contains(holder) ? [...view.querySelectorAll('form, .card')].indexOf(holder) : -1;
   let r, j;
   try {
@@ -74,6 +74,11 @@ const apply = (el, v) => { if (el.type === 'checkbox' || el.type === 'radio') el
 let rendered = '';
 // The form (or card) whose save caused the next render: its fields show what was saved, never the text just sent.
 let savedBox = null;
+// What started a save: the element clicked or the form submitted, captured before any handler runs. Browsers differ on
+// whether a clicked button takes focus, so document.activeElement cannot say which form saved.
+let trigger = null;
+document.addEventListener('click', (e) => { trigger = e.target; }, true);
+document.addEventListener('submit', (e) => { trigger = e.target; }, true);
 
 function render() {
   if (!S) return;
