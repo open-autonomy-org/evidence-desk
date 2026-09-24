@@ -21,6 +21,11 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
   as policy, and an access reviewer deciding their own account is an exception. Shaped by blind reviews of a
   quarter run in the World against the GitHub and Cloudflare twins
   ([volter-ai/twin 5349b9b5, bbebcc63](https://github.com/volter-ai/twin/commits/main)).
+
+## 0.1.0 - 2026-09-24
+
+Released as [v0.1.0](https://github.com/open-autonomy-org/evidence-desk/releases/tag/v0.1.0) at 873506f.
+
 - A project with several workflows gated on its production environment (release, deploy, administration) is read
   whole: the deploy-v* one is the production deploy, every one's egress names vendors, and the system description names
   them all. Found reading Open Autonomy's own repository, where only the last such workflow had been kept.
