@@ -30,15 +30,15 @@ PY
     2026-08-05) zsh $S/onboard.sh lee lee-gx maya-gx ${1}T13:00:00Z "MacBook Air 13 (macOS 26)" | tail -1 ;;
     2026-08-12) clock ${1}T22:40:00Z; change sam fix/signature-header "Hotfix: accept the legacy signature header"; pr_relay sam-gx fix/signature-header "Hotfix: accept the legacy signature header" "" sam-gx
       clock ${1}T23:05:00Z; deploy sam sam-gx maya-gx ;;
-    2026-08-19) clock ${1}T16:00:00Z; seed - cfset always_use_https off ;;
-    2026-08-21) clock ${1}T10:00:00Z; seed - cfset always_use_https on ;;
+    2026-08-19) clock ${1}T16:00:00Z; cfas sam@globex.test always_use_https off ;;
+    2026-08-21) clock ${1}T10:00:00Z; cfas maya@globex.test always_use_https on ;;
     2026-08-26) clock ${1}T08:40:00Z
       record maya maya-gx sam-gx incidents/2026-08-26-replay-headers.json '{"kind":"incident","id":"replay-headers","detected_at":"2026-08-26T08:10:00Z","severity":"high","status":"open","summary":"Replay requests can return another customer'"'"'s request headers (never bodies): the replay cache key omits the tenant","notification":"","review":""}' "Incident replay-headers: opened"
       record maya maya-gx sam-gx escalations/2026-08-26-replay-headers.json '{"kind":"escalation","id":"replay-headers-report","received_at":"2026-08-26T08:05:00Z","responded_at":"2026-08-26T08:12:00Z","channel":"community bot","summary":"A customer reported seeing an unfamiliar header in a replayed request"}' "Escalation: replay-headers report answered"
       clock ${1}T12:00:00Z; change maya fix/replay-cache "Key the replay cache on tenant and request id"; pr_relay maya-gx fix/replay-cache "Key the replay cache on tenant and request id" sam-gx
       clock ${1}T12:30:00Z; deploy maya maya-gx sam-gx
       clock ${1}T16:30:00Z
-      record maya maya-gx sam-gx incidents/2026-08-26-replay-headers.json '{"kind":"incident","id":"replay-headers","detected_at":"2026-08-26T08:10:00Z","severity":"high","status":"closed","summary":"Replay requests could return another customer'"'"'s request headers (never bodies) because the replay cache key omitted the tenant; introduced by PR #4, deployed 2026-08-12 23:05 UTC (deploy-v3), fixed by PR #7, deployed 2026-08-26 12:30 UTC (deploy-v4)","notification":"Replay logs for 2026-08-12 23:05 to 2026-08-26 12:30 show 3 customers whose replays returned another tenant'"'"'s headers; each was told on 2026-08-26 at 15:00 UTC with the window and the headers involved","review":"Cause: PR #4, a hotfix Sam merged after hours on 2026-08-12 as an organization administrator, bypassing the required review, dropped the tenant from the cache key. Exposure: 13.5 days. Corrective actions: the ruleset'"'"'s administrator bypass is removed (2026-08-27), so every change needs an approving review; the cache keys on tenant and request id; the deploy token is rotated as a precaution."}' "Incident replay-headers: closed with review" ;;
+      record maya maya-gx sam-gx incidents/2026-08-26-replay-headers.json '{"kind":"incident","id":"replay-headers","detected_at":"2026-08-26T08:10:00Z","severity":"high","status":"closed","summary":"Replay requests could return another customer'"'"'s request headers (never bodies) because the replay cache key omitted the tenant; introduced by PR #4, deployed 2026-08-12 23:05 UTC (deploy-v3), fixed by PR #7, deployed 2026-08-26 12:30 UTC (deploy-v4)","notification":"Replay logs for 2026-08-12 23:05 to 2026-08-26 12:30 show 3 customers whose replays returned another tenant'"'"'s headers; each was told on 2026-08-26 at 15:00 UTC with the window and the headers involved","review":"Cause: PR #4, a hotfix Sam merged after hours on 2026-08-12 as an organization administrator, bypassing the required review, dropped the tenant from the cache key. Exposure: 13.5 days. Fixed: the cache keys on tenant and request id (PR #7, deploy-v4). Corrective actions decided: remove the ruleset'"'"'s administrator bypass so every change needs an approving review, and rotate the deploy token as a precaution."}' "Incident replay-headers: closed with review" ;;
     2026-08-27) clock ${1}T09:30:00Z; seed maya-gx nobypass
       clock ${1}T10:00:00Z; record maya maya-gx sam-gx credentials/2026-08-27-deploy-token.json '{"kind":"credential","id":"deploy-token","at":"2026-08-27T09:50:00Z","by":"maya","custody_name":"CLOUDFLARE_API_TOKEN","action":"rotated","reason":"Rotated after incident replay-headers as a precaution"}' "Credential: deploy token rotated" ;;
     2026-08-28) clock ${1}T10:00:00Z; git -C $W checkout -q main && git -C $W checkout -q -b sam/risk-r3-rescore
@@ -61,6 +61,8 @@ d=2026-06-26
 while [ "$d" != "2026-10-01" ]; do
   day_events $d
   clock ${d}T23:30:00Z; (cd $ED && timeout 120 $V attach evidence-desk-oa --root $RT -- env GITHUB_TOKEN=$(tok maya-gx) bun src/cli.ts run $W --by maya 2>&1 | grep -v WARN | grep -E "fail|error" | sed "s/^/$d /")
+  # The daily workflow commits each run to the workspace's main on its day, as the workspace's scheduled job does.
+  git -C $W checkout -q main; git -C $W add checks evidence; gcommit $W maya "Daily checks $d" && gpush $W main
   d=$(python3 -c "import datetime;print((datetime.date.fromisoformat('$d')+datetime.timedelta(days=1)).isoformat())")
 done
 git -C $W checkout -q main; git -C $W add -A; gcommit $W maya "Daily checks through 2026-09-30"; gpush $W main

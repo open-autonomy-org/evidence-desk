@@ -83,6 +83,33 @@
           }
         }
       }
+    },
+    "workspace": {
+      "type": "object",
+      "description": "The workspace repository's commit at export, its commit time, its origin remote (credentials removed), the remote branches holding the commit, and whether files were uncommitted",
+      "properties": {
+        "commit": {
+          "type": "string"
+        },
+        "committed_at": {
+          "type": "string"
+        },
+        "remote": {
+          "type": "string"
+        },
+        "remote_branches": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "uncommitted": {
+          "enum": [
+            "yes",
+            "no"
+          ]
+        }
+      }
     }
   }
 }

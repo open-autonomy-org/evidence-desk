@@ -422,3 +422,60 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
   }
   return result;
 }
+
+// Who changed the default branch's rules in the period, from each ruleset's version history: every version written in
+// the period with its author (GitHub names the actor by account id; the account names the login) and what changed from
+// the version before. A version that lets more people bypass, drops a required review or protection, or stops enforcing
+// weakens the rules. A change by an account not on the roster is marked.
+export async function collectRuleChanges(root: string, input: { repo: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; weakening: number }> {
+  const source = await provenance();
+  const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
+  const roster = new Set((latest ? (JSON.parse(latest.text) as Snapshot).team.map((m) => m.github ?? '') : []).filter(Boolean).map((x) => x.toLowerCase()));
+  type Version = { version_id: number; actor?: { id?: number | null; type?: string }; updated_at: string };
+  type State = { name?: string; enforcement?: string; bypass_actors?: { actor_type?: string; actor_id?: number | null; bypass_mode?: string }[]; rules?: { type: string; parameters?: { required_approving_review_count?: number } }[] };
+  const rulesets = await get(`/repos/${input.repo}/rulesets`) as { id: number; name: string }[];
+  const raw: Record<string, unknown> = { provenance: source, rulesets, history: {}, versions: {}, actors: {} };
+  const names = new Map<number, string>();
+  const login = async (id: number | null | undefined) => {
+    if (id == null) return '';
+    if (!names.has(id)) { const u = await (get(`/user/${id}`) as Promise<{ login?: string }>).catch(() => ({ login: '' })); names.set(id, u.login ?? ''); (raw.actors as Record<string, unknown>)[id] = u; }
+    return names.get(id)!;
+  };
+  const describe = (s: State | null) => ({ enforcement: s?.enforcement ?? '', bypass: (s?.bypass_actors ?? []).filter((b) => (b.bypass_mode ?? 'always') === 'always').map((b) => `${b.actor_type}${b.actor_id != null ? ` ${b.actor_id}` : ''}`).sort(),
+    review: Math.max(0, ...(s?.rules ?? []).filter((r) => r.type === 'pull_request').map((r) => r.parameters?.required_approving_review_count ?? 0)), protections: (s?.rules ?? []).map((r) => r.type).filter((t) => t !== 'pull_request').sort() });
+  const rows: Record<string, string>[] = [];
+  for (const rs of rulesets) {
+    const history = (await all<Version>(`/repos/${input.repo}/rulesets/${rs.id}/history`)).items.sort((a, b) => a.version_id - b.version_id);
+    (raw.history as Record<string, unknown>)[rs.id] = history;
+    let before: ReturnType<typeof describe> | null = null;
+    for (const v of history) {
+      const full = await get(`/repos/${input.repo}/rulesets/${rs.id}/history/${v.version_id}`) as Version & { state: State };
+      (raw.versions as Record<string, unknown>)[`${rs.id}:${v.version_id}`] = full;
+      const now = describe(full.state);
+      if (inPeriod(v.updated_at, input.start, input.end)) {
+        const changes: string[] = [];
+        if (!before) changes.push('created');
+        else {
+          if (before.enforcement !== now.enforcement) changes.push(`enforcement ${before.enforcement} → ${now.enforcement}`);
+          if (before.bypass.join(',') !== now.bypass.join(',')) changes.push(`always-bypass ${before.bypass.join(', ') || 'none'} → ${now.bypass.join(', ') || 'none'}`);
+          if (before.review !== now.review) changes.push(`required approvals ${before.review} → ${now.review}`);
+          if (before.protections.join(',') !== now.protections.join(',')) changes.push(`protections ${before.protections.join(', ') || 'none'} → ${now.protections.join(', ') || 'none'}`);
+        }
+        const weakens = !!before && ((before.enforcement === 'active' && now.enforcement !== 'active') || now.bypass.some((b) => !before!.bypass.includes(b)) || now.review < before.review || before.protections.some((p) => !now.protections.includes(p)));
+        const who = await login(v.actor?.id);
+        rows.push({ ruleset: rs.name, ruleset_id: String(rs.id), version: String(v.version_id), at: v.updated_at, actor: who, actor_on_roster: !who ? 'unknown' : roster.has(who.toLowerCase()) ? 'yes' : 'no', change: changes.join('; ') || 'no rule change', weakens: weakens ? 'yes' : 'no' });
+      }
+      before = now;
+    }
+  }
+  const stem = `evidence/files/populations/github-rule-changes-${input.repo.replace('/', '-')}-${input.start}-${input.end}-${Date.now()}`;
+  writeVersioned(root, `${stem}.raw.json`, JSON.stringify(raw, null, 2) + '\n', null);
+  writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['ruleset', 'ruleset_id', 'version', 'at', 'actor', 'actor_on_roster', 'change', 'weakens'], rows }), null);
+  const weakening = rows.filter((r) => r.weakens === 'yes').length;
+  const evidence = addEvidence(root, {
+    title: `Population: ${rows.length} changes to ${input.repo}'s rulesets, ${input.start} to ${input.end}`, controls: applicableOf(root, ['CHG-01', 'OPS-04']), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
+    period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'github', query: `GET /repos/${input.repo}/rulesets; for each, GET .../rulesets/{id}/history (all pages) and .../history/{version_id}; GET /user/{account_id} for each author` },
+    notes: `Complete: every version of every ruleset the repository has, from GitHub's own history; ${weakening} weakened the rules (more people may always bypass, fewer approvals, a protection dropped, or no longer enforced). Raw responses (${source.token_owner}'s token): ${stem}.raw.json.`,
+  });
+  return { evidence, rows: rows.length, weakening };
+}

@@ -5,6 +5,8 @@ asmaya() { (cd $ED && timeout 180 $V attach evidence-desk-oa --root $RT -- env G
 clock 2026-10-02T10:00:00Z; git -C $W checkout -q main
 asmaya collect $W github-changes --repo globex/relay --period $Q --by maya
 asmaya collect $W github-deployments --repo globex/relay --environment production --period $Q --by maya
+asmaya collect $W github-rule-changes --repo globex/relay --period $Q --by maya
+ed collect $W cloudflare-changes --account eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee --period $Q --by maya
 ed collect $W roster-history --repo $D/relay --period $Q --by maya
 ed collect $W seam-records --repo $D/relay --period $Q --by maya
 ed open-autonomy $W import --repo $D/relay --by maya | tail -1

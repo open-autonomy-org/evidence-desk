@@ -9,8 +9,9 @@ async function call(method: string, path: string, body?: unknown, token = proces
   if (!r.ok) throw new Error(`${method} ${path} ${r.status} ${t.slice(0, 200)}`);
   return t ? JSON.parse(t) : null;
 }
+// A Cloudflare call as a person (CF_AS holds their user API token) or with the World's shared token.
 async function cfcall(method: string, path: string, body?: unknown) {
-  const r = await fetch(cf + path, { method, headers: { authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`, 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const r = await fetch(cf + path, { method, headers: { authorization: `Bearer ${process.env.CF_AS || process.env.CLOUDFLARE_API_TOKEN}`, 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
   const j = await r.json() as any;
   if (!r.ok) throw new Error(`${method} ${path} ${r.status} ${JSON.stringify(j.errors)}`);
   return j.result;
@@ -52,6 +53,8 @@ if (step === 'org') {
     accounts: [{ id: ACCOUNT, name: 'globex-cloudflare', settings: { enforce_twofactor: true } }], zones: [{ id: ZONE, account_id: ACCOUNT, name: 'relay.globex.test' }],
     members: [{ account_id: ACCOUNT, email: 'maya@globex.test', roles: ['Super Administrator - All Privileges'], two_factor: true }, { account_id: ACCOUNT, email: 'sam@globex.test', roles: ['Administrator'], two_factor: true }] }) });
   console.log('cloudflare', r.status);
+} else if (step === 'cftoken') { // cftoken - <email>: a person's Cloudflare API token, minted as in the dashboard
+  console.log((await cfcall('POST', `/twin/users/${a}/tokens`)).token);
 } else if (step === 'cfset') { console.log(a, (await cfcall('PATCH', `/zones/${ZONE}/settings/${a}`, { value: b })).value);
 } else if (step === 'cfmembers') { for (const m of await cfcall('GET', `/accounts/${ACCOUNT}/members?per_page=50`)) console.log(`${m.user.email},${m.roles.map((r: any) => r.name).join(' + ')}`);
 } else if (step === 'ghmembers') { const admins = new Set((await call('GET', '/orgs/globex/members?role=admin')).map((m: any) => m.login)); for (const m of await call('GET', '/orgs/globex/members?role=all')) console.log(`${m.login},${admins.has(m.login) ? 'admin' : 'member'}`);

@@ -12,6 +12,8 @@ clock() { $V clock evidence-desk-oa set "$1" --root $RT >/dev/null && echo "cloc
 now() { cat $RT/.volter/worlds/evidence-desk-oa/clock 2>/dev/null; }
 tok() { cat $STATE/tok-$1; }
 seed() { local u=$1; shift; local step=$1; shift; local t=-; [ "$u" != "-" ] && t=$(tok $u); (cd $ED && timeout 60 $V attach evidence-desk-oa --root $RT -- bun $S/seed.ts $step $t "$@" 2>&1 | grep -v WARN); }
+# cfas <email> <setting> <value>: a zone setting changed by that person with their own Cloudflare token
+cfas() { (cd $ED && timeout 60 $V attach evidence-desk-oa --root $RT -- env CF_AS=$(cat $STATE/cftok-$1) bun $S/seed.ts cfset - $2 $3 2>&1 | grep -v WARN); }
 ed() { (cd $ED && timeout 120 $V attach evidence-desk-oa --root $RT -- bun src/cli.ts "$@" 2>&1 | grep -v WARN); }
 # gcommit <dir> <name> <message>: commit what is staged, dated by the World clock
 gcommit() { local t=$(now); GIT_AUTHOR_DATE="$t" GIT_COMMITTER_DATE="$t" git -C "$1" -c user.name="$2" -c user.email="$2@globex.test" commit -qm "$3"; }

@@ -16,7 +16,8 @@ import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, reviewAnswe
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { computeObligations } from './obligations.ts';
 import { collectRosterHistory, collectSeamRecords, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
-import { checkCompleteness, collectChanges, collectDeployments, collectAttribution, syncReminders } from './github.ts';
+import { checkCompleteness, collectChanges, collectDeployments, collectAttribution, collectRuleChanges, syncReminders } from './github.ts';
+import { collectCloudflareChanges } from './cloudflare.ts';
 import { COLLECTORS, checkTitle, ciWorkflow, configureCollector, readSettings, runChecks } from './automation.ts';
 import { respondToException, actOnRequest, createEngagement, draft, exportPackage, firmSummary, importRequests, importReturn, listRequests, readEngagement, verifyPackage } from './audit.ts';
 import { clockDate } from './clock.ts';
@@ -55,7 +56,10 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                                           compare a declared vendor account's administrators with the roster
   collect <dir> github-changes --repo <owner/name> --period <start>..<end> --by <person>
   collect <dir> github-deployments --repo <owner/name> --environment <name> --period <start>..<end> --by <person>
+  collect <dir> github-rule-changes --repo <owner/name> --period <start>..<end> --by <person>
                                           populations from GitHub with their queries (needs GITHUB_TOKEN)
+  collect <dir> cloudflare-changes --account <id or name> --period <start>..<end> --by <person>
+                                          the account's audit log: who changed what (needs CLOUDFLARE_API_TOKEN)
   collect <dir> roster-history --repo <checkout> --period <start>..<end> --by <person>
                                           every change to the Open Autonomy roster, from git
   collect <dir> seam-records --repo <checkout> --period <start>..<end> --by <person>
@@ -396,7 +400,17 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => r.populations.map((p) => `${p.evidence ? `Recorded ${p.evidence}` : `Wrote ${p.file} (no applicable control; adopt the controls first)`}: ${p.rows} ${p.seam} records${p.findings.length ? `; ${p.findings.join('; ')}` : ''}.`).join('\n'));
         return 0;
       }
-      throw new Error('collect needs github-changes, github-deployments, roster-history, seam-records or attribution');
+      if (rest[0] === 'github-rule-changes') {
+        const r = await collectRuleChanges(dir, { repo, start, end, by });
+        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} ruleset changes; ${r.weakening} weakened the rules.`);
+        return 0;
+      }
+      if (rest[0] === 'cloudflare-changes') {
+        const r = await collectCloudflareChanges(dir, { account: one(a, 'account') ?? '', start, end, by });
+        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} Cloudflare configuration changes; ${r.unnamed} by someone not on the roster or not named.`);
+        return 0;
+      }
+      throw new Error('collect needs github-changes, github-deployments, github-rule-changes, cloudflare-changes, roster-history, seam-records or attribution');
     }
     case 'collectors': {
       if (rest[0]) configureCollector(dir, rest[0], { ...(a.flags.has('enable') ? { enabled: true } : a.flags.has('disable') ? { enabled: false } : {}), ...(a.flags.has('set') ? { params: pairs(a.flags.get('set')!) } : {}) });
