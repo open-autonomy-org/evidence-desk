@@ -151,8 +151,8 @@ const inPeriod = (at: string, e: Engagement) => e.type === 'type2' ? at.slice(0,
 // their schedules, where people act and who may, and how a change lands and reaches production.
 // The latest population a GitHub collector recorded for the engagement's period, with its rows.
 // Identified by the collector's file name, never by title words: several populations are "changes to" something.
-function periodPopulation(ws: Workspace, e: Engagement, kind: 'changes to' | 'deployments of') {
-  const stem = kind === 'changes to' ? '/github-changes-' : '/github-deployments-';
+function periodPopulation(ws: Workspace, e: Engagement, kind: 'changes to' | 'deployments of' | 'configuration of') {
+  const stem = kind === 'changes to' ? '/github-changes-' : kind === 'deployments of' ? '/github-deployments-' : '/cloudflare-changes-';
   const ev = ws.evidence.filter((x) => x.data.source?.kind === 'collector' && x.data.files.some((f) => f.path.includes(stem) && f.path.endsWith('.csv')) && x.data.period && e.period && x.data.period.start <= e.period.start && x.data.period.end >= e.period.end)
     .sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
   const csv = ev?.data.files.find((f) => f.path.includes(stem) && f.path.endsWith('.csv'));
@@ -185,6 +185,9 @@ ${(() => { const c = e.period ? periodPopulation(ws, e, 'changes to') : null; co
     lines.push(`- ${c.rows.length} change(s) reached the default branch (${c.id}): ${prs.length} through pull requests, opened by ${tally(prs.map((r) => r.author))}; ${c.rows.length - prs.length} pushed directly; ${bad.length ? `${bad.length} without an independent approval (${bad.map((r) => r.number ? `#${r.number}` : r.commit.slice(0, 12)).join(', ')})` : 'every one independently approved'}.`);
     if (prs.some((r) => r.approver_kinds)) lines.push(`- Approvals by kind of account: ${tally(prs.flatMap((r) => (r.approver_kinds || '').split(';').filter(Boolean)))}; ${prs.filter((r) => r.author_kind === 'agent' && (r.approver_kinds || '').split(';').every((k) => k === 'agent')).length} change(s) were written and approved only by agent accounts.`); }
   if (d) { lines.push(`- ${d.rows.length} production deployment(s) (${d.id}), their runs started by ${tally(d.rows.map((r) => r.run_event))}${d.rows.some((r) => r.commit_match === 'no') ? `; ${d.rows.filter((r) => r.commit_match === 'no').length} approved on a run of another commit` : ''}; started by ${tally(d.rows.map((r) => r.started_by))}; ${d.rows.filter((r) => r.independent_approval === 'yes').length} approved by someone other than the starter.`); }
+  // A Worker created inside the period is a system that began operating then, not at the period's start.
+  const cfg = e.period ? periodPopulation(ws, e, 'configuration of') : null;
+  for (const r of cfg?.rows.filter((r) => r.action === 'create' && r.resource.startsWith('script ')) ?? []) lines.push(`- Worker ${r.resource.slice(7)} was created on ${r.at.slice(0, 10)} (${cfg!.id}): it began operating within the period, not at its start`);
   return `As operated in the period:\n${lines.join('\n')}\n`; })()}
 Subservice organizations: ${snap.vendors.join(', ')}.
 
