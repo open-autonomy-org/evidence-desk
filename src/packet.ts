@@ -7,11 +7,17 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseCsv, writeCsv } from './csv.ts';
 import type { Workspace } from './workspace.ts';
+import { categories, categoryAnswer, criteria } from './catalog.ts';
 import type { AuditRequest, Engagement } from './audit.ts';
 
 // occurred: when the deviation happened (a merge, a deployment, the first failing reading); detected: when a collector or
 // check found it.
-export type PacketException = { key: string; source: string; controls: string; item: string; detail: string; occurred: string; detected: string; resolved: string; response: string; responded_by: string; file: string };
+// closed_by says what ended an exception: a later reading passing again (not proof of remediation), a later completeness
+// check no longer finding the administrator; empty while nothing has.
+export type PacketException = { key: string; source: string; controls: string; item: string; detail: string; occurred: string; detected: string; resolved: string; closed_by?: string; response: string; responded_by: string; file: string };
+// Checks that report events (something happened in the last day) rather than a standing state: a later passing reading
+// means only that it did not happen again, so it never closes the exception.
+const EVENT_CHECKS = new Set(['github-rule-bypass']);
 type Responses = Record<string, { text: string; by: string; at: string }>;
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -75,7 +81,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       if (seenOutside.has(key)) continue;
       seenOutside.add(key);
       const later = checksOf.slice(i + 1).find((x) => x.c.vendor === c.vendor && x.c.account === c.account && !x.c.outside.includes(o));
-      add({ key, occurred: day(c.checked_at), source: `roster completeness, ${c.vendor} ${c.account}`, controls: 'AC-04', item: o, detail: 'administrator not on the roster', detected: day(c.checked_at), resolved: later ? day(later.c.checked_at) : '', file: p });
+      add({ key, occurred: day(c.checked_at), source: `roster completeness, ${c.vendor} ${c.account}`, controls: 'AC-04', item: o, detail: 'administrator not on the roster', detected: day(c.checked_at), resolved: later ? day(later.c.checked_at) : '', closed_by: later ? `a later completeness check (${later.p}) no longer finds them` : '', file: p });
     }
   });
   // Each automated check across the period: every reading, and each run of failing readings as one exception with
@@ -91,13 +97,13 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   }
   for (const [check, rows] of history) {
     let streak: typeof rows = [];
-    const close = (end?: { at: string }) => { if (!streak.length) return; add({ key: `check:${check}:${streak[0].run.split('/').pop()!.replace(/\.json$/, '')}`, occurred: day(streak[0].at), source: `automated check ${check}`, controls: streak[0].controls.join(';'), item: `${streak.length} failing reading(s)`, detail: streak.at(-1)!.detail, detected: day(streak[0].at), resolved: end ? day(end.at) : '', file: streak[0].run }); streak = []; };
+    const close = (end?: { at: string; run: string }) => { if (!streak.length) return; add({ key: `check:${check}:${streak[0].run.split('/').pop()!.replace(/\.json$/, '')}`, occurred: day(streak[0].at), source: `automated check ${check}`, controls: streak[0].controls.join(';'), item: `${streak.length} failing reading(s)`, detail: streak.at(-1)!.detail, detected: day(streak[0].at), resolved: end && !EVENT_CHECKS.has(check) ? day(end.at) : '', closed_by: !end ? '' : EVENT_CHECKS.has(check) ? `not closed by a reading: the check reports events, and ${day(end.at)}'s reading found none new` : `the reading of ${day(end.at)} passed again (${end.run}); remediation is management's to show`, file: streak[0].run }); streak = []; };
     for (const row of rows) { if (row.status === 'fail') streak.push(row); else if (row.status === 'pass') close(row); }
     close();
   }
 
   const views = new Map<string, string>();
-  views.set('review/exceptions.csv', writeCsv({ columns: ['key', 'source', 'controls', 'item', 'detail', 'occurred', 'detected', 'resolved', 'response', 'responded_by', 'file'], rows: exceptions }));
+  views.set('review/exceptions.csv', writeCsv({ columns: ['key', 'source', 'controls', 'item', 'detail', 'occurred', 'detected', 'resolved', 'closed_by', 'response', 'responded_by', 'file'], rows: exceptions.map((x) => ({ ...x, closed_by: x.closed_by ?? '' })) }));
   const days = (() => { const out: string[] = []; for (let t = Date.parse(`${period.start}T00:00:00Z`); t <= Date.parse(`${period.end}T00:00:00Z`); t += 864e5) out.push(new Date(t).toISOString().slice(0, 10)); return out; })();
   const coverage = new Map<string, { days: number; pass: number; fail: number; error: number }>();
   for (const [check, rows] of history) {
@@ -118,11 +124,22 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     const window = { start: since < period.start ? since : period.start, end: period.end };
     const held = ws.evidence.filter((x) => x.data.controls.includes(d.id) && (x.data.period ? x.data.period.start <= window.end && x.data.period.end >= window.start : inside(x.data.collected_at, window))).length;
     return { control: d.id, title: d.title, criteria: d.criteria.join(';'), frequency: d.frequency, owner: d.owner, status: d.status, applicable: d.applicable ? 'yes' : 'no', exclusion_reason: d.exclusion_reason ?? '',
-      requests: reqs.filter((r) => r.data.controls.includes(d.id)).map((r) => r.data.id).join(';'), evidence: ids.join(';'), check_history: checks.join('; '),
-      evidence_in_period: d.applicable ? (held || checks.length ? `${held} record(s)${window.start < period.start ? ` since ${window.start}` : ''}${checks.length ? ` and ${checks.length} check(s)` : ''}` : 'none') : '',
+      requests: reqs.filter((r) => r.data.controls.includes(d.id)).map((r) => r.data.id).join(';'), evidence_in_package: ids.join(';'), check_history: checks.join('; '),
+      workspace_evidence_in_window: d.applicable ? (held || checks.length ? `${held} record(s)${window.start < period.start ? ` since ${window.start}` : ''}${checks.length ? ` and ${checks.length} check(s)` : ''}` : 'none') : '',
       exceptions: String(exceptions.filter((x) => x.controls.split(';').includes(d.id)).length) };
   });
-  views.set('review/controls-matrix.csv', writeCsv({ columns: ['control', 'title', 'criteria', 'frequency', 'owner', 'status', 'applicable', 'exclusion_reason', 'requests', 'evidence', 'check_history', 'evidence_in_period', 'exceptions'], rows: matrix }));
+  views.set('review/controls-matrix.csv', writeCsv({ columns: ['control', 'title', 'criteria', 'frequency', 'owner', 'status', 'applicable', 'exclusion_reason', 'requests', 'evidence_in_package', 'check_history', 'workspace_evidence_in_window', 'exceptions'], rows: matrix }));
+
+  // Coverage by criterion: each criterion of the categories in scope, the applicable controls that address it, and whether
+  // any of them has evidence or a check in its window. A criterion in scope with none is the first thing a firm asks about.
+  const inScope = new Set(['CC', ...Object.entries(categoryAnswer).filter(([, q]) => ws.scope?.data.answers?.[q] === true).map(([c]) => c)]);
+  const byCriterion = criteria.filter((c) => inScope.has(c.category)).map((c) => {
+    const ctl = matrix.filter((m) => m.applicable === 'yes' && m.criteria.split(';').includes(c.id));
+    const held = ctl.filter((m) => m.workspace_evidence_in_window && m.workspace_evidence_in_window !== 'none');
+    return { criterion: c.id, category: categories[c.category] ?? c.category, title: c.title, controls: ctl.map((m) => m.control).join(';'), controls_with_evidence: held.map((m) => m.control).join(';'),
+      requested: [...new Set(ctl.flatMap((m) => m.requests ? m.requests.split(';') : []))].join(';'), status: !ctl.length ? 'no applicable control' : held.length ? (held.length === ctl.length ? 'covered' : 'partly covered') : 'no evidence' };
+  });
+  views.set('review/coverage.csv', writeCsv({ columns: ['criterion', 'category', 'title', 'controls', 'controls_with_evidence', 'requested', 'status'], rows: byCriterion }));
 
   // The readable page.
   const href = (p: string) => p.split('/').map(encodeURIComponent).join('/');
@@ -143,11 +160,13 @@ ${r.thread.length ? `<details><summary>Thread (${r.thread.length})</summary><ul>
 <h1>${esc(ws.manifest?.data.organization)}: SOC 2 ${e.type === 'type2' ? 'Type II' : 'Type I'}, engagement ${esc(e.id)}</h1>
 <p>${e.type === 'type2' ? `Period ${esc(period.start)} to ${esc(period.end)}` : `As of ${esc(e.as_of)}`} · Firm ${esc(e.firm)} · Package created ${esc(createdAt)} · ${reqs.length} requests · ${evidence.length} evidence records · ${exceptions.length} exceptions</p>
 ${interim ? `<div class="warn">This package was created on or before the last day of the period: populations and check histories may not cover the period's end. Exceptions list each population read early.</div>` : ''}
-<p>Every file below is under <code>workspace/</code> and hashed in <code>manifest.json</code>; these views were derived from those files when the package was made and are hashed too; each line names the file it comes from. Tables: <a href="controls-matrix.csv">controls-matrix.csv</a> · <a href="exceptions.csv">exceptions.csv</a> · <a href="check-history/">check-history/</a>. Drafts: ${['description', 'assertion', 'bridge'].filter((k) => existsSync(join(root, 'audits', e.id, 'drafts', `${k}.md`))).map((k) => link(`audits/${e.id}/drafts/${k}.md`, k)).join(', ') || 'none'}.</p>
-<h2>Exceptions</h2>${exceptions.length ? `<table><tr><th>Item</th><th>Source</th><th>Controls</th><th>Detail</th><th>Occurred</th><th>Detected</th><th>Resolved</th><th>Management response</th></tr>${exceptions.map((x) => `<tr><td>${esc(x.item)}</td><td>${link(x.file, x.source)}</td><td>${esc(x.controls)}</td><td>${esc(x.detail)}</td><td>${esc(x.occurred)}</td><td>${esc(x.detected)}</td><td>${esc(x.resolved)}</td><td>${esc(x.response) || '<small>none recorded</small>'}</td></tr>`).join('')}</table>` : '<p>None found in the package.</p>'}
+<p>Every file below is under <code>workspace/</code> and hashed in <code>manifest.json</code>; these views were derived from those files when the package was made and are hashed too; each line names the file it comes from. Tables: <a href="coverage.csv">coverage.csv</a> · <a href="controls-matrix.csv">controls-matrix.csv</a> · <a href="exceptions.csv">exceptions.csv</a> · <a href="check-history/">check-history/</a>${existsSync(join(root, 'audits', e.id, 'drafts', 'description.md')) ? ' · <a href="description-lint.csv">description-lint.csv</a>' : ''}. Drafts: ${['description', 'assertion', 'bridge'].filter((k) => existsSync(join(root, 'audits', e.id, 'drafts', `${k}.md`))).map((k) => link(`audits/${e.id}/drafts/${k}.md`, k)).join(', ') || 'none'}.</p>
+<h2>Coverage</h2>${(() => { const gaps = byCriterion.filter((c) => c.status === 'no evidence' || c.status === 'no applicable control'); const none = matrix.filter((m) => m.workspace_evidence_in_window === 'none');
+  return `<p>${byCriterion.length} criteria in scope: ${byCriterion.filter((c) => c.status === 'covered').length} covered, ${byCriterion.filter((c) => c.status === 'partly covered').length} partly covered, ${gaps.length} with no evidence or no applicable control (<a href="coverage.csv">coverage.csv</a>).</p>${gaps.length ? `<div class="warn"><b>No evidence in the window:</b> ${gaps.map((c) => `${esc(c.criterion)} ${esc(c.title)}${c.controls ? ` (${esc(c.controls.replaceAll(';', ', '))})` : ' (no applicable control)'}`).join('; ')}. Applicable controls without evidence: ${none.map((m) => esc(m.control)).join(', ') || 'none'}.</div>` : ''}`; })()}
+<h2>Exceptions</h2>${exceptions.length ? `<table><tr><th>Item</th><th>Source</th><th>Controls</th><th>Detail</th><th>Occurred</th><th>Detected</th><th>Closed</th><th>Management response</th></tr>${exceptions.map((x) => `<tr><td>${esc(x.item)}</td><td>${link(x.file, x.source)}</td><td>${esc(x.controls)}</td><td>${esc(x.detail)}</td><td>${esc(x.occurred)}</td><td>${esc(x.detected)}</td><td>${esc(x.resolved)}${x.closed_by ? `<br><small>${esc(x.closed_by)}</small>` : ''}</td><td>${esc(x.response) || '<small>none recorded</small>'}</td></tr>`).join('')}</table>` : '<p>None found in the package.</p>'}
 <h2>Automated checks across the period</h2>${history.size ? `<table><tr><th>Check</th><th>Days with a reading</th><th>Pass</th><th>Fail</th><th>Could not decide</th><th>Latest</th></tr>${[...history.entries()].map(([k, rows]) => { const c = coverage.get(k)!; const last = rows.at(-1)!; return `<tr><td><a href="check-history/${esc(href(k))}.csv">${esc(k)}</a></td><td>${c.days} of ${days.length}</td><td>${c.pass}</td><td>${c.fail}</td><td>${c.error}</td><td>${esc(last.status)} ${esc(day(last.at))}: ${esc(last.detail)}</td></tr>`; }).join('')}</table>` : '<p>No check ran during the period.</p>'}
 <h2>Requests</h2>${reqHtml}
-<h2>Control matrix</h2>${(() => { const none = matrix.filter((m) => m.evidence_in_period === 'none'); return none.length ? `<div class="warn">${none.length} applicable control(s) have no evidence and no check in the period: ${none.map((m) => esc(m.control)).join(', ')}.</div>` : ''; })()}<table><tr><th>Control</th><th>Criteria</th><th>Frequency</th><th>Owner</th><th>Status</th><th>Requests</th><th>Evidence in package</th><th>Checks</th><th>In the period</th><th>Exceptions</th></tr>${matrix.filter((m) => m.applicable === 'yes').map((m) => `<tr id="ctl-${esc(m.control)}"${m.evidence_in_period === 'none' ? ' class="none"' : ''}><td>${controlLink(m.control)} ${esc(m.title)}</td><td>${esc(m.criteria)}</td><td>${esc(m.frequency)}</td><td>${esc(m.owner)}</td><td>${esc(m.status)}</td><td>${esc(m.requests)}</td><td>${esc(m.evidence)}</td><td>${esc(m.check_history)}</td><td>${esc(m.evidence_in_period)}</td><td>${esc(m.exceptions)}</td></tr>`).join('')}</table>
+<h2>Control matrix</h2>${(() => { const none = matrix.filter((m) => m.workspace_evidence_in_window === 'none'); return none.length ? `<div class="warn">${none.length} applicable control(s) have no evidence and no check in the period: ${none.map((m) => esc(m.control)).join(', ')}.</div>` : ''; })()}<table><tr><th>Control</th><th>Criteria</th><th>Frequency</th><th>Owner</th><th>Status</th><th>Requests</th><th>Evidence in package</th><th>Checks</th><th>In the period</th><th>Exceptions</th></tr>${matrix.filter((m) => m.applicable === 'yes').map((m) => `<tr id="ctl-${esc(m.control)}"${m.workspace_evidence_in_window === 'none' ? ' class="none"' : ''}><td>${controlLink(m.control)} ${esc(m.title)}</td><td>${esc(m.criteria)}</td><td>${esc(m.frequency)}</td><td>${esc(m.owner)}</td><td>${esc(m.status)}</td><td>${esc(m.requests)}</td><td>${esc(m.evidence_in_package)}</td><td>${esc(m.check_history)}</td><td>${esc(m.workspace_evidence_in_window)}</td><td>${esc(m.exceptions)}</td></tr>`).join('')}</table>
 <h2>Out of scope</h2>${excluded.length ? `<ul>${excluded.map((c) => `<li>${esc(c.data.id)} ${esc(c.data.title)}: ${esc(c.data.exclusion_reason ?? '')}</li>`).join('')}</ul>` : '<p>No control is excluded.</p>'}
 <p><small>Applicable controls no request names are in the matrix with their evidence; the firm may ask for any of them.</small></p>
 </body></html>

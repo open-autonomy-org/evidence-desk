@@ -148,7 +148,12 @@ export async function collectDeployments(root: string, input: { repo: string; en
   const holds = (set: Set<string> | null, logins: string[]) => !set || !logins.length ? '' : logins.every((l) => set.has(l.toLowerCase())) ? 'yes' : 'no';
   const deps = await all<Deployment>(`/repos/${input.repo}/deployments?environment=${encodeURIComponent(input.environment)}`);
   const rows: Record<string, string>[] = [];
-  const raw: Record<string, unknown> = { provenance: source, deployments: deps.items, statuses: {}, runs: {}, approvals: {} };
+  // The gate as configured when read: the environment's protection rules (required reviewers, branch and tag policy) and
+  // the repository's tag rulesets, beside the deployments they gated.
+  const environment = await get(`/repos/${input.repo}/environments/${encodeURIComponent(input.environment)}`).catch((e: Error) => ({ unavailable: e.message.slice(0, 120) }));
+  const rulesets = await (get(`/repos/${input.repo}/rulesets`) as Promise<{ id: number; target?: string }[]>).catch(() => []);
+  const tagRulesets = await Promise.all(rulesets.filter((r) => r.target === 'tag').map((r) => get(`/repos/${input.repo}/rulesets/${r.id}`)));
+  const raw: Record<string, unknown> = { provenance: source, environment, tag_rulesets: tagRulesets, deployments: deps.items, statuses: {}, runs: {}, approvals: {} };
   for (const d of deps.items.filter((x) => inPeriod(x.created_at, input.start, input.end))) {
     const statuses = (await all<Status>(`/repos/${input.repo}/deployments/${d.id}/statuses`)).items;
     (raw.statuses as Record<string, unknown>)[d.id] = statuses;
@@ -185,7 +190,7 @@ export async function collectDeployments(root: string, input: { repo: string; en
   const unapproved = rows.filter((r) => r.independent_approval !== 'yes').length;
   const evidence = addEvidence(root, {
     title: `Population: ${rows.length} deployments of ${input.repo} to ${input.environment}, ${input.start} to ${input.end}`, controls: applicableOf(root, ['CHG-03']), files: [rel, `${stem}.raw.json`], recorded_by: input.by,
-    period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'github', query: `GET /repos/${input.repo}/deployments?environment=${input.environment} (all ${deps.pages} page(s)); GET /repos/${input.repo}/deployments/{id}/statuses for each; GET /repos/${input.repo}/actions/runs/{run} and /approvals for the run each status links` },
+    period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'github', query: `GET /repos/${input.repo}/deployments?environment=${input.environment} (all ${deps.pages} page(s)); GET /repos/${input.repo}/deployments/{id}/statuses for each; GET /repos/${input.repo}/actions/runs/{run} and /approvals for the run each status links; GET /repos/${input.repo}/environments/${input.environment} and its tag rulesets` },
     notes: `Complete: every page of deployments to the environment was read. ${unapproved} without an independent approval of the ${input.environment} environment (no linked run, no approval, a run on another commit than the one deployed, or approved only by the person who started it); ${rows.filter((r) => r.run && r.run_conclusion !== 'success').length} whose run did not conclude successfully${snap ? `; against ${snap.account}'s declared seams at ${snap.commit.slice(0, 12)} (production-deploy started by members holding its scope, release-approval given by members holding its), ${rows.filter((r) => r.starter_holds_seam === 'no').length} started and ${rows.filter((r) => r.approver_holds_seam === 'no').length} approved by someone without the scope` : ''}. Raw responses, with GitHub's request id and answer time for each and the account whose token read them (${source.token_owner}): ${stem}.raw.json.`,
   });
   return { evidence, rows: rows.length, unapproved };
@@ -334,7 +339,9 @@ export async function collectAttribution(root: string, input: { repo: string; by
     if (row.author.toLowerCase() !== row.expected.toLowerCase()) row.status = 'recorded by someone else';
   }
   const rel = 'sources/github/attribution.json';
-  const record = { schema: 'evidence-desk.attribution/1', repo: input.repo, branch, workspace_path: prefix, checked_at: now(), roster_commit: snap.commit, rows };
+  const record = { schema: 'evidence-desk.attribution/1', repo: input.repo, branch, workspace_path: prefix, checked_at: now(), roster_commit: snap.commit,
+    hashing: 'value_sha256 is the SHA-256 of JSON.stringify of the act as extracted from its file: a form response is the whole parsed file; an access review {status, signed_off_at, accounts}; a policy approval its version entry; an incident closure {status, review, closed_at, closed_by}; a risk decision {risk, treatment}; a vendor review {vendor, last_review}',
+    rows };
   writeVersioned(root, rel, JSON.stringify(record, null, 2) + '\n', readVersioned(root, rel)?.version ?? null);
   // The check's rows are kept as a file for the audit, not recorded as evidence of the acts' controls: evidence dates
   // decide when a periodic control is next due, and a daily check would make a year-old review look current.

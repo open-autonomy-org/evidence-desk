@@ -6,7 +6,7 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync
 import { dirname, join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { check, schema } from './schema.ts';
-import { parseCsv } from './csv.ts';
+import { parseCsv, writeCsv } from './csv.ts';
 import { fileHash, inside, readVersioned, sha256, writeVersioned } from './files.ts';
 import { categories, categoryAnswer, criteria } from './catalog.ts';
 import { computeGaps } from './gaps.ts';
@@ -143,7 +143,16 @@ const inPeriod = (at: string, e: Engagement) => e.type === 'type2' ? at.slice(0,
 
 // How an Open Autonomy project builds and runs the system, from its declarations at the commit last read: the agents and
 // their schedules, where people act and who may, and how a change lands and reaches production.
-function openAutonomySection(ws: Workspace): string {
+// The latest population a GitHub collector recorded for the engagement's period, with its rows.
+function periodPopulation(ws: Workspace, e: Engagement, kind: 'changes to' | 'deployments of') {
+  const ev = ws.evidence.filter((x) => x.data.source?.kind === 'collector' && x.data.title.startsWith('Population:') && x.data.title.includes(kind) && x.data.period && e.period && x.data.period.start <= e.period.start && x.data.period.end >= e.period.end)
+    .sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
+  const csv = ev?.data.files.find((f) => f.path.endsWith('.csv'));
+  return ev && csv ? { id: ev.data.id, rows: parseCsv(readFileSync(join(ws.root, csv.path), 'utf8'), csv.path).rows } : null;
+}
+const tally = (xs: string[]) => [...xs.reduce((m, x) => m.set(x, (m.get(x) ?? 0) + 1), new Map<string, number>())].map(([k, n]) => `${k || '(unknown)'} ${n}`).join(', ');
+
+function openAutonomySection(ws: Workspace, e: Engagement): string {
   const latest = readVersioned(ws.root, 'sources/open-autonomy/latest.json');
   if (!latest) return '';
   const snap = JSON.parse(latest.text) as Snapshot;
@@ -152,14 +161,19 @@ function openAutonomySection(ws: Workspace): string {
   return `
 How the system is built and operated (the Open Autonomy project ${snap.account} at ${snap.commit.slice(0, 12)}):
 
-Agents do the development work; each runs on a schedule with its models, and people act only at the declared seams.
+The project declares these agents, each on a schedule with its models, and the seams below as the places people act.
 ${snap.agents.map((a) => `- Agent profile ${a.profile}: ${a.jobs.map((j) => `${j.name} (${j.schedule})`).join(', ') || 'no scheduled jobs'}; models ${a.models.map((m) => `${m.provider} ${m.model}`).join(', ') || 'none'}`).join('\n')}
 
 Where people act:
 ${(snap.seams ?? []).map((x) => `- ${x.id}: held by ${x.scope} (${holders(x.scope)}), through ${x.door}; record: ${x.record}`).join('\n') || '- [the project declares no seams]'}
 
-Change and release: ${snap.rules.pr_landing ? 'changes land through pull requests by the project\'s landing workflow [confirm review with the daily required-review check]' : '[describe how changes land]'}; ${prod ? `production is deployed by ${prod.workflow}${prod.tag_trigger ? ` from a ${prod.tag_trigger} tag` : ''} through the ${prod.environment} environment's required reviewers, with outbound access limited to ${prod.egress.join(', ') || '[none listed]'}` : '[describe how a change reaches production]'}.${(snap.rules.production_workflows ?? []).length > 1 ? ` Every run of ${snap.rules.production_workflows!.map((g) => `${g.workflow}${g.tag_trigger ? ` (${g.tag_trigger})` : ''}`).join(', ')} passes the same environment's review.` : ''}
-
+Change and release as declared: ${snap.rules.pr_landing ? 'changes land through pull requests by the project\'s landing workflow' : '[describe how changes land]'}; ${prod ? `production is deployed by ${prod.workflow}${prod.tag_trigger ? ` on a ${prod.tag_trigger} tag` : ''} through the ${prod.environment} environment's required reviewers, with outbound access limited to ${prod.egress.join(', ') || '[none listed]'}` : '[describe how a change reaches production]'}.${(snap.rules.production_workflows ?? []).length > 1 ? ` Every run of ${snap.rules.production_workflows!.map((g) => `${g.workflow}${g.tag_trigger ? ` (${g.tag_trigger})` : ''}`).join(', ')} passes the same environment's review.` : ''}
+${(() => { const c = e.period ? periodPopulation(ws, e, 'changes to') : null; const d = e.period ? periodPopulation(ws, e, 'deployments of') : null; if (!c && !d) return '';
+  const lines: string[] = [];
+  if (c) { const prs = c.rows.filter((r) => r.kind === 'pull request'); const bad = c.rows.filter((r) => r.independent_approval !== 'yes');
+    lines.push(`- ${c.rows.length} change(s) reached the default branch (${c.id}): ${prs.length} through pull requests, opened by ${tally(prs.map((r) => r.author))}; ${c.rows.length - prs.length} pushed directly; ${bad.length ? `${bad.length} without an independent approval (${bad.map((r) => r.number ? `#${r.number}` : r.commit.slice(0, 12)).join(', ')})` : 'every one independently approved'}.`); }
+  if (d) { lines.push(`- ${d.rows.length} production deployment(s) (${d.id}), their runs started by ${tally(d.rows.map((r) => r.run_event))}${d.rows.some((r) => r.commit_match === 'no') ? `; ${d.rows.filter((r) => r.commit_match === 'no').length} approved on a run of another commit` : ''}; started by ${tally(d.rows.map((r) => r.started_by))}; ${d.rows.filter((r) => r.independent_approval === 'yes').length} approved by someone other than the starter.`); }
+  return `As operated in the period:\n${lines.join('\n')}\n`; })()}
 Subservice organizations: ${snap.vendors.join(', ')}.
 
 Sources: sources/open-autonomy/${snap.commit.slice(0, 12)}.json (the project's .open-autonomy/config.yaml, agent.json and workflows).
@@ -233,10 +247,10 @@ ${ws.policies.filter((p) => p.data.versions.length).map((p) => `- ${p.data.title
 Data: ${rows('systems').map((s) => s.data).filter(Boolean).join('; ') || '[describe the data the system holds]'}.
 
 Sources: scope.json, registers/systems.csv, registers/people.csv, policies/.
-${openAutonomySection(ws)}
+${openAutonomySection(ws, e)}
 ## DC4 System incidents
 
-${incidents.length ? incidents.map((i) => `- ${i.data.detected_at.slice(0, 10)} ${i.data.title} (${i.data.severity}, ${i.data.status})${i.data.review ? `: ${i.data.review}` : ''}`).join('\n') : 'No high or critical incident is recorded for this period.'}
+${incidents.length ? incidents.map((i) => `- ${i.data.detected_at.slice(0, 10)} ${i.data.title} (${i.data.severity}, ${i.data.status})${i.data.review ? `: ${i.data.review}` : ''}`).join('\n') : projectIncidents(ws, e) ? 'The workspace records no incident of its own for this period; the project\'s are below.' : 'No incident is recorded for this period, in the workspace or in the project\'s records.'}
 ${projectIncidents(ws, e)}${(() => { const ex = knownExceptions(ws, e); return ex.length ? `
 Deviations the workspace found during the period (the package's review/exceptions.csv):
 ${deviationList(ex)}
@@ -347,6 +361,33 @@ export function draft(root: string, id: string, kind: 'description' | 'assertion
 // ── Packages ────────────────────────────────────────────────────────────────────────────────────────────────────
 // Exports exactly what the engagement's requests point at, plus the engagement, its drafts, and the controls and
 // approved policy texts those requests name. Refuses when a referenced file is missing or no longer matches its record.
+// Claims a description commonly makes that the packaged populations can refute. Each rule reads the final text; a
+// contradiction stops the export, and every rule's outcome is a row of review/description-lint.csv.
+function lintDescription(ws: Workspace, e: Engagement, text: string): { rule: string; status: 'pass' | 'contradiction' | 'not applicable'; detail: string }[] {
+  const out: ReturnType<typeof lintDescription> = [];
+  const prose = text.replace(/```[\s\S]*?```/g, '');
+  const inc = latestPopulation(ws, 'incidents');
+  const incRows = inc ? parseCsv(readFileSync(join(ws.root, inc.data.files[0].path), 'utf8'), inc.data.files[0].path).rows.filter((r) => inPeriod(r.detected_at, e)) : [];
+  const serious = incRows.filter((r) => r.severity === 'high' || r.severity === 'critical');
+  const noneClaim = /\bno incident is recorded\b/i.test(prose), noSerious = /\bno high or critical incident\b/i.test(prose);
+  out.push(!noneClaim && !noSerious ? { rule: 'incidents', status: 'not applicable', detail: 'the description makes no claim that no incident occurred' }
+    : (noneClaim && incRows.length) || (noSerious && serious.length) ? { rule: 'incidents', status: 'contradiction', detail: `the description says no ${noSerious ? 'high or critical ' : ''}incident is recorded; the incidents population (${inc!.data.id}) holds ${(noSerious ? serious : incRows).map((r) => `${r.id} (${r.severity})`).join(', ')}` }
+    : { rule: 'incidents', status: 'pass', detail: `consistent with ${inc ? inc.data.id : 'no incidents population'}` });
+  const c = e.period ? periodPopulation(ws, e, 'changes to') : null;
+  const unapproved = (c?.rows ?? []).filter((r) => r.independent_approval !== 'yes').map((r) => r.number ? `#${r.number}` : r.commit.slice(0, 12));
+  const reviewClaim = /\b(only|always|every change|all changes)\b[^.\n]*\breview/i.exec(prose);
+  out.push(!reviewClaim || !c ? { rule: 'changes reviewed', status: 'not applicable', detail: reviewClaim ? 'no changes population for the period' : 'the description makes no claim that every change is reviewed' }
+    : unapproved.every((x) => prose.includes(x)) ? { rule: 'changes reviewed', status: 'pass', detail: `"${reviewClaim[0]}"; ${unapproved.length ? `the description names ${unapproved.join(', ')}` : 'every change in the population was independently approved'} (${c.id})` }
+    : { rule: 'changes reviewed', status: 'contradiction', detail: `"${reviewClaim[0]}", but ${unapproved.filter((x) => !prose.includes(x)).join(', ')} in ${c.id} had no independent approval and the description does not name them` });
+  const d = e.period ? periodPopulation(ws, e, 'deployments of') : null;
+  const tagClaim = /\bdeploy(?:s|ed)?\b[^.\n]*\b(?:from|on) an? \S+ tag\b/i.exec(prose);
+  const other = [...new Set((d?.rows ?? []).map((r) => r.run_event).filter((x) => x && x !== 'push'))];
+  out.push(!tagClaim || !d ? { rule: 'deployment trigger', status: 'not applicable', detail: tagClaim ? 'no deployments population for the period' : 'the description names no deploy trigger' }
+    : !other.length || other.every((x) => prose.includes(x)) ? { rule: 'deployment trigger', status: 'pass', detail: `"${tagClaim[0]}"; runs in ${d.id}: ${tally(d.rows.map((r) => r.run_event))}` }
+    : { rule: 'deployment trigger', status: 'contradiction', detail: `"${tagClaim[0]}", but runs in ${d.id} were started by ${tally(d.rows.map((r) => r.run_event))} and the description does not say so` });
+  return out;
+}
+
 // The package's own README, hashed in the manifest with the other derived views.
 const readme = (organization: string, engagement: string, created: string, id: string, dangling: number) => `# SOC 2 audit package: ${organization}, engagement ${engagement}
 
@@ -436,7 +477,6 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   // Every workspace file a packaged file cites travels with it (a form's definition, the snapshot a description names,
   // a record an exception points to), until nothing new is cited; a cited file the workspace does not hold is listed in
   // the manifest's omissions with what cites it, so the firm never meets a dangling reference unexplained.
-  for (const r of ws.responses) if (paths.has(`forms/responses/${r.data.id}.json`)) { const f = ws.forms.find((x) => x.data.id === r.data.form); if (f) paths.add(f.path); }
   const cites = /(?<![\w/.:@-])((?:evidence|sources|checks|forms|reviews|incidents|policies|registers|controls|audits)\/[\w.@+-]+(?:\/[\w.@+-]+)*\.(?:json|csv|md|txt|pdf|xlsx|yaml|yml|png|jpe?g))/g;
   const absent = new Map<string, string>();
   for (let scanned = new Set<string>(), round = 0; round < 10; round++) {
@@ -451,6 +491,10 @@ export function exportPackage(root: string, id: string, out: string): { files: n
       }
     }
   }
+  const draftDescription = join(root, base(id), 'drafts', 'description.md');
+  if (existsSync(draftDescription)) for (const l of lintDescription(ws, e.data, readFileSync(draftDescription, 'utf8')).filter((x) => x.status === 'contradiction')) problems.push(`the description contradicts the evidence (${l.rule}): ${l.detail}`);
+  // A packaged response travels with its form's definition (the questions and correct answers it was graded against).
+  for (const r of ws.responses) if (paths.has(`forms/responses/${r.data.id}.json`)) { const f = ws.forms.find((x) => x.data.id === r.data.form); if (f) paths.add(f.path); }
   if (problems.length) throw new Error(`the package cannot be exported:\n  ${problems.join('\n  ')}`);
   mkdirSync(out, { recursive: true });
   const files = [...paths].sort().map((p) => {
@@ -464,6 +508,8 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   const omitted = ['Evidence no request names and records unrelated to the engagement stay in the workspace; the control matrix lists every control with its evidence ids, and the firm may ask for any of it.',
     ...[...absent].sort(([a], [b]) => a.localeCompare(b)).map(([ref, by]) => `${ref}: cited by ${by}, and not in the workspace`)];
   const views = buildViews(root, ws, e.data, reqs, paths, created);
+  const described = existsSync(join(root, base(id), 'drafts', 'description.md')) ? readFileSync(join(root, base(id), 'drafts', 'description.md'), 'utf8') : null;
+  if (described) views.set('review/description-lint.csv', writeCsv({ columns: ['rule', 'status', 'detail'], rows: lintDescription(ws, e.data, described) }));
   views.set('README.md', readme(ws.manifest?.data.organization ?? '', e.data.id, created, id, omitted.length - 1));
   const derived = [...views].sort(([a], [b]) => a.localeCompare(b)).map(([p, text]) => {
     const dest = join(out, p);

@@ -13,7 +13,7 @@ import { cf, cfAccount, cfAll, cfIsAdmin } from './cloudflare.ts';
 import { clockDate, now } from './clock.ts';
 
 export type CollectorSettings = { id: 'github' | 'cloudflare'; enabled: boolean; params: Record<string, string> };
-type Snapshot = { data: Record<string, unknown>; queries: string[] };
+type Snapshot = { data: Record<string, unknown>; queries: string[]; responses?: { path: string; status: number; date: string; request_id: string }[] };
 type Result = { check: string; collector: string; controls: string[]; status: 'pass' | 'fail' | 'error'; detail: string };
 export type Run = { schema: string; id: string; started_at: string; finished_at: string; by: string;
   collectors: { id: string; status: 'ok' | 'error'; error?: string; snapshot?: string; evidence?: string }[]; results: Result[] };
@@ -24,11 +24,14 @@ type CollectorDef = { id: CollectorSettings['id']; title: string; params: { name
 const list = (v: string | undefined) => (v ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 
 // ── GitHub ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// Each GitHub answer's status, Date and x-github-request-id, kept in the snapshot so any reading can be raised with GitHub.
+let ghAnswers: { path: string; status: number; date: string; request_id: string }[] = [];
 async function gh(path: string, queries: string[]): Promise<{ status: number; body: any }> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error('GITHUB_TOKEN is not set');
   queries.push(`GET ${path}`);
   const r = await fetch(`https://api.github.com${path}`, { headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28' } });
+  ghAnswers.push({ path, status: r.status, date: r.headers.get('date') ?? '', request_id: r.headers.get('x-github-request-id') ?? '' });
   const text = await r.text();
   return { status: r.status, body: text ? JSON.parse(text) : null };
 }
@@ -48,6 +51,7 @@ const github: CollectorDef = {
   params: [{ name: 'org', prompt: 'Organization login' }, { name: 'repos', prompt: 'Repositories to check, comma-separated owner/name' }],
   async collect(p) {
     const queries: string[] = [];
+    ghAnswers = [];
     if (!p.org) throw new Error('set the org parameter');
     const org = (await gh(`/orgs/${p.org}`, queries)).body;
     const admins = (await ghAll(`/orgs/${p.org}/members?role=admin`, queries)).map((m) => m.login);
@@ -68,7 +72,7 @@ const github: CollectorDef = {
         rule_bypasses: bypasses.status === 200 ? bypasses.body : { unavailable: bypasses.status },
         dependabot: dependabot.status === 200 ? dependabot.body : { unavailable: dependabot.status }, secret_scanning: secrets.status === 200 ? secrets.body : { unavailable: secrets.status } };
     }
-    return { data: { org: { login: org?.login, two_factor_requirement_enabled: org?.two_factor_requirement_enabled }, admins, repos }, queries };
+    return { data: { org: { login: org?.login, two_factor_requirement_enabled: org?.two_factor_requirement_enabled }, admins, repos }, queries, responses: ghAnswers };
   },
   checks: [
     { id: 'github-org-2fa', title: 'The organization requires two-factor authentication', controls: ['AC-01'], evaluate: (d) =>
@@ -80,9 +84,13 @@ const github: CollectorDef = {
         const ruled = (r.rulesets as any[]).some((rs) => rs.enforcement === 'active' && (rs.rules ?? []).some((x: any) => x.type === 'pull_request' && (x.parameters?.required_approving_review_count ?? 0) >= 1));
         return !classic && !ruled;
       }).map(([k]) => k);
-      const bypassable = Object.entries(d.repos as Record<string, any>).filter(([, r]) => (r.rulesets as any[]).some((rs) => rs.enforcement === 'active' && (rs.bypass_actors ?? []).length)).map(([k]) => k);
+      // A review someone may always skip is not required of them: a ruleset listing bypass actors in "always" mode fails
+      // the check, naming who may bypass; "pull_request" mode (bypass only by opening a pull request) does not.
+      const always = Object.entries(d.repos as Record<string, any>).flatMap(([k, r]) => (r.rulesets as any[]).filter((rs) => rs.enforcement === 'active' && (rs.rules ?? []).some((x: any) => x.type === 'pull_request'))
+        .flatMap((rs) => (rs.bypass_actors ?? []).filter((b: any) => (b.bypass_mode ?? 'always') === 'always').map((b: any) => `${k} ruleset ${rs.name}: ${b.actor_type}${b.actor_id != null ? ` ${b.actor_id}` : ''}`)));
       return bad.length ? { status: 'fail', detail: `no required approving review on the default branch of ${bad.join(', ')}` }
-        : { status: 'pass', detail: `every checked repository requires an approving review${bypassable.length ? `; its ruleset lets listed actors bypass it in ${bypassable.join(', ')} (github-rule-bypass reports each bypass)` : ''}` };
+        : always.length ? { status: 'fail', detail: `the required review can always be bypassed by ${always.join('; ')}` }
+        : { status: 'pass', detail: 'every checked repository requires an approving review that no one may always bypass' };
     } },
     { id: 'github-rule-bypass', title: 'No one bypassed the default branch rules in the last day', controls: ['CHG-01'], evaluate: (d) => {
       const seen: string[] = [];
@@ -210,7 +218,7 @@ export async function runChecks(root: string, by: string, only?: string): Promis
       continue;
     }
     const rel = `evidence/files/collected/${s.id}/${id}.json`;
-    writeVersioned(root, rel, JSON.stringify({ collector: s.id, params: s.params, collected_at: now(), queries: snap.queries, data: snap.data }, null, 2) + '\n', null);
+    writeVersioned(root, rel, JSON.stringify({ collector: s.id, params: s.params, collected_at: now(), queries: snap.queries, ...(snap.responses ? { responses: snap.responses } : {}), data: snap.data }, null, 2) + '\n', null);
     const controls = [...new Set(def.checks.flatMap((c) => c.controls))].filter((c) => applicable.has(c));
     const evidence = controls.length ? addEvidence(root, { title: `${def.title}: collected by run ${id}`, controls, files: [rel], recorded_by: by,
       source: { kind: 'collector', name: s.id, query: snap.queries.join('; ') } }) : undefined;
