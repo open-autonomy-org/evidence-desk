@@ -7,6 +7,9 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- A project with several workflows gated on its production environment (release, deploy, administration) is read
+  whole: the deploy-v* one is the production deploy, every one's egress names vendors, and the system description names
+  them all. Found reading Open Autonomy's own repository, where only the last such workflow had been kept.
 - Added a Cloudflare collector: two-factor authentication for every member, and each zone's minimum TLS version and
   HTTPS-only redirect; roster completeness reads a Cloudflare account's administrators from the API. The deployment
   population follows each deployment to its Actions run for who started it and who approved the environment, and

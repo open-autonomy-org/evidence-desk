@@ -17,7 +17,7 @@ export type Snapshot = {
   team: { id: string; name: string; github?: string; discord?: string; scopes: string[] }[];
   agents: { profile: string; models: { name: string; provider: string; model: string; credential?: string }[]; jobs: { name: string; schedule: string; skills: string[] }[] }[];
   seams: Seam[] | null; vendor_accounts: { id: string; vendor: string; account: string }[];
-  rules: { pr_landing: boolean; production_deploy: { workflow: string; tag_trigger: string | null; environment: string | null; egress: string[] } | null };
+  rules: { pr_landing: boolean; production_deploy: { workflow: string; tag_trigger: string | null; environment: string | null; egress: string[] } | null; production_workflows?: { workflow: string; tag_trigger: string | null; environment: string | null; egress: string[] }[] };
   spend_limits: string[];
   vendors: string[];
 };
@@ -60,7 +60,9 @@ export function readProject(repo: string, commitish = 'HEAD'): Snapshot {
   }));
 
   const workflows = (git(repo, 'ls-tree', '--name-only', commit, '.github/workflows/').split('\n').filter(Boolean));
-  let production: Snapshot['rules']['production_deploy'] = null;
+  // Every workflow gated on the production environment (a project may release, deploy and administer through it); the
+  // one a deploy-v* tag starts is the production deploy, and every one's egress names vendors.
+  const gated: NonNullable<Snapshot['rules']['production_deploy']>[] = [];
   for (const w of workflows) {
     const text = show(repo, commit, w) ?? '';
     if (!/environment:\s*production/.test(text)) continue;
@@ -68,19 +70,20 @@ export function readProject(repo: string, commitish = 'HEAD'): Snapshot {
     const lines = text.split('\n');
     const at = lines.findIndex((l) => /allowed-endpoints:/.test(l));
     if (at >= 0) for (const l of lines.slice(at + 1)) { const m = /^\s+([A-Za-z0-9.-]+):\d+\s*$/.exec(l); if (!m) break; egress.push(m[1]); }
-    production = { workflow: w, tag_trigger: /tags:\s*\[\s*'([^']+)'/.exec(text)?.[1] ?? null, environment: 'production', egress };
+    gated.push({ workflow: w, tag_trigger: /tags:\s*\[\s*'([^']+)'/.exec(text)?.[1] ?? null, environment: 'production', egress });
   }
+  const production = gated.find((g) => g.tag_trigger?.startsWith('deploy')) ?? gated.find((g) => g.tag_trigger) ?? gated[0] ?? null;
   const vendors = new Set<string>(['GitHub']);
   for (const a of agents) for (const m of a.models) vendors.add(VENDOR_OF[m.provider] ?? (m.provider === 'custom' || m.provider.endsWith('-valve') ? VENDOR_OF['open-autonomy.org'] : m.provider));
   if (config.platform) vendors.add(VENDOR_OF['open-autonomy.org']);
-  for (const host of production?.egress ?? []) vendors.add(vendorOfHost(host));
+  for (const host of gated.flatMap((g) => g.egress)) vendors.add(vendorOfHost(host));
 
   const seamsDoc = config.seams as { seams?: Seam[]; vendor_accounts?: Snapshot['vendor_accounts'] } | undefined;
   const snap: Snapshot = {
     schema: 'evidence-desk.open-autonomy/1', repository: String(config.account ?? repo), repository_path: repo, commit, read_at: now(), account: String(config.account ?? ''),
     kit: kit ? (({ skew, version }) => ({ skew, version }))(JSON.parse(kit)) : null,
     team, agents, seams: seamsDoc?.seams ?? null, vendor_accounts: seamsDoc?.vendor_accounts ?? [],
-    rules: { pr_landing: workflows.some((w) => /land\.ya?ml$/.test(w)), production_deploy: production },
+    rules: { pr_landing: workflows.some((w) => /land\.ya?ml$/.test(w)), production_deploy: production, production_workflows: gated },
     spend_limits: ((config.spend?.limits ?? []) as any[]).map((l) => Object.entries(l).map(([k, v]) => `${k} ${v}`).join(', ')),
     vendors: [...vendors].sort(),
   };
