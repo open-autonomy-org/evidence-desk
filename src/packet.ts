@@ -441,8 +441,13 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
     c.exceptions = String(n);
     c.status = c.status.replace(/, (?:\d+ exception\(s\)|no exception)$/, n ? `, ${n} exception(s)` : ', no exception');
   }
+  // A deviation is of design when what it shows stood through the period (a person's live credential, a ruleset
+  // weakened, a declared trigger never used, the same self-approval release after release), and of operation when a
+  // designed control failed on an occasion. The assertion qualifies the two separately.
+  const selfApprovedReleases = exceptions.filter((x) => x.key.startsWith('release-self-approved:')).length;
+  const natureOf = (x: PacketException) => /^(personal-token|personal-deploy-token|weakened|trigger):/.test(x.key) || (x.key.startsWith('release-self-approved:') && selfApprovedReleases > 1) ? 'design' : 'operating';
   // Written after every view that can raise an exception.
-  views.set('review/exceptions.csv', writeCsv({ columns: ['key', 'source', 'controls', 'item', 'detail', 'occurred', 'detected', 'resolved', 'closed_by', 'open_at_period_end', 'found_by', 'response', 'responded_by', 'response_cites', 'file'], rows: exceptions.map((x) => ({ ...x, closed_by: x.closed_by ?? '', open_at_period_end: !x.resolved || x.resolved > period.end ? 'yes' : 'no',
+  views.set('review/exceptions.csv', writeCsv({ columns: ['key', 'nature', 'source', 'controls', 'item', 'detail', 'occurred', 'detected', 'resolved', 'closed_by', 'open_at_period_end', 'found_by', 'response', 'responded_by', 'response_cites', 'file'], rows: exceptions.map((x) => ({ ...x, nature: natureOf(x), closed_by: x.closed_by ?? '', open_at_period_end: !x.resolved || x.resolved > period.end ? 'yes' : 'no',
       found_by: x.found_by ?? (x.key.startsWith('check:') ? `the organization's daily check, on ${x.detected}` : x.key.startsWith('audit-finding:') ? `the organization's internal audit, on ${x.occurred}` : x.key.startsWith('incident:') ? 'the organization (its incident record)' : `this package's collection, on ${x.detected}`), response_cites: x.response_cites ?? '' })) }));
   const coverageColumns = ['criterion', 'category', 'title', 'controls', 'controls_with_evidence', 'check_only', 'not_provided', 'requested', 'exceptions', 'status'];
   views.set('review/coverage.csv', writeCsv({ columns: coverageColumns, rows: byCriterion }));

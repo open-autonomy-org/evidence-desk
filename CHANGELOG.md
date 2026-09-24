@@ -7,6 +7,9 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Each exception says whether it is a deviation of design (what stood through the period: a person's live credential,
+  a weakened ruleset, an unused declared trigger, repeated self-approved releases) or of operation, and the drafted
+  assertion groups them so management qualifies "suitably designed" and "operated effectively" separately.
 - `review/claims.csv` tells a corroborated date from a supported fact: a claim whose date, subject and act are found but
   whose stated time, pull request or release no supporting line carries is `partly supported`, naming what is not.
 - More of what an auditor finds by hand is raised as an exception: a production setting a person changed with no

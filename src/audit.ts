@@ -333,8 +333,9 @@ and belief, that:
 ${(() => { const ex = e.type === 'type2' ? knownExceptions(ws, e) : []; return ex.length ? `
 [The workspace found ${ex.length} deviation(s) during the period, listed below and in the package's review/exceptions.csv.
 Unless management concludes that none prevented a service commitment from being achieved, end point 2 with "except for
-the matters described in the following paragraph" and describe them there.]
-${deviationList(ex)}
+the matters described in the following paragraph" and describe them there. A deviation of design (what stood through
+the period) qualifies "suitably designed"; one of operation qualifies "operated effectively".]
+${ex.some((x) => x.nature === 'design') ? `Of design:\n${deviationList(ex.filter((x) => x.nature === 'design'))}\nOf operation:\n${deviationList(ex.filter((x) => x.nature !== 'design'))}` : deviationList(ex)}
 ` : ''; })()}
 [Name, title]
 [Signature]

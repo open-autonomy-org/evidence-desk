@@ -41,7 +41,10 @@ if len(sys.argv)>3 and os.path.exists(sys.argv[3]):
     add=[x for x in _json.load(open(sys.argv[3])) if (x.get('open_at_period_end')=='yes' or x['key'].startswith('incident:')) and x['item'] not in t]
     letters=re.findall(r'^\(([a-z])\) ', t, flags=re.M); n=ord(max(letters))+1 if letters else ord('a')
     for x in add:
-        t=t.rstrip('\n')+f"\n\n({chr(n)}) {x['item']}: {x['detail']}.\n"; n+=1
+        t=t.rstrip('\n')+f"\n\n({chr(n)}) {x['item']}: {x['detail']}{' (of design: it stood through the period)' if x.get('nature')=='design' else ''}.\n"; n+=1
+    # A matter of design qualifies the design statement as well as the operating one.
+    if any(x.get('nature')=='design' for x in _json.load(open(sys.argv[3]))) and 'except for the matters of design' not in t:
+        t=t.replace('to provide reasonable assurance that our', 'to provide reasonable assurance, except for the matters of design described below, that our',1)
 born=re.search(r'Worker (\S+) was created on (\d{4}-\d\d-\d\d) by (\S+)', s)
 if born and born.group(2) not in t:
     t=t.replace('The matters are:', f"Relay began operating on {born.group(2)}, when {born.group(3)} created the {born.group(1)} Worker; these statements cover it from then.\n\nThe matters are:")
