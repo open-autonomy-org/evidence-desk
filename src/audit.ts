@@ -496,6 +496,8 @@ function claimsLedger(root: string, ws: Workspace, e: Engagement, id: string, pa
   const register = parseCsv(buildViews(root, ws, e, [], packaged, now()).get('review/exceptions.csv')!, 'exceptions.csv').rows;
   for (const t of texts) for (const sentence of t.text.split(/(?<=\.)\s+|\n+/).map((x) => x.trim()).filter(Boolean)) {
     if (/^Sources?:/i.test(sentence)) continue;
+    // A line that is only a date (the date a signature carries) states nothing to evidence.
+    if (!/[a-z]/i.test(sentence.replace(/\b20\d\d-\d\d-\d\d\b/g, ''))) continue;
     const row = register.find((x) => x.item && sentence.includes(x.item) && sentence.includes(x.occurred || x.detected));
     if (row) { out.push({ source: t.source, claim: sentence, status: row.key.startsWith('check:') ? 'vendor record' : kindOfFile.get(row.file) ?? 'client record', detail: `the exceptions register's row ${row.key}, raised from ${row.file}` }); continue; }
     for (const [re, n] of counted) {
