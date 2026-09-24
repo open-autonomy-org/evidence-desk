@@ -15,11 +15,13 @@ import { writeCsv } from './csv.ts';
 import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, reviewAnswer, staleLibrary } from './trust.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { computeObligations } from './obligations.ts';
+import { collectAccessChanges } from './access.ts';
+import { recollect } from './recollect.ts';
 import { collectRosterHistory, collectSeamRecords, importOpenAutonomy, readProject, seamFindings } from './open-autonomy.ts';
 import { checkCompleteness, collectChanges, collectDeployments, collectAttribution, collectNonHumanAccess, collectRuleChanges, syncReminders } from './github.ts';
-import { collectCloudflareChanges, collectWorkerDeployments } from './cloudflare.ts';
+import { collectCloudflareChanges, collectCloudflareTokens, collectWorkerDeployments } from './cloudflare.ts';
 import { COLLECTORS, checkTitle, ciWorkflow, configureCollector, readSettings, runChecks } from './automation.ts';
-import { respondToException, actOnRequest, createEngagement, draft, exportPackage, firmSummary, importRequests, importReturn, listRequests, readEngagement, verifyPackage } from './audit.ts';
+import { exceptionsRegister, respondToException, actOnRequest, createEngagement, draft, exportPackage, firmSummary, importRequests, importReturn, listRequests, readEngagement, verifyPackage } from './audit.ts';
 import { clockDate } from './clock.ts';
 
 const USAGE = `evidence-desk <command> <workspace> [options]
@@ -58,10 +60,14 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   collect <dir> github-deployments --repo <owner/name> --environment <name> --period <start>..<end> --by <person>
   collect <dir> github-rule-changes --repo <owner/name> --period <start>..<end> --by <person>
                                           populations from GitHub with their queries (needs GITHUB_TOKEN)
+  collect <dir> cloudflare-tokens --account <id or name> --period <start>..<end> --by <person>
+                                          every API token the audit log records: owner, created, revoked, live at the end
   collect <dir> cloudflare-changes --account <id or name> --period <start>..<end> --by <person>
                                           the account's audit log: who changed what (needs CLOUDFLARE_API_TOKEN)
   collect <dir> cloudflare-deployments --account <id or name> --script <worker> --period <start>..<end> --by <person>
                                           what reached production on Cloudflare, matched to the GitHub deployments
+  collect <dir> access-changes --period <start>..<end> --by <person>
+                                          accounts added, removed or re-roled on GitHub and Cloudflare, day by day
   collect <dir> roster-history --repo <checkout> --period <start>..<end> --by <person>
                                           every change to the Open Autonomy roster, from git
   collect <dir> seam-records --repo <checkout> --period <start>..<end> --by <person>
@@ -82,11 +88,15 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                      [--evidence <id>,...] [--population <evidence id>] [--select <item>,...]
                      [--sample <item>=provided|exception] [--sample-evidence <item>=<evidence id>]
   audit <dir> <id> draft description|assertion|bridge [--to <date>]
+  audit <dir> <id> exceptions              the exceptions register the package will carry, and which are answered
   audit <dir> <id> exception <key> --response <text> --by <person> [--cite <workspace file> ...]
                                           management's response to an exception the package lists
   audit <dir> <id> export --out <folder>  a package of exactly what the requests point at, with hashes
   audit <dir> <id> import-return <folder> bring the firm's responses in from a returned package
   audit verify <package folder>           check a package's files against its manifest, offline
+  audit recollect <package folder> [--repo <owner/name> [--environment <name>]] [--account <id> [--script <worker>]]
+                                          read the populations again with the firm's own GITHUB_TOKEN and
+                                          CLOUDFLARE_API_TOKEN, and compare them row by row with the package's
   firm <firm.json> [--serve [--port <n>]] each client's engagements, requests and readiness, client by client
   audit package-serve <package folder> [--port <n>]   the firm's page for answering a received package
   trust <dir> build --out <folder>        build the static trust center from what trust.json allows
@@ -399,6 +409,11 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => `Recorded ${r.evidence}: ${r.rows} deployments; ${r.unapproved} without an independent approval of the environment.`);
         return 0;
       }
+      if (rest[0] === 'access-changes') {
+        const r = collectAccessChanges(dir, { start, end, by });
+        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} access changes on GitHub and Cloudflare.`);
+        return 0;
+      }
       if (rest[0] === 'roster-history') {
         const r = collectRosterHistory(dir, { repo: resolve(one(a, 'repo') ?? '.'), start, end, by });
         out(json, r, () => `Recorded ${r.evidence}: ${r.rows} roster changes.`);
@@ -414,6 +429,11 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => `Recorded ${r.evidence}: ${r.rows} ruleset changes; ${r.weakening} weakened the rules.`);
         return 0;
       }
+      if (rest[0] === 'cloudflare-tokens') {
+        const r = await collectCloudflareTokens(dir, { account: one(a, 'account') ?? '', start, end, by });
+        out(json, r, () => `Recorded ${r.evidence}: ${r.rows} Cloudflare API tokens; ${r.personal} live at the period's end belong to someone other than a service account.`);
+        return 0;
+      }
       if (rest[0] === 'cloudflare-changes') {
         const r = await collectCloudflareChanges(dir, { account: one(a, 'account') ?? '', start, end, by });
         out(json, r, () => `Recorded ${r.evidence}: ${r.rows} Cloudflare configuration changes; ${r.unnamed} by someone not on the roster or not named.`);
@@ -424,7 +444,7 @@ async function main(argv: string[]): Promise<number> {
         out(json, r, () => `Recorded ${r.evidence}: ${r.rows} Worker deployments; ${r.unmatched} with no matching GitHub deployment.`);
         return 0;
       }
-      throw new Error('collect needs github-changes, github-deployments, github-rule-changes, cloudflare-changes, cloudflare-deployments, roster-history, seam-records or attribution');
+      throw new Error('collect needs github-changes, github-deployments, github-rule-changes, cloudflare-changes, cloudflare-tokens, cloudflare-deployments, access-changes, roster-history, seam-records or attribution');
     }
     case 'collectors': {
       if (rest[0]) configureCollector(dir, rest[0], { ...(a.flags.has('enable') ? { enabled: true } : a.flags.has('disable') ? { enabled: false } : {}), ...(a.flags.has('set') ? { params: pairs(a.flags.get('set')!) } : {}) });
@@ -456,9 +476,14 @@ async function main(argv: string[]): Promise<number> {
     case 'audit': {
       if (dirArg && rest.length === 0 && existsSync(resolve(dirArg, 'manifest.json')) && !existsSync(resolve(dirArg, 'evidence-desk.json'))) throw new Error('to check a package, run: evidence-desk audit verify <package folder>');
       if (dirArg === 'package-serve') { serveFirm('package', resolve(rest[0] ?? ''), Number(one(a, 'port') ?? 4880)); return -1; }
+      if (cmd === 'audit' && dirArg === 'recollect') {
+        const r = await recollect(resolve(rest[0] ?? ''), { repo: one(a, 'repo'), environment: one(a, 'environment'), account: one(a, 'account'), script: one(a, 'script') });
+        out(json, r, () => r.map((x) => `${x.population}: packaged ${x.packaged}, read again ${x.recollected}${x.only_packaged.length ? `; only in the package: ${x.only_packaged.join(', ')}` : ''}${x.only_recollected.length ? `; missing from the package: ${x.only_recollected.join(', ')}` : ''}${x.differing.length ? `; different: ${x.differing.join(', ')}` : ''}${!x.only_packaged.length && !x.only_recollected.length && !x.differing.length ? '; identical' : ''}`).join('\n') || 'Nothing to compare: name --repo and/or --account.');
+        return r.some((x) => x.only_packaged.length || x.only_recollected.length || x.differing.length) ? 1 : 0;
+      }
       if (cmd === 'audit' && dirArg === 'verify') {
         const r = verifyPackage(resolve(rest[0] ?? ''));
-        out(json, r, () => r.ok ? `Verified: all ${r.files} files match the manifest, and nothing unlisted is present.` : `Does not verify:\n  ${r.problems.join('\n  ')}`);
+        out(json, r, () => r.ok ? `Verified: all ${r.files} files match the manifest, and nothing unlisted is present.\nPackage digest (SHA-256 of manifest.json): ${r.digest}` : `Does not verify:\n  ${r.problems.join('\n  ')}`);
         return r.ok ? 0 : 1;
       }
       const [id, action, ...more] = rest;
@@ -474,6 +499,11 @@ async function main(argv: string[]): Promise<number> {
         const reqs = listRequests(dir, id).map((r) => r.data);
         out(json, { engagement: e, requests: reqs }, () => [`${e.id}: ${e.type === 'type1' ? `Type 1 as of ${e.as_of}` : `Type 2, ${e.period!.start} to ${e.period!.end}`}, ${e.firm}, ${e.status}`,
           ...reqs.map((r) => `  ${r.id.padEnd(10)} ${r.status.padEnd(9)} ${r.kind.padEnd(10)} ${r.title}${r.samples?.length ? ` [${r.samples.map((x) => `${x.item}:${x.status}`).join(', ')}]` : ''}`)].join('\n'));
+        return 0;
+      }
+      if (action === 'exceptions') {
+        const rows = exceptionsRegister(dir, id);
+        out(json, rows, () => rows.map((x) => `${x.response ? 'answered  ' : 'UNANSWERED'} ${x.key}\n           ${x.item}: ${x.detail}`).join('\n') || 'No exceptions.');
         return 0;
       }
       if (action === 'exception') {
@@ -516,7 +546,7 @@ async function main(argv: string[]): Promise<number> {
         const o = one(a, 'out');
         if (!o) throw new Error('export needs --out <folder>');
         const r = exportPackage(dir, id, resolve(o));
-        out(json, r, () => `Exported ${r.files} files to ${resolve(o)}.`);
+        out(json, r, () => `Exported ${r.files} files to ${resolve(o)}.\nPackage digest (SHA-256 of manifest.json): ${r.digest}; give it to the firm by a channel of its own.`);
         return 0;
       }
       if (action === 'import-return') {

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 // Seeds the GitHub and Cloudflare twins for the Globex quarter, through each vendor's API (and the twins' constructs
 // for what vendors set only in their UI: personal tokens, the org two-factor setting, Cloudflare's bootstrap).
 // Usage: bun seed.ts <step> <token|-> [args...]
@@ -21,25 +22,34 @@ const [step, token, a, b, c] = process.argv.slice(2);
 async function wrangler(tag: string, message: string) {
   const form = new FormData();
   form.append('metadata', JSON.stringify({ main_module: 'index.js', compatibility_date: '2026-06-01', annotations: { ...(tag ? { 'workers/tag': tag } : {}), 'workers/message': message } }));
-  form.append('index.js', new Blob(['export default { fetch() { return new Response("relay"); } };'], { type: 'application/javascript+module' }), 'index.js');
+  // The module is what was built: the relay's source at the deployed commit, or whatever the deployer's checkout held.
+  const module = process.env.WORKER_MODULE ? readFileSync(process.env.WORKER_MODULE, 'utf8') : 'export default { fetch() { return new Response("relay"); } };';
+  form.append('index.js', new Blob([module], { type: 'application/javascript+module' }), 'index.js');
   const r = await fetch(`${cf}/accounts/${ACCOUNT}/workers/scripts/relay`, { method: 'PUT', headers: { authorization: `Bearer ${process.env.CF_AS || process.env.CLOUDFLARE_API_TOKEN}` }, body: form });
   if (!r.ok) throw new Error(`wrangler deploy ${r.status} ${(await r.text()).slice(0, 200)}`);
 }
 const T = token === '-' ? undefined : token;
 if (step === 'org') {
-  await call('PATCH', '/orgs/globex', { name: 'Globex' });
+  // Maya created the organization on github.com (the twin's door stands in for that page, which has no API).
+  await call('POST', '/_twin/orgs', { login: 'globex', name: 'Globex', owner: 'maya-gx' });
   for (const [login, role] of [['maya-gx', 'admin'], ['sam-gx', 'admin']]) await call('PUT', `/orgs/globex/memberships/${login}`, { role });
   for (const name of ['relay', 'compliance']) await call('POST', '/orgs/globex/repos', { name, private: name === 'compliance' });
   await call('PUT', '/_twin/orgs/globex/two-factor-requirement', { enabled: true });
   console.log('org globex');
-} else if (step === 'member') { // member <login> <role>
-  await call('PUT', `/orgs/globex/memberships/${a}`, { role: b }); console.log('member', a, b);
+} else if (step === 'member') { // member <login> <role>: an admin invites the account; it is a member once it accepts
+  await call('PUT', `/orgs/globex/memberships/${a}`, { role: b }, T); console.log('member', a, b);
+} else if (step === 'accept') { // accept: the invited account accepts, with its own token
+  const m = await call('PATCH', '/user/memberships/orgs/globex', { state: 'active' }, T); console.log('accepted', m.user?.login, m.state);
 } else if (step === 'token') {
   console.log((await call('POST', `/_twin/users/${a}/tokens`, {})).token);
 } else if (step === 'protect') { // the ruleset and gated production environment the kit's setup would make
   await call('POST', '/repos/globex/relay/rulesets', { name: 'main-protected', target: 'branch', enforcement: 'active', conditions: { ref_name: { include: ['~DEFAULT_BRANCH'], exclude: [] } },
-    bypass_actors: [{ actor_id: 1, actor_type: 'OrganizationAdmin', bypass_mode: 'always' }],
-    rules: [{ type: 'deletion' }, { type: 'non_fast_forward' }, { type: 'pull_request', parameters: { required_approving_review_count: 1, dismiss_stale_reviews_on_push: true, require_code_owner_review: false, require_last_push_approval: false, required_review_thread_resolution: false } }] }, T);
+    bypass_actors: [],
+    rules: [{ type: 'deletion' }, { type: 'non_fast_forward' }, { type: 'pull_request', parameters: { required_approving_review_count: 1, dismiss_stale_reviews_on_push: true, require_code_owner_review: false, require_last_push_approval: false, required_review_thread_resolution: false } },
+      { type: 'required_status_checks', parameters: { strict_required_status_checks_policy: false, required_status_checks: [{ context: 'test' }] } }] }, T);
+  // The kit's tag rule: only an organization administrator creates, moves or deletes a deploy tag.
+  await call('POST', '/repos/globex/relay/rulesets', { name: 'deploy-tags-admin-only', target: 'tag', enforcement: 'active', conditions: { ref_name: { include: ['refs/tags/deploy-v*'], exclude: [] } },
+    bypass_actors: [{ actor_id: 1, actor_type: 'OrganizationAdmin', bypass_mode: 'always' }], rules: [{ type: 'creation' }, { type: 'update' }, { type: 'deletion' }] }, T);
   await call('PUT', '/repos/globex/relay/actions/workflows/deploy.yml', { name: 'Deploy relay', path: '.github/workflows/deploy.yml' }, T);
   const env = await call('PUT', '/repos/globex/relay/environments/production', { reviewers: [{ type: 'User', reviewer: { login: 'maya-gx' } }, { type: 'User', reviewer: { login: 'sam-gx' } }] }, T);
   console.log('env', env.id);
@@ -61,13 +71,22 @@ if (step === 'org') {
 } else if (step === 'cf') {
   const r = await fetch(`${process.env.CLOUDFLARE_TWIN_URL}/client/v4/twin/bootstrap`, { method: 'POST', headers: { authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`, 'content-type': 'application/json' }, body: JSON.stringify({
     accounts: [{ id: ACCOUNT, name: 'globex-cloudflare', settings: { enforce_twofactor: true } }], zones: [{ id: ZONE, account_id: ACCOUNT, name: 'relay.globex.test' }],
-    members: [{ account_id: ACCOUNT, email: 'maya@globex.test', roles: ['Super Administrator - All Privileges'], two_factor: true }, { account_id: ACCOUNT, email: 'sam@globex.test', roles: ['Administrator'], two_factor: true }] }) });
+    members: [{ account_id: ACCOUNT, email: 'maya@globex.test', roles: ['Super Administrator - All Privileges'], two_factor: true }, { account_id: ACCOUNT, email: 'sam@globex.test', roles: ['Administrator'], two_factor: true },
+      // The deploy workflow's service account: it deploys Workers and administers nothing else.
+      { account_id: ACCOUNT, email: 'deploy@globex.test', roles: ['Workers Admin'], two_factor: true }] }) });
   console.log('cloudflare', r.status);
+} else if (step === 'ci') { // ci - <repo> <pr number>: the CI workflow's test job on the pull request's head
+  const pr = await call('GET', `/repos/globex/${a}/pulls/${b}`);
+  await call('POST', `/repos/globex/${a}/check-runs`, { name: 'test', head_sha: pr.head.sha, status: 'completed', conclusion: 'success', output: { title: 'test', summary: 'bun test: all passed' } });
+  console.log('ci', b, pr.head.sha.slice(0, 12));
 } else if (step === 'wrangler') { // wrangler - <message>: a deploy straight from someone's laptop, CF_AS their token, no commit tag
   await wrangler('', a); console.log('wrangler', a);
 } else if (step === 'secret') { // secret <token> <name>: the production environment's secret set (or rotated) by that person
   await call('PUT', `/repos/globex/relay/environments/production/secrets/${a}`, { encrypted_value: Buffer.from(`${a}:${Date.now()}`).toString('base64'), key_id: 'twin' }, T);
   console.log('secret', a);
+} else if (step === 'cfrevoke') { // cfrevoke -: revoke the token in CF_AS, as its owner does in the dashboard
+  const id = String(process.env.CF_AS).slice(0, 12);
+  await cfcall('DELETE', `/user/tokens/${id}`); console.log('revoked', id);
 } else if (step === 'cftoken') { // cftoken - <email>: a person's Cloudflare API token, minted as in the dashboard
   console.log((await cfcall('POST', `/twin/users/${a}/tokens`)).token);
 } else if (step === 'cfset') { console.log(a, (await cfcall('PATCH', `/zones/${ZONE}/settings/${a}`, { value: b })).value);

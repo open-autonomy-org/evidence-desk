@@ -38,11 +38,49 @@ manifest's `derived` list (the README too), and every line names the file it com
 Each population in `index.html` carries a test memo: how many items it holds and whether its completeness comes from
 the system of record or from records the organization keeps itself. A change merged without an independent approval
 that no break-glass record names is an exception of its own. A management response lists the workspace files it
-cites; one citing nothing says so.
+cites; one citing nothing says so. The package is not exported while any exception or request has no response; `audit <dir> <id>
+exceptions` lists the register the package will carry and which rows are answered.
+
+- `review/claims.csv`: every dated claim in the description, the assertion and management's responses, tied to the
+  packaged line that records its date, names its subject and records its act (a claim whose stated time, pull request
+  or release no such line carries is `partly supported`), and graded by where that line came from: a vendor's own
+  answer (vendor record), a record the organization made (client record: it shows what was recorded, not that it
+  happened) or a document it wrote (client narrative). Sentences dated only by the period are judgments. A claim no
+  line supports, or a count its population contradicts, stops the export.
+- `review/change-releases.csv`: change review in an Open Autonomy project is two-staged. Agents review and merge
+  each change, and a person's approval of a release covers every change it ships. The view lists each merged change
+  with the release that shipped it and who approved that release; a change shipped in a release no person on the
+  roster approved is an exception.
+- `review/access-changes.csv`: who was added to, removed from or given another role in the GitHub organization and
+  the Cloudflare account, day by day, from the daily snapshots.
+- `review/evidence-provenance.csv`: each client document's and register's history in the workspace repository; a
+  document describing dates after it was recorded is an exception.
+- `review/identities.csv`: every identity seen acting in the populations (person, service account, agent account)
+  and the access review that covered it; one that acted in the period with no review is an exception.
+- `review/production-timeline.csv`: what ran in production and for how long, each deployment with its commit, its
+  approved GitHub deployment and the pull requests it shipped.
+
+The package carries every in-window record of each applicable control, whether a request names it or not; coverage
+counts only what the package holds.
 
 An exception's `closed_by` says what ended it: a later passing reading (which shows the condition stopped, not that
 anyone remediated it) or a later completeness check. A check that reports events, such as a bypass of the branch
-rules, is never closed by a quiet day.
+rules or a Worker deployed by a person, is never closed by a quiet day. A day of the period with no check run is an exception of its own. Where the package holds the escalations
+population, a failing check that no escalation record names on or after its first failing reading is an exception of
+its own: the failure reached no one. A production setting a person changed with no break-glass record that day, an access review that kept an account
+an earlier exception names, and a record made by someone without its seam's scope are exceptions. A release whose
+approver wrote code it ships is an exception (`review/change-releases.csv`,
+`release_approver_wrote_it`). `review/description-lint.csv` fails when the assertion does not name an exception open at
+the period's end, or any incident, by what identifies it, or does not say when a system created inside the period began operating.
+
+`review/workspace.bundle` is the workspace's Git history up to that commit; `audit verify` checks that it holds it.
+`audit recollect <package> --repo <owner/name> --environment <name> --account <id> --script <worker>` reads the
+change, deployment, Worker deployment, Cloudflare configuration and token populations again with the firm's own
+read-only `GITHUB_TOKEN` and `CLOUDFLARE_API_TOKEN`, and lists every row only the package has, every row it lacks,
+and every row whose fields differ; nothing in the package is changed.
+The control matrix's `evidence_basis` is the strongest kind of evidence the package holds for each control: a vendor
+record (a collector's answer or a daily check), a client record, or a client narrative; coverage marks a criterion whose
+evidence is client narrative only.
 
 The manifest's `workspace` names the workspace repository's commit at export, its origin and the remote branches
 holding it: the hosted repository's history dates every record independently of the package. A file a packaged file
@@ -91,10 +129,21 @@ query that produced it (evidence a person added by hand says so).
 - **Non-human access**: deploy keys, repository and environment secrets (with when each was last set), app installations
   and the project's agents, as of the collection. A recorded credential rotation the secret's own date does not show is
   an exception.
+- **Access changes** (`collect access-changes`): every account added to, removed from or re-roled on the GitHub
+  organization and the Cloudflare account, from the daily member snapshots compared day over day, with the Cloudflare
+  audit log's exact time and actor where it records the event, and each person's register start and end dates beside
+  the system's date. The roster's own history is a separate population of who holds authority in the project.
+- **Cloudflare API tokens** (`collect cloudflare-tokens`): every token the account's audit log records, from its first
+  entry to the period's end, with its owner, who created and revoked it, whether it was live at the end, and how many
+  Worker deploys its owner made in the period. Every person's token live at the end is an exception, marked for its
+  owner's deploys.
 - **Seam records** (incidents, break-glass changes, credentials, escalations) are listed with each record's full git
   history (`*.history.txt`): a record edited after it was added shows every change with its author and dates.
 - **Continuous checks** (two-factor enforcement, required review and protected history, bypasses of the default
-  branch's rules, dependency and secret-scanning alerts, TLS and HTTPS settings) run daily in the workspace repository;
+  branch's rules, dependency and secret-scanning alerts, TLS and HTTPS settings, and who made each change in the
+  Cloudflare account's audit log since the last run, with every Worker deploy and setting change made by a service
+  account) run daily in the workspace
+  repository;
   each result, the snapshot it was decided from and its first failure date are kept.
 
 ## What to test, and how

@@ -7,6 +7,91 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- An internal audit that passed a checklist item while a deviation of that item's controls stood is an exception, one
+  per item, with the items' controls read from the imported SOC 2 checklist. The drafted description covers the same
+  period as the assertion. The manifest lists the workspace marker among omitted files, and the README counts only
+  cited files that are missing.
+- Management's own record stating that no independent review exists is a design exception. The assertion is drafted
+  from the day a system created inside the period began operating. The manifest lists each committed file the package
+  leaves out, with why. The drafted description states the declared two-stage review as declared, beside what operated,
+  and summarises the exceptions register instead of pasting it. A cited register key counts as disclosure only in a
+  matter carrying the deviation's date, and claims are traced first to the line naming most of their ids.
+- A report that states findings (a penetration test, a scan) while the vulnerability register records none in the
+  period is an exception.
+- The Open Autonomy import keeps the documents it read at that commit (the architecture decisions, the SOC 2
+  checklist and the internal-audit job's instructions) under `sources/open-autonomy/<commit>/`, and the package carries
+  them, so the firm can read what each checklist item and each weekly audit checks.
+- A day of the period with no check run is an exception, and the Cloudflare change check reads from the last run that
+  happened. That check fails on any production setting a person changed by hand. The change that puts a setting back
+  closes its exception and is named in it. Evidence recorded after the period and before the package travels with it.
+  An assertion may cite the register rows one matter covers by their keys; a signature dated after the commit that
+  holds it is refused.
+- `audit recollect <package>` lets the firm read the change, deployment, Worker deployment, Cloudflare configuration
+  and token populations again with its own read-only tokens, against a scratch copy of the package's workspace, and
+  lists every row only the package has, every row it lacks and every row whose fields differ.
+- The package is not exported without a signed assertion (Signed by, Signature and Date lines). A response recorded
+  again unchanged keeps its first date. The assertion must name every deviation the register holds. Self-approved
+  releases are one design exception listing each release, against release approval (CHG-03). A hand-made setting change
+  is configuration drift (OPS-04), and the change that restores it is its remedy, not another deviation. An access
+  review is judged only on exceptions known by its date.
+- Each exception says whether it is a deviation of design (what stood through the period: a person's live credential,
+  a weakened ruleset, an unused declared trigger, repeated self-approved releases) or of operation, and the drafted
+  assertion groups them so management qualifies "suitably designed" and "operated effectively" separately.
+- `review/claims.csv` tells a corroborated date from a supported fact: a claim whose date, subject and act are found but
+  whose stated time, pull request or release no supporting line carries is `partly supported`, naming what is not.
+- More of what an auditor finds by hand is raised as an exception: a production setting a person changed with no
+  break-glass record that day; an access review that kept an account an earlier exception names; a record under
+  `records/` made by someone who does not hold its seam's scope. Every incident must be named in the assertion, closed
+  or not. Coverage status text counts from the finished register, and an exception the package found is dated by the
+  collection that found it. The drafted description states what operated: approvals by an account other than the
+  author's (not "independently"), deployments dispatched on a deploy-v* tag, releases approved by their own code's
+  author, and changes that reached production outside the change path.
+- The package ships the workspace's Git history (`review/workspace.bundle`), and `audit verify` checks it holds the
+  commit the manifest names. Daily snapshots keep each vendor response's body. Worker deployments record Cloudflare's
+  content hash, and a deployment outside the change path says which approved release ran identical code, or that none
+  did. The control matrix says how strong each control's evidence is (vendor record, client record, client narrative),
+  and coverage marks a criterion resting on client narrative only. The Cloudflare deployments and configuration-change
+  populations answer emergency-change requests.
+- The package is not exported while a request has no response from the client. Every person's Cloudflare token live at
+  the period's end is an exception, not only one its owner deployed with. The control matrix and coverage count
+  exceptions from the finished register. An exception the package found is dated by the package, not by the event. A
+  count of the assertion's matters must match the assertion.
+- `collect cloudflare-tokens` lists every API token the account's audit log records, with its owner, creation,
+  revocation and whether it was live at the period's end; a person's live token whose owner deployed Workers is an
+  exception. A release approved by the author of code it ships is an exception. The assertion must name each exception
+  open at the period's end by what identifies it (a date no longer counts), and say when a system created inside the
+  period began operating.
+- Access changes are a population of their own (`collect access-changes`): every account added, removed or re-roled on
+  GitHub and Cloudflare, from the daily member snapshots, with the audit log's exact time where it has one and each
+  person's register dates beside the system's. One deployment outside the change path that the daily check already
+  failed on is one exception, dated by the check. The assertion must name every exception open at the period's end.
+  The drafted description says who holds each decision and where it is recorded, without internal door names, and
+  lists each system's data by system.
+- A failing daily check no escalation record answers is an exception: the alert reached no one. A claim is evidenced
+  only by a line that records one of the acts it states (a table row by its columns), not just its date and subject.
+  Each change records what it touched (code, pipeline, docs, records) and how many files, in the changes population
+  and `review/change-releases.csv`.
+- A deploy outside the change path is found the day it happens: the daily Cloudflare check reads the last day of the
+  account's audit log and fails on a change by no one it can name or no one on the roster, and on a Worker deployed by
+  a person rather than the pipeline's service account. The package is not exported while an exception has no
+  management response; `audit <dir> <id> exceptions` lists the register and which rows are answered. A Cloudflare token is paired with its revocation by the owner the vendor records on it, and an
+  incident's exception is dated by its record's detection. A response sentence that names nothing of its own is
+  evidenced only by a line naming its exception's subject, and an account the package names is a claim's subject.
+  Twin: volter-ai/twin a064847c.
+- Evidence is labelled by where it came from (vendor record, client record, client narrative) instead of
+  "system-evidenced", and a claim needs a line naming its subject, not just its date. Access changes come from the
+  daily snapshots of GitHub and Cloudflare membership. A recurring internal-audit finding is one exception. Changes
+  record whether a person or an agent account wrote and approved them. The production timeline ends with the changes
+  merged but not deployed by the period's end. A Cloudflare token created without a revocation is an exception.
+  Client documents and registers carry their history; a document dated after its own contents is an exception.
+- A package no longer carries claims its evidence does not support: `review/claims.csv` ties every dated claim in the
+  description, assertion and management responses to the packaged files that record that date, and checks every count
+  against its population; an unsupported or contradicted claim stops the export, as does an open exception the
+  assertion does not name. Incidents are exceptions; a deployment outside the change path closes when an approved one
+  replaces it. `review/identities.csv` lists every identity seen acting with the access review that covered it, and
+  `review/production-timeline.csv` what ran in production and what it shipped. The package carries every in-window
+  record of each applicable control. An import reads the project's ADRs and whether each answers the soc2 checklist;
+  restore tests and internal audits are record populations. Branch-rule checks read only default-branch rulesets.
 - What reached production is reconciled: `collect cloudflare-deployments` matches every Worker deployment to the GitHub
   deployments by commit, and a deploy no approved GitHub deployment accounts for is an exception. `collect
   nonhuman-access` lists deploy keys, secrets, app installations and agents; a recorded credential rotation the secret's

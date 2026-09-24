@@ -20,17 +20,60 @@ subs={'Cloudflare':'hosts and serves Relay (Workers and Durable Objects), termin
  'Open Autonomy platform (model valve and books)':'meters and routes the development agents\' model use and keeps their spending books; it holds no customer data (CSOC: none relied on for customer data). Globex reviews its security overview each year',
  'npm':'serves the dependencies the build installs, pinned by lockfile (CSOC: package integrity). Globex monitors dependency alerts daily'}
 for k,v in subs.items(): s=s.replace(f"- {k}: [the controls the organization expects it to operate, and how the organization monitors them]", f"- {k}: {v}.")
-s=s.replace("- [Add significant changes to the system, its people or its controls.]","- Lee Park joined as an engineer on 2026-08-03.\n- On 2026-08-27, after incident replay-headers, the organization administrators' bypass of the default branch's required review was removed from the ruleset main-protected; from then every change needs an approving review.")
-import os
+s=s.replace("- [Add significant changes to the system, its people or its controls.]","- Lee Park joined as an engineer on 2026-08-03 (GitHub access from 2026-08-05, after the agreements).\n- On 2026-08-27, after incident replay-headers, a tenant-isolation regression test joined the CI test job and the deploy service account's token (deploy@globex.test) was rotated.\n- On 2026-09-10 a break-glass deploy from a laptop reached production outside the change path (see the assertion).\n- On 2026-09-11 the laptop change was deployed through review as deploy-v6.")
+import os,glob,csv as _csv
 here=os.path.dirname(os.path.abspath(__file__))
-dc4=open(here+'/dc4.md').read().strip() if os.path.exists(here+'/dc4.md') else None
+# The laptop deploy's Cloudflare id, as collected: the one deployment no approved GitHub deployment accounts for.
+_w=sorted(glob.glob(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(d)))),'evidence/files/populations/cloudflare-worker-deployments-*.csv')))
+_laptop=next((r['deployment'][:8] for r in _csv.DictReader(open(_w[-1])) if r['matched']!='yes'),'') if _w else ''
+_sub=lambda t: t.replace('{{laptop_deploy}}',_laptop)
+dc4=_sub(open(here+'/dc4.md').read().strip()) if os.path.exists(here+'/dc4.md') else None
 if dc4: s=re.sub(r"\[State which of these deviations are incidents to disclose here.*?\]", dc4, s, flags=re.S)
 open(d,'w').write(s)
 t=open(a).read()
 t=re.sub(r'<!-- Drafted by Evidence Desk.*?-->\n\n', '', t, flags=re.S)
-qual=open(here+'/qualification.md').read().strip() if os.path.exists(here+'/qualification.md') else None
-if qual: t=re.sub(r"\[The workspace found \d+ deviation\(s\).*?\]\n(- .*\n)+", qual+'\n', t, flags=re.S); t=t.replace('and they operated effectively throughout that period.', 'and they operated effectively throughout that period, except for the matters described in the following paragraph.') if qual else t
-t=t.replace('[Name, title]','Maya Chen, Chief Executive Officer').replace('[Signature]','/s/ Maya Chen').replace('[Date]','2026-10-05')
+qual=_sub(open(here+'/qualification.md').read().strip()) if os.path.exists(here+'/qualification.md') else None
+if qual: t=re.sub(r"\[The workspace found \d+ deviation\(s\)[^\]]*\]\n((?:- |Of design:|Of operation:)[^\n]*\n)+", qual+'\n', t); t=t.replace('and they operated effectively throughout that period.', 'and they operated effectively throughout that period, except for the matters described in the following paragraph.') if qual else t
+# Management names each exception still open at the period's end that its matters do not already name, from the
+# register the package will carry, and says when the system began operating if that was inside the period.
+if len(sys.argv)>3 and os.path.exists(sys.argv[3]):
+    import json as _json
+    add=[x for x in _json.load(open(sys.argv[3])) if x['item'] not in t]
+    letters=re.findall(r'^\(([a-z])\) ', t, flags=re.M); n=ord(max(letters))+1 if letters else ord('a')
+    # One matter per event: a row whose date and subject an existing matter already carries is cited there by its key.
+    STOP={'which','their','there','period','change','changed','production','record','records','daily','check','after','before','outside','person','token'}
+    # Only the views of one event are grouped (its checks' readings, an unanswered alert, the hand-made change, the
+    # unmatched deploy); every other deviation is a matter of its own. A view joins the matter that carries its date and
+    # one of its identifiers (an address, a deployment, a check, a setting).
+    VIEW=('check:','unacknowledged:','out-of-path-change:','unmatched-deploy:')
+    def covering(x):
+        if not x['key'].startswith(VIEW): return None
+        words={w for w in re.findall(r'[a-z0-9@._-]{5,}', (x['item']+' '+x['detail']).lower()) if w not in STOP and (re.search(r'\d|@', w) or '_' in w or '-' in w)}
+        for m in re.finditer(r'^\(([a-z])\) .*$', t, flags=re.M):
+            line=m.group(0).lower()
+            if x.get('occurred') and x['occurred'] in line and any(w in line for w in words): return m
+        return None
+    grouped={}
+    for x in add:
+        m=covering(x)
+        if m:
+            grouped.setdefault(m.group(1), []).append(x['key']); continue
+        # A matter goes with the others, before the signature.
+        sig=t.find('\nSigned by:'); sig=len(t) if sig<0 else sig
+        t=t[:sig].rstrip('\n')+f"\n\n({chr(n)}) {x['item']}: {x['detail']}{' (of design: it stood through the period)' if x.get('nature')=='design' else ''}.\n\n"+t[sig:].lstrip('\n'); n+=1
+    # A matter of design qualifies the design statement as well as the operating one.
+    if any(x.get('nature')=='design' for x in _json.load(open(sys.argv[3]))) and 'except for the matters of design' not in t:
+        t=t.replace('to provide reasonable assurance that our', 'to provide reasonable assurance, except for the matters of design described below, that our',1)
+    # Each matter cites every register row it covers: the rows its text names, and the views grouped under it.
+    rows=_json.load(open(sys.argv[3]))
+    def cite(m):
+        keys=[x['key'] for x in rows if x['item'] in m.group(0)]+grouped.get(m.group(1), [])
+        return m.group(0)+(f" (exceptions register: {', '.join(dict.fromkeys(keys))})" if keys and '(exceptions register:' not in m.group(0) else '')
+    t=re.sub(r'^\(([a-z])\) .*$', cite, t, flags=re.M)
+born=re.search(r'Worker (\S+) was created on (\d{4}-\d\d-\d\d) by (\S+)', s)
+if born and born.group(2) not in t:
+    t=t.replace('The matters are:', f"Relay began operating on {born.group(2)}, when {born.group(3)} created the {born.group(1)} Worker; these statements cover it from then.\n\nThe matters are:")
+# The signature waits for the day management signs (finish.sh).
 open(a,'w').write(t)
 left=re.findall(r'\[[^\]]{3,}\](?![(\[])', s+t)
 print('placeholders left:', left)

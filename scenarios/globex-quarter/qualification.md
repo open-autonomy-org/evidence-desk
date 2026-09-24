@@ -1,11 +1,5 @@
 The matters are:
 
-(a) From the start of the period to 2026-08-27, the default branch's ruleset let organization administrators (two of the three staff) always bypass the required review, so the change-approval control was not suitably designed for them. On 2026-08-12 one of them merged a change (PR #4) that way, without an independent approval, and it caused the incident described in DC4. The bypass was removed on 2026-08-27, and every later change has an independent approval.
+(a) On 2026-09-10, Sam deployed the relay Worker from a laptop with a personal Cloudflare token (Cloudflare deployment {{laptop_deploy}}), outside the reviewed change path and without the production environment's approval. The change ran in production from 18:20 UTC on 2026-09-10 until 11:00 UTC on 2026-09-11, when the same change, merged through review, was deployed as deploy-v6. Sam recorded it as a break-glass change the next day, after the approved redeploy. Reducing Sam's personal Cloudflare access to read-only is a Q4 action, not yet done.
 
-(b) The zone's HTTPS-only redirect was off from 2026-08-19 to 2026-08-21.
-
-(c) Three of the five production deployments were started by people who do not hold the production-deploy scope the project declares (Sam holds release-review, and Lee holds neither). The deploy-v* tag trigger and administrator-only tag rule the project declares were never configured: every run was started by hand. The environment approval by someone other than the starter was the only gate, and it passed the unreviewed change in (a).
-
-(d) In the 2026-09-15 access reviews, the reviewer decided on their own access.
-
-(e) Two register decisions made before the period were recorded by an account other than their owner's: risk R-3's treatment and the npm vendor review.
+(b) The zone's HTTPS-only setting (cloudflare-https) was off from 2026-08-19 to 2026-08-21, a configuration change Sam made while testing, outside the change path. The daily check found it on 2026-08-19; Maya acknowledged the alert on 2026-08-20 and chose to leave the setting off until the redirect loop was fixed, so it stayed off for a further 25.5 hours, until she turned it back on on 2026-08-21. That broke our published commitment that the service is HTTPS only.

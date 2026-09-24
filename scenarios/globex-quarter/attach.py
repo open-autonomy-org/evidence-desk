@@ -13,19 +13,25 @@ stem = lambda t: (lambda e: any(t in f['path'] and f['path'].endswith('.csv') fo
 # The first of a request's controls that has a population decides which one it is.
 by_control = [('CHG-04', seam('break-glass seam')), ('CHG-03', stem('/github-deployments-')), ('CHG-01', stem('/github-changes-')),
               ('OPS-03', seam('incidents seam')), ('AC-05', seam('credentials seam')), ('OPS-01', seam('escalations seam')),
-              ('GOV-06', seam('escalations seam')), ('HR-03', seam('team roster')), ('AC-02', seam('team roster')), ('HR-04', seam('team roster'))]
+              ('GOV-06', seam('escalations seam')), ('HR-03', stem('/access-changes-')), ('AC-02', stem('/access-changes-')), ('HR-04', stem('/access-changes-'))]
+# The populations that reconcile a request's main one, attached beside it: what Cloudflare ran against the GitHub
+# deployments, the configuration changes that reached production another way, and the tokens behind the rotations.
+related = {'CHG-03': ['/cloudflare-worker-deployments-'], 'CHG-04': ['/cloudflare-worker-deployments-', '/cloudflare-changes-'], 'AC-05': ['/cloudflare-tokens-']}
 for r in csv.DictReader(open(requests)):
     controls = r['controls'].split(';')
     if r['kind'] == 'population':
         pick = next((p for c in controls for k, p in by_control if k == c), None)
         found = latest(pick) if pick else None
-        print(r['id'], 'population' if found else 'none', found or '')
+        extra = [x for c in controls for s in related.get(c, []) for x in [latest(stem(s))] if x]
+        print(r['id'], 'population' if found else 'none', found or '', ','.join(dict.fromkeys(extra)))
         continue
     ids = []
     for c in controls:
         # Change populations (who changed the rules or the configuration) answer a document request about that
         # configuration; the transaction populations answer population requests.
-        is_config = lambda e: e['title'].startswith('Population:') and ('rulesets' in e['title'] or 'configuration changes' in e['title'])
+        # So do the records the organization keeps under records/ (restore tests, internal audits) for a request about
+        # that control.
+        is_config = lambda e: e['title'].startswith('Population:') and ('rulesets' in e['title'] or 'configuration changes' in e['title'] or e.get('source', {}).get('name', '').endswith(' seam'))
         cand = sorted([e for e in ev if c in e['controls'] and (not e['title'].startswith('Population:') or is_config(e))], key=lambda e: e['collected_at'])
         daily = [e for e in cand if e.get('source', {}).get('kind') == 'collector' and 'collected by run' in e['title']]
         for e in [e for e in cand if e not in daily] + daily[-1:]:

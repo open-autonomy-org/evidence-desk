@@ -14,7 +14,9 @@ declare const Bun: { YAML: { parse(text: string): unknown } };
 
 export type Seam = { id: string; scope: string; door: string; record: string };
 export type Snapshot = {
-  schema: string; repository: string; repository_path?: string; remote_url?: string; remote_branches?: string[]; commit: string; read_at: string; account: string; kit: { skew: string; version: string } | null;
+  schema: string; repository: string; repository_path?: string; remote_url?: string; remote_branches?: string[];
+  // The project's architecture decision records, and whether each answers the soc2 template's checklist.
+  decisions?: { file: string; title: string; status: string; checklist: 'complete' | 'incomplete' | 'none' }[]; commit: string; read_at: string; account: string; kit: { skew: string; version: string } | null;
   team: { id: string; name: string; github?: string; discord?: string; scopes: string[] }[];
   agents: { profile: string; models: { name: string; provider: string; model: string; credential?: string }[]; jobs: { name: string; schedule: string; skills: string[] }[] }[];
   seams: Seam[] | null; vendor_accounts: { id: string; vendor: string; account: string }[];
@@ -84,8 +86,14 @@ export function readProject(repo: string, commitish = 'HEAD'): Snapshot {
   let remote = '';
   try { remote = git(repo, 'remote', 'get-url', 'origin').trim(); } catch { /* a checkout with no origin */ }
   const remoteBranches = remote ? git(repo, 'branch', '-r', '--contains', commit, '--format=%(refname:short)').split('\n').map((x) => x.trim()).filter((x) => x.startsWith('origin/') && x !== 'origin/HEAD') : [];
+  const decisions = git(repo, 'ls-tree', '--name-only', commit, 'docs/decisions/').split('\n').filter((f) => /\/\d{4}-[^/]*\.md$/.test(f)).map((f) => {
+    const text = show(repo, commit, f) ?? '';
+    const section = /^## SOC 2 checklist\s*$([\s\S]*?)(?=^## |(?![\s\S]))/m.exec(text)?.[1];
+    const answered = section ? Array.from({ length: 10 }, (_, i) => `C${i + 1}`).every((c) => new RegExp(`^\\s*[-*]?\\s*${c}\\b[^:\\n]*:\\s*\\S`, 'm').test(section)) : false;
+    return { file: f, title: /^#\s+(.*)$/m.exec(text)?.[1] ?? f, status: /^Status:\s*(.*)$/m.exec(text)?.[1]?.trim() ?? '', checklist: (!section ? 'none' : answered ? 'complete' : 'incomplete') as 'complete' | 'incomplete' | 'none' };
+  });
   const snap: Snapshot = {
-    schema: 'evidence-desk.open-autonomy/1', repository: String(config.account ?? repo), repository_path: repo, remote_url: remote.replace(/\/\/[^/@]*@/, '//'), remote_branches: remoteBranches, commit, read_at: now(), account: String(config.account ?? ''),
+    schema: 'evidence-desk.open-autonomy/1', ...(decisions.length ? { decisions } : {}), repository: String(config.account ?? repo), repository_path: repo, remote_url: remote.replace(/\/\/[^/@]*@/, '//'), remote_branches: remoteBranches, commit, read_at: now(), account: String(config.account ?? ''),
     kit: kit ? (({ skew, version }) => ({ skew, version }))(JSON.parse(kit)) : null,
     team, agents, seams: seamsDoc?.seams ?? null, vendor_accounts: seamsDoc?.vendor_accounts ?? [],
     rules: { pr_landing: workflows.some((w) => /land\.ya?ml$/.test(w)), production_deploy: production, production_workflows: gated },
@@ -149,6 +157,10 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
 
   const snapText = pretty(snap);
   if (!readVersioned(root, report.snapshot)) writeVersioned(root, report.snapshot, snapText, null);
+  // The documents that define what the project must keep true and what its internal audit checks, as they stood at the
+  // commit read: the architecture decisions, the SOC 2 checklist, and the internal-audit job's instructions.
+  const docs = git(repo, 'ls-tree', '-r', '--name-only', snap.commit, 'docs/decisions/', 'hermes/skills/open-autonomy/internal-audit/').split('\n').filter((f) => f.endsWith('.md'));
+  for (const f of docs) { const rel = `sources/open-autonomy/${snap.commit.slice(0, 12)}/${f}`; if (!readVersioned(root, rel)) writeVersioned(root, rel, git(repo, 'show', `${snap.commit}:${f}`) + '\n', null); }
   writeVersioned(root, latestRel, snapText, prevText?.version ?? null);
 
   const source = `Open Autonomy ${snap.account} at ${snap.commit.slice(0, 12)}`;
@@ -253,11 +265,19 @@ export const RECORD_KINDS: Record<string, { date: string; columns: string[]; con
   credentials: { date: 'at', columns: ['id', 'at', 'by', 'custody_name', 'action', 'reason'], controls: ['AC-05'], finding: () => null },
   escalations: { date: 'received_at', columns: ['id', 'received_at', 'responded_at', 'channel', 'summary'], controls: ['OPS-01', 'GOV-07'],
     finding: (r) => r.responded_at ? null : `escalation ${r.id} has no recorded response` },
+  'restore-tests': { date: 'at', columns: ['id', 'at', 'by', 'store', 'backup_taken_at', 'restored_to', 'result', 'duration_minutes', 'notes'], controls: ['OPS-05', 'OPS-07'],
+    finding: (r) => r.result === 'passed' ? null : `restore test ${r.id} of ${r.store} did not pass (${r.result ?? 'no result'})` },
+  // The internal audit's own runs (the soc2 template's internal-audit job): not a person's seam, but recorded the same way.
+  'internal-audits': { date: 'at', columns: ['id', 'at', 'commit', 'items', 'findings'], controls: ['MON-04', 'MON-01'],
+    finding: (r) => Array.isArray(r.findings) && r.findings.length ? `internal audit ${r.id} found: ${(r.findings as string[]).join('; ')}` : null },
 };
+// Folders the template records that are no person's seam: read whenever the project has them.
+const PROGRAM_RECORDS = ['internal-audits'];
 export type SeamRecordsReport = { commit: string; populations: { seam: string; folder: string; file: string; evidence: string | null; rows: number; findings: string[] }[] };
 export function collectSeamRecords(root: string, input: { repo: string; start: string; end: string; by: string; commit?: string }): SeamRecordsReport {
   const snap = readProject(input.repo, input.commit ?? 'HEAD');
-  const seams = (snap.seams ?? []).filter((s) => s.door === 'commit' && /^records\/[a-z0-9-]+\/?$/.test(s.record) && RECORD_KINDS[s.id]);
+  const seams = [...(snap.seams ?? []).filter((s) => s.door === 'commit' && /^records\/[a-z0-9-]+\/?$/.test(s.record) && RECORD_KINDS[s.id]),
+    ...PROGRAM_RECORDS.filter((id) => git(input.repo, 'ls-tree', '--name-only', snap.commit, '--', `records/${id}/`).trim()).map((id) => ({ id, scope: 'the internal-audit job', door: 'commit' as const, record: `records/${id}/` }))];
   if (!seams.length) throw new Error(`${snap.account} at ${snap.commit.slice(0, 12)} declares no commit seam recorded under records/ (the soc2 template's incidents, break-glass, credentials, escalations)`);
   const applicable = new Set(loadWorkspace(root).controls.filter((x) => x.data.applicable).map((x) => x.data.id));
   const csv = (v: unknown) => { const t = v === undefined || v === null ? '' : typeof v === 'string' ? v : JSON.stringify(v); return /[",\n]/.test(t) ? `"${t.replaceAll('"', '""')}"` : t; };
