@@ -164,7 +164,8 @@ only when targeted.
 
 - `evidence-desk.json`: `frameworks` must contain `soc2` and at least one entry. Existing workspaces (`['soc2']`,
   `['soc2', 'iso27001']`) read unchanged. `frameworks … enable` becomes `target`; the old verb is removed, and
-  `README.md` and `docs/workspace-format.md` change with it.
+  `README.md` and `docs/workspace-format.md` change with it. A hand-edited list without `soc2` (`[]`, or `["iso27001"]`), which validated before, now fails
+  validation naming this rule; add `soc2` back to the list.
 - `framework-settings`: `framework` accepts any catalog id; `positions` is added.
 - `certification`: an optional `target`.
 - `framework(id)` reads any catalog; `server.ts`, the served app and `trust.ts` iterate the targets instead of naming
