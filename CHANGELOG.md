@@ -7,6 +7,9 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- A project with several workflows gated on its production environment (release, deploy, administration) is read
+  whole: the deploy-v* one is the production deploy, every one's egress names vendors, and the system description names
+  them all. Found reading Open Autonomy's own repository, where only the last such workflow had been kept.
 - Questionnaires import from Excel (.xlsx) workbooks as well as CSV (the first worksheet, read with no dependency).
   Unsaved edits on a page survive another form on it being saved. Sync-service conflict copies beside a record are
   validation errors naming the record. A new workspace's `AGENTS.md` names the command and holds an agent to leaving a
