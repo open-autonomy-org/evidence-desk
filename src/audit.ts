@@ -181,7 +181,7 @@ function projectIncidents(ws: Workspace, e: Engagement): string {
 // The deviations the workspace already knows about in the engagement's period, as the package's exceptions register
 // would list them: a draft names them so management decides what to disclose rather than asserting past them.
 function knownExceptions(ws: Workspace, e: Engagement) {
-  const everything = new Set([...ws.evidence.map((x) => x.path), ...listUnder(ws.root, 'sources/open-autonomy/completeness'), ...(existsSync(join(ws.root, 'sources/github/attribution.json')) ? ['sources/github/attribution.json'] : [])]);
+  const everything = new Set([...ws.evidence.flatMap((x) => [x.path, ...x.data.files.map((f) => f.path)]), ...listUnder(ws.root, 'sources/open-autonomy/completeness'), ...(existsSync(join(ws.root, 'sources/github/attribution.json')) ? ['sources/github/attribution.json'] : [])]);
   const csv = buildViews(ws.root, ws, e, [], everything, now()).get('review/exceptions.csv')!;
   return parseCsv(csv, 'exceptions').rows.filter((x) => !x.key.startsWith('interim:'));
 }
