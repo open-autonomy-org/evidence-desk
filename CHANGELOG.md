@@ -7,6 +7,12 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Added `collect onboarding-attribution`: in a workspace kept as a GitHub repository, every commit on the default
+  branch that touched a form response must come from a pull request merged into that branch and opened by the member's
+  GitHub account on the Open Autonomy roster, and the file must be as merged. A roster member's latest response that
+  fails this is a gap finding. Verified in the World against the GitHub twin, whose personal tokens now own their writes
+  and whose commit-to-pull-request lookup follows GitHub's default-branch rule
+  ([volter-ai/twin d88ec450](https://github.com/volter-ai/twin/commit/d88ec450)).
 - Added `collect seam-records`: each commit seam an Open Autonomy project records under `records/` (the `soc2`
   template's incidents, break-glass changes, credential lifecycle and escalations) becomes a period population with
   the commit and author that added each record, as evidence for its controls. A closed incident without a review, a

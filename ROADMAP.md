@@ -136,12 +136,16 @@ records) to the empty risk register once the roster held its scopes and the reco
 without a review and an unanswered escalation showed as findings until recorded. What remains per control is people's
 acts: control and policy owners, policy approval, onboarding, the risk assessment, and the outside firms.
 
-Outstanding: onboarding completions are recorded by the person's workspace identity, not yet authored by their verified
-GitHub account; recurring human reviews are not yet scheduled from the project; the demonstration has no production
+Landed since: every change to an onboarding response must be merged from a pull request its member opened into the
+workspace repository's default branch; demonstrated against the GitHub twin with a verified response and responses
+pushed without a pull request, changed by someone else, never merged, and edited after merging.
+
+Outstanding: recurring human reviews are not yet scheduled from the project; the demonstration has no production
 workflow (a template project gains it at `setup --with production`), so deployment populations were not exercised on
-it. The GitHub twin does not yet identify who authored a pull request or review, so approval independence reads as
-unknown against it, and it does not create `main` on `auto_init`; the published twin package (0.1.2) still serves a
-review's verb as its state.
+it. The GitHub twin identifies who opened a pull request or submitted a review only for callers holding a personal
+token it minted (twin main d88ec450), so approval independence still reads as unknown for seeds using the World's shared
+token; it does not create `main` on `auto_init`; the published twin package (0.1.2) predates both fixes and still
+serves a review's verb as its state.
 
 Completion:
 - One command turns an Open Autonomy project into a workspace at a named commit: `agent.json` profiles, jobs and models, the `team` roster with scopes, the declared seams, the landing and production rules, and the vendors named by its dependencies and deploy egress; each fact carries that commit as provenance and maps to the controls and criteria it evidences. A later change surfaces as a changed design fact, never a silent overwrite.

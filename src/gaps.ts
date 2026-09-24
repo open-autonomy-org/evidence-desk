@@ -46,6 +46,24 @@ export function computeGaps(ws: Workspace, asOf = new Date()): Gaps {
       if (!last) program.push(`Open Autonomy: the administrators of ${acct.vendor} ${acct.account} have not been compared with the roster`);
       else for (const o of last.outside) program.push(`Open Autonomy: ${o} administers ${acct.vendor} ${acct.account} but is not on the roster`);
     }
+    // Each roster member's latest passed response per form must have been recorded by their own GitHub account.
+    const attributed = readVersioned(ws.root, 'sources/github/onboarding-attribution.json');
+    const record = attributed ? JSON.parse(attributed.text) as { roster_commit: string; rows: { response: string; sha256: string; status: string; author: string }[] } : null;
+    const rows = record?.rows ?? null;
+    if (record && record.roster_commit !== snap.commit) program.push(`Open Autonomy: onboarding was checked against the roster at ${record.roster_commit.slice(0, 12)}, not ${snap.commit.slice(0, 12)} (collect onboarding-attribution)`);
+    const titles = new Map(ws.forms.map((f) => [f.data.id, f.data.title]));
+    const latestBy = new Map<string, { id: string; person: string; form: string }>();
+    for (const r of ws.responses) if (r.data.passed && snap.team.some((m) => m.id === r.data.person)) {
+      const key = `${r.data.person} ${r.data.form}`;
+      const cur = latestBy.get(key);
+      if (!cur || ws.responses.find((x) => x.data.id === cur.id)!.data.submitted_at < r.data.submitted_at) latestBy.set(key, { id: r.data.id, person: r.data.person, form: r.data.form });
+    }
+    if (latestBy.size && !rows) program.push('Open Autonomy: onboarding responses have not been checked against the members\' GitHub accounts (collect onboarding-attribution)');
+    else for (const r of latestBy.values()) {
+      const row = rows!.find((x) => x.response === r.id && x.sha256 === ws.responses.find((y) => y.data.id === r.id)!.version);
+      if (!row) program.push(`Open Autonomy: ${r.person}'s ${titles.get(r.form) ?? r.form} (${r.id}) has not been checked against their GitHub account`);
+      else if (row.status !== 'verified') program.push(`Open Autonomy: ${r.person}'s ${titles.get(r.form) ?? r.form} (${r.id}) is not recorded by their own GitHub account: ${row.status}${row.author ? ` (${row.author})` : ''}`);
+    }
     for (const seam of (snap.seams ?? []).filter((x) => x.door === 'commit' && x.record.startsWith('records/') && RECORD_KINDS[x.id])) {
       const got = readVersioned(ws.root, `sources/open-autonomy/seam-records/${seam.id}.json`);
       if (!got) { program.push(`Open Autonomy: the ${seam.id} records in ${seam.record} have not been collected (collect seam-records)`); continue; }

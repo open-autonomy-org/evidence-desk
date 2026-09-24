@@ -27,6 +27,7 @@ allowed everywhere and kept when Evidence Desk writes a file, so other tools can
 | `sources/open-autonomy/<commit>.json`, `latest.json` | what an Open Autonomy project declared at a commit | `open-autonomy` |
 | `sources/open-autonomy/completeness/<id>.json` | one vendor account's administrators compared with the roster | `completeness` |
 | `sources/open-autonomy/seam-records/<seam>.json` | the latest collection of one commit seam's records, with its findings | none |
+| `sources/github/onboarding-attribution.json` | the latest check of who recorded each form response | none |
 | `collectors.json` | which collectors are enabled and their parameters (never credentials) | `collectors` |
 | `checks/runs/<id>.json` | one run of the enabled collectors and every check result | `check-run` |
 | `evidence/files/collected/<collector>/<run>.json` | what a collector read in a run, with the requests it made | JSON |
@@ -120,6 +121,15 @@ escalations) falls in the period, with the commit that added it and its
 author, recorded as evidence for the kind's controls. A closed incident without a review, a break-glass change without
 a later review and an escalation without a response are findings in the gap view until a later collection no longer
 finds them; a declared seam never collected is a finding too.
+
+Onboarding at a seam: the workspace is kept in a private GitHub repository the roster members can open pull requests
+to, and each member records their own responses (`respond`, or the People page of their own `serve`) in a pull request
+they open. `collect onboarding-attribution` reads, on the default branch, every commit that touched each response file
+(`git log --no-renames origin/<default>`), and requires GitHub to associate each with a pull request merged into the
+default branch and opened by the member's GitHub account on the roster, and the file to be unchanged since. A shallow
+clone is refused. A roster member's latest passed response to a form that fails any of these, or changed after the
+check, is a finding in the gap view, as is a check made against an earlier roster. A collaborator who pushes a commit to
+a member's open pull request branch is not told apart from the member.
 
 `evidence-desk collect` writes populations under `evidence/files/populations/` with the requests that produced them:
 merged pull requests with their approvals and whether an approval came from someone other than the author (`unknown`
