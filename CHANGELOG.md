@@ -7,6 +7,10 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- The organization may say it was audited or certified only with the document: `certifications add` holds an
+  auditor's report or a certifying body's certificate (or a self-attestation, shown as one) with its hash, and the
+  trust center claims only what those records hold, intact and unexpired. Without one it shows readiness: evidence
+  for how many applicable controls, criteria ready, and an audit under way only where an engagement records one.
 - An internal audit that passed a checklist item while a deviation of that item's controls stood is an exception, one
   per item, with the items' controls read from the imported SOC 2 checklist. The drafted description covers the same
   period as the assertion. The manifest lists the workspace marker among omitted files, and the README counts only

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/certification.schema.json",
+  "title": "Certification (certifications/<id>.json): an attested document the organization holds",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "framework",
+    "kind",
+    "issuer",
+    "issued_on",
+    "file",
+    "sha256",
+    "recorded_by",
+    "recorded_at"
+  ],
+  "properties": {
+    "schema": {
+      "const": "evidence-desk.certification/1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "framework": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What it attests to, as the document names it: SOC 2 Type 2, ISO/IEC 27001:2022, ISO/IEC 42001, AIUC-1"
+    },
+    "kind": {
+      "enum": [
+        "audit report",
+        "certificate",
+        "self-attestation"
+      ],
+      "description": "An audit report or certificate is issued by an independent auditor or certifying body; a self-attestation is the organization's own"
+    },
+    "issuer": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The audit firm or certifying body, or the organization itself for a self-attestation"
+    },
+    "issued_on": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "period": {
+      "type": "object",
+      "required": [
+        "start",
+        "end"
+      ],
+      "properties": {
+        "start": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "end": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        }
+      }
+    },
+    "valid_until": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "recorded_by": {
+      "type": "string",
+      "minLength": 1
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

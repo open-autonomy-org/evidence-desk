@@ -11,6 +11,8 @@ import { parseCsv, writeCsv } from './csv.ts';
 import { fileHash, readVersioned, writeVersioned } from './files.ts';
 import { categories, categoryAnswer } from './catalog.ts';
 import { loadWorkspace, type Workspace } from './workspace.ts';
+import { certifications, claimOf } from './certifications.ts';
+import { computeGaps } from './gaps.ts';
 import { clockDate, now } from './clock.ts';
 
 type Source = { path: string; sha256: string };
@@ -47,12 +49,18 @@ export function buildTrustCenter(root: string, out: string): { published: string
     published.push('categories in scope');
   }
   if (cfg.publish.report) {
+    // A claim of being audited or certified rests on a document an independent auditor or certifying body issued, held
+    // in certifications/ with its hash; a self-attestation says it is one. Without such a document the page shows
+    // readiness: how far the program is, and an audit under way only where an engagement records one.
+    const held = certifications(root).filter((c) => c.current);
     const dir = join(root, 'audits');
-    const engagements = (existsSync(dir) ? readdirSync(dir) : []).filter((d) => existsSync(join(dir, d, 'engagement.json'))).map((d) => JSON.parse(readFileSync(join(dir, d, 'engagement.json'), 'utf8')))
-      .filter((e) => e.status === 'closed').sort((x, y) => String(x.period?.end ?? x.as_of).localeCompare(String(y.period?.end ?? y.as_of)));
-    const last = engagements.at(-1);
-    sections.push(`<section><h2>Audit report</h2><p>${last ? esc(`Our SOC 2 ${last.type === 'type1' ? 'Type 1 report as of ' + last.as_of : 'Type 2 report for ' + last.period.start + ' to ' + last.period.end}, issued by ${last.firm}, is available on request under a confidentiality agreement.`) : 'Our SOC 2 audit is in progress.'}</p></section>`);
-    published.push('audit report availability');
+    const open = (existsSync(dir) ? readdirSync(dir) : []).filter((d) => existsSync(join(dir, d, 'engagement.json'))).map((d) => JSON.parse(readFileSync(join(dir, d, 'engagement.json'), 'utf8')))
+      .filter((e) => e.status !== 'closed');
+    const g = computeGaps(ws);
+    const readiness = `Readiness: evidence for ${g.summary.controls_ready} of ${g.summary.controls_applicable} applicable controls; ${g.summary.criteria_ready} of ${g.summary.criteria_in_scope} criteria in scope ready.`;
+    const underway = open.map((e) => `An audit by ${e.firm} ${e.type === 'type1' ? `as of ${e.as_of}` : `covering ${e.period?.start} to ${e.period?.end}`} is under way.`);
+    sections.push(`<section><h2>Audits and certifications</h2>${held.length ? `<ul>${held.map((c) => `<li>${esc(claimOf(c))}</li>`).join('')}</ul>` : ''}<p>${esc([...(held.some((c) => c.kind !== 'self-attestation') ? [] : ['No audit report or certificate is held yet.']), ...underway, readiness].join(' '))}</p></section>`);
+    published.push('audits, certifications and readiness');
   }
   const pol = (cfg.publish.policies ?? []) as string[];
   if (pol.length) {
