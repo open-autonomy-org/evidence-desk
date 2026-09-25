@@ -7,7 +7,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseCsv } from './csv.ts';
 import { now } from './clock.ts';
@@ -43,8 +43,9 @@ export function ensureRepo(root: string): void {
     // exclusions go in the new repository's own exclude file (the folder cannot redirect it), and any such file staged
     // anyway (a negated rule) is taken out again before the commit. A folder's existing .gitignore is left as it is.
     writeFileSync(join(root, '.git', 'info', 'exclude'), IGNORE);
-    const fresh = !existsSync(join(root, '.gitignore'));
-    if (fresh) writeFileSync(join(root, '.gitignore'), IGNORE);
+    // Written only where nothing of that name exists, not even a link to a missing file, and never through one.
+    const fresh = (() => { try { lstatSync(join(root, '.gitignore')); return false; } catch { return true; } })();
+    if (fresh) writeFileSync(join(root, '.gitignore'), IGNORE, { flag: 'wx' });
     if (readdirSync(root).some((f) => f !== '.git' && f !== '.gitignore')) {
       git(root, 'add', '-A');
       git(root, 'rm', '-q', '--cached', '--ignore-unmatch', '--', ':(glob)**/.env', ':(glob)**/.env.*');
