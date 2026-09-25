@@ -99,7 +99,7 @@ export function computeGaps(ws: Workspace, asOf = clockDate()): Gaps {
     const parsed = readAct(a.file, readVersioned(ws.root, a.file)?.text);
     const value = actDigest(parsed === UNREADABLE ? null : a.extract(parsed));
     const row = record!.rows.find((x) => x.key === a.key && x.value_sha256 === value);
-    if (!row) program.push(`Open Autonomy: ${a.person || '(no one)'}'s ${a.label} has not been checked against their GitHub account`);
+    if (!row) program.push(`Open Autonomy: ${a.person || '(no one)'}'s ${a.label} has not been checked against their GitHub account (collect attribution)`);
     else if (row.status !== 'verified') program.push(`Open Autonomy: ${row.person || '(no one)'}'s ${a.label} is not signed by their own GitHub account: ${row.status}${row.author ? ` (${row.author})` : ''}`);
     // A check made before opening a pull request stopped counting as a signature recorded "verified" for it: only an
     // approval of the commit merged signs.

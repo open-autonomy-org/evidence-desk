@@ -135,7 +135,10 @@ finds them; a declared seam never collected is a finding too.
 Signed acts at a seam: the workspace is kept in a private GitHub repository the roster members can review, and each
 person signs the acts the workspace names them in (a form response, an access review's sign-off, a policy's latest
 approval, the update that closed an incident, a risk's treatment decided by its owner, a vendor's review recorded by
-its owner, a self-attestation) by approving the pull request that records them. Where the repository carries the
+its owner, a self-attestation) by approving the pull request that records them. A risk's signature covers its treatment with the
+title, description and controls it was decided on; rewriting those after signing asks for the signature again, while a
+re-score, a new owner or its next review date does not. A vendor review's covers its date and recorded assurance: a new
+review date is a new review. Where the repository carries the
 signing workflow (`.github/workflows/evidence-desk-signatures.yml`, written by `signing-template`) and the default branch
 is checked out, such a change is pushed as a branch `sign/<the signer's GitHub login>/…` whose head commit's message is
 the packet (for a policy, its whole text and what signing it commits the organization to); the workflow opens the pull

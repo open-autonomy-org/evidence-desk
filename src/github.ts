@@ -311,13 +311,15 @@ export function signedActs(root: string): Act[] {
   const closer = (x: any) => (x?.timeline ?? []).find((t: any) => t.at === x?.closed_at) ?? (x?.timeline ?? []).at(-1) ?? null;
   for (const i of ws.incidents) if (i.data.status === 'closed') acts.push({ key: `incident-closure:${i.data.id}`, kind: 'incident-closure', file: `incidents/${i.data.id}.json`, person: closer(i.data)?.by ?? '', label: `closing review of incident ${i.data.id}`,
     extract: (x) => x?.status === 'closed' ? { status: x.status, review: x.review, closed_at: x.closed_at, closed_by: closer(x) } : null });
-  // Register rows a person decides: a risk's treatment and a vendor's review. The act is the decision alone (a re-score
-  // or a new owner is not a new decision), and the person who made it is the row's owner as the row stood when the
-  // decision was made, so reassigning the row later neither takes the decision over nor asks the new owner to remake it.
+  // Register rows a person decides: a risk's treatment and a vendor's review. The act is the decision and what it was
+  // made about: a risk's title, description (its account and the treatment's reasons) and controls, a vendor review's
+  // recorded assurance and date. Rewriting any of those after signing is a new decision (a vendor's new review date is a
+  // new review); a risk's re-score, new owner or next review date is not. The person who made it is the row's owner as the row stood when the decision was made, so reassigning
+  // the row later neither takes the decision over nor asks the new owner to remake it.
   for (const r of ws.registers.risks?.data.rows ?? []) if (r.treatment && r.treatment !== 'undecided') acts.push({ key: `risk-decision:${r.id}`, kind: 'risk-decision', file: 'registers/risks.csv', person: r.owner ?? '', label: `treatment of risk ${r.id} (${r.title})`,
-    extract: (rows) => { const x = rowOf(rows, r.id); return x && x.treatment && x.treatment !== 'undecided' ? { risk: r.id, treatment: x.treatment } : null; }, personAt: (rows) => rowOf(rows, r.id)?.owner ?? '' });
+    extract: (rows) => { const x = rowOf(rows, r.id); return x && x.treatment && x.treatment !== 'undecided' ? { risk: r.id, treatment: x.treatment, title: x.title ?? '', description: x.description ?? '', controls: x.controls ?? '' } : null; }, personAt: (rows) => rowOf(rows, r.id)?.owner ?? '' });
   for (const v of ws.registers.vendors?.data.rows ?? []) if (v.last_review) acts.push({ key: `vendor-review:${v.id}`, kind: 'vendor-review', file: 'registers/vendors.csv', person: v.owner ?? '', label: `review of vendor ${v.id} on ${v.last_review}`,
-    extract: (rows) => { const x = rowOf(rows, v.id); return x?.last_review ? { vendor: v.id, last_review: x.last_review } : null; }, personAt: (rows) => rowOf(rows, v.id)?.owner ?? '' });
+    extract: (rows) => { const x = rowOf(rows, v.id); return x?.last_review ? { vendor: v.id, last_review: x.last_review, assurance: x.assurance ?? '' } : null; }, personAt: (rows) => rowOf(rows, v.id)?.owner ?? '' });
   // A self-attestation Evidence Desk rendered (it names its target): the act of the person it records as signing, bound to
   // the document by its hash.
   for (const c of certifications(root)) if (c.kind === 'self-attestation' && c.target && frameworkDescriptions.find((f) => f.id === c.target)?.outcome === 'self-attestation') acts.push({ key: `attestation:${c.id}`, kind: 'attestation', file: `certifications/${c.id}.json`, person: c.recorded_by,
@@ -430,7 +432,7 @@ export async function collectAttribution(root: string, input: { repo: string; by
   }
   const rel = 'sources/github/attribution.json';
   const record = { schema: 'evidence-desk.attribution/1', repo: input.repo, branch, workspace_path: prefix, checked_at: now(), roster_commit: snap.commit, roster_source: rosterSource,
-    hashing: 'value_sha256 is the SHA-256 of JSON.stringify of the act as extracted from its file: a form response is the whole parsed file; an access review {status, signed_off_at, accounts}; a policy approval its version entry; an incident closure {status, review, closed_at, closed_by}; a risk decision {risk, treatment}; a vendor review {vendor, last_review}; an attestation {target, issued_on, recorded_by, sha256}',
+    hashing: 'value_sha256 is the SHA-256 of JSON.stringify of the act as extracted from its file: a form response is the whole parsed file; an access review {status, signed_off_at, accounts}; a policy approval its version entry; an incident closure {status, review, closed_at, closed_by}; a risk decision {risk, treatment, title, description, controls}; a vendor review {vendor, last_review, assurance}; an attestation {target, issued_on, recorded_by, sha256}',
     rows };
   writeVersioned(root, rel, JSON.stringify(record, null, 2) + '\n', readVersioned(root, rel)?.version ?? null);
   // The check's rows are kept as a file for the audit, not recorded as evidence of the acts' controls: evidence dates
