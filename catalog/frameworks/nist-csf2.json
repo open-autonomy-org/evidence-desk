@@ -23,9 +23,7 @@
    "id": "GV.OC-02",
    "group": "Govern: Organizational context",
    "title": "Internal and external stakeholders are understood, and their needs and expectations regarding cybersecurity risk management are understood and considered",
-   "controls": [
-    "GOV-07"
-   ]
+   "controls": []
   },
   {
    "id": "GV.OC-03",
@@ -38,7 +36,8 @@
    "group": "Govern: Organizational context",
    "title": "Critical objectives, capabilities, and services that external stakeholders depend on or expect from the organization are understood and communicated",
    "controls": [
-    "GOV-08"
+    "GOV-08",
+    "GOV-07"
    ]
   },
   {
@@ -53,17 +52,13 @@
    "id": "GV.RM-01",
    "group": "Govern: Risk management strategy",
    "title": "Risk management objectives are established and agreed to by organizational stakeholders",
-   "controls": [
-    "RISK-01"
-   ]
+   "controls": []
   },
   {
    "id": "GV.RM-02",
    "group": "Govern: Risk management strategy",
    "title": "Risk appetite and risk tolerance statements are established, communicated, and maintained",
-   "controls": [
-    "RISK-01"
-   ]
+   "controls": []
   },
   {
    "id": "GV.RM-03",
@@ -75,17 +70,13 @@
    "id": "GV.RM-04",
    "group": "Govern: Risk management strategy",
    "title": "Strategic direction that describes appropriate risk response options is established and communicated",
-   "controls": [
-    "RISK-02"
-   ]
+   "controls": []
   },
   {
    "id": "GV.RM-05",
    "group": "Govern: Risk management strategy",
    "title": "Lines of communication across the organization are established for cybersecurity risks, including risks from suppliers and other third parties",
-   "controls": [
-    "GOV-06"
-   ]
+   "controls": []
   },
   {
    "id": "GV.RM-06",
@@ -107,7 +98,8 @@
    "title": "Organizational leadership is responsible and accountable for cybersecurity risk and fosters a culture that is risk-aware, ethical, and continually improving",
    "controls": [
     "GOV-03",
-    "GOV-01"
+    "GOV-01",
+    "GOV-02"
    ]
   },
   {
@@ -123,9 +115,7 @@
    "id": "GV.RR-03",
    "group": "Govern: Roles, responsibilities and authorities",
    "title": "Adequate resources are allocated commensurate with the cybersecurity risk strategy, roles, responsibilities, and policies",
-   "controls": [
-    "GOV-03"
-   ]
+   "controls": []
   },
   {
    "id": "GV.RR-04",
@@ -143,7 +133,8 @@
    "group": "Govern: Policy",
    "title": "Policy for managing cybersecurity risks is established based on organizational context, cybersecurity strategy, and priorities and is communicated and enforced",
    "controls": [
-    "GOV-04"
+    "GOV-04",
+    "GOV-05"
    ]
   },
   {
@@ -194,7 +185,8 @@
    "group": "Govern: Supply chain risk management",
    "title": "Cybersecurity roles and responsibilities for suppliers, customers, and partners are established, communicated, and coordinated internally and externally",
    "controls": [
-    "VND-03"
+    "VND-03",
+    "GOV-07"
    ]
   },
   {
@@ -288,9 +280,7 @@
    "id": "ID.AM-05",
    "group": "Identify: Asset management",
    "title": "Assets are prioritized based on classification, criticality, resources, and impact on the mission",
-   "controls": [
-    "CONF-01"
-   ]
+   "controls": []
   },
   {
    "id": "ID.AM-07",
@@ -358,22 +348,24 @@
    "title": "Changes and exceptions are managed, assessed for risk impact, recorded, and tracked",
    "controls": [
     "CHG-01",
-    "CHG-04"
+    "CHG-04",
+    "GOV-03"
    ]
   },
   {
    "id": "ID.RA-08",
    "group": "Identify: Risk assessment",
    "title": "Processes for receiving, analyzing, and responding to vulnerability disclosures are established",
-   "controls": []
+   "controls": [
+    "GOV-07",
+    "OPS-03"
+   ]
   },
   {
    "id": "ID.RA-09",
    "group": "Identify: Risk assessment",
    "title": "The authenticity and integrity of hardware and software are assessed prior to acquisition and use",
-   "controls": [
-    "CHG-05"
-   ]
+   "controls": []
   },
   {
    "id": "ID.RA-10",
@@ -430,9 +422,7 @@
    "id": "PR.AA-02",
    "group": "Protect: Identity, authentication and access control",
    "title": "Identities are proofed and bound to credentials based on the context of interactions",
-   "controls": [
-    "HR-03"
-   ]
+   "controls": []
   },
   {
    "id": "PR.AA-03",
@@ -485,7 +475,8 @@
    "group": "Protect: Data security",
    "title": "The confidentiality, integrity, and availability of data-at-rest are protected",
    "controls": [
-    "AC-09"
+    "AC-09",
+    "OPS-05"
    ]
   },
   {
@@ -507,7 +498,8 @@
    "group": "Protect: Data security",
    "title": "Backups of data are created, protected, maintained, and tested",
    "controls": [
-    "OPS-05"
+    "OPS-05",
+    "OPS-07"
    ]
   },
   {
@@ -523,6 +515,8 @@
    "group": "Protect: Platform security",
    "title": "Software is maintained, replaced, and removed commensurate with risk",
    "controls": [
+    "MON-03",
+    "AC-10",
     "CHG-05"
    ]
   },
@@ -544,16 +538,16 @@
    "id": "PR.PS-05",
    "group": "Protect: Platform security",
    "title": "Installation and execution of unauthorized software are prevented",
-   "controls": [
-    "AC-10"
-   ]
+   "controls": []
   },
   {
    "id": "PR.PS-06",
    "group": "Protect: Platform security",
    "title": "Secure software development practices are integrated, and their performance is monitored throughout the software development life cycle",
    "controls": [
-    "CHG-02"
+    "CHG-02",
+    "CHG-01",
+    "CHG-05"
    ]
   },
   {
@@ -635,9 +629,7 @@
    "id": "DE.AE-03",
    "group": "Detect: Adverse event analysis",
    "title": "Information is correlated from multiple sources",
-   "controls": [
-    "OPS-01"
-   ]
+   "controls": []
   },
   {
    "id": "DE.AE-04",
@@ -722,17 +714,13 @@
    "id": "RS.AN-06",
    "group": "Respond: Incident analysis",
    "title": "Actions performed during an investigation are recorded, and the records’ integrity and provenance are preserved",
-   "controls": [
-    "OPS-03"
-   ]
+   "controls": []
   },
   {
    "id": "RS.AN-07",
    "group": "Respond: Incident analysis",
    "title": "Incident data and metadata are collected, and their integrity and provenance are preserved",
-   "controls": [
-    "OPS-03"
-   ]
+   "controls": []
   },
   {
    "id": "RS.AN-08",
@@ -795,7 +783,8 @@
    "group": "Recover: Recovery plan execution",
    "title": "The integrity of backups and other restoration assets is verified before using them for restoration",
    "controls": [
-    "OPS-05"
+    "OPS-05",
+    "OPS-07"
    ]
   },
   {
@@ -828,6 +817,7 @@
    "group": "Recover: Recovery communication",
    "title": "Recovery activities and progress in restoring operational capabilities are communicated to designated internal and external stakeholders",
    "controls": [
+    "OPS-03",
     "OPS-07"
    ]
   },
@@ -836,7 +826,7 @@
    "group": "Recover: Recovery communication",
    "title": "Public updates on incident recovery are shared using approved methods and messaging",
    "controls": [
-    "GOV-07"
+    "OPS-03"
    ]
   }
  ]

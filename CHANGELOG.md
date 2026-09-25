@@ -8,7 +8,7 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 ## Unreleased
 
 - NIST CSF 2.0 can be targeted and self-attested: its 106 subcategories map onto the controls SOC 2 already uses, and
-  the 19 no control genuinely covers ask for the organization's stated position.
+  the 31 no control genuinely covers ask for the organization's stated position.
 - NIST AI RMF 1.0 can be targeted, and a self-attestation can be signed: each requirement carries a position (met,
   excluded, or a stated partial or not met), `frameworks <dir> attest <id> --by <person>` renders the attestation from
   the records once every requirement has one and records it with its hash, and `collect attribution` checks it as a
