@@ -214,6 +214,19 @@ export function saveRegisterRow(root: string, name: RegisterName, row: Record<st
   writeVersioned(root, `registers/${name}.csv`, writeCsv({ columns, rows }), version);
 }
 
+// The controls a collector's evidence will support, settled before it reads anything: when the workspace has none of
+// them yet (its scoping unanswered, the controls not adopted, or no target needing them) the collector refuses at once,
+// rather than after every page of its source has been read and written.
+export function evidencing(root: string, what: string, ids: string[]): string[] {
+  const ws = loadWorkspace(root);
+  const needed = neededControls(ws);
+  const present = new Set(ws.controls.map((c) => c.data.id));
+  const use = ids.filter((c) => needed.has(c) && present.has(c));
+  if (!use.length) throw new Error(`${what} is evidence for ${ids.join(', ')}, and this workspace has none of them yet: answer the scoping questions and run adopt, or target a framework that needs them, then collect`);
+  return use;
+}
+
+
 // Records evidence. Each file is either already inside the workspace (a relative path) or copied in from outside;
 // a copied file lands under evidence/files/<record id>/ and is never overwritten.
 export function addEvidence(root: string, input: {

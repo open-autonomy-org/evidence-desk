@@ -4,11 +4,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseCsv, writeCsv } from './csv.ts';
 import { readVersioned, writeVersioned } from './files.ts';
-import { addEvidence } from './actions.ts';
+import { addEvidence, evidencing } from './actions.ts';
 import { loadWorkspace, type Workspace } from './workspace.ts';
 import type { Snapshot } from './open-autonomy.ts';
 import { now } from './clock.ts';
-import { neededControls } from './targets.ts';
 const API = 'https://api.cloudflare.com/client/v4';
 
 // Each answer's status, Date and cf-ray (Cloudflare's id for the request), for a caller that keeps them with what it read.
@@ -68,6 +67,7 @@ export function cloudflareRoster(root: string, ws: Workspace): { people: string[
 // user whose API token or session it was), what it changed and the old and new value. A change by someone not on the
 // roster, or by no one Cloudflare can name, is marked.
 export async function collectCloudflareChanges(root: string, input: { account: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; unnamed: number }> {
+  const controls = evidencing(root, 'cloudflare-changes', ['OPS-04', 'CHG-04', 'AC-02']);
   const queries: string[] = [];
   cfAnswers.length = 0;
   const account = await cfAccount(input.account, queries);
@@ -82,9 +82,8 @@ export async function collectCloudflareChanges(root: string, input: { account: s
   writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: cfAnswers.map(({ body: _, ...x }) => x) }, account, entries }, null, 2) + '\n', null);
   writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['at', 'actor', 'actor_on_roster', 'action', 'resource', 'zone', 'old_value', 'new_value', 'id'], rows }), null);
   const unnamed = rows.filter((r) => r.actor_on_roster === 'no' || r.actor_on_roster === 'unknown').length;
-  const applicable = neededControls(ws);
   const evidence = addEvidence(root, {
-    title: `Population: ${rows.length} configuration changes to Cloudflare account ${account.name}, ${input.start} to ${input.end}`, controls: ['OPS-04', 'CHG-04', 'AC-02'].filter((c) => applicable.has(c)), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
+    title: `Population: ${rows.length} configuration changes to Cloudflare account ${account.name}, ${input.start} to ${input.end}`, controls: controls, files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'cloudflare', query: `${queries.join('; ')} (all pages)` },
     notes: `Complete: every page of the account's audit log for the period. ${unnamed} made by someone not on the roster or not named. Raw responses: ${stem}.raw.json${cfAnswers.every((x) => x.cf_ray) ? ", with each answer's Date and cf-ray" : ", with each answer's Date; Cloudflare sent no cf-ray on some"}.`,
   });
@@ -95,6 +94,7 @@ export async function collectCloudflareChanges(root: string, input: { account: s
 // period. A token belongs to a user, and Cloudflare attributes what it does to that user, so a person's live token and
 // a person's deploys are the credential that could reach production outside the pipeline.
 export async function collectCloudflareTokens(root: string, input: { account: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; personal: number }> {
+  const controls = evidencing(root, 'cloudflare-tokens', ['AC-05', 'AC-04']);
   const queries: string[] = [];
   cfAnswers.length = 0;
   const account = await cfAccount(input.account, queries);
@@ -117,9 +117,8 @@ export async function collectCloudflareTokens(root: string, input: { account: st
   writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: cfAnswers.map(({ body: _, ...x }) => x) }, account, entries: entries.filter((x: any) => x.resource?.type === 'token' || x.resource?.type === 'script') }, null, 2) + '\n', null);
   writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['token', 'owner', 'owner_kind', 'created_at', 'created_by', 'revoked_at', 'revoked_by', 'live_at_period_end', 'owner_worker_deploys_in_period'], rows }), null);
   const personal = rows.filter((r) => r.owner_kind !== 'service account' && r.live_at_period_end === 'yes').length;
-  const applicable = neededControls(ws);
   const evidence = addEvidence(root, {
-    title: `Population: ${rows.length} Cloudflare API tokens of account ${account.name}, to ${input.end}`, controls: ['AC-05', 'AC-04'].filter((c) => applicable.has(c)), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
+    title: `Population: ${rows.length} Cloudflare API tokens of account ${account.name}, to ${input.end}`, controls: controls, files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'cloudflare', query: `${queries.join('; ')} (all pages, from the log's first entry)` },
     notes: `Complete as far as the account's audit log reaches: every token created or revoked in it. ${personal} live at the period's end belong to someone other than a service account. Raw responses: ${stem}.raw.json.`,
   });
@@ -132,6 +131,7 @@ const nextDay = (d: string) => new Date(Date.parse(`${d}T00:00:00Z`) + 864e5).to
 // period's GitHub deployments by commit. A Cloudflare deployment no approved GitHub deployment accounts for reached
 // production by another route; a GitHub deployment with no Cloudflare deployment never reached it.
 export async function collectWorkerDeployments(root: string, input: { account: string; script: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; unmatched: number }> {
+  const controls = evidencing(root, 'cloudflare-deployments', ['CHG-03', 'CHG-04']);
   const queries: string[] = [];
   cfAnswers.length = 0;
   const account = await cfAccount(input.account, queries);
@@ -167,9 +167,8 @@ export async function collectWorkerDeployments(root: string, input: { account: s
   writeVersioned(root, `${stem}.raw.json`, JSON.stringify({ provenance: { api: 'https://api.cloudflare.com/client/v4', collected_at: now(), requests: cfAnswers.map(({ body: _, ...x }) => x) }, account, deployments, versions, github_population: gh?.data.id ?? null }, null, 2) + '\n', null);
   writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['deployment', 'at', 'author', 'source', 'version', 'commit', 'message', 'content', 'github_deployment', 'github_ref', 'github_approved', 'matched', 'same_content_as'], rows }), null);
   const unmatched = rows.filter((x) => x.matched !== 'yes').length;
-  const applicable = neededControls(ws);
   const evidence = addEvidence(root, {
-    title: `Population: ${rows.length} deployments of Worker ${input.script} on Cloudflare, ${input.start} to ${input.end}`, controls: ['CHG-03', 'CHG-04'].filter((c) => applicable.has(c)), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
+    title: `Population: ${rows.length} deployments of Worker ${input.script} on Cloudflare, ${input.start} to ${input.end}`, controls: controls, files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'cloudflare', query: `${queries.slice(0, 2).join('; ')}; GET .../versions/{version_id} for each deployed version` },
     notes: `Complete: every deployment Cloudflare lists for the Worker in the period, matched by commit to ${gh ? `the GitHub deployments in ${gh.data.id}` : 'no GitHub deployments population (collect github-deployments first)'}. ${unmatched} reached production with no matching GitHub deployment; ${unshipped.length} GitHub deployment(s) (${unshipped.map((g) => g.ref).join(', ') || 'none'}) have no Cloudflare deployment. Raw responses: ${stem}.raw.json.`,
   });

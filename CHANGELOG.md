@@ -8,6 +8,7 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 ## Unreleased
 
 - Security issues are reported privately through GitHub's private vulnerability reporting, which is now on for the repository; `SECURITY.md` says how.
+- A collector whose controls the workspace does not have yet (scoping unanswered, or not adopted) refuses before it reads anything, saying what to do first, instead of reading every page of its source, writing the population and then failing to record it.
 - A questionnaire whose workbook opens with a title naming the questionnaire (CSA's AI-CAIQ, whose introduction sheet reads "…Initiative Questionnaire") imports its questions: a header row names a question as a word, the column named "Question" is preferred to "Question ID", which becomes each question's id, and a file with no questions is refused instead of imported empty.
 - The app has a Frameworks page: target and drop frameworks; see each target's readiness with the steps still open
   (each mapped control's own gaps); exclude a requirement with a reason or include it again; record an auditor's report
