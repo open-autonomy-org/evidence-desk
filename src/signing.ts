@@ -3,13 +3,13 @@
 // commits the organization to, the controls that rest on the policy with how often each is owed. Approving attests to
 // the whole text, so every line is shown; the marks only say where the organization's own words are.
 import { library, policyTemplates } from './catalog.ts';
-import { render } from './actions.ts';
+import { render, stillTemplate } from './actions.ts';
 import { neededControls } from './targets.ts';
 import type { Workspace } from './workspace.ts';
 
 export type PolicyReading = {
   lines: { text: string; mark: 'template' | 'yours' | 'blank' }[];
-  template: boolean; // the text still carries the catalog's drafting comment: it has not been adapted yet
+  template: boolean; // the text is still the catalog template (stillTemplate): approving it needs the approver's confirmation
   unfilled: string[]; // placeholders left to fill before it can be approved
   commitments: { control: string; title: string; every: string; owner: string }[];
   words: number;
@@ -31,7 +31,7 @@ export function policyReading(ws: Workspace, id: string, text: string): PolicyRe
     .filter(({ lib }) => lib?.policies.includes(id))
     .map(({ c, lib }) => ({ control: c.id, title: c.title, every: EVERY[lib!.frequency] ?? lib!.frequency, owner: c.owner }));
   return {
-    lines, template: /<!--\s*Template adapted from/.test(text),
+    lines, template: stillTemplate(ws.root, id, text),
     unfilled: [...new Set([...text.matchAll(/\{\{([a-z_]+)\}\}/g)].map((m) => m[1]))],
     commitments, words: text.replace(/<!--[\s\S]*?-->/g, '').split(/\s+/).filter(Boolean).length,
   };

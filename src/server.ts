@@ -3,7 +3,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
-import { addEvidenceUpload, adopt, approveAsAdapted, approvePolicy, savePolicyText, saveRegisterRow, setPolicyOwner, setScope, updateControl } from './actions.ts';
+import { addEvidenceUpload, adopt, approvePolicy, savePolicyText, saveRegisterRow, setPolicyOwner, setScope, updateControl } from './actions.ts';
 import { categories, criteria, questions } from './catalog.ts';
 import { ConflictError, inside, readVersioned, writeVersioned } from './files.ts';
 import { computeGaps } from './gaps.ts';
@@ -134,7 +134,7 @@ export function serve(root: string, port: number): void {
         case '/api/control': updateControl(root, s('id'), b.patch as Record<string, unknown>, s('version')); break;
         case '/api/policy/text': savePolicyText(root, s('id'), s('text'), s('version')); break;
         case '/api/policy/owner': setPolicyOwner(root, s('id'), s('owner'), s('version')); break;
-        case '/api/policy/approve': (b.adapted === true ? approveAsAdapted : approvePolicy)(root, s('id'), s('by'), s('textVersion'), s('version')); break;
+        case '/api/policy/approve': approvePolicy(root, s('id'), s('by'), s('textVersion'), s('version'), b.asIs === true); break;
         case '/api/register': {
           const name = s('name') as RegisterName;
           saveRegisterRow(root, name, b.row as Record<string, string>, s('version'), b.replaceId === undefined ? undefined : s('replaceId'));

@@ -360,9 +360,10 @@ function controlDetail(c) {
 let signer = '';
 function signQueue(person) {
   const items = [];
-  for (const p of S.policies.filter((x) => x.owner === person)) {
+  // A policy with no owner waits in everyone's queue until someone owns or approves it.
+  for (const p of S.policies.filter((x) => x.owner === person || !x.owner)) {
     const last = p.versions.at(-1);
-    if (!last || last.sha256 !== p.textVersion) items.push({ key: `policy:${p.id}`, kind: 'policy', title: p.title, p, again: Boolean(last) });
+    if (!last || last.sha256 !== p.textVersion) items.push({ key: `policy:${p.id}`, kind: 'policy', title: p.owner ? p.title : `${p.title} (no owner)`, p, again: Boolean(last) });
   }
   for (const r of (S.registers.risks?.rows ?? []).filter((x) => x.owner === person && x.treatment === 'undecided')) items.push({ key: `risk:${r.id}`, kind: 'risk', title: `Risk: ${r.title}`, r });
   for (const o of S.gaps.obligations.filter((x) => x.kind === 'person' && x.who === person && x.state !== 'done')) {
@@ -421,7 +422,7 @@ function signItem(i, nextBtn) {
     const confirm = h('input', { type: 'checkbox', id: 'adapted' });
     const approve = h('button', { class: 'primary', disabled: r.unfilled.length > 0, onclick: async () => {
       if (r.template && !confirm.checked) return notice(`Confirm the text is true of how ${org} operates, or change it first.`, false);
-      const res = await post('/api/policy/approve', { id: p.id, by: signer, textVersion: p.textVersion, version: p.version, ...(r.template ? { adapted: true } : {}) }, null);
+      const res = await post('/api/policy/approve', { id: p.id, by: signer, textVersion: p.textVersion, version: p.version, ...(r.template ? { asIs: true } : {}) }, null);
       if (res) notice(`${p.title} approved by ${personName(signer)}.`, true);
     } }, 'Approve');
     return h('div', {},
@@ -439,15 +440,16 @@ function signItem(i, nextBtn) {
   }
   if (i.kind === 'risk') {
     const r = i.r;
-    const choice = h('select', {}, [['mitigate', 'Mitigate: act to reduce it'], ['accept', 'Accept it as it is'], ['transfer', 'Transfer it (insurance, contract)'], ['avoid', 'Avoid it: stop the activity']].map(([v, t]) => h('option', { value: v }, t)));
+    const choice = h('select', {}, h('option', { value: '' }, 'Choose a treatment'), [['mitigate', 'Mitigate: act to reduce it'], ['accept', 'Accept it as it is'], ['transfer', 'Transfer it (insurance, contract)'], ['avoid', 'Avoid it: stop the activity']].map(([v, t]) => h('option', { value: v }, t)));
     return h('div', {},
       h('h2', { style: 'margin-top:0' }, r.title),
       h('p', {}, r.description),
       h('p', { class: 'muted' }, `Likelihood ${r.likelihood} of 5 · impact ${r.impact} of 5 · controls ${r.controls || 'none'} · review due ${r.review_due || 'unset'}`),
       h('div', { class: 'act' }, h('label', { style: 'margin-top:0' }, 'Your treatment decision'),
         h('div', { class: 'row' }, choice, h('button', { class: 'primary', onclick: async () => {
+          if (!choice.value) return notice('Choose a treatment first.', false);
           const reg = S.registers.risks;
-          const res = await post('/api/register', { name: 'risks', row: { ...r, treatment: choice.value, description: r.description.replace(/^Draft for owner review\.\s*/, '') }, version: reg.version, replaceId: r.id }, null);
+          const res = await post('/api/register', { name: 'risks', row: { ...r, treatment: choice.value, description: `${r.description.replace(/^Draft for owner review\.\s*/, '')} Treatment decided (${choice.value}) by ${personName(signer)} on ${new Date().toISOString().slice(0, 10)}.` }, version: reg.version, replaceId: r.id }, null);
           if (res) notice(`Risk ${r.id}: ${choice.value}.`, true);
         } }, 'Decide'), nextBtn)));
   }
