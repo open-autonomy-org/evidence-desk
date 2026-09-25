@@ -69,20 +69,31 @@ export function dropFramework(root: string, id: string): ReturnType<typeof setTa
   return setTargets(root, (t) => t.filter((x) => x !== id));
 }
 
-export function decide(root: string, id: string, requirement: string, input: { exclude?: string; include?: boolean; controls?: string[]; position?: Position; clearPosition?: boolean }, known: string[]): void {
+// What was decided, said as it happened: a word that replaced another says so, and an act that changed nothing says that.
+export function decide(root: string, id: string, requirement: string, input: { exclude?: string; include?: boolean; controls?: string[]; position?: Position; clearPosition?: boolean }, known: string[]): string {
   const fw = framework(id);
+  // Nothing is written for a framework the program does not target.
+  if (!targetsOf(loadWorkspace(root)).includes(id)) throw new Error(`${id} is not a target; run: evidence-desk frameworks <dir> target ${id}`);
   if (!fw.requirements.some((r) => r.id === requirement)) throw new Error(`${requirement} is not a requirement of ${fw.title}`);
   const { data, version } = readSettings(root, id);
+  const said: string[] = [];
+  const hadPosition = Boolean(data.positions?.[requirement]), hadExclusion = Boolean(data.exclusions?.[requirement]);
   if (input.exclude !== undefined) {
     if (!input.exclude.trim()) throw new Error('an exclusion needs its reason');
     data.exclusions = { ...(data.exclusions ?? {}), [requirement]: input.exclude.trim() };
     // An exclusion and a stated position cannot both stand: the newer word replaces the older.
     const { [requirement]: _was, ...others } = data.positions ?? {}; data.positions = others;
+    said.push(`Excluded ${requirement}${hadPosition ? '; this replaces its stated position' : ''}.`);
   }
-  if (input.include) { const { [requirement]: _gone, ...rest } = data.exclusions ?? {}; data.exclusions = rest; }
+  if (input.include) {
+    const { [requirement]: _gone, ...rest } = data.exclusions ?? {}; data.exclusions = rest;
+    said.push(hadExclusion ? `Included ${requirement} again.` : `${requirement} was not excluded; nothing changed.`);
+  }
   if (input.controls) {
+    if (!input.controls.length) throw new Error('say which controls to map: --controls <id>,...');
     for (const c of input.controls) if (!known.includes(c)) throw new Error(`control ${c} is not in this workspace`);
     data.mappings = { ...(data.mappings ?? {}), [requirement]: [...new Set([...(data.mappings?.[requirement] ?? []), ...input.controls])] };
+    said.push(`Mapped ${input.controls.join(', ')} to ${requirement}.`);
   }
   // A stated position on a requirement not met: partial or not met, with what is and is not in place.
   if (input.position) {
@@ -90,9 +101,14 @@ export function decide(root: string, id: string, requirement: string, input: { e
     if (!input.position.statement.trim()) throw new Error('a position needs its statement: what is in place and what is not');
     data.positions = { ...(data.positions ?? {}), [requirement]: { position: input.position.position, statement: input.position.statement.trim(), stated_at: clockDate().toISOString().slice(0, 10) } };
     const { [requirement]: _was, ...others } = data.exclusions ?? {}; data.exclusions = others;
+    said.push(`Stated ${requirement} ${input.position.position === 'partial' ? 'partly met' : 'not met'}${hadExclusion ? '; this replaces its exclusion' : ''}.`);
   }
-  if (input.clearPosition) { const { [requirement]: _gone, ...rest } = data.positions ?? {}; data.positions = rest; }
+  if (input.clearPosition) {
+    const { [requirement]: _gone, ...rest } = data.positions ?? {}; data.positions = rest;
+    said.push(hadPosition ? `Cleared the position on ${requirement}.` : `${requirement} had no stated position; nothing changed.`);
+  }
   writeVersioned(root, `frameworks/${id}.json`, JSON.stringify(data, null, 2) + '\n', version);
+  return said.join(' ');
 }
 
 // Not met, stated in one write on each of the given requirements that has neither a stated position nor an exclusion in
