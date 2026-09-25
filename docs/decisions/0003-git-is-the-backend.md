@@ -67,9 +67,9 @@ the workspace holds before and after it are compared (`signedActs`, the set attr
 **Attribution checks the signature from GitHub's record.** `collect attribution` finds, as before, the merge commit that
 brought each act to the default branch and its pull request. The act is verified if the person's GitHub account on the
 Open Autonomy roster approved that pull request at the head commit that was merged (their latest verdict on it being
-that approval), or opened it themselves (the earlier door, kept for a person who records an act in a pull request of
-their own). Each row says which (`via`). An approval binds the exact commit, so it lacks the earlier door's residual,
-where a collaborator pushing to the person's branch is not told apart from them. An approval counts only where the approved head
+that approval). A pull request the person only opened no longer counts (the independent security reviews of
+2026-09-25): anyone who can push to its branch can change it after it was opened. The roster is read from the Open
+Autonomy project's repository when the check is given it, so a writer of the workspace cannot remap who signs for whom. An approval counts only where the approved head
 commit can be read in the workspace's clone and holds the act as merged: a merge commit keeps it, and a squash-merged
 pull request's approval counts only if its branch was fetched.
 
