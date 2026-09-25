@@ -127,7 +127,9 @@ query that produced it (evidence a person added by hand says so).
   GitHub account on the roster; `signed_at` is when the approval was given (the record's own date is when the act was
   prepared). The roster is read from the Open Autonomy project's repository when the check is given `--roster`
   (`roster_source` in `sources/github/attribution.json` names the repository and commit); otherwise from the
-  workspace's copy, which anyone who can write to the workspace can change, and the record says so. An approval shows
+  workspace's copy, which anyone who can write to the workspace can change, and the record and the gap view say so.
+  Reading it from the project's repository is only as strong as that repository's own protections: where the same
+  people can change both, it adds nothing. An approval shows
   which GitHub account approved; whether a person or an agent holding that account's login gave it is outside what
   the record can show.
 - **Completeness of people in scope**: each declared vendor account's administrators, read from the vendor (GitHub and
