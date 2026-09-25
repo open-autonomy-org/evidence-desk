@@ -27,6 +27,8 @@ import { collectCloudflareChanges, collectCloudflareTokens, collectWorkerDeploym
 import { COLLECTORS, checkTitle, ciWorkflow, configureCollector, readSettings, runChecks } from './automation.ts';
 import { exceptionsRegister, respondToException, actOnRequest, createEngagement, draft, exportPackage, firmSummary, importRequests, importReturn, listRequests, readEngagement, verifyPackage } from './audit.ts';
 import { clockDate } from './clock.ts';
+import { commitTouched, repoOf, syncWorkspace } from './git.ts';
+import { prepareSignature, signingWorkflow } from './signatures.ts';
 
 const USAGE = `evidence-desk <command> <workspace> [options]
 
@@ -82,7 +84,8 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   collect <dir> nonhuman-access --repo <owner/name> --org <org> [--environment <name>] --by <person>
                                           deploy keys, secrets, app installations and agents with access (needs GITHUB_TOKEN)
   collect <dir> attribution --repo <owner/name of the workspace's repository> --by <person>
-                                          whether each signed act was merged from its person's own GitHub pull request
+                                          whether each signed act reached the default branch through a pull request its
+                                          person approved at the merged commit, or opened themselves
   collectors <dir> [<id> [--enable|--disable] [--set key=value ...]]
                                           show or configure the collectors (github)
   run <dir> --by <person> [--collector <id>]  collect from each enabled collector and run its checks; exits 3 if a check fails
@@ -128,6 +131,8 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   soa <dir> [--framework iso27001|iso42001] --out <file.csv|file.md>   the statement of applicability: every Annex A control, included or not and why
   gaps <dir> [--as-of YYYY-MM-DD]         what stands between the workspace and readiness
   validate <dir>                          check every file against its schema and references
+  sync <dir>                              bring the workspace level with its remote: take its commits, push this one's
+  signing-template <dir>                  write the workflow that merges a signing pull request once its signer approves it
   serve <dir> [--port <n>]                open the local app on 127.0.0.1
 
   --json   print JSON instead of text`;
@@ -169,7 +174,29 @@ async function main(argv: string[]): Promise<number> {
   if (!dirArg) throw new Error(`${cmd} needs a workspace folder\n\n${USAGE}`);
   const dir = resolve(dirArg);
   const json = a.flags.has('json');
+  // Every command that writes ends in one commit of what it wrote, its message the command as given (git.ts).
+  const person = one(a, 'by') ?? one(a, 'person') ?? one(a, 'reviewer');
+  const message = `evidence-desk ${argv.filter((x) => x !== '--json').map((x) => (x === dirArg ? '.' : /[\s"']/.test(x) ? JSON.stringify(x) : x)).join(' ')}`;
+  // An act a person signs, where the workspace signs on GitHub, is prepared as a pull request for them (signatures.ts).
+  const signable = (cmd === 'policy' && a.flags.has('approve')) || cmd === 'respond' || (cmd === 'access-review' && a.flags.has('sign-off'))
+    || (cmd === 'incident' && !!rest[0] && rest[0] !== 'new') || (cmd === 'register' && (a.flags.has('add') || a.flags.has('update'))) || (cmd === 'frameworks' && rest[0] === 'attest');
+  if (signable) {
+    const signed = await prepareSignature(dir, message, (at) => command(a, cmd, at, dirArg, rest, json));
+    if (signed) {
+      const p = signed.prepared;
+      if (json) console.error(JSON.stringify({ prepared: p }));
+      else console.log(p ? `Prepared for ${p.person}'s signature: ${p.url}\n${p.login} signs it by approving that pull request on GitHub.` : 'It records no signature, so it was committed to the workspace as it is.');
+      return signed.result;
+    }
+  }
+  let code: number;
+  try { code = await command(a, cmd, dir, dirArg, rest, json); }
+  catch (e) { commitTouched(dir, `${message}: stopped with an error (${(e as Error).message.split('\n')[0].slice(0, 120)})`, person); throw e; }
+  if (code >= 0) commitTouched(dir, message, person);
+  return code;
+}
 
+async function command(a: Args, cmd: string, dir: string, dirArg: string, rest: string[], json: boolean): Promise<number> {
   switch (cmd) {
     case 'init': {
       const org = one(a, 'org');
@@ -490,6 +517,22 @@ async function main(argv: string[]): Promise<number> {
       for (const run of [...ws.runs].sort((x, y) => x.data.started_at.localeCompare(y.data.started_at))) for (const x of run.data.results) latest.set(x.check, { status: x.status, detail: x.detail, at: run.data.started_at });
       const rows = [...latest].map(([check, v]) => ({ check, title: checkTitle(check), ...v }));
       out(json, rows, () => rows.map((r) => `${r.status.padEnd(5)} ${r.at.slice(0, 16)}  ${r.title}: ${r.detail}`).join('\n') || 'No checks have run.');
+      return 0;
+    }
+    case 'sync': {
+      const st = syncWorkspace(dir);
+      out(json, st, () => !st ? `${dirArg} is not yet a Git repository; its first change makes it one.` : !st.upstream ? `${st.branch || 'This branch'} has no remote branch to sync with.`
+        : `${st.branch} is level with ${st.upstream}${st.uncommitted.length ? `; ${st.uncommitted.length} file(s) have edits not yet committed` : ''}.`);
+      return 0;
+    }
+    case 'signing-template': {
+      // The workflow lives at the top of the workspace's repository, where GitHub reads workflows.
+      const repo = repoOf(dir);
+      if (!repo) throw new Error(`${dirArg} is not a Git repository yet; make any change first (it becomes one), then write the workflow`);
+      const rel = '.github/workflows/evidence-desk-signatures.yml';
+      writeVersioned(repo.top, rel, signingWorkflow(), readVersioned(repo.top, rel)?.version ?? null);
+      commitTouched(repo.top, 'Add the workflow that merges a pull request once its signer approves it');
+      out(json, { written: rel }, () => `Wrote and committed ${rel} at the top of the repository. Push it (evidence-desk sync ${dirArg}); from then on a pull request Evidence Desk prepares for a person's signature merges when that person approves it.`);
       return 0;
     }
     case 'ci-template': {

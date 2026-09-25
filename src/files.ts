@@ -1,9 +1,11 @@
 // Reading and writing workspace files. Every read returns a version (the SHA-256 of the bytes read); every write
 // names the version it replaces and refuses if the file changed since, so an edit made outside Evidence Desk is
-// never silently overwritten. Writes go to a temporary file in the same directory and are renamed into place.
+// never silently overwritten. Writes go to a temporary file in the same directory and are renamed into place. Each write
+// is noted for the commit that ends the change it belongs to (git.ts): the workspace is a Git repository.
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { ensureRepo, track } from './git.ts';
 
 export const sha256 = (b: Buffer | string): string => createHash('sha256').update(b).digest('hex');
 
@@ -36,10 +38,12 @@ export function writeVersioned(root: string, rel: string, text: string | Buffer,
   const full = inside(root, rel);
   const current = existsSync(full) ? sha256(readFileSync(full)) : null;
   if (current !== expected) throw new ConflictError(rel);
+  ensureRepo(root);
   mkdirSync(dirname(full), { recursive: true });
   const tmp = join(dirname(full), `.${randomUUID()}.tmp`);
   writeFileSync(tmp, text);
   renameSync(tmp, full);
+  track(root, rel);
   return sha256(typeof text === 'string' ? Buffer.from(text) : text);
 }
 

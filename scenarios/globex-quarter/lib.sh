@@ -15,8 +15,9 @@ seed() { local u=$1; shift; local step=$1; shift; local t=-; [ "$u" != "-" ] && 
 # cfas <email> <setting> <value>: a zone setting changed by that person with their own Cloudflare token
 cfas() { (cd $ED && timeout 60 $V attach evidence-desk-oa --root $RT -- env CF_AS=$(cat $STATE/cftok-$1) bun $S/seed.ts cfset - $2 $3 2>&1 | grep -v WARN); }
 ed() { (cd $ED && timeout 120 $V attach evidence-desk-oa --root $RT -- bun src/cli.ts "$@" 2>&1 | grep -v WARN); }
-# gcommit <dir> <name> <message>: commit what is staged, dated by the World clock
-gcommit() { local t=$(now); GIT_AUTHOR_DATE="$t" GIT_COMMITTER_DATE="$t" git -C "$1" -c user.name="$2" -c user.email="$2@globex.test" commit -qm "$3"; }
+# gcommit <dir> <name> <message>: commit what is staged, dated by the World clock. Evidence Desk commits its own changes,
+# so a step that only ran Evidence Desk has nothing left staged.
+gcommit() { git -C "$1" diff --cached --quiet && return 0; local t=$(now); GIT_AUTHOR_DATE="$t" GIT_COMMITTER_DATE="$t" git -C "$1" -c user.name="$2" -c user.email="$2@globex.test" commit -qm "$3"; }
 gpush() { timeout 60 git -C "$1" push -q origin "$2" 2>&1 | grep -v "^$"; }
 # change <user> <branch> <title>: a commit on a branch of relay, pushed
 change() { git -C $D/relay checkout -q main && timeout 30 git -C $D/relay pull -q --no-rebase origin main 2>&1 | grep -v "no common"; git -C $D/relay checkout -q -b $2; echo "// $3" >> $D/relay/src/index.ts; git -C $D/relay add src/index.ts; gcommit $D/relay $1 "$3"; gpush $D/relay $2; git -C $D/relay checkout -q main; }

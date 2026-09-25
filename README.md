@@ -43,6 +43,20 @@ bun src/cli.ts gaps ~/acme-soc2
 bun src/cli.ts validate ~/acme-soc2
 ```
 
+The workspace is a Git repository, and every change is a commit of what it wrote, so its history says who changed and
+signed what. Kept on GitHub, a person signs by approving a pull request: with a preparer's token (an identity other
+than the signer's, such as a GitHub App's installation token) and the default branch checked out, an approval, a form
+response or a risk's treatment is prepared as a pull request for its signer instead of recorded directly, and the
+workflow `signing-template` writes merges it once they approve:
+
+```bash
+git clone https://github.com/acme/compliance ~/acme-soc2
+bun src/cli.ts signing-template ~/acme-soc2 && bun src/cli.ts sync ~/acme-soc2
+EVIDENCE_DESK_SIGNING_TOKEN=... bun src/cli.ts policy ~/acme-soc2 access-control --approve --by ana --as-is
+# Prepared for ana's signature: https://github.com/acme/compliance/pull/12
+bun src/cli.ts sync ~/acme-soc2   # after ana approves it, the approval is in the workspace
+```
+
 With an [Open Autonomy](https://github.com/open-autonomy-org/open-autonomy) project, much of the program is read from
 what the project already declares instead of asked:
 

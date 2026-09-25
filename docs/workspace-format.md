@@ -1,7 +1,9 @@
 # Evidence Desk workspace format
 
 A workspace is a folder that holds one organization's SOC 2 program. Its files are the data: there is no database,
-index or account. Every structured file has a JSON Schema in [`schemas/`](../schemas), and `evidence-desk validate`
+index or account. The folder is a Git repository, or a folder inside one, and its history is the record of who changed
+and signed what ([ADR 0003](decisions/0003-git-is-the-backend.md)): every change Evidence Desk makes is one commit of
+exactly the files it wrote, and the first change to a folder in no repository makes it one. Every structured file has a JSON Schema in [`schemas/`](../schemas), and `evidence-desk validate`
 checks a folder against them and against the references between files. Unknown fields and unknown CSV columns are
 allowed everywhere and kept when Evidence Desk writes a file, so other tools can extend records.
 
@@ -130,17 +132,25 @@ author, recorded as evidence for the kind's controls. A closed incident without 
 a later review and an escalation without a response are findings in the gap view until a later collection no longer
 finds them; a declared seam never collected is a finding too.
 
-Signed acts at a seam: the workspace is kept in a private GitHub repository the roster members can open pull requests
-to, and each person records the acts the workspace names them in (a form response, an access review's sign-off, a
-policy's latest approval, the update that closed an incident, a risk's treatment decided by its owner, a vendor's
-review recorded by its owner) in a pull request they open. A register row's decision names the row's owner as the row
+Signed acts at a seam: the workspace is kept in a private GitHub repository the roster members can review, and each
+person signs the acts the workspace names them in (a form response, an access review's sign-off, a policy's latest
+approval, the update that closed an incident, a risk's treatment decided by its owner, a vendor's review recorded by
+its owner, a self-attestation) by approving the pull request that records them. Where the workspace's default branch is
+checked out and Evidence Desk holds a preparer's token (`EVIDENCE_DESK_SIGNING_TOKEN`, an identity other than the
+signer's), such a change is prepared as a pull request from a branch `sign/<the signer's GitHub login>/…`, its
+description the packet (for a policy, its whole text and what signing it commits the organization to), and the signer
+is asked to review it; `signing-template` writes the workflow that merges it, with a merge commit, once that account
+approves its current head. Elsewhere the act is committed to the current branch, and the person may open the pull
+request themselves. A register row's decision names the row's owner as the row
 stood when the decision was made, so reassigning the row later does not move the decision. `collect attribution`
 finds, on the default branch's first-parent line (`git log --first-parent origin/<default>`), the commit that brought
-each act to its present content, and requires GitHub to associate it with a pull request merged into the default branch and opened by the
-person's GitHub account on the roster; the working file must hold the act as merged. A shallow clone is refused. A
+each act to its present content, and requires GitHub to associate it with a pull request merged into the default branch that the person's GitHub
+account on the roster approved at the head commit merged (their latest verdict on it), or opened; each row's `via` says
+which (`approved` or `opened`). The working file must hold the act as merged. A shallow clone is refused. A
 roster member's act that fails this (for responses, their latest passed one per form), or changed after the check, is a
 finding in the gap view, as is a check made against an earlier roster. A collaborator who pushes a commit to a person's
-open pull request branch is not told apart from them. A signer
+open pull request branch is not told apart from them where the act rests on the person having opened it; an approval
+binds the exact commit. A signer
 who is not on the roster is a finding. The rows are written under `evidence/files/populations/` for the audit and are
 not recorded as evidence of any control: evidence dates decide when a periodic control is next due.
 

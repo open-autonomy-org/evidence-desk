@@ -267,13 +267,15 @@ export async function checkCompleteness(root: string, input: { account: string; 
   return { record: rel, outside };
 }
 
-// Whether each act a person signs in the workspace was recorded by that person, through a seam's door (ADR 0008): the
-// workspace is a Git repository on GitHub, a person records an act in a pull request of their own, and GitHub says who
-// opened it. An act is part of a file: a form response (the whole file), an access review's sign-off, a policy's
-// latest approval, an incident's closing review. The commit on the default branch that brought the act to its present
-// content must come from a pull request merged into that branch and opened by the person's GitHub account on the Open
-// Autonomy roster, and the working file must hold the act as merged. Residual: a collaborator who pushes to a person's
-// open pull request branch is not told apart from them.
+// Whether each act a person signs in the workspace was signed by that person on GitHub (docs/decisions/0003): the
+// workspace is a Git repository on GitHub, and an act reaches its default branch through a pull request that either the
+// person's GitHub account approved at the exact commit merged (the pull request Evidence Desk prepares for their
+// signature, signatures.ts), or that the person opened themselves. An act is part of a file: a form response (the whole
+// file), an access review's sign-off, a policy's latest approval, an incident's closing review. The commit on the
+// default branch that brought the act to its present content must come from a pull request merged into that branch,
+// signed in one of those two ways by the person's GitHub account on the Open Autonomy roster, and the working file must
+// hold the act as merged. Residual, for a pull request the person opened: a collaborator who pushes to its branch is not
+// told apart from them; an approval binds the exact commit, so it has no such residual.
 export type Act = { key: string; kind: 'response' | 'access-review' | 'policy-approval' | 'incident-closure' | 'risk-decision' | 'vendor-review' | 'attestation'; file: string; person: string; label: string; extract: (record: any) => unknown; personAt?: (record: any) => string };
 // A file as an act reads it: JSON records parsed, CSV registers as their rows; unreadable is null.
 export const UNREADABLE = Symbol('unreadable');
@@ -310,9 +312,11 @@ export function signedActs(root: string): Act[] {
 }
 export type AttributionStatus = 'verified' | 'names no one' | 'no GitHub account on the roster' | 'not on the default branch' | 'changed since merged'
   | 'not on GitHub' | 'no merged pull request' | 'recorded by someone else' | 'history unreadable';
-export type Attribution = { key: string; kind: Act['kind']; file: string; person: string; label: string; value_sha256: string; commit: string; committed_at: string; pull: string; author: string; expected: string; status: AttributionStatus };
+// \`via\` says how a verified act was signed: \`approved\` (the person approved the pull request at its merged head) or
+// \`opened\` (the person opened it).
+export type Attribution = { key: string; kind: Act['kind']; file: string; person: string; label: string; value_sha256: string; commit: string; committed_at: string; pull: string; author: string; expected: string; via: '' | 'approved' | 'opened'; status: AttributionStatus };
 export const actDigest = (v: unknown) => createHash('sha256').update(JSON.stringify(v ?? null)).digest('hex');
-const writeCsvFile = (root: string, rel: string, rows: Attribution[]) => writeVersioned(root, rel, writeCsv({ columns: ['key', 'kind', 'file', 'person', 'label', 'value_sha256', 'commit', 'committed_at', 'pull', 'author', 'expected', 'status'], rows }), null);
+const writeCsvFile = (root: string, rel: string, rows: Attribution[]) => writeVersioned(root, rel, writeCsv({ columns: ['key', 'kind', 'file', 'person', 'label', 'value_sha256', 'commit', 'committed_at', 'pull', 'author', 'expected', 'via', 'status'], rows }), null);
 export async function collectAttribution(root: string, input: { repo: string; by: string }): Promise<{ record: string; file: string; evidence: null; rows: Attribution[] }> {
   if (!/^[\w.-]+\/[\w.-]+$/.test(input.repo)) throw new Error('--repo names the workspace\'s own GitHub repository as owner/name');
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
@@ -326,15 +330,16 @@ export async function collectAttribution(root: string, input: { repo: string; by
   try { git('rev-parse', '--verify', '--quiet', ref); } catch { throw new Error(`${ref} is not in the workspace; fetch it (git fetch origin ${branch})`); }
   const prefix = git('rev-parse', '--show-prefix');
   const at = (commit: string, file: string): unknown => { try { return readAct(file, execFileSync('git', ['-C', root, 'show', `${commit}:${prefix}${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })); } catch { return null; } };
-  const pullsOf = async (sha: string): Promise<(Pull & { base?: { ref?: string } })[] | null> => {
-    try { return await get(`/repos/${input.repo}/commits/${sha}/pulls`) as (Pull & { base?: { ref?: string } })[]; }
+  type Merged = Pull & { base?: { ref?: string }; head?: { sha?: string } };
+  const pullsOf = async (sha: string): Promise<Merged[] | null> => {
+    try { return await get(`/repos/${input.repo}/commits/${sha}/pulls`) as Merged[]; }
     catch (e) { if (/answered (404|422)/.test((e as Error).message)) return null; throw e; }
   };
   const rows: Attribution[] = [];
   for (const act of signedActs(root)) {
     const now = readAct(act.file, readVersioned(root, act.file)?.text);
     const current = now === UNREADABLE ? null : act.extract(now);
-    const row: Attribution = { key: act.key, kind: act.kind, file: act.file, person: act.person, label: act.label, value_sha256: actDigest(current), commit: '', committed_at: '', pull: '', author: '', expected: '', status: 'verified' };
+    const row: Attribution = { key: act.key, kind: act.kind, file: act.file, person: act.person, label: act.label, value_sha256: actDigest(current), commit: '', committed_at: '', pull: '', author: '', expected: '', via: '', status: 'verified' };
     rows.push(row);
     const holds = (c: string): boolean | undefined => { const v = at(c, act.file); return v === UNREADABLE ? undefined : actDigest(act.extract(v)) === row.value_sha256; };
     // The default branch's own line (first parents), newest first: the act was introduced by the newest commit whose
@@ -366,10 +371,21 @@ export async function collectAttribution(root: string, input: { repo: string; by
     const found = await pullsOf(intro);
     if (!found) { row.status = 'not on GitHub'; continue; }
     const into = found.filter((p) => p.merged_at && p.base?.ref === branch);
-    const pr = into.find((p) => (p.user?.login ?? '').toLowerCase() === row.expected.toLowerCase()) ?? into[0];
-    if (!pr) { row.status = 'no merged pull request'; continue; }
+    if (!into.length) { row.status = 'no merged pull request'; continue; }
+    const is = (login: string | undefined) => (login ?? '').toLowerCase() === row.expected.toLowerCase();
+    // The person's signature on a pull request: their latest verdict on it (an approval, a request for changes, or a
+    // dismissed review) is an approval of the head commit that was merged.
+    const approvedBy = async (p: Merged) => {
+      const verdicts = (await all<Review>(`/repos/${input.repo}/pulls/${p.number}/reviews`)).items.filter((r) => is(r.user?.login) && ['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(r.state));
+      const last = verdicts.at(-1);
+      return !!last && last.state === 'APPROVED' && !!p.head?.sha && last.commit_id === p.head.sha;
+    };
+    let pr: Merged | undefined;
+    for (const p of into) if (await approvedBy(p)) { pr = p; row.via = 'approved'; break; }
+    if (!pr) { pr = into.find((p) => is(p.user?.login)); if (pr) row.via = 'opened'; }
+    pr ??= into[0];
     row.pull = String(pr.number); row.author = pr.user?.login ?? '';
-    if (row.author.toLowerCase() !== row.expected.toLowerCase()) row.status = 'recorded by someone else';
+    if (!row.via) row.status = 'recorded by someone else';
   }
   const rel = 'sources/github/attribution.json';
   const record = { schema: 'evidence-desk.attribution/1', repo: input.repo, branch, workspace_path: prefix, checked_at: now(), roster_commit: snap.commit,
