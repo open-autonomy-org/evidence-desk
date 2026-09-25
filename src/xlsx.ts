@@ -76,9 +76,10 @@ export function xlsxToCsv(buf: Buffer, file: string): string {
     const sheet = part(path);
     if (!sheet) continue;
     const rows = rowsOf(sheet, shared);
-    // A header names a question column: a cell that is just "Question(s)", or one mentioning a question in a row of
-    // several headings. A title row ("Vendor Security Questionnaire") is a single cell and is passed over.
-    const at = rows.findIndex((r) => r.some((x) => /^\s*questions?\s*$/i.test(x)) || (r.filter((x) => x.trim()).length >= 2 && r.some((x) => /question/i.test(x))));
+    // A header names a question column: a cell that is just "Question(s)", or one naming a question as a word in a row of
+    // several headings. A title ("Vendor Security Questionnaire", CSA's "…Initiative Questionnaire" beside its version
+    // stamp) names a questionnaire, not a question, and is passed over.
+    const at = rows.findIndex((r) => r.some((x) => /^\s*questions?\s*$/i.test(x)) || (r.filter((x) => x.trim()).length >= 2 && r.some((x) => /\bquestions?\b/i.test(x))));
     if (at < 0) continue;
     const body = rows.slice(at);
     const width = Math.max(...body.map((r) => r.length));

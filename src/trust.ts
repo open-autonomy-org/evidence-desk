@@ -191,13 +191,17 @@ const stale = (root: string, sources: Source[]) => sources.some((s) => fileHash(
 // Imports a questionnaire (CSV with a question column, and optionally an id column) and drafts every answer.
 export function importQuestionnaireText(root: string, text: string, file: string, name: string): { id: string; fromLibrary: number; drafted: number; unanswered: number } {
   const table = parseCsv(text, file);
-  const qcol = table.columns.find((c) => /question/i.test(c));
+  // The question column: one named just "Question(s)" first, else one naming a question that is not its id
+  // ("Question text", but not "Question ID", which identifies it).
+  const qcol = table.columns.find((c) => /^\s*questions?\s*$/i.test(c)) ?? table.columns.find((c) => /\bquestions?\b/i.test(c) && !/\b(id|number|ref)\b/i.test(c));
   if (!qcol) throw new Error(`${file} needs a column whose name contains "question"`);
-  const idcol = table.columns.find((c) => /^(id|number|#|ref)$/i.test(c.trim()));
+  const idcol = table.columns.find((c) => /^(id|number|#|ref|question (id|number|ref))$/i.test(c.trim()));
   const ws = loadWorkspace(root);
   const corpus = passages(ws);
   const { lib } = readLibrary(root);
-  const questions: Question[] = table.rows.filter((r) => r[qcol]?.trim()).map((r, i) => {
+  const asked = table.rows.filter((r) => r[qcol]?.trim());
+  if (!asked.length) throw new Error(`${file} has no questions under its "${qcol}" column`);
+  const questions: Question[] = asked.map((r, i) => {
     const text = r[qcol].trim();
     const q = tokens(text);
     const bestLib = lib.map((a) => ({ a, s: score(q, a.question) })).sort((x, y) => y.s - x.s)[0];
