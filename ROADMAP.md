@@ -186,5 +186,5 @@ Candidate: none
 Scope: CHANGELOG.md's Unreleased section
 Readiness: pending
 Readiness evidence: none yet
-Rationale: the Unreleased work (the To sign page, the Frameworks page, ISO 42001, CSA STAR and the audit package) has accumulated since v0.1.0 (`873506f`)
-Version rationale: a minor version for new capabilities with no breaking change to the workspace format
+Rationale: the Unreleased work (the To sign page, the Frameworks page, ISO 42001, CSA STAR and the audit package) has accumulated since [v0.1.0](https://github.com/open-autonomy-org/evidence-desk/releases/tag/v0.1.0) (`873506f`)
+Version rationale: a minor bump under CONTRIBUTING.md's 0.x policy, because [decision 0002](docs/decisions/0002-frameworks-are-targets.md) reads an existing workspace differently: re-running adoption rewrites the controls excluded only by a category answer as applicable
