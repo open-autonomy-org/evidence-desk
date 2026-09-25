@@ -289,7 +289,8 @@ export function ciWorkflow(settings: CollectorSettings[]): string {
 # run so GitHub notifies you; it gates nothing. Store each credential below as a repository secret with read-only access
 # (a GitHub token as EVIDENCE_DESK_GITHUB_TOKEN: GitHub reserves the GITHUB_ prefix). With an imported Open Autonomy
 # project it reads the project's public repository again (the repository named in sources/open-autonomy/latest.json;
-# whoever can change this repository can change which project is read), so a changed roster, seam or vendor shows the next
+# whoever can change this repository can change which project is read; set the EVIDENCE_DESK_ROSTER_REPO variable to
+# the project's repository so the attribution check reads the roster from it instead), so a changed roster, seam or vendor shows the next
 # day, and a project that cannot be read fails the run. It checks who recorded each
 # signed act (with an imported Open Autonomy roster) and keeps one issue per person listing what they owe that is due or
 # overdue, assigned to them, using this repository's own workflow token.
@@ -347,7 +348,10 @@ ${secrets.length ? `          # With none of the credentials stored here, the ch
           GITHUB_TOKEN: \${{ github.token }}
           REPO: \${{ github.repository }}
           RECORDER: \${{ vars.EVIDENCE_DESK_RECORDER }}
-        run: bun src/cli.ts collect "$GITHUB_WORKSPACE" attribution --repo "$REPO" --by "$RECORDER"
+          # The Open Autonomy project whose roster says who signs for whom, set by this repository's administrators;
+          # without it the roster is the workspace's own copy, and the check records that.
+          ROSTER: \${{ vars.EVIDENCE_DESK_ROSTER_REPO }}
+        run: bun src/cli.ts collect "$GITHUB_WORKSPACE" attribution --repo "$REPO" --by "$RECORDER" \${ROSTER:+--roster "$ROSTER"}
       - name: Commit the results
         run: |
           git config user.name "Evidence Desk checks"
