@@ -7,6 +7,10 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- `collect <dir> open-autonomy` reads an Open Autonomy project's sessions, metered calls, pause history and roadmap
+  revisions for a period from the platform, on the project's key, as populations evidencing the AI family's records,
+  limits, oversight and change controls; the pause history carries the word in force when the period began. It
+  refuses a list the platform cannot page rather than record a population that might be incomplete.
 - ISO/IEC 42001 (the AI management system standard) and AIUC-1 (the standard for AI agents) can be targeted: their
   catalogs map onto a new AI family of twelve controls (AI-01 to AI-12) with an `ai-governance` policy, adopted only
   when an AI framework is targeted, and onto the security controls they share with SOC 2. AIUC-1's supplemental
