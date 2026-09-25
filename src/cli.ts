@@ -683,7 +683,7 @@ async function main(argv: string[]): Promise<number> {
       if (!targetsOf(ws).includes(id)) throw new Error(`${id} is not a target; run: evidence-desk frameworks ${dirArg} target ${id}`);
       const st = frameworkState(ws, id);
       out(json, st, () => { const s = st.summary; return [`${st.title}: ${s.ready}/${s.requirements - s.excluded} requirements ready, ${s.excluded} excluded, ${s.unaddressed} not addressed; ${s.shared_evidence} evidence records also serve SOC 2.`,
-        ...st.requirements.filter((r) => r.status !== 'ready').map((r) => `  ${r.id.padEnd(11)} ${r.status.padEnd(11)} ${r.title}${r.reason ? ` (${r.reason.slice(0, 90)})` : ''}`)].join('\n'); });
+        ...st.requirements.filter((r) => r.status !== 'ready').map((r) => `  ${r.id.padEnd(11)} ${r.status.padEnd(11)} ${r.title}${r.optional ? ' (optional, not counted)' : ''}${r.reason ? ` (${r.reason.slice(0, 90)})` : ''}`)].join('\n'); });
       return 0;
     }
     case 'soa': {
