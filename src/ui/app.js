@@ -28,6 +28,8 @@ async function load() {
   S = await r.json();
   render();
 }
+// A framework decision, told as the workspace recorded it: what changed, what it replaced, or that nothing did.
+async function decided(payload) { const r = await post('/api/framework/decide', payload, null); if (r) notice(r.result, true); return r; }
 async function post(path, payload, okText) {
   const view = document.getElementById('view');
   const holder = (trigger instanceof Element ? trigger : document.activeElement)?.closest?.('form, .card');
@@ -156,7 +158,7 @@ function frameworkPage(f) {
   const positionForm = (r) => {
     const form = h('form', { class: 'row', style: 'margin-top:6px', onsubmit: (e) => { e.preventDefault();
       const pos = form.position.value;
-      post('/api/framework/decide', pos ? { id: f.id, requirement: r.id, position: pos, statement: form.statement.value } : { id: f.id, requirement: r.id, clear: true }, pos ? `Position on ${r.id} saved.` : `Position on ${r.id} cleared.`); } },
+      decided(pos ? { id: f.id, requirement: r.id, position: pos, statement: form.statement.value } : { id: f.id, requirement: r.id, clear: true }); } },
       h('select', { name: 'position' }, h('option', { value: '' }, 'No position'), ['partial', 'not met'].map((v) => h('option', { value: v, selected: r.position === v && !!r.statement }, v === 'partial' ? 'Partly met' : 'Not met'))),
       h('input', { type: 'text', name: 'statement', value: r.statement ?? '', placeholder: 'What is in place and what is not', style: 'flex:1' }),
       h('button', { class: 'secondary', type: 'submit' }, 'Save'));
@@ -168,7 +170,7 @@ function frameworkPage(f) {
   const stepsFor = (r) => r.status === 'unaddressed' ? h('p', { class: 'muted' }, 'No control addresses it: map a control of yours to it, exclude it with a reason, or state your position.')
     : h('div', {}, r.controls.filter((id) => byControl.get(id)?.gaps.length).map((id) => h('div', {}, h('a', { href: `#controls/${id}` }, `${id} ${byControl.get(id).title}`), h('ul', { class: 'gaps' }, byControl.get(id).gaps.map((x) => h('li', {}, x))))));
   const excludeForm = (r) => {
-    const form = h('form', { class: 'row', style: 'margin-top:6px', onsubmit: (e) => { e.preventDefault(); post('/api/framework/decide', { id: f.id, requirement: r.id, exclude: form.reason.value }, `${r.id} excluded.`); } },
+    const form = h('form', { class: 'row', style: 'margin-top:6px', onsubmit: (e) => { e.preventDefault(); decided({ id: f.id, requirement: r.id, exclude: form.reason.value }); } },
       h('input', { type: 'text', name: 'reason', placeholder: 'Or exclude it: why it does not apply', style: 'flex:1' }), h('button', { class: 'secondary', type: 'submit' }, 'Exclude'));
     return form;
   };
@@ -190,7 +192,7 @@ function frameworkPage(f) {
       h('div', { class: 'stat' }, h('b', {}, sm.shared_evidence), h('span', {}, 'evidence records also serving SOC 2'))),
     selfAttest ? h('div', { class: 'card' }, h('h2', { style: 'margin-top:0' }, 'Sign the self-attestation'),
       h('p', { class: 'muted' }, 'A requirement is met when it is ready, excluded with a reason, or given a position below (partly met or not met, with what is in place). The signed document discloses every requirement; its badge says self-attested and lasts a year.'),
-      unpositioned.length ? [h('p', {}, pill(`${unpositioned.length} ${unpositioned.length === 1 ? 'requirement still needs' : 'requirements still need'} a position`, 'warn')), bulk] : h('p', {}, pill('every requirement has a position', 'ok')),
+      unpositioned.length ? [h('p', {}, pill(`${unpositioned.length} ${unpositioned.length === 1 ? 'requirement still needs' : 'requirements still need'} a position`, 'warn')), bulk] : h('p', {}, pill('every required requirement has a position', 'ok')),
       h('div', { class: 'row' }, h('div', { style: 'flex:1' }, signBy), h('button', { class: 'primary', disabled: unpositioned.length > 0, onclick: async () => {
         const r = await post('/api/frameworks/attest', { id: f.id, by: signBy.value }, null);
         if (r) notice(`Signed: ${r.result.counts.met} met, ${r.result.counts.excluded} excluded, ${r.result.counts.partial} partly met, ${r.result.counts['not met']} not met. Merge it through your own pull request so attribution can check it.`, true); } }, 'Sign'))) : recordCard(f),
@@ -208,8 +210,8 @@ function frameworkPage(f) {
             h('td', {}, r.controls.map((id, i) => [i ? ', ' : '', h('a', { href: `#controls/${id}` }, id)])),
             h('td', {}, pill(r.status === 'unaddressed' ? 'not addressed' : r.status, kind[r.status]), r.position && r.position !== 'met' && r.position !== 'excluded' ? h('div', {}, pill(r.position, 'warn'), ' ', r.statement,
               r.status === 'ready' ? h('span', { class: 'muted' }, ' It is ready now; the self-attestation says what you stated until you clear it.') : null, ' ',
-              h('button', { class: 'secondary', onclick: () => post('/api/framework/decide', { id: f.id, requirement: r.id, clear: true }, `Position on ${r.id} cleared.`) }, 'Clear')) : null, r.reason ? h('div', { class: 'muted' }, r.reason) : null,
-              st.exclusions?.[r.id] ? h('button', { class: 'secondary', onclick: () => post('/api/framework/decide', { id: f.id, requirement: r.id, include: true }, `${r.id} included again.`) }, 'Include again') : null))))])));
+              h('button', { class: 'secondary', onclick: () => decided({ id: f.id, requirement: r.id, clear: true }) }, 'Clear')) : null, r.reason ? h('div', { class: 'muted' }, r.reason) : null,
+              st.exclusions?.[r.id] ? h('button', { class: 'secondary', onclick: () => decided({ id: f.id, requirement: r.id, include: true }) }, 'Include again') : null))))])));
 }
 // Recording the document an auditor or certifying body issued: the only ground for saying audited or certified.
 function recordCard(f) {
@@ -856,7 +858,7 @@ function badgesCard() {
             const res = await post('/api/trust/publish', {}, null);
             if (res) { published = res.result; render(); notice(res.result.unchanged ? 'Published: nothing changed since the last time.' : `Published revision ${res.result.revision?.revision}.`, true); } } }, 'Publish to Open Autonomy')),
           published?.page ? h('div', {}, h('p', {}, 'It shows on ', h('a', { href: published.page, target: '_blank', rel: 'noopener' }, 'the project\'s dashboard'), published.readme ? ' under "Stated by the owner".' : ' under "Stated by the owner", to those the project lets see it.',
-              published.readme ? ' To show the badge row in the project\'s README, add this line; each badge leaves it when its date passes:' : ' Its README cannot show the badge row: its badge image did not answer signed out (a README\'s images are fetched signed out), usually because the project\'s .open-autonomy/config.yaml keeps statements from the public (dashboard: visibility private, or statements: team).'),
+              published.readme ? ' To show the badge row in the project\'s README, add this line; each badge leaves it when its date passes:' : ' Its README cannot show the badge row: its badge image did not answer signed out (a README\'s images are fetched signed out), usually because the project\'s .open-autonomy/config.yaml keeps statements from the public (dashboard: visibility private, or a statements role other than public).'),
             published.readme ? h('pre', { style: 'white-space:pre-wrap;word-break:break-all' }, published.readme) : null) : null,
           S.trust?.publish?.report ? null : h('p', { class: 'muted' }, 'trust.json does not publish the audits and certifications section, so there is nothing to publish.'))
       : h('p', { class: 'muted' }, 'To publish to the Open Autonomy project, start Evidence Desk with OPEN_AUTONOMY_BASE_URL and OPEN_AUTONOMY_KEY (the project\'s steer key, kept with the workspace, never in the project) in its environment.'));
