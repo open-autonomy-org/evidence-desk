@@ -19,7 +19,7 @@ import { publishStatement, reportOf } from './trust.ts';
 import { collectOpenAutonomyActivity } from './oa-platform.ts';
 import { frameworkDescriptions, frameworkOf } from './catalog.ts';
 import { policyReading } from './signing.ts';
-import { pendingSignatures, prepareSignature } from './signatures.ts';
+import { pendingSignatures, prepareSignature, signsOnGitHub } from './signatures.ts';
 import { commitTouched, statusOf, syncWorkspace } from './git.ts';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -37,7 +37,8 @@ function state(root: string) {
     root,
     // The workspace's Git state: its branch, how far it is from its remote as last fetched, and edits not yet committed.
     git: statusOf(root),
-    signingOnGitHub: Boolean(process.env.EVIDENCE_DESK_SIGNING_TOKEN),
+    // Whether signed acts are prepared as pull requests on GitHub (signatures.ts).
+    signingOnGitHub: signsOnGitHub(root) !== null,
     organization: ws.manifest?.data.organization ?? '',
     scope: ws.scope ? { answers: ws.scope.data.answers, sources: ws.scope.data.sources ?? {}, version: ws.scope.version } : null,
     questions, criteria, categories,
@@ -246,7 +247,7 @@ export function serve(root: string, port: number): void {
       if (req.method === 'GET') {
         if (url.pathname === '/api/state') return send(res, 200, state(root));
         // What waits for signatures on GitHub; reading it brings the workspace level with its remote first.
-        if (url.pathname === '/api/signing') { const p = await pendingSignatures(root); return send(res, 200, { ...p, state: state(root) }); }
+        if (url.pathname === '/api/signing') { const p = pendingSignatures(root); return send(res, 200, { ...p, state: state(root) }); }
         if (url.pathname.startsWith('/questionnaire/')) {
           res.setHeader('content-disposition', 'attachment; filename="answers.csv"');
           return send(res, 200, questionnaireCsv(root, decodeURIComponent(url.pathname.slice('/questionnaire/'.length))), 'text/csv; charset=utf-8');

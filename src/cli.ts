@@ -132,7 +132,8 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   gaps <dir> [--as-of YYYY-MM-DD]         what stands between the workspace and readiness
   validate <dir>                          check every file against its schema and references
   sync <dir>                              bring the workspace level with its remote: take its commits, push this one's
-  signing-template <dir>                  write the workflow that merges a signing pull request once its signer approves it
+  signing-template <dir>                  write the workflow that signs on GitHub: it opens a pull request for each act prepared
+                                          for a person's signature, and merges it once they approve it
   serve <dir> [--port <n>]                open the local app on 127.0.0.1
 
   --json   print JSON instead of text`;
@@ -185,7 +186,7 @@ async function main(argv: string[]): Promise<number> {
     if (signed) {
       const p = signed.prepared;
       if (json) console.error(JSON.stringify({ prepared: p }));
-      else console.log(p ? `Prepared for ${p.person}'s signature: ${p.url}\n${p.login} signs it by approving that pull request on GitHub.` : 'It records no signature, so it was committed to the workspace as it is.');
+      else console.log(p ? `Prepared for ${p.person}'s signature as ${p.branch}; its pull request opens on GitHub in a moment: ${p.url}\n${p.login} signs it by approving that pull request.` : 'It records no signature, so it was committed to the workspace as it is.');
       return signed.result;
     }
   }
@@ -531,8 +532,8 @@ async function command(a: Args, cmd: string, dir: string, dirArg: string, rest: 
       if (!repo) throw new Error(`${dirArg} is not a Git repository yet; make any change first (it becomes one), then write the workflow`);
       const rel = '.github/workflows/evidence-desk-signatures.yml';
       writeVersioned(repo.top, rel, signingWorkflow(), readVersioned(repo.top, rel)?.version ?? null);
-      commitTouched(repo.top, 'Add the workflow that merges a pull request once its signer approves it');
-      out(json, { written: rel }, () => `Wrote and committed ${rel} at the top of the repository. Push it (evidence-desk sync ${dirArg}); from then on a pull request Evidence Desk prepares for a person's signature merges when that person approves it.`);
+      commitTouched(repo.top, 'Add the workflow that carries a signature on GitHub');
+      out(json, { written: rel }, () => `Wrote and committed ${rel} at the top of the repository. Push it (evidence-desk sync ${dirArg}) and let GitHub Actions create pull requests (the repository's Settings, Actions, General). From then on an act a person signs is prepared as a pull request they sign by approving it.`);
       return 0;
     }
     case 'ci-template': {

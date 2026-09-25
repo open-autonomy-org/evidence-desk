@@ -135,13 +135,14 @@ finds them; a declared seam never collected is a finding too.
 Signed acts at a seam: the workspace is kept in a private GitHub repository the roster members can review, and each
 person signs the acts the workspace names them in (a form response, an access review's sign-off, a policy's latest
 approval, the update that closed an incident, a risk's treatment decided by its owner, a vendor's review recorded by
-its owner, a self-attestation) by approving the pull request that records them. Where the workspace's default branch is
-checked out and Evidence Desk holds a preparer's token (`EVIDENCE_DESK_SIGNING_TOKEN`, an identity other than the
-signer's), such a change is prepared as a pull request from a branch `sign/<the signer's GitHub login>/…`, its
-description the packet (for a policy, its whole text and what signing it commits the organization to), and the signer
-is asked to review it; `signing-template` writes the workflow that merges it, with a merge commit, once that account
-approves its current head. Elsewhere the act is committed to the current branch, and the person may open the pull
-request themselves. A register row's decision names the row's owner as the row
+its owner, a self-attestation) by approving the pull request that records them. Where the repository carries the
+signing workflow (`.github/workflows/evidence-desk-signatures.yml`, written by `signing-template`) and the default branch
+is checked out, such a change is pushed as a branch `sign/<the signer's GitHub login>/…` whose head commit's message is
+the packet (for a policy, its whole text and what signing it commits the organization to); the workflow opens the pull
+request from it as the repository's bot, asks the signer to review it, merges it with a merge commit once that account
+approves its current head, and deletes the branch of one closed unsigned. The repository must let GitHub Actions create
+pull requests. Elsewhere the act is committed to the current branch, and the person may open the pull request
+themselves. A register row's decision names the row's owner as the row
 stood when the decision was made, so reassigning the row later does not move the decision. `collect attribution`
 finds, on the default branch's first-parent line (`git log --first-parent origin/<default>`), the commit that brought
 each act to its present content, and requires GitHub to associate it with a pull request merged into the default branch that the person's GitHub

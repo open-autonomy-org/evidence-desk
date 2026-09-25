@@ -50,7 +50,7 @@ async function post(path, payload, okText) {
   }
   S = j.state;
   // A signed act, where the workspace signs on GitHub, is prepared as a pull request for its signer instead of recorded.
-  if (j.prepared) { notice(`Prepared for ${personName(j.prepared.person)}'s signature: pull request #${j.prepared.number}. It is signed by approving it on GitHub.`, true); okText = null; signing = null; }
+  if (j.prepared) { notice(`Prepared for ${personName(j.prepared.person)}'s signature: its pull request opens on GitHub in a moment, and it is signed by approving it there.`, true); okText = null; signing = null; }
   else if (j.prepared === null && S.signingOnGitHub && !okText) notice('Saved. It records no signature, so it went straight into the workspace.', true);
   if (okText) notice(okText, true);
   savedBox = box;
@@ -454,10 +454,9 @@ function signView() {
 function signItem(i, nextBtn) {
   const org = S.organization || 'the organization';
   const pr = pendingFor(i, signer);
-  const waiting = pr ? h('div', { class: 'act' }, h('p', { style: 'margin-top:0' }, pr.approved
-      ? `Approved on GitHub (#${pr.number}); it joins the workspace once the signing workflow merges it.`
-      : `Prepared for signature as pull request #${pr.number}. ${personName(signer)} signs it by approving the pull request on GitHub as ${pr.login}; to change it instead, request changes there.`),
-    h('div', { class: 'row' }, h('a', { class: 'primary btnlink', href: pr.url, target: '_blank', rel: 'noopener' }, `Open #${pr.number} on GitHub to sign`), nextBtn)) : null;
+  const waiting = pr ? h('div', { class: 'act' }, h('p', { style: 'margin-top:0' },
+      `Prepared for signature on GitHub. ${personName(signer)} signs it by approving its pull request as ${pr.login}; to change it instead, request changes there. Once approved it is merged, and it leaves this list at the next sync.`),
+    h('div', { class: 'row' }, h('a', { class: 'primary btnlink', href: pr.url, target: '_blank', rel: 'noopener' }, 'Open it on GitHub to sign'), nextBtn)) : null;
   if (i.kind === 'policy') {
     const p = i.p, r = p.reading;
     const confirm = h('input', { type: 'checkbox', id: 'adapted' });

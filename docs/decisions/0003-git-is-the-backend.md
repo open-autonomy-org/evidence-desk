@@ -44,19 +44,21 @@ changed what, when, and who signed it. Per-file versions stay as the check again
 the owner's choice. `sync` brings the branch level with its remote: it takes the remote's commits (a fast-forward, or the
 local commits replayed on top) and pushes what the remote lacks, with the machine's own Git credentials.
 
-**A signature is an approval of the exact commit, prepared by someone else.** Where the workspace is a clone of a GitHub
-repository with its default branch checked out, and Evidence Desk holds a preparer's token
-(`EVIDENCE_DESK_SIGNING_TOKEN`: an identity other than the signer's, since a host does not let an author approve their
-own pull request), a change that records a signed act does not land on the default branch. Evidence Desk makes it in a
-separate worktree at the committed head, commits it, pushes it as `sign/<the signer's GitHub login>/…`, opens a pull
-request whose description is the packet (what each act is; for a policy, its whole text, whether it is the catalog
-template unchanged, and what signing it commits the organization to), and asks the signer to review it. The signer
-reads it and approves on GitHub; GitHub records the approval against the exact head commit. The workflow
-`signing-template` writes merges the pull request, with a merge commit, once the account the branch names approves its
-current head. A change that records no signed act (a register edit that decides nothing) is committed to the default
-branch like any other. One pull request is one person's signature; a change recording acts of two people is refused.
-Which change records a signed act is worked out, not declared: the acts the workspace holds before and after it are
-compared (`signedActs`, the set attribution checks).
+**A signature is an approval of the exact commit, prepared by someone else.** A workspace on GitHub signs there when
+its repository carries the signing workflow (`signing-template` writes it) and its default branch is checked out. A
+change that records a signed act then does not land on the default branch. Evidence Desk, the preparer, makes it in a
+separate worktree at the committed head and pushes it, with the machine's own Git credentials, as a branch
+`sign/<the signer's GitHub login>/…` whose head commit's message is the packet: what each act is and, for a policy, its
+whole text, whether it is the catalog template unchanged, and what signing it commits the organization to. The
+repository's workflow opens the pull request from that branch as the repository's own bot, so the signer is never its
+author (a host does not let an author approve their own pull request), and asks the signer to review it. The signer
+reads it and approves on GitHub; GitHub records the approval against the exact head commit, and the workflow merges the
+pull request, with a merge commit, once the account the branch names approves its current head. A pull request closed
+without merging has its branch deleted. Evidence Desk speaks only Git: it needs no token to prepare a signature, and
+lists what waits from the `sign/` branches on the remote. A change that records no signed act (a register edit that
+decides nothing) is committed to the default branch like any other. One pull request is one person's signature; a
+change recording acts of two people is refused. Which change records a signed act is worked out, not declared: the acts
+the workspace holds before and after it are compared (`signedActs`, the set attribution checks).
 
 **Attribution checks the signature from GitHub's record.** `collect attribution` finds, as before, the merge commit that
 brought each act to the default branch and its pull request. The act is verified if the person's GitHub account on the
@@ -65,8 +67,8 @@ that approval), or opened it themselves (the earlier door, kept for a person who
 their own). Each row says which (`via`). An approval binds the exact commit, so it lacks the earlier door's residual,
 where a collaborator pushing to the person's branch is not told apart from them.
 
-**Elsewhere a signed act is committed where the person works.** Without a preparer's token, on a branch other than the
-default, or with no GitHub remote, the act is committed to the current branch: the person opens their own pull request,
+**Elsewhere a signed act is committed where the person works.** Without the signing workflow, on a branch other than
+the default, or with no GitHub remote, the act is committed to the current branch: the person opens their own pull request,
 or the workspace keeps its history on this machine alone.
 
 ## Alternatives and tradeoffs
@@ -81,6 +83,9 @@ or the workspace keeps its history on this machine alone.
   Evidence Desk's message.
 - **The server lands approved pull requests itself (polling).** Rejected: a signature would land only while Evidence
   Desk runs; the workflow lands it the moment the signer approves.
+- **Evidence Desk opens the pull request with a preparer's token** (a GitHub App's or a bot's). Rejected: every
+  organization would have to make and keep a second identity and give Evidence Desk its key, and Evidence Desk would
+  speak GitHub's API where Git suffices; the repository's own workflow is already an identity other than the signer's.
 - **One pull request for many documents.** Not the default: an approval covers everything in it, so one objection
   would hold every other document back; a pull request per change keeps each signature separable.
 - **An e-signature service (DocuSign).** Rejected: a third party holding the signatures, and a subscription, against the
@@ -97,14 +102,15 @@ Landing with this record:
 - `files.ts` makes a folder a repository before its first write and notes each file written; `git.ts` commits them.
   The server commits after each change and the command line after each command, including the part of a change that
   stopped with an error, so no write is left outside the history. Commits are dated by Evidence Desk's clock.
-- `signatures.ts` prepares a signature (worktree, branch, pull request, review request) and lists what waits on
-  GitHub; `signing-template` writes the landing workflow at the top of the repository; `sync` and the app's Sync
+- `signatures.ts` prepares a signature (worktree, packet, `sign/` branch) and lists what waits from the remote's `sign/`
+  branches; `signing-template` writes the workflow (open the pull request, request the review, merge on approval,
+  delete a branch closed unsigned) at the top of the repository; `sync` and the app's Sync
   button bring the workspace level with its remote.
 - The To sign page shows, for each item already prepared, its pull request to open and approve on GitHub; its acts,
   where the workspace signs on GitHub, prepare pull requests instead of recording.
 - `collect attribution` accepts the approval, and its rows carry `via`.
-- Evidence Desk's own workspace moves into the private repository `open-autonomy-org/evidence-desk-compliance`, with
-  the ED GitHub App as the preparer.
+- Evidence Desk's own workspace moves into the private repository `open-autonomy-org/evidence-desk-compliance`, which
+  carries the signing workflow and lets GitHub Actions create pull requests.
 
 Later parts, each with its own review:
 
