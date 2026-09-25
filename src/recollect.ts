@@ -25,6 +25,7 @@ const newest = (dir: string, stem: string, not?: string) => existsSync(dir) ? re
 
 export async function recollect(pkg: string, input: { repo?: string; environment?: string; account?: string; script?: string }): Promise<Recollection[]> {
   const ws = join(pkg, 'workspace');
+  if (lstatSync(ws).isSymbolicLink()) throw new Error(`${ws} is a link, not the package's workspace folder`);
   const audits = readdirSync(join(ws, 'audits'));
   // Read from the package only as regular files inside it: a link is not followed.
   const own = (rel: string) => { const f = inside(ws, rel); if (!lstatSync(f).isFile()) throw new Error(`${rel} is not a regular file in the package`); return f; };
@@ -38,7 +39,9 @@ export async function recollect(pkg: string, input: { repo?: string; environment
     // scratch copy (the firm's roster line below, the collections) can reach a file outside it.
     cpSync(ws, tmp, { recursive: true, filter: (src) => !lstatSync(src).isSymbolicLink() });
     // The package carries the workspace's contents, not its marker; the scratch copy gets one from the manifest.
-    const manifest = JSON.parse(readFileSync(join(pkg, 'manifest.json'), 'utf8')) as { organization?: string; created_at?: string };
+    const mf = inside(pkg, 'manifest.json');
+    if (!lstatSync(mf).isFile()) throw new Error('manifest.json is not a regular file in the package');
+    const manifest = JSON.parse(readFileSync(mf, 'utf8')) as { organization?: string; created_at?: string };
     if (!existsSync(join(tmp, 'evidence-desk.json'))) writeFileSync(join(tmp, 'evidence-desk.json'), JSON.stringify({ schema: 'evidence-desk.workspace/1', organization: manifest.organization ?? '', created_at: manifest.created_at ?? '', frameworks: ['soc2'] }, null, 2) + '\n');
     // The firm records what it collects under its own name.
     appendFileSync(join(tmp, 'registers', 'people.csv'), 'firm,The audit firm,,auditor,,,re-collection of the client\'s populations\n');

@@ -726,6 +726,9 @@ export function exportPackage(root: string, id: string, out: string): { files: n
       }
     }
   }
+  // A path that is not a regular file inside the workspace stops the export here, before the claims, the description and
+  // the views read anything a record names.
+  if (problems.length) throw new Error(`the package cannot be exported:\n  ${problems.join('\n  ')}`);
   // A dated claim nothing in the package records, or a count its population contradicts, stops the export: the firm
   // should never be the first to find it.
   for (const c of claimsLedger(root, ws, e.data, id, paths, now().slice(0, 10)).filter((x) => x.status === 'unsupported' || x.status === 'contradiction')) problems.push(`${c.source} makes a claim the package does not support (${c.status}): "${c.claim.slice(0, 160)}" — ${c.detail}`);
@@ -808,6 +811,8 @@ export function exportPackage(root: string, id: string, out: string): { files: n
 // leaves it, or a link, is refused before anything is read.
 function packaged(baseDir: string, rel: string): string | { problem: string } {
   try {
+    // The folder a path is resolved in must itself be a real folder of the package, not a link to somewhere else.
+    if (lstatSync(baseDir).isSymbolicLink()) return { problem: `${baseDir} is a link, not a folder of the package` };
     const full = inside(baseDir, rel);
     if (!existsSync(full)) return { problem: 'listed but missing' };
     return lstatSync(full).isFile() ? full : { problem: 'not a regular file in the package' };
@@ -816,7 +821,7 @@ function packaged(baseDir: string, rel: string): string | { problem: string } {
 const packagedFile = (baseDir: string, rel: string): string => { const f = packaged(baseDir, rel); if (typeof f !== 'string') throw new Error(`${rel}: ${f.problem}`); return f; };
 
 export function verifyPackage(dir: string): { ok: boolean; problems: string[]; files: number; digest?: string } {
-  const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
+  const manifest = JSON.parse(readFileSync(packagedFile(dir, 'manifest.json'), 'utf8'));
   const errs = check(schema('audit-package'), manifest);
   if (errs.length) return { ok: false, problems: errs, files: 0 };
   const problems: string[] = [];
@@ -837,14 +842,14 @@ export function verifyPackage(dir: string): { ok: boolean; problems: string[]; f
     else if (sha256(readFileSync(full)) !== f.sha256) problems.push(`${f.path} does not match the manifest`);
   }
   if (existsSync(join(dir, 'review'))) for (const f of walk(join(dir, 'review'))) if (!views.has(`review/${f}`)) problems.push(`review/${f} is in the package but not in the manifest`);
-  return { ok: !problems.length, problems, files: manifest.files.length, digest: sha256(readFileSync(join(dir, 'manifest.json'))) };
+  return { ok: !problems.length, problems, files: manifest.files.length, digest: sha256(readFileSync(packagedFile(dir, 'manifest.json'))) };
 }
 
 // Brings the firm's side of a returned package into the workspace. Messages are merged, samples the firm added are
 // added, and the firm's status is taken unless the client also changed the request since export; then both are kept
 // in view and the difference is reported, never overwritten.
 export function importReturn(root: string, id: string, dir: string): { updated: string[]; added: string[]; conflicts: string[] } {
-  const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
+  const manifest = JSON.parse(readFileSync(packagedFile(dir, 'manifest.json'), 'utf8'));
   if (manifest.engagement !== id) throw new Error(`the package is for engagement ${manifest.engagement}, not ${id}`);
   const out = { updated: [] as string[], added: [] as string[], conflicts: [] as string[] };
   const reqDir = join(dir, 'workspace', base(id), 'requests');
@@ -915,7 +920,7 @@ export const newId = () => randomBytes(3).toString('hex');
 // The firm's side of a received package: one act on one request file inside the package. The firm can add a message,
 // select samples from the attached population, mark a sample an exception, and accept or return the request.
 export function respondInPackage(dir: string, requestId: string, version: string, change: { by: string; text?: string; status?: 'accepted' | 'returned'; select?: string[]; exception?: { item: string; note?: string } }): void {
-  const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
+  const manifest = JSON.parse(readFileSync(packagedFile(dir, 'manifest.json'), 'utf8'));
   const wsDir = join(dir, 'workspace');
   const rel = `${base(manifest.engagement)}/requests/${requestId}.json`;
   const cur = readVersioned(wsDir, rel);
@@ -949,7 +954,7 @@ export function respondInPackage(dir: string, requestId: string, version: string
 }
 
 export function packageState(dir: string) {
-  const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
+  const manifest = JSON.parse(readFileSync(packagedFile(dir, 'manifest.json'), 'utf8'));
   const wsDir = join(dir, 'workspace');
   const e = JSON.parse(readFileSync(packagedFile(wsDir, `${base(manifest.engagement)}/engagement.json`), 'utf8')) as Engagement;
   const reqDir = join(wsDir, base(manifest.engagement), 'requests');
