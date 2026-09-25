@@ -1,5 +1,7 @@
 # Privacy policy
 
+<!-- Template adapted from Evidence Desk's policy library. Adapt it to how {{organization}} actually operates before approving it. -->
+
 ## Purpose
 
 This policy sets how {{organization}} collects, uses, keeps, discloses and disposes of personal information, and how it honors the commitments in its privacy notice.

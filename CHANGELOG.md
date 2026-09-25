@@ -7,6 +7,7 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- Every catalog policy template carries the drafting note, so an untouched template is approved only with the approver's confirmation that it is true of how the organization operates (`--as-is`, or the confirmation on the To sign page); a text is compared with the template as the organization's current answers fill it in, and a line naming the organization otherwise is shown as its own.
 - The app has a To sign page: everything waiting for one person's reading and signature in one queue (policies to approve, risk treatments to decide, forms due, access reviews to sign off, self-attestations ready to sign), read one item at a time. A policy opens with what signing it commits the organization to (the controls resting on it and how often each is owed), then its whole text with the organization's own lines marked apart from the template's. A policy still in its template can be approved once its approver confirms it is true of how the organization operates, which removes the template's drafting note in the same act.
 - Security issues are reported privately through GitHub's private vulnerability reporting, which is now on for the repository; `SECURITY.md` says how.
 - A collector whose controls the workspace does not have yet (scoping unanswered, or not adopted) refuses before it reads anything, saying what to do first, instead of reading every page of its source, writing the population and then failing to record it.

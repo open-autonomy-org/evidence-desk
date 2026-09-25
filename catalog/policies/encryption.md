@@ -1,5 +1,7 @@
 # Encryption policy
 
+<!-- Template adapted from Evidence Desk's policy library. Adapt it to how {{organization}} actually operates before approving it. -->
+
 ## Purpose
 
 This policy sets how {{organization}} uses encryption to protect data and manages the keys and secrets involved.

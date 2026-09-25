@@ -1,5 +1,7 @@
 # Code of conduct
 
+<!-- Template adapted from Evidence Desk's policy library. Adapt it to how {{organization}} actually operates before approving it. -->
+
 ## Purpose
 
 {{organization}} expects everyone who works for it or on its behalf to act with integrity, to treat people with respect and to protect the information customers trust it with.

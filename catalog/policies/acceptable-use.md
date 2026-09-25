@@ -1,5 +1,7 @@
 # Acceptable use policy
 
+<!-- Template adapted from Evidence Desk's policy library. Adapt it to how {{organization}} actually operates before approving it. -->
+
 ## Purpose
 
 This policy sets the rules for using {{organization}}'s systems, accounts and the devices that reach them.

@@ -33,7 +33,7 @@ bun src/cli.ts scope ~/acme-soc2 --set services="Hosted webhook inbox" availabil
 bun src/cli.ts adopt ~/acme-soc2
 bun src/cli.ts register ~/acme-soc2 people --add id=ana name="Ana Ortiz" role="Security owner"
 bun src/cli.ts control ~/acme-soc2 AC-03 --owner ana --status in-progress
-bun src/cli.ts policy ~/acme-soc2 access-control --approve --by ana
+bun src/cli.ts policy ~/acme-soc2 access-control --approve --by ana --as-is   # after reading it: true of how you operate
 bun src/cli.ts evidence ~/acme-soc2 --add --control AC-03 --file review.csv --title "Q3 access review" --by ana --period 2026-07-01..2026-09-30
 bun src/cli.ts respond ~/acme-soc2 code-of-conduct --person ana --answer read=yes
 bun src/cli.ts access-review ~/acme-soc2 start --system github --reviewer ana --period 2026-07-01..2026-09-30 --listing members.csv --generated-by "gh api orgs/acme/members"

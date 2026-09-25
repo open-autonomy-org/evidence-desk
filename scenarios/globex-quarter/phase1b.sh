@@ -21,7 +21,7 @@ t=re.sub(r'\b[Tt]he Security [Tt]eam\b', 'the security owners (Maya Chen and Sam
 t=re.sub(r'\bSecurity [Tt]eam\b', 'security owners', t)
 open(f,'w').write(t)
 PY
-  ed policy $W $p --approve --by maya | grep -iv "^Approved"
+  ed policy $W $p --approve --by maya --as-is | grep -iv "^Approved"
 done
 ed register $W risks --add id=R-1 title="A leaked API key exposes customer payloads" description="Keys are issued per customer; a leaked key reads that customer's stored payloads" likelihood=2 impact=4 treatment=mitigate "controls=AC-05;AC-11" owner=maya status=treated review_due=2027-06-23 | grep -i error
 ed register $W risks --add id=R-2 title="A Cloudflare outage stops webhook intake" description="Intake depends on one provider" likelihood=2 impact=3 treatment=accept "controls=OPS-07" owner=maya status=treated review_due=2027-06-23 | grep -i error
