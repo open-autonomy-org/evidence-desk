@@ -28,6 +28,11 @@ team: {
     ]
   }
 
+# Where people act (the Open Autonomy kit's ADR 0008, human seams): each seam's roster scope, the door its acts go through,
+# and where they are recorded; and the vendor accounts whose administrators are people in scope. JSON is a YAML value.
+# Evidence Desk has no release workflow yet; the release-approval seam is declared when one lands.
+seams: {"seams": [{"id": "roster", "scope": "owner", "door": "commit", "record": ".open-autonomy/config.yaml team, changed through a reviewed pull request"}, {"id": "spending-bounds", "scope": "owner", "door": "commit", "record": ".open-autonomy/config.yaml spend limits"}, {"id": "direction", "scope": "direction", "door": "commit", "record": "GitHub issues and comments by the verified account of a member holding direction, and ROADMAP.md as landed; chat is a request"}, {"id": "compliance-signing", "scope": "owner", "door": "code-host-gate", "record": "Approvals of sign/ pull requests in open-autonomy-org/evidence-desk-compliance, merged by its signing workflow and checked by evidence-desk collect attribution"}, {"id": "pause", "scope": "owner", "door": "platform-key", "record": "The project's books on the Open Autonomy platform"}], "vendor_accounts": [{"id": "github", "vendor": "github", "account": "open-autonomy-org"}, {"id": "model-gateway", "vendor": "open-autonomy", "account": "the project's key on the Open Autonomy platform (model valve and books)"}]}
+
 # What the reporter publishes. Work sessions (the scheduled runs, the funded work) publish by default; the
 # private exceptions are named here. Anything listed under `private` is never sent.
 publish:
