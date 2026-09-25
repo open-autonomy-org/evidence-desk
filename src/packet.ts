@@ -202,10 +202,14 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   }
   // A change that reached the branch without an independent approval is an emergency change unless shown otherwise, and
   // an emergency change needs its break-glass record: each one the latest break-glass population does not name (by pull
-  // request number or commit) is an exception of its own.
+  // request number or commit) is an exception of its own. Where the package holds the production deployments population,
+  // the branch is a release candidate: a change reaches production only in a deployment, whose approval that population
+  // and the change-releases view judge, so a merge without review is the review lapse the changes population already
+  // lists, not an emergency change.
+  const releaseGated = evidence.some((x) => x.data.files.some((f) => f.path.includes('/github-deployments-') && f.path.endsWith('.csv')));
   const glass = ws.evidence.filter((x) => x.data.source?.name === 'break-glass seam').sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
   const glassText = glass ? glass.data.files.map((f) => existsSync(join(root, f.path)) ? readFileSync(join(root, f.path), 'utf8') : '').join('\n') : '';
-  for (const ev of evidence.filter((x) => x.data.controls.includes('CHG-01'))) for (const f of ev.data.files.filter((f) => f.path.endsWith('.csv') && f.path.includes('/populations/'))) {
+  for (const ev of evidence.filter((x) => !releaseGated && x.data.controls.includes('CHG-01'))) for (const f of ev.data.files.filter((f) => f.path.endsWith('.csv') && f.path.includes('/populations/'))) {
     const t = parseCsv(readFileSync(join(root, f.path), 'utf8'), f.path);
     if (!t.columns.includes('independent_approval') || !t.columns.includes('merged_at')) continue;
     for (const r of t.rows.filter((r) => r.independent_approval !== 'yes')) {

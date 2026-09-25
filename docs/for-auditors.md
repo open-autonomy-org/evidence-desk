@@ -37,7 +37,10 @@ manifest's `derived` list (the README too), and every line names the file it com
 
 Each population in `index.html` carries a test memo: how many items it holds and whether its completeness comes from
 the system of record or from records the organization keeps itself. A change merged without an independent approval
-that no break-glass record names is an exception of its own. A management response lists the workspace files it
+is an exception; where the package also holds the production deployments population, the default branch is a release
+candidate and such a change reached production only in a deployment that population judges, so it is not also treated
+as an emergency change. Without that population, a change merged without an independent approval that no break-glass
+record names is an emergency change without its record, an exception of its own. A management response lists the workspace files it
 cites; one citing nothing says so. The package is not exported while any exception or request has no response; `audit <dir> <id>
 exceptions` lists the register the package will carry and which rows are answered.
 
