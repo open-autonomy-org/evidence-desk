@@ -89,7 +89,7 @@ export async function prepareSignature<T>(root: string, message: string, person:
     // The packet is the head commit's message: the workflow opens the pull request with it, and the history keeps it
     // beside the change it describes.
     const title = acts.length === 1 ? `Sign: ${acts[0].label}` : `Sign: ${acts.length} acts`;
-    if (!commitTouched(at, `${title}\n\n${packet(root, at, signer, acts)}`)) return { result, prepared: null, syncError };
+    if (!commitTouched(at, unskippable(`${title}\n\n${packet(root, at, signer, acts, prefix)}`))) return { result, prepared: null, syncError };
     const head = `sign/${login}/${acts[0].key.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)}-${git(wt, 'rev-parse', '--short=7', 'HEAD')}`;
     try { git(wt, 'push', '-q', 'origin', `HEAD:refs/heads/${head}`); }
     catch (e) { throw new Error(`a signature is prepared on GitHub, and origin could not be reached; nothing was recorded, so try again when it can: ${(e as Error).message.split('\n').find((l) => l.trim()) ?? ''}`); }
@@ -102,7 +102,14 @@ export async function prepareSignature<T>(root: string, message: string, person:
 
 // The packet: who is asked to sign what, and for a policy its whole text as signed. Whether the text is still the
 // catalog template is read from the workspace before the change (approving removes the drafting note).
-function packet(before: string, root: string, person: string, acts: { key: string; label: string; kind: string; file: string }[]): string {
+// GitHub skips a push's workflows when its head commit's message carries a skip directive ([skip ci] and its kin, or a
+// skip-checks trailer), and the packet quotes policy text that may name one: a word joiner inside each keeps it from
+// being read as one, and it reads the same.
+const unskippable = (message: string) => message
+  .replace(/\[(skip ci|ci skip|no ci|skip actions|actions skip)\]/gi, (m) => `[\u2060${m.slice(1)}`)
+  .replace(/^(\s*skip-checks)(\s*:)/gim, '$1\u2060$2');
+
+function packet(before: string, root: string, person: string, acts: { key: string; label: string; kind: string; file: string }[], workspace: string): string {
   const ws = loadWorkspace(root), prior = loadWorkspace(before);
   const org = ws.manifest?.data.organization || 'the organization';
   const name = (ws.registers.people?.data.rows ?? []).find((r) => r.id === person)?.name || person;
@@ -121,7 +128,7 @@ function packet(before: string, root: string, person: string, acts: { key: strin
     if (r.commitments.length) out.push(`Signing this commits ${org} to:`, '', ...r.commitments.map((c) => `- ${c.title} (${c.control}), ${c.every}`), '');
     out.push(`The text you sign, \`policies/${id}.md\`${version ? `, SHA-256 \`${version.sha256}\`` : ''}:`, '', '<blockquote>', '', text.trim(), '', '</blockquote>', '');
   }
-  out.push(`<!-- evidence-desk:sign ${JSON.stringify({ person, acts: acts.map(({ key, kind, file, label }) => ({ key, kind, file, label })) })} -->`);
+  out.push(`<!-- evidence-desk:sign ${JSON.stringify({ workspace, person, acts: acts.map(({ key, kind, file, label }) => ({ key, kind, file, label })) })} -->`);
   const body = out.join('\n');
   return body.length <= 60000 ? body : `${body.slice(0, 59000)}\n\n…the rest is under **Files changed**.\n\n${out.at(-1)}`;
 }
@@ -140,12 +147,15 @@ export function pendingSignatures(root: string): { repo: string | null; status: 
     if (repo) git(root, 'fetch', '-q', '--prune', 'origin', '+refs/heads/sign/*:refs/remotes/origin/sign/*');
   } catch (e) { status = statusOf(root); error = (e as Error).message; }
   if (!repo) return { repo, status, pending: [], error };
+  // A repository may hold more than one workspace: only this one's signatures are its own.
+  const prefix = repoOf(root)?.prefix ?? '';
   const pending: Pending[] = [];
   for (const ref of (tryGit(root, 'for-each-ref', '--format=%(refname:strip=3)', 'refs/remotes/origin/sign/') ?? '').split('\n').filter(Boolean)) {
     const m = MARK.exec(tryGit(root, 'log', '-1', '--format=%B', `refs/remotes/origin/${ref}`) ?? '');
     if (!m) continue;
     try {
-      const mark = JSON.parse(m[1]) as { person: string; acts: Pending['acts'] };
+      const mark = JSON.parse(m[1]) as { workspace?: string; person: string; acts: Pending['acts'] };
+      if ((mark.workspace ?? '') !== prefix) continue;
       const base = tryGit(root, 'symbolic-ref', '-q', 'refs/remotes/origin/HEAD');
       // Exit status 1 is a conflict; any other failure (a Git too old for --write-tree) says nothing either way.
       const merges = !base || spawnSync('git', ['-C', root, 'merge-tree', '--write-tree', base, `refs/remotes/origin/${ref}`], { stdio: 'ignore' }).status !== 1;
@@ -159,6 +169,10 @@ export function pendingSignatures(root: string): { repo: string | null; status: 
 // changed and prepared again.
 export function withdrawSignature(root: string, branch: string): void {
   if (!/^sign\/[A-Za-z0-9-]+\/[a-z0-9-]+$/.test(branch)) throw new Error(`${branch} is not a branch Evidence Desk prepared for a signature`);
+  // Only a signature this workspace prepared: its packet names the workspace's place in the repository.
+  const m = MARK.exec(tryGit(root, 'log', '-1', '--format=%B', `refs/remotes/origin/${branch}`) ?? '');
+  const mark = m ? (() => { try { return JSON.parse(m[1]) as { workspace?: string }; } catch { return null; } })() : null;
+  if (!mark || (mark.workspace ?? '') !== (repoOf(root)?.prefix ?? '')) throw new Error(`${branch} is not a signature waiting in this workspace`);
   git(root, 'push', '-q', 'origin', '--delete', branch);
   tryGit(root, 'fetch', '-q', '--prune', 'origin', '+refs/heads/sign/*:refs/remotes/origin/sign/*');
 }

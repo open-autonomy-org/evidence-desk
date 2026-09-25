@@ -190,7 +190,7 @@ async function main(argv: string[]): Promise<number> {
     const signed = await prepareSignature(dir, message, person, async (at: string) => { preparing = true; try { return await command(a, cmd, at, dirArg, rest, json); } finally { preparing = false; } });
     if (signed) {
       const p = signed.prepared;
-      if (json) console.error(JSON.stringify({ prepared: p, sync_error: signed.syncError }));
+      if (json) console.log(JSON.stringify({ prepared: p, sync_error: signed.syncError }, null, 2));
       else console.log(p ? `Prepared for ${p.person}'s signature as ${p.branch}; its pull request opens on GitHub in a moment: ${p.url}\n${p.login} signs it by approving that pull request.` : 'It records no signature, so it was committed to the workspace as it is.');
       if (signed.syncError && !json) console.error(`Not yet on the remote: ${signed.syncError}`);
       return signed.result;
