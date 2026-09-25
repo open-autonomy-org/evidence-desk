@@ -217,7 +217,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   const changePops = evidence.filter((x) => x.data.controls.includes('CHG-01') && x.data.files.some((f) => f.path.includes('/github-changes-')));
   const changeRepos = [...new Set(changePops.map((x) => /^Population: \d+ changes to (\S+?)'s /.exec(x.data.title)?.[1]))];
   const workerPop = evidence.filter((x) => covers(x) && x.data.files.some((f) => f.path.includes('/cloudflare-worker-deployments-') && f.path.endsWith('.csv')));
-  const prodPops = prodEnv ? changeRepos.map((repo) => evidence.filter((x) => covers(x) && new RegExp(`^Population: \\d+ deployments of ${repo!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} to ${prodEnv.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, `).test(x.data.title))) : [];
+  const prodPops = prodEnv && changeRepos.every(Boolean) ? changeRepos.map((repo) => evidence.filter((x) => covers(x) && new RegExp(`^Population: \\d+ deployments of ${repo!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} to ${prodEnv.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, `).test(x.data.title))) : [];
   // A Worker deployment counts as matched only to one of those production deployments, not to another environment's.
   const prodIds = new Set(prodPops.flat().flatMap(rowsOf).map((r) => r.id));
   // Each production deployment started from the declared tag and approved by someone other than who started it: a tag
