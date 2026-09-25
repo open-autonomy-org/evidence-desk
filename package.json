@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "packageManager": "bun@1.3.10",
-  "bin": { "evidence-desk": "src/cli.ts" },
+  "bin": {
+    "evidence-desk": "bin/evidence-desk"
+  },
   "scripts": {
     "check": "bunx tsc --noEmit",
     "evidence-desk": "bun src/cli.ts"

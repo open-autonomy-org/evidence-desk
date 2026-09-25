@@ -1,0 +1,5 @@
+#!/bin/sh
+# Runs Evidence Desk with its own Bun configuration and no environment file: a bunfig.toml or .env in the folder it is
+# run from (a workspace someone else wrote) is never loaded, so it cannot run code or set variables for it.
+ED=$(cd "$(dirname "$(realpath "$0")")/.." && pwd)
+exec bun --config="$ED/bunfig.toml" --no-env-file "$ED/src/cli.ts" "$@"
