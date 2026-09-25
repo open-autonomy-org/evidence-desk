@@ -39,16 +39,17 @@ export function ensureRepo(root: string): void {
   if (known.has(key) || !workspaces.has(key) || !existsSync(root)) return;
   if (!repoOf(root)) {
     git(root, 'init', '-q', '-b', 'main');
-    // The exclusions hold even where the folder already has its own .gitignore: environment files that may hold keys
-    // never enter the first commit.
-    const ignore = join(root, '.gitignore');
-    const had = existsSync(ignore) ? readFileSync(ignore, 'utf8') : '';
-    const missing = IGNORE.split('\n').filter((l) => l && !had.split('\n').map((x) => x.trim()).includes(l));
-    if (missing.length) writeFileSync(ignore, `${had}${had && !had.endsWith('\n') ? '\n' : ''}${missing.join('\n')}\n`);
+    // Environment files that may hold keys never enter the first commit, whatever the folder's own ignore files say: the
+    // exclusions go in the new repository's own exclude file (the folder cannot redirect it), and any such file staged
+    // anyway (a negated rule) is taken out again before the commit. A folder's existing .gitignore is left as it is.
+    writeFileSync(join(root, '.git', 'info', 'exclude'), IGNORE);
+    const fresh = !existsSync(join(root, '.gitignore'));
+    if (fresh) writeFileSync(join(root, '.gitignore'), IGNORE);
     if (readdirSync(root).some((f) => f !== '.git' && f !== '.gitignore')) {
       git(root, 'add', '-A');
+      git(root, 'rm', '-q', '--cached', '--ignore-unmatch', '--', ':(glob)**/.env', ':(glob)**/.env.*');
       commit(root, ['-m', 'The workspace as it stood when Evidence Desk began keeping its history']);
-    } else track(root, '.gitignore', null);
+    } else if (fresh) track(root, '.gitignore', null);
   }
   known.add(key);
 }
