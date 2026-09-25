@@ -52,3 +52,7 @@ export const SOC2: FrameworkDescription = { id: 'soc2', title: 'SOC 2', version:
   source: { name: "AICPA's Trust Services Criteria for Security, Availability, Processing Integrity, Confidentiality and Privacy" } };
 // Every framework Evidence Desk maps, SOC 2 first.
 export const frameworkDescriptions: FrameworkDescription[] = [SOC2, ...[...frameworkCatalogs.values()].map(({ schema: _s, requirements: _r, note: _n, ...d }) => d)];
+
+// How often a control's evidence is due, by its frequency: the one table gaps and obligations both read, so a frequency
+// cannot be known to one and missing from the other. Continuous and per-event controls have no interval.
+export const INTERVAL_DAYS: Record<string, number> = { daily: 1, weekly: 7, monthly: 31, quarterly: 92, semiannual: 184, annual: 366 };

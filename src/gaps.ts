@@ -12,8 +12,8 @@ import { join } from 'node:path';
 import { checkTitle, readSettings, COLLECTORS } from './automation.ts';
 import { clockDate } from './clock.ts';
 import { inSoc2Scope, isSoc2Control, neededControls, soc2Exclusion } from './targets.ts';
+import { INTERVAL_DAYS } from './catalog.ts';
 
-const INTERVAL_DAYS: Record<string, number> = { daily: 1, weekly: 7, monthly: 31, quarterly: 92, semiannual: 184, annual: 366 };
 
 export type ControlGaps = { id: string; title: string; owner: string; status: string; gaps: string[]; evidence: number; last_evidence: string | null };
 export type CriterionGaps = { id: string; title: string; category: string; controls: string[]; excluded: { id: string; reason: string }[]; ready: boolean; gaps: string[] };
