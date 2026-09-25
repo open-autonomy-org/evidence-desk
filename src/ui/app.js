@@ -58,7 +58,12 @@ async function post(path, payload, okText) {
   return j;
 }
 
-window.addEventListener('hashchange', () => { tab = location.hash.slice(1).split('/')[0] || 'overview'; detail = decodeURIComponent(location.hash.split('/')[1] || ''); render(); window.scrollTo(0, 0); });
+// What waits on GitHub changes there (approved, merged, closed): it is read again on arriving at To sign and on coming
+// back to this window.
+window.addEventListener('focus', () => { if (tab === 'sign' && S?.signingOnGitHub && !signingLoading) loadSigning(); });
+window.addEventListener('hashchange', () => { const was = tab; tab = location.hash.slice(1).split('/')[0] || 'overview';
+  if (tab !== 'sign' || was !== 'sign') signing = null;
+  detail = decodeURIComponent(location.hash.split('/')[1] || ''); render(); window.scrollTo(0, 0); });
 document.getElementById('tabs').addEventListener('click', (e) => { const t = e.target.closest('button')?.dataset.tab; if (t) go(t); });
 
 // Unsaved edits survive a re-render of the same page: every save re-renders the whole view from the workspace, and a
@@ -247,7 +252,7 @@ function historyLine() {
   const where = !g.upstream ? `branch ${g.branch || '(detached)'}, kept on this machine only`
     : `branch ${g.branch}, ${g.ahead || g.behind ? [g.ahead ? `${g.ahead} change${g.ahead === 1 ? '' : 's'} not yet on ${g.upstream}` : '', g.behind ? `${g.behind} on ${g.upstream} not yet here` : ''].filter(Boolean).join(', ') : `level with ${g.upstream} as last fetched`}`;
   return h('div', { class: 'row', style: 'margin:0 0 12px' }, h('span', { class: 'muted' }, `History: ${where}${g.uncommitted.length ? `; ${g.uncommitted.length} file(s) edited outside Evidence Desk, not yet committed` : ''}.`),
-    g.upstream ? h('button', { class: 'secondary', onclick: () => post('/api/sync', {}, 'In step with the remote.') }, 'Sync') : null);
+    g.upstream ? h('button', { class: 'secondary', onclick: async () => { await post('/api/sync', {}, 'In step with the remote.'); signing = null; } }, 'Sync') : null);
 }
 
 function overview() {

@@ -17,6 +17,7 @@ import { readVersioned } from './files.ts';
 import { actDigest, readAct, signedActs, UNREADABLE } from './github.ts';
 import { loadWorkspace } from './workspace.ts';
 import { policyReading } from './signing.ts';
+import { unchangedTemplate } from './actions.ts';
 import { memberOf, type Snapshot } from './open-autonomy.ts';
 
 export const SIGNING_WORKFLOW = '.github/workflows/evidence-desk-signatures.yml';
@@ -113,7 +114,9 @@ function packet(before: string, root: string, person: string, acts: { key: strin
     if (!id || text === undefined) { out.push(`The act is recorded in \`${a.file}\`; **Files changed** shows exactly what you sign.`, ''); continue; }
     const r = policyReading(prior, id, readVersioned(before, `policies/${id}.md`)?.text ?? text);
     const version = ws.policies.find((p) => p.data.id === id)?.data.versions.at(-1);
-    if (r.template) out.push(`> **This is Evidence Desk's catalog template, unchanged.** Signing confirms it is true of how ${org} operates. If it is not, request changes.`, '');
+    const was = readVersioned(before, `policies/${id}.md`)?.text ?? text;
+    if (unchangedTemplate(id, was, prior.scope?.data.answers ?? {})) out.push(`> **This is Evidence Desk's catalog template, unchanged.** Signing confirms it is true of how ${org} operates. If it is not, request changes.`, '');
+    else if (r.template) out.push(`> **This is adapted from Evidence Desk's catalog template.** Signing confirms it is true of how ${org} operates. If it is not, request changes.`, '');
     if (r.commitments.length) out.push(`Signing this commits ${org} to:`, '', ...r.commitments.map((c) => `- ${c.title} (${c.control}), ${c.every}`), '');
     out.push(`The text you sign, \`policies/${id}.md\`${version ? `, SHA-256 \`${version.sha256}\`` : ''}:`, '', '<blockquote>', '', text.trim(), '', '</blockquote>', '');
   }

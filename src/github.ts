@@ -375,7 +375,10 @@ export async function collectAttribution(root: string, input: { repo: string; by
     const is = (login: string | undefined) => (login ?? '').toLowerCase() === row.expected.toLowerCase();
     // The person's signature on a pull request: their latest verdict on it (an approval, a request for changes, or a
     // dismissed review) is an approval of the head commit that was merged.
+    // An approval signs the act as it stood at the head approved: the act merged must be that one, not a merge of it
+    // with another change to the same record.
     const approvedBy = async (p: Merged) => {
+      if (!p.head?.sha || holds(p.head.sha) !== true) return null;
       const verdicts = (await all<Review>(`/repos/${input.repo}/pulls/${p.number}/reviews`)).items.filter((r) => is(r.user?.login) && ['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(r.state));
       const last = verdicts.at(-1);
       return !!last && last.state === 'APPROVED' && !!p.head?.sha && last.commit_id === p.head.sha ? last.submitted_at ?? '' : null;

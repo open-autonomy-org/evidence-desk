@@ -47,8 +47,9 @@ export function writeVersioned(root: string, rel: string, text: string | Buffer,
   const tmp = join(dirname(full), `.${randomUUID()}.tmp`);
   writeFileSync(tmp, text);
   renameSync(tmp, full);
-  track(root, rel);
-  return sha256(typeof text === 'string' ? Buffer.from(text) : text);
+  const written = sha256(typeof text === 'string' ? Buffer.from(text) : text);
+  track(root, rel, written);
+  return written;
 }
 
 export function fileHash(root: string, rel: string): { sha256: string; bytes: number } | null {

@@ -6,6 +6,7 @@
 // records by (clock.ts), and name the person who acted as their author where the people register gives an email.
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseCsv } from './csv.ts';
@@ -15,6 +16,9 @@ const env = () => ({ ...process.env, GIT_TERMINAL_PROMPT: '0' });
 export const git = (cwd: string, ...args: string[]): string =>
   execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: env() }).trimEnd();
 const tryGit = (cwd: string, ...args: string[]): string | null => { try { return git(cwd, ...args); } catch { return null; } };
+// Paths Evidence Desk names to Git are names, never patterns: a file called note[12].md must not also take note1.md.
+const literal = (cwd: string, ...args: string[]): string =>
+  execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...env(), GIT_LITERAL_PATHSPECS: '1' } }).trimEnd();
 
 // The repository holding the workspace: its top level and the workspace's path inside it ('' or 'dir/').
 export function repoOf(root: string): { top: string; prefix: string } | null {
@@ -39,24 +43,25 @@ export function ensureRepo(root: string): void {
     if (readdirSync(root).some((f) => f !== '.git' && f !== '.gitignore')) {
       git(root, 'add', '-A');
       commit(root, ['-m', 'The workspace as it stood when Evidence Desk began keeping its history']);
-    } else track(root, '.gitignore');
+    } else track(root, '.gitignore', null);
   }
   known.add(key);
 }
 
-// The files each workspace has written since its last commit, by workspace root. A change the app makes runs in its own
-// record (inChange), so two requests in flight never commit each other's files; the command line makes one change.
-type Touched = Map<string, Set<string>>;
+// The files each workspace has written since its last commit, by workspace root, each with the SHA-256 of the bytes
+// written (null where there is nothing to hold it to). A change the app makes runs in its own record (inChange), so two
+// requests in flight never commit each other's files; the command line makes one change.
+type Touched = Map<string, Map<string, string | null>>;
 const changes = new AsyncLocalStorage<Touched>();
 const process_: Touched = new Map();
 const current = () => changes.getStore() ?? process_;
 export const inChange = <T>(fn: () => T): T => changes.run(new Map(), fn);
-export function track(root: string, rel: string): void {
+export function track(root: string, rel: string, sha256: string | null): void {
   const key = resolve(root), touched = current();
-  if (!touched.has(key)) touched.set(key, new Set());
-  touched.get(key)!.add(rel);
+  if (!touched.has(key)) touched.set(key, new Map());
+  touched.get(key)!.set(rel, sha256);
 }
-export function takeTouched(root: string): string[] {
+export function takeTouched(root: string): [string, string | null][] {
   const key = resolve(root), touched = current();
   const out = [...(touched.get(key) ?? [])];
   touched.delete(key);
@@ -68,7 +73,7 @@ function commit(cwd: string, args: string[], author?: string): void {
   const identity = tryGit(cwd, 'config', 'user.email') ? [] : ['-c', 'user.name=Evidence Desk', '-c', 'user.email=evidence-desk@localhost'];
   const at = now();
   execFileSync('git', ['-C', cwd, ...identity, 'commit', '-q', ...(author ? ['--author', author] : []), ...args],
-    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...env(), GIT_AUTHOR_DATE: at, GIT_COMMITTER_DATE: at } });
+    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...env(), GIT_LITERAL_PATHSPECS: '1', GIT_AUTHOR_DATE: at, GIT_COMMITTER_DATE: at } });
 }
 
 // The person as a Git author: "Name <email>" from the people register, or none.
@@ -84,18 +89,22 @@ function authorOf(root: string, person: string | undefined): string | undefined 
 
 // Commits the files the workspace wrote, with a message saying what changed. Returns the commit, or null when nothing
 // was written or the bytes written were already the committed ones.
-// A commit that fails (a hook refuses it, signing fails) keeps its files noted, so the next commit takes them.
+// Each file must still hold the bytes Evidence Desk wrote: one edited outside it since is not committed under its name.
+// A commit that fails (a file changed since, a hook refuses it, signing fails) keeps its files noted, so the next commit
+// takes them.
 export function commitTouched(root: string, message: string, person?: string): string | null {
-  const rels = takeTouched(root);
+  const written = takeTouched(root);
   const repo = repoOf(root);
-  if (!rels.length || !repo) return null;
-  const paths = rels.map((r) => `${repo.prefix}${r}`);
+  if (!written.length || !repo) return null;
+  const paths = written.map(([r]) => `${repo.prefix}${r}`);
   try {
-    git(repo.top, 'add', '--', ...paths);
-    if (!git(repo.top, 'diff', '--cached', '--name-only', '--', ...paths)) return null;
+    const moved = written.filter(([r, sha]) => sha !== null && (!existsSync(join(root, r)) || createHash('sha256').update(readFileSync(join(root, r))).digest('hex') !== sha)).map(([r]) => r);
+    if (moved.length) throw new Error(`${moved.join(', ')} changed on disk after Evidence Desk wrote ${moved.length === 1 ? 'it' : 'them'}; commit or discard that edit, then commit Evidence Desk's change with git`);
+    literal(repo.top, 'add', '--', ...paths);
+    if (!literal(repo.top, 'diff', '--cached', '--name-only', '--', ...paths)) return null;
     commit(repo.top, ['-m', message, '--', ...paths], authorOf(root, person));
   } catch (e) {
-    for (const r of rels) track(root, r);
+    for (const [r, sha] of written) track(root, r, sha);
     throw new Error(`the change was written but not committed: ${(e as Error).message.split('\n').find((l) => l.trim()) ?? 'git refused it'}`);
   }
   return git(repo.top, 'rev-parse', 'HEAD');
