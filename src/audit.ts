@@ -3,7 +3,7 @@
 // sides exchange a point-in-time package the firm can verify offline and return. Evidence Desk never forms an opinion:
 // it records requests, answers, samples, exceptions and who said what.
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { check, schema } from './schema.ts';
@@ -586,8 +586,9 @@ manifest shows they are unchanged since, not that they were derived correctly: e
 \`evidence-desk audit verify <this folder>\`, or compare the hashes with any SHA-256 tool. To respond, edit the request
 files under \`workspace/${base(id)}/requests/\` (add to each thread with side "firm", set status "accepted" or "returned",
 add sample items) and send the folder back. A hash shows that a file is unchanged; it does not show who made it.
-\`review/workspace.bundle\` is the workspace's Git history up to the commit the manifest names: \`git clone\` it and
-\`git log\` any file to see who committed it and when, and that the file here is the one committed.
+The manifest names the workspace's commit and where it is published; \`review/workspace-history.txt\` lists who
+committed each change. Where the firm can read the workspace's repository, \`git log\` any file there at that commit to
+see who committed it and when, and that the file here is the one committed.
 The package's digest is the SHA-256 of \`manifest.json\`; \`audit verify\` prints it. Record it when the package
 arrives, by a channel the client does not control, and any later change to any file will show against it.
 \`audit recollect <this folder>\` reads the change, deployment, Cloudflare and token populations again with the firm's
@@ -743,12 +744,18 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   const created = now();
   const views = buildViews(root, ws, e.data, reqs, paths, created);
   for (const x of parseCsv(views.get('review/exceptions.csv')!, 'exceptions.csv').rows.filter((x) => !x.response.trim())) problems.push(`exception ${x.key} (${x.item}) has no management response (record one: ed audit <workspace> ${id} exception ${x.key} --response <text> --by <person>)`);
+  // Every file goes out only if it is a regular file inside the workspace: a record naming a path outside it, or a
+  // link, stops the export before anything is written.
+  for (const p of paths) {
+    try { if (!lstatSync(inside(root, p)).isFile()) problems.push(`${p} is not a regular file in the workspace`); }
+    catch (e) { problems.push(`${p}: ${(e as Error).message}`); }
+  }
   if (problems.length) throw new Error(`the package cannot be exported:\n  ${problems.join('\n  ')}`);
   mkdirSync(out, { recursive: true });
   const files = [...paths].sort().map((p) => {
     const dest = join(out, 'workspace', p);
     mkdirSync(dirname(dest), { recursive: true });
-    cpSync(join(root, p), dest);
+    cpSync(inside(root, p), dest);
     const h = fileHash(join(out, 'workspace'), p)!;
     return { path: p, sha256: h.sha256, bytes: h.bytes };
   });
@@ -783,14 +790,6 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     const pushed = remote ? g('branch', '-r', '--contains', head, '--format=%(refname:short)').split('\n').filter((x) => x && x !== 'origin/HEAD') : [];
     workspace = { commit: head, committed_at: g('show', '-s', '--format=%cI', head), remote, remote_branches: pushed, uncommitted: g('status', '--porcelain', '--', '.') ? 'yes' : 'no' };
   } catch { /* not a Git repository */ }
-  // The workspace's history itself, as a Git bundle of the commit named above: the firm can clone it and check that a
-  // file here is the one committed there, by whom and when, without reaching the hosted repository.
-  if (workspace.commit) try {
-    const rel = 'review/workspace.bundle';
-    execFileSync('git', ['-C', root, 'bundle', 'create', join(out, rel), 'HEAD'], { stdio: ['ignore', 'pipe', 'pipe'] });
-    const bytes = readFileSync(join(out, rel));
-    derived.push({ path: rel, sha256: sha256(bytes), bytes: bytes.length });
-  } catch { /* no history to bundle */ }
   const manifest = { schema: 'evidence-desk.audit-package/1', engagement: e.data.id, organization: ws.manifest?.data.organization ?? '', created_at: created, ...(Object.keys(workspace).length ? { workspace } : {}), files, derived,
     omitted,
     request_versions: Object.fromEntries(reqs.map((r) => [r.data.id, r.version])) };
@@ -801,6 +800,17 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   return { files: files.length, omitted: manifest.omitted, digest: sha256(Buffer.from(pretty(manifest))) };
 }
 
+// A file a received package names, opened only if it is a regular file inside the package folder given: a path that
+// leaves it, or a link, is refused before anything is read.
+function packaged(baseDir: string, rel: string): string | { problem: string } {
+  try {
+    const full = inside(baseDir, rel);
+    if (!existsSync(full)) return { problem: 'listed but missing' };
+    return lstatSync(full).isFile() ? full : { problem: 'not a regular file in the package' };
+  } catch (e) { return { problem: (e as Error).message }; }
+}
+const packagedFile = (baseDir: string, rel: string): string => { const f = packaged(baseDir, rel); if (typeof f !== 'string') throw new Error(`${rel}: ${f.problem}`); return f; };
+
 export function verifyPackage(dir: string): { ok: boolean; problems: string[]; files: number; digest?: string } {
   const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
   const errs = check(schema('audit-package'), manifest);
@@ -809,8 +819,8 @@ export function verifyPackage(dir: string): { ok: boolean; problems: string[]; f
   const listed = new Set<string>();
   for (const f of manifest.files as { path: string; sha256: string }[]) {
     listed.add(f.path);
-    const full = join(dir, 'workspace', f.path);
-    if (!existsSync(full)) problems.push(`${f.path} is listed but missing`);
+    const full = packaged(join(dir, 'workspace'), f.path);
+    if (typeof full !== 'string') problems.push(`${f.path}: ${full.problem}`);
     else if (sha256(readFileSync(full)) !== f.sha256) problems.push(`${f.path} does not match the manifest`);
   }
   const walk = (d: string, rel = ''): string[] => readdirSync(join(d, rel), { withFileTypes: true }).flatMap((x) => x.isDirectory() ? walk(d, join(rel, x.name)) : [join(rel, x.name).split('\\').join('/')]);
@@ -818,17 +828,11 @@ export function verifyPackage(dir: string): { ok: boolean; problems: string[]; f
   const views = new Set<string>();
   for (const f of (manifest.derived ?? []) as { path: string; sha256: string }[]) {
     views.add(f.path);
-    const full = join(dir, f.path);
-    if (!existsSync(full)) problems.push(`${f.path} is listed but missing`);
+    const full = packaged(dir, f.path);
+    if (typeof full !== 'string') problems.push(`${f.path}: ${full.problem}`);
     else if (sha256(readFileSync(full)) !== f.sha256) problems.push(`${f.path} does not match the manifest`);
   }
   if (existsSync(join(dir, 'review'))) for (const f of walk(join(dir, 'review'))) if (!views.has(`review/${f}`)) problems.push(`review/${f} is in the package but not in the manifest`);
-  // The bundled history holds the workspace commit the manifest names.
-  const bundle = join(dir, 'review', 'workspace.bundle');
-  if (manifest.workspace?.commit && existsSync(bundle)) try {
-    const heads = execFileSync('git', ['bundle', 'list-heads', bundle], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-    if (!heads.includes(manifest.workspace.commit)) problems.push(`review/workspace.bundle does not hold the workspace commit ${manifest.workspace.commit}`);
-  } catch { problems.push('review/workspace.bundle is not a readable Git bundle'); }
   return { ok: !problems.length, problems, files: manifest.files.length, digest: sha256(readFileSync(join(dir, 'manifest.json'))) };
 }
 
@@ -916,8 +920,8 @@ export function respondInPackage(dir: string, requestId: string, version: string
   const notes: string[] = [];
   if (change.select?.length) {
     if (req.kind !== 'sample' || !req.population) throw new Error('samples are selected from the population attached to a sample request');
-    const pop = JSON.parse(readFileSync(join(wsDir, 'evidence/records', `${req.population}.json`), 'utf8'));
-    const keys = new Set((pop.files as { path: string }[]).flatMap((f) => parseCsv(readFileSync(join(wsDir, f.path), 'utf8'), f.path).rows.map((r) => Object.values(r)[0])));
+    const pop = JSON.parse(readFileSync(packagedFile(wsDir, `evidence/records/${req.population}.json`), 'utf8'));
+    const keys = new Set((pop.files as { path: string }[]).flatMap((f) => parseCsv(readFileSync(packagedFile(wsDir, f.path), 'utf8'), f.path).rows.map((r) => Object.values(r)[0])));
     for (const s of change.select) if (!keys.has(s)) throw new Error(`${s} is not an item of the population`);
     const have = new Set((req.samples ?? []).map((s) => s.item));
     req.samples = [...(req.samples ?? []), ...change.select.filter((s) => !have.has(s)).map((item) => ({ item, status: 'pending' as const }))];
@@ -941,11 +945,11 @@ export function respondInPackage(dir: string, requestId: string, version: string
 export function packageState(dir: string) {
   const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
   const wsDir = join(dir, 'workspace');
-  const e = JSON.parse(readFileSync(join(wsDir, base(manifest.engagement), 'engagement.json'), 'utf8')) as Engagement;
+  const e = JSON.parse(readFileSync(packagedFile(wsDir, `${base(manifest.engagement)}/engagement.json`), 'utf8')) as Engagement;
   const reqDir = join(wsDir, base(manifest.engagement), 'requests');
   const requests = readdirSync(reqDir).filter((f) => f.endsWith('.json')).sort().map((f) => { const r = readVersioned(wsDir, `${base(manifest.engagement)}/requests/${f}`)!; return { ...(JSON.parse(r.text) as AuditRequest), version: r.version }; });
   const drafts = existsSync(join(wsDir, base(manifest.engagement), 'drafts')) ? readdirSync(join(wsDir, base(manifest.engagement), 'drafts')).map((f) => `${base(manifest.engagement)}/drafts/${f}`) : [];
-  const evidence = Object.fromEntries((manifest.files as { path: string }[]).filter((f) => f.path.startsWith('evidence/records/')).map((f) => { const r = JSON.parse(readFileSync(join(wsDir, f.path), 'utf8')); return [r.id, { title: r.title, files: r.files.map((x: { path: string }) => x.path), source: r.source, period: r.period ?? null, collected_at: r.collected_at }]; }));
+  const evidence = Object.fromEntries((manifest.files as { path: string }[]).filter((f) => f.path.startsWith('evidence/records/')).map((f) => { const r = JSON.parse(readFileSync(packagedFile(wsDir, f.path), 'utf8')); return [r.id, { title: r.title, files: r.files.map((x: { path: string }) => x.path), source: r.source, period: r.period ?? null, collected_at: r.collected_at }]; }));
   return { organization: manifest.organization, created_at: manifest.created_at, engagement: e, requests, drafts, evidence, verification: verifyPackage(dir) };
 }
 

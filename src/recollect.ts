@@ -2,7 +2,7 @@
 // tokens, against a scratch copy of the package's workspace (they need its registers and roster), and each population
 // is compared row by row with the one the client packaged: a row the client left out, a row that is not there to be
 // read, or a row whose fields differ. Nothing is written into the package.
-import { appendFileSync, cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, cpSync, existsSync, lstatSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseCsv } from './csv.ts';
@@ -31,7 +31,9 @@ export async function recollect(pkg: string, input: { repo?: string; environment
   // Its real path: on macOS the temporary directory is reached through a symbolic link.
   const tmp = realpathSync(mkdtempSync(join(tmpdir(), 'recollect-')));
   try {
-    cpSync(ws, tmp, { recursive: true });
+    // Only the package's own files and folders: a link in a received package is left out, so nothing written to the
+    // scratch copy (the firm's roster line below, the collections) can reach a file outside it.
+    cpSync(ws, tmp, { recursive: true, filter: (src) => !lstatSync(src).isSymbolicLink() });
     // The package carries the workspace's contents, not its marker; the scratch copy gets one from the manifest.
     const manifest = JSON.parse(readFileSync(join(pkg, 'manifest.json'), 'utf8')) as { organization?: string; created_at?: string };
     if (!existsSync(join(tmp, 'evidence-desk.json'))) writeFileSync(join(tmp, 'evidence-desk.json'), JSON.stringify({ schema: 'evidence-desk.workspace/1', organization: manifest.organization ?? '', created_at: manifest.created_at ?? '', frameworks: ['soc2'] }, null, 2) + '\n');
