@@ -21,7 +21,8 @@ const EVERY: Record<string, string> = {
 };
 
 export function policyReading(ws: Workspace, id: string, text: string): PolicyReading {
-  const known = templateLines(id);
+  const answers = ws.scope?.data.answers ?? {};
+  const known = templateLines(id, text, answers);
   const lines = text.split('\n').map((l) => ({ text: l, mark: !l.trim() ? 'blank' as const : known.some((re) => re.test(l.trim())) ? 'template' as const : 'yours' as const }));
   const needed = neededControls(ws);
   const commitments = ws.controls.filter((c) => needed.has(c.data.id) && c.data.applicable)
@@ -29,7 +30,7 @@ export function policyReading(ws: Workspace, id: string, text: string): PolicyRe
     .filter(({ lib }) => lib?.policies.includes(id))
     .map(({ c, lib }) => ({ control: c.id, title: c.title, every: EVERY[lib!.frequency] ?? lib!.frequency, owner: c.owner }));
   return {
-    lines, template: stillTemplate(id, text),
+    lines, template: stillTemplate(id, text, String(answers.organization ?? '')),
     unfilled: [...new Set([...text.matchAll(/\{\{([a-z_]+)\}\}/g)].map((m) => m[1]))],
     commitments, words: text.replace(/<!--[\s\S]*?-->/g, '').split(/\s+/).filter(Boolean).length,
   };

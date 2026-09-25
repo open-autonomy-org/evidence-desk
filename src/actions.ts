@@ -171,23 +171,54 @@ const DRAFTING = /^<!--\s*Template adapted from[\s\S]*?-->\n\n?/m;
 const norm = (t: string) => t.replace(DRAFTING, '').replace(/\s+/g, ' ').trim();
 // The catalog template as a pattern, its answer placeholders matching any filled-in value, so a template filled in under an
 // earlier organization name or contact is still known for the template. Built once per template.
-const asPattern = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\{\\\{(organization|security_contact)\\\}\\\}/g, '.+?');
-const whole = new Map<string, RegExp | null>();
-const lineSets = new Map<string, RegExp[]>();
-export function templateLines(id: string): RegExp[] {
-  if (!lineSets.has(id)) {
-    const tpl = policyTemplates.find((t) => t.id === id);
-    lineSets.set(id, tpl ? tpl.text.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => new RegExp(`^${asPattern(l)}$`)) : []);
-  }
-  return lineSets.get(id)!;
+// The catalog template as a pattern whose answer placeholders take the organization's name as it was filled in, so a
+// template filled in under an earlier name is still known for the template. The first mention is captured as a plain
+// name (no punctuation, at most 80 characters) and every later mention must repeat it exactly; a template that names
+// the organization once must name it as the scope does now. An edit beside the name is never swallowed as the name.
+const escape = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const PH = /\\\{\\\{(organization|security_contact)\\\}\\\}/g;
+function pattern(t: string, current: string): RegExp {
+  const seen = new Set<string>();
+  return new RegExp(`^${escape(t).replace(PH, (_m, k: string) => {
+    if (seen.has(k)) return `\\k<${k}>`;
+    seen.add(k);
+    return k === 'organization' ? `(?<${k}>${current ? `${escape(current)}|` : ''}[^\\n.,;:!?]{1,80}?)` : `(?<${k}>\\S{1,200}?)`;
+  })}$`);
 }
-// The text is the catalog template word for word, whatever the organization is called.
-export function unchangedTemplate(id: string, text: string): boolean {
-  if (!whole.has(id)) { const tpl = policyTemplates.find((t) => t.id === id); whole.set(id, tpl ? new RegExp(`^${asPattern(norm(tpl.text))}$`) : null); }
-  return whole.get(id)?.test(norm(text)) ?? false;
+// Keyed by template and the organization's current name, which is always accepted as written (it may carry punctuation).
+const whole = new Map<string, { re: RegExp; mentions: number } | null>();
+function wholeOf(id: string, current: string) {
+  const key = `${id}\u0000${current}`;
+  if (!whole.has(key)) {
+    const tpl = policyTemplates.find((t) => t.id === id);
+    whole.set(key, tpl ? { re: pattern(norm(tpl.text), current), mentions: (tpl.text.match(/\{\{organization\}\}/g) ?? []).length } : null);
+  }
+  return whole.get(key)!;
+}
+// The name the text gives the organization where the template names it, when the text is the template unchanged.
+function filledName(id: string, text: string, current: string): string | null {
+  const w = wholeOf(id, current);
+  const m = w?.re.exec(norm(text));
+  if (!m) return null;
+  const name = m.groups?.organization ?? current;
+  return w!.mentions >= 2 || name === current ? name : null;
+}
+// The text is the catalog template word for word, under the organization's current name or a name it consistently used.
+export function unchangedTemplate(id: string, text: string, current: string): boolean { return filledName(id, text, current) !== null; }
+// The template's lines with the organization's name in place, for marking a text's lines: the current name, and the
+// name the text itself uses where it is otherwise the template.
+export function templateLines(id: string, text: string, answers: Record<string, unknown>): RegExp[] {
+  const tpl = policyTemplates.find((t) => t.id === id);
+  if (!tpl) return [];
+  const current = String(answers.organization ?? '');
+  const names = [...new Set([current, filledName(id, text, current) ?? current].filter(Boolean))];
+  const contact = String(answers.security_contact ?? '');
+  return tpl.text.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => new RegExp(`^${escape(l)
+    .replace(/\\\{\\\{organization\\\}\\\}/g, `(?:${names.map(escape).join('|') || '\\{\\{organization\\}\\}'})`)
+    .replace(/\\\{\\\{security_contact\\\}\\\}/g, contact ? escape(contact) : '\\{\\{security_contact\\}\\}')}$`));
 }
 // Still the catalog template: it carries the catalog's drafting comment, or it is the template unchanged.
-export function stillTemplate(id: string, text: string): boolean { return DRAFTING.test(text) || unchangedTemplate(id, text); }
+export function stillTemplate(id: string, text: string, current: string): boolean { return DRAFTING.test(text) || unchangedTemplate(id, text, current); }
 
 // Freezes the current text as the next approved version. `textVersion` is the version of the text the approver read.
 // A text that is still the catalog template is approved only when its approver confirms it is true of how the
@@ -205,8 +236,9 @@ export function approvePolicy(root: string, id: string, approvedBy: string, text
   if (!people.includes(approvedBy)) throw new Error(`approver ${approvedBy} is not in registers/people.csv`);
   const left = placeholders(text.text);
   if (left.length) throw new Error(`fill in ${left.map((p) => `{{${p}}}`).join(', ')} before approving`);
-  const template = stillTemplate(id, text.text);
-  const unchanged = unchangedTemplate(id, text.text);
+  const org = String(loadWorkspace(root).scope?.data.answers.organization ?? '');
+  const template = stillTemplate(id, text.text, org);
+  const unchanged = unchangedTemplate(id, text.text, org);
   if (template && !asIs) throw new Error(`policies/${id}.md is still the catalog template: adapt it to how the organization operates, or confirm it is true of how the organization operates as it stands (--as-is)`);
   const body = text.text.replace(DRAFTING, '');
   const bodyVersion = sha256(body);
