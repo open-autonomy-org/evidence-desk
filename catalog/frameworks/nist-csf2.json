@@ -349,7 +349,8 @@
    "controls": [
     "CHG-01",
     "CHG-04",
-    "GOV-03"
+    "GOV-03",
+    "OPS-04"
    ]
   },
   {
@@ -429,7 +430,8 @@
    "group": "Protect: Identity, authentication and access control",
    "title": "Users, services, and hardware are authenticated",
    "controls": [
-    "AC-01"
+    "AC-01",
+    "AC-05"
    ]
   },
   {
@@ -474,10 +476,7 @@
    "id": "PR.DS-01",
    "group": "Protect: Data security",
    "title": "The confidentiality, integrity, and availability of data-at-rest are protected",
-   "controls": [
-    "AC-09",
-    "OPS-05"
-   ]
+   "controls": []
   },
   {
    "id": "PR.DS-02",
@@ -497,10 +496,7 @@
    "id": "PR.DS-11",
    "group": "Protect: Data security",
    "title": "Backups of data are created, protected, maintained, and tested",
-   "controls": [
-    "OPS-05",
-    "OPS-07"
-   ]
+   "controls": []
   },
   {
    "id": "PR.PS-01",
@@ -782,10 +778,7 @@
    "id": "RC.RP-03",
    "group": "Recover: Recovery plan execution",
    "title": "The integrity of backups and other restoration assets is verified before using them for restoration",
-   "controls": [
-    "OPS-05",
-    "OPS-07"
-   ]
+   "controls": []
   },
   {
    "id": "RC.RP-04",
@@ -799,10 +792,7 @@
    "id": "RC.RP-05",
    "group": "Recover: Recovery plan execution",
    "title": "The integrity of restored assets is verified, systems and services are restored, and normal operating status is confirmed",
-   "controls": [
-    "OPS-05",
-    "OPS-07"
-   ]
+   "controls": []
   },
   {
    "id": "RC.RP-06",
