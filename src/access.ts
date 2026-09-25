@@ -6,12 +6,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseCsv, writeCsv } from './csv.ts';
 import { writeVersioned } from './files.ts';
-import { addEvidence } from './actions.ts';
+import { addEvidence, evidencing } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
 import { accessChanges } from './packet.ts';
-import { neededControls } from './targets.ts';
 
 export function collectAccessChanges(root: string, input: { start: string; end: string; by: string }): { evidence: string; rows: number } {
+  const controls = evidencing(root, 'access-changes', ['AC-02', 'HR-03', 'HR-04']);
   const ws = loadWorkspace(root);
   const people = ws.registers.people?.data.rows ?? [];
   const latest = existsSync(join(root, 'sources/open-autonomy/latest.json')) ? JSON.parse(readFileSync(join(root, 'sources/open-autonomy/latest.json'), 'utf8')) as { team?: { id: string; github?: string }[] } : {};
@@ -41,9 +41,8 @@ export function collectAccessChanges(root: string, input: { start: string; end: 
   });
   const rel = `evidence/files/populations/access-changes-${input.start}-${input.end}-${Date.now()}.csv`;
   writeVersioned(root, rel, writeCsv({ columns: ['seen_at', 'system', 'account', 'kind', 'change', 'role', 'audit_log_at', 'audit_log_actor', 'person_start', 'person_end', 'within_employment', 'snapshot'], rows }), null);
-  const applicable = neededControls(ws);
   const evidence = addEvidence(root, {
-    title: `Population: ${rows.length} access changes on GitHub and Cloudflare, ${input.start} to ${input.end}`, controls: ['AC-02', 'HR-03', 'HR-04'].filter((x) => applicable.has(x)), files: [rel], recorded_by: input.by,
+    title: `Population: ${rows.length} access changes on GitHub and Cloudflare, ${input.start} to ${input.end}`, controls: controls, files: [rel], recorded_by: input.by,
     period: { start: input.start, end: input.end },
     source: { kind: 'collector', name: 'access changes', query: `the daily snapshots of the GitHub organization's members and the Cloudflare account's members, each compared with the day before${cfFile ? `; the member events of ${cfFile.path} for the exact time and actor` : ''}` },
     notes: 'Complete to the day: each daily run lists every member, so every change that lasted past a run is here, seen_at being that run. Access granted and removed between two runs is not; the Cloudflare audit log (audit_log_at) records the exact time where it has the event.',

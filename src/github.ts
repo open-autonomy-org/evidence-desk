@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { parseCsv, writeCsv } from './csv.ts';
 import { CF_ADMIN_ROLES, cfAccount, cfAll, cfIsAdmin } from './cloudflare.ts';
 import { readVersioned, writeVersioned } from './files.ts';
-import { addEvidence } from './actions.ts';
+import { addEvidence, evidencing } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
 import type { Snapshot } from './open-autonomy.ts';
 import { clockDate, now } from './clock.ts';
@@ -62,6 +62,7 @@ type Review = { user?: { login?: string }; state: string; submitted_at?: string;
 const areas = (paths: string[]) => [...new Set(paths.map((f) => f.startsWith('.github/workflows/') ? 'pipeline' : f.startsWith('records/') ? 'records' : /\.md$|^docs\//.test(f) ? 'docs' : 'code'))].sort().join(';');
 
 export async function collectChanges(root: string, input: { repo: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; unknown: number; notIndependent: number; direct: number }> {
+  const controls = evidencing(root, 'github-changes', ['CHG-01', 'CHG-02']);
   const source = await provenance();
   const meta = await get(`/repos/${input.repo}`) as { default_branch: string };
   const branch = meta.default_branch;
@@ -140,7 +141,7 @@ export async function collectChanges(root: string, input: { repo: string; start:
   const notIndependent = rows.filter((r) => r.independent_approval === 'no').length;
   const direct = rows.filter((r) => r.kind === 'direct push').length;
   const evidence = addEvidence(root, {
-    title: `Population: ${rows.length} changes to ${input.repo}'s ${branch}, ${input.start} to ${input.end}`, controls: applicableOf(root, ['CHG-01', 'CHG-02']), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
+    title: `Population: ${rows.length} changes to ${input.repo}'s ${branch}, ${input.start} to ${input.end}`, controls: controls, files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'github', query },
     notes: `Complete: every page of closed pull requests and of the branch's commits in the period was read, and every commit is either carried by a merged pull request or listed as a direct push (${direct})${capped.length ? `; GitHub lists at most 250 commits of a pull request, and #${capped.join(', #')} reached that cap, so their later commits were matched through the per-commit lookup` : ''}. ${notIndependent} reached the branch without an approval from someone other than the author; independence could not be established for ${unknown}; ${rows.filter((r) => r.approval_on_merged_head === 'no').length} were approved only on an earlier commit than the one merged. Raw responses, with GitHub's request id and answer time for each and the account whose token read them (${source.token_owner}): ${stem}.raw.json.`,
   });
@@ -155,6 +156,7 @@ type Approval = { state: string; user?: { login?: string }; environments?: { nam
 // its statuses, and the run's approvals are the environment's required reviewers acting. An approval by someone other
 // than the person who started the run is independent.
 export async function collectDeployments(root: string, input: { repo: string; environment: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; unapproved: number }> {
+  const controls = evidencing(root, 'github-deployments', ['CHG-03']);
   const source = await provenance();
   // Who may act at the two production seams an Open Autonomy project declares: starting a deploy and approving the
   // environment. Each is a scope on the roster; a person acting without it acted outside the declared design.
@@ -215,7 +217,7 @@ export async function collectDeployments(root: string, input: { repo: string; en
   writeVersioned(root, rel, writeCsv({ columns: ['id', 'ref', 'sha', 'created_at', 'creator', 'final_state', 'final_at', 'run', 'run_event', 'trigger_as_declared', 'declared_tag_rule', 'run_commit', 'commit_match', 'run_conclusion', 'started_by', 'starter_holds_seam', 'approved_by', 'approver_holds_seam', 'independent_approval'], rows }), null);
   const unapproved = rows.filter((r) => r.independent_approval !== 'yes').length;
   const evidence = addEvidence(root, {
-    title: `Population: ${rows.length} deployments of ${input.repo} to ${input.environment}, ${input.start} to ${input.end}`, controls: applicableOf(root, ['CHG-03']), files: [rel, `${stem}.raw.json`], recorded_by: input.by,
+    title: `Population: ${rows.length} deployments of ${input.repo} to ${input.environment}, ${input.start} to ${input.end}`, controls: controls, files: [rel, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'github', query: `GET /repos/${input.repo}/deployments?environment=${input.environment} (all ${deps.pages} page(s)); GET /repos/${input.repo}/deployments/{id}/statuses for each; GET /repos/${input.repo}/actions/runs/{run} and /approvals for the run each status links; GET /repos/${input.repo}/environments/${input.environment} and its tag rulesets` },
     notes: `Complete: every page of deployments to the environment was read. ${unapproved} without an independent approval of the ${input.environment} environment (no linked run, no approval, a run on another commit than the one deployed, or approved only by the person who started it); ${rows.filter((r) => r.run && r.run_conclusion !== 'success').length} whose run did not conclude successfully${snap ? `; against ${snap.account}'s declared seams at ${snap.commit.slice(0, 12)} (production-deploy started by members holding its scope, release-approval given by members holding its), ${rows.filter((r) => r.starter_holds_seam === 'no').length} started and ${rows.filter((r) => r.approver_holds_seam === 'no').length} approved by someone without the scope` : ''}. Raw responses, with GitHub's request id and answer time for each and the account whose token read them (${source.token_owner}): ${stem}.raw.json.`,
   });
@@ -257,7 +259,8 @@ export async function checkCompleteness(root: string, input: { account: string; 
   const rel = `sources/open-autonomy/completeness/${id}.json`;
   const rec = { schema: 'evidence-desk.completeness/1', id, account: acct.account, vendor: acct.vendor, checked_at: now(), query, commit: snap.commit, admins, outside };
   writeVersioned(root, rel, JSON.stringify(rec, null, 2) + '\n', null);
-  if (!outside.length) addEvidence(root, {
+  // The check stands on its own record; it is evidence only where AC-04 is in play.
+  if (!outside.length && applicableOf(root, ['AC-04']).length) addEvidence(root, {
     title: `Every administrator of ${acct.vendor} ${acct.account} is on the roster`, controls: applicableOf(root, ['AC-04']), files: [rel], recorded_by: input.by,
     source: { kind: 'collector', name: acct.vendor, query },
   });
@@ -452,6 +455,7 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
 // the version before. A version that lets more people bypass, drops a required review or protection, or stops enforcing
 // weakens the rules. A change by an account not on the roster is marked.
 export async function collectRuleChanges(root: string, input: { repo: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; weakening: number }> {
+  const controls = evidencing(root, 'github-rule-changes', ['CHG-01', 'OPS-04']);
   const source = await provenance();
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
   const roster = new Set((latest ? (JSON.parse(latest.text) as Snapshot).team.map((m) => m.github ?? '') : []).filter(Boolean).map((x) => x.toLowerCase()));
@@ -497,7 +501,7 @@ export async function collectRuleChanges(root: string, input: { repo: string; st
   writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['ruleset', 'ruleset_id', 'version', 'at', 'actor', 'actor_on_roster', 'change', 'weakens'], rows }), null);
   const weakening = rows.filter((r) => r.weakens === 'yes').length;
   const evidence = addEvidence(root, {
-    title: `Population: ${rows.length} changes to ${input.repo}'s rulesets, ${input.start} to ${input.end}`, controls: applicableOf(root, ['CHG-01', 'OPS-04']), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
+    title: `Population: ${rows.length} changes to ${input.repo}'s rulesets, ${input.start} to ${input.end}`, controls: controls, files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'github', query: `GET /repos/${input.repo}/rulesets; for each, GET .../rulesets/{id}/history (all pages) and .../history/{version_id}; GET /user/{account_id} for each author` },
     notes: `Complete: every version of every ruleset the repository has, from GitHub's own history; ${weakening} weakened the rules (more people may always bypass, fewer approvals, a protection dropped, or no longer enforced). Raw responses (${source.token_owner}'s token): ${stem}.raw.json.`,
   });
@@ -508,6 +512,7 @@ export async function collectRuleChanges(root: string, input: { repo: string; st
 // keys, repository and environment secrets (with when each was last set), the organization's app installations, and
 // the Open Autonomy project's agents with their models. The subjects an access review of machines covers.
 export async function collectNonHumanAccess(root: string, input: { repo: string; org: string; environment: string; by: string }): Promise<{ evidence: string; rows: number }> {
+  const controls = evidencing(root, 'nonhuman-access', ['AC-03', 'AC-05']);
   const source = await provenance();
   const raw: Record<string, unknown> = { provenance: source };
   const tryGet = async (path: string) => { try { return await get(path); } catch (e) { return { unavailable: (e as Error).message.slice(0, 160) }; } };
@@ -528,7 +533,7 @@ export async function collectNonHumanAccess(root: string, input: { repo: string;
   writeVersioned(root, `${stem}.csv`, writeCsv({ columns: ['kind', 'name', 'scope', 'access', 'created_at', 'last_set', 'detail'], rows }), null);
   const unread = ['deploy_keys', 'repository_secrets', 'environment_secrets', 'app_installations'].filter((k) => (raw[k] as { unavailable?: string })?.unavailable);
   const evidence = addEvidence(root, {
-    title: `Non-human access to ${input.repo} as of ${clockDate().toISOString().slice(0, 10)}: ${rows.length} identities`, controls: applicableOf(root, ['AC-03', 'AC-05']), files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
+    title: `Non-human access to ${input.repo} as of ${clockDate().toISOString().slice(0, 10)}: ${rows.length} identities`, controls: controls, files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
     source: { kind: 'collector', name: 'github', query: `GET /repos/${input.repo}/keys, /actions/secrets, /environments/${input.environment}/secrets; GET /orgs/${input.org}/installations; the project's agents from its declarations` },
     notes: `A listing as of its date, not a population over a period.${unread.length ? ` Not readable with the token: ${unread.join(', ')}.` : ''} Secret values are never read; last_set is when each was last written. Raw responses: ${stem}.raw.json.`,
   });
