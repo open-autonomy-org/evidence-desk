@@ -3,11 +3,11 @@
 import type { Workspace } from './workspace.ts';
 import { clockDate } from './clock.ts';
 import { neededControls } from './targets.ts';
+import { INTERVAL_DAYS } from './catalog.ts';
 
 export type Obligation = { kind: 'control' | 'person' | 'vendor' | 'risk' | 'vulnerability' | 'incident'; what: string; controls: string[]; who: string; subject?: string; due: string; state: 'done' | 'due' | 'overdue'; done_on?: string };
 
 const DAY = 864e5;
-const INTERVAL_DAYS: Record<string, number> = { daily: 1, weekly: 7, monthly: 31, quarterly: 92, annual: 366 };
 const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
 const dateOf = (d: string) => Date.parse(`${d}T00:00:00Z`);
 

@@ -1,0 +1,476 @@
+{
+ "schema": "evidence-desk.framework/1",
+ "id": "aiuc1",
+ "title": "AIUC-1",
+ "version": "Q3 2026",
+ "outcome": "certificate",
+ "issuer": "an accredited AIUC-1 auditor",
+ "source": {
+  "name": "AIUC-1, the standard for AI agents",
+  "url": "https://www.aiuc-1.com"
+ },
+ "note": "AIUC-1 requirement identifiers with short titles written by this project, mapped onto the control library. AIUC-1's text is not included: its terms forbid reproducing it, so read the standard itself at the source. Supplemental requirements are marked optional and do not count toward readiness. Certification is renewed yearly with quarterly retests; retired requirements (E007, E014) are omitted.",
+ "requirements": [
+  {
+   "id": "A001",
+   "group": "A. Data and privacy",
+   "title": "Customer data use as AI input set and communicated",
+   "controls": [
+    "AI-08",
+    "CONF-01",
+    "CONF-02"
+   ]
+  },
+  {
+   "id": "A002",
+   "group": "A. Data and privacy",
+   "title": "Ownership and use of AI output set and communicated",
+   "controls": [
+    "AI-08",
+    "GOV-07",
+    "CONF-02",
+    "PRIV-02"
+   ]
+  },
+  {
+   "id": "A003",
+   "group": "A. Data and privacy",
+   "title": "Agent data access limited to task and role",
+   "controls": [
+    "AI-10",
+    "AC-02"
+   ]
+  },
+  {
+   "id": "A004",
+   "group": "A. Data and privacy",
+   "title": "Confidential company data kept out of AI output",
+   "controls": [
+    "AI-11",
+    "CONF-01",
+    "AI-01"
+   ]
+  },
+  {
+   "id": "A005",
+   "group": "A. Data and privacy",
+   "title": "No data crossing between customers",
+   "controls": [
+    "AC-11",
+    "AI-10",
+    "AI-08"
+   ]
+  },
+  {
+   "id": "A006",
+   "group": "A. Data and privacy",
+   "title": "Personal data kept out of AI output and logs",
+   "controls": [
+    "AI-11",
+    "CONF-01"
+   ]
+  },
+  {
+   "id": "A007",
+   "group": "A. Data and privacy",
+   "title": "Third-party rights respected in AI output",
+   "controls": [
+    "AI-11",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "A008",
+   "group": "A. Data and privacy",
+   "title": "Secrets kept out of AI inputs, outputs and logs",
+   "controls": [
+    "AC-05",
+    "AI-11"
+   ]
+  },
+  {
+   "id": "B001",
+   "group": "B. Security",
+   "title": "Independent adversarial testing",
+   "controls": [
+    "AI-06"
+   ]
+  },
+  {
+   "id": "B002",
+   "group": "B. Security",
+   "title": "Adversarial input detected",
+   "controls": [
+    "AI-05"
+   ],
+   "optional": true
+  },
+  {
+   "id": "B003",
+   "group": "B. Security",
+   "title": "Technical details disclosed with care",
+   "controls": [
+    "CONF-01"
+   ],
+   "optional": true
+  },
+  {
+   "id": "B004",
+   "group": "B. Security",
+   "title": "AI endpoints protected from probing and scraping",
+   "controls": [
+    "AI-11",
+    "AC-08",
+    "MON-02"
+   ]
+  },
+  {
+   "id": "B005",
+   "group": "B. Security",
+   "title": "Inputs filtered in real time",
+   "controls": [
+    "AI-11"
+   ],
+   "optional": true
+  },
+  {
+   "id": "B006",
+   "group": "B. Security",
+   "title": "Agent actions held to their authority",
+   "controls": [
+    "AI-10",
+    "AI-05"
+   ]
+  },
+  {
+   "id": "B007",
+   "group": "B. Security",
+   "title": "Access to AI systems by role",
+   "controls": [
+    "AC-02",
+    "AC-03",
+    "AC-04"
+   ]
+  },
+  {
+   "id": "B008",
+   "group": "B. Security",
+   "title": "AI deployment environment secured",
+   "controls": [
+    "AC-08",
+    "AC-09",
+    "AC-04",
+    "AC-01",
+    "AC-05"
+   ]
+  },
+  {
+   "id": "B009",
+   "group": "B. Security",
+   "title": "Output exposure limited",
+   "controls": [
+    "AI-11"
+   ]
+  },
+  {
+   "id": "B010",
+   "group": "B. Security",
+   "title": "Generated code follows secure patterns",
+   "controls": [
+    "AI-11",
+    "CHG-02"
+   ]
+  },
+  {
+   "id": "C001",
+   "group": "C. Safety",
+   "title": "AI risk taxonomy",
+   "controls": [
+    "AI-04"
+   ]
+  },
+  {
+   "id": "C002",
+   "group": "C. Safety",
+   "title": "Testing before deployment",
+   "controls": [
+    "AI-06",
+    "CHG-02",
+    "AI-07",
+    "AI-04"
+   ]
+  },
+  {
+   "id": "C003",
+   "group": "C. Safety",
+   "title": "Harmful output prevented",
+   "controls": [
+    "AI-11"
+   ]
+  },
+  {
+   "id": "C004",
+   "group": "C. Safety",
+   "title": "Out-of-scope output prevented",
+   "controls": [
+    "AI-11"
+   ]
+  },
+  {
+   "id": "C005",
+   "group": "C. Safety",
+   "title": "Agent-specific high-risk output prevented",
+   "controls": [
+    "AI-11"
+   ]
+  },
+  {
+   "id": "C006",
+   "group": "C. Safety",
+   "title": "Vulnerabilities in output kept from users",
+   "controls": [
+    "AI-11"
+   ]
+  },
+  {
+   "id": "C007",
+   "group": "C. Safety",
+   "title": "High-risk output flagged for a person",
+   "controls": [
+    "AI-03",
+    "AI-05"
+   ],
+   "optional": true
+  },
+  {
+   "id": "C008",
+   "group": "C. Safety",
+   "title": "Monitoring across risk categories",
+   "controls": [
+    "AI-05"
+   ],
+   "optional": true
+  },
+  {
+   "id": "C009",
+   "group": "C. Safety",
+   "title": "Real-time feedback and intervention",
+   "controls": [
+    "AI-03",
+    "AI-09"
+   ],
+   "optional": true
+  },
+  {
+   "id": "C010",
+   "group": "C. Safety",
+   "title": "Independent testing for harmful output",
+   "controls": [
+    "AI-06"
+   ]
+  },
+  {
+   "id": "C011",
+   "group": "C. Safety",
+   "title": "Independent testing for out-of-scope output",
+   "controls": [
+    "AI-06"
+   ]
+  },
+  {
+   "id": "C012",
+   "group": "C. Safety",
+   "title": "Independent testing for customer-defined risks",
+   "controls": [
+    "AI-06"
+   ]
+  },
+  {
+   "id": "D001",
+   "group": "D. Reliability",
+   "title": "Fabricated output prevented",
+   "controls": [
+    "AI-11"
+   ]
+  },
+  {
+   "id": "D002",
+   "group": "D. Reliability",
+   "title": "Independent testing for fabricated output",
+   "controls": [
+    "AI-06"
+   ]
+  },
+  {
+   "id": "D003",
+   "group": "D. Reliability",
+   "title": "Unsafe tool calls restricted",
+   "controls": [
+    "AI-10",
+    "AI-05"
+   ]
+  },
+  {
+   "id": "D004",
+   "group": "D. Reliability",
+   "title": "Independent testing of tool calls",
+   "controls": [
+    "AI-06"
+   ]
+  },
+  {
+   "id": "E001",
+   "group": "E. Accountability",
+   "title": "Failure plan for AI security and privacy breaches",
+   "controls": [
+    "AI-12",
+    "OPS-02",
+    "PRIV-06"
+   ]
+  },
+  {
+   "id": "E002",
+   "group": "E. Accountability",
+   "title": "Failure plan for harmful output",
+   "controls": [
+    "AI-12"
+   ]
+  },
+  {
+   "id": "E003",
+   "group": "E. Accountability",
+   "title": "Failure plan for costly fabricated output",
+   "controls": [
+    "AI-12"
+   ]
+  },
+  {
+   "id": "E004",
+   "group": "E. Accountability",
+   "title": "Accountable lead for each reviewed AI change",
+   "controls": [
+    "AI-03",
+    "AI-07"
+   ]
+  },
+  {
+   "id": "E005",
+   "group": "E. Accountability",
+   "title": "Data storage security documented",
+   "controls": [
+    "CONF-01",
+    "AC-09"
+   ]
+  },
+  {
+   "id": "E006",
+   "group": "E. Accountability",
+   "title": "AI vendor due diligence",
+   "controls": [
+    "VND-02",
+    "VND-01"
+   ]
+  },
+  {
+   "id": "E008",
+   "group": "E. Accountability",
+   "title": "Key processes reviewed internally",
+   "controls": [
+    "MON-01",
+    "MON-04",
+    "RISK-02"
+   ]
+  },
+  {
+   "id": "E009",
+   "group": "E. Accountability",
+   "title": "Third-party connections monitored and logged",
+   "controls": [
+    "AI-05",
+    "OPS-01"
+   ]
+  },
+  {
+   "id": "E010",
+   "group": "E. Accountability",
+   "title": "AI acceptable use policy, for staff and for users",
+   "controls": [
+    "AI-01",
+    "GOV-05",
+    "AI-11",
+    "AI-05"
+   ]
+  },
+  {
+   "id": "E011",
+   "group": "E. Accountability",
+   "title": "AI data processing locations recorded",
+   "controls": [
+    "AI-02",
+    "VND-01"
+   ]
+  },
+  {
+   "id": "E012",
+   "group": "E. Accountability",
+   "title": "Applicable AI laws and standards documented",
+   "controls": [
+    "AI-04"
+   ]
+  },
+  {
+   "id": "E013",
+   "group": "E. Accountability",
+   "title": "Quality management for AI",
+   "controls": [
+    "AI-01",
+    "MON-01"
+   ],
+   "optional": true
+  },
+  {
+   "id": "E015",
+   "group": "E. Accountability",
+   "title": "AI activity logged",
+   "controls": [
+    "AI-05"
+   ]
+  },
+  {
+   "id": "E016",
+   "group": "E. Accountability",
+   "title": "Users told they are dealing with AI",
+   "controls": [
+    "AI-09"
+   ]
+  },
+  {
+   "id": "E017",
+   "group": "E. Accountability",
+   "title": "System transparency records kept",
+   "controls": [
+    "AI-02",
+    "AI-09"
+   ],
+   "optional": true
+  },
+  {
+   "id": "F001",
+   "group": "F. Society",
+   "title": "Guardrails against cyber misuse",
+   "controls": [
+    "AI-11",
+    "VND-02"
+   ]
+  },
+  {
+   "id": "F002",
+   "group": "F. Society",
+   "title": "Guardrails against catastrophic misuse",
+   "controls": [
+    "AI-11",
+    "VND-02"
+   ]
+  }
+ ]
+}

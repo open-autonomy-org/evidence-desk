@@ -42,7 +42,8 @@ export const formTemplates: FormTemplate[] = readdirSync(join(dir, 'forms')).fil
 // criteria above, the mapping inside each control); every other framework is a catalog in catalog/frameworks/ whose
 // requirements name the controls that address them. `outcome` is what a framework can become with its document.
 export type Outcome = 'audit report' | 'certificate' | 'self-attestation';
-export type FrameworkRequirement = { id: string; group: string; title: string; controls: string[]; annex_a?: boolean };
+// `optional`: a requirement the framework lists as supplemental; shown with its status, not counted toward readiness.
+export type FrameworkRequirement = { id: string; group: string; title: string; controls: string[]; annex_a?: boolean; optional?: boolean };
 export type FrameworkCatalog = { schema: string; id: string; title: string; version: string; outcome: Outcome; issuer: string; source: { name: string; url?: string }; note?: string; requirements: FrameworkRequirement[] };
 export type FrameworkDescription = Omit<FrameworkCatalog, 'schema' | 'requirements' | 'note'>;
 export const frameworkCatalogs = new Map(readdirSync(join(dir, 'frameworks')).filter((f) => f.endsWith('.json')).sort()
@@ -51,3 +52,7 @@ export const SOC2: FrameworkDescription = { id: 'soc2', title: 'SOC 2', version:
   source: { name: "AICPA's Trust Services Criteria for Security, Availability, Processing Integrity, Confidentiality and Privacy" } };
 // Every framework Evidence Desk maps, SOC 2 first.
 export const frameworkDescriptions: FrameworkDescription[] = [SOC2, ...[...frameworkCatalogs.values()].map(({ schema: _s, requirements: _r, note: _n, ...d }) => d)];
+
+// How often a control's evidence is due, by its frequency: the one table gaps and obligations both read, so a frequency
+// cannot be known to one and missing from the other. Continuous and per-event controls have no interval.
+export const INTERVAL_DAYS: Record<string, number> = { daily: 1, weekly: 7, monthly: 31, quarterly: 92, semiannual: 184, annual: 366 };

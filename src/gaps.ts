@@ -12,8 +12,8 @@ import { join } from 'node:path';
 import { checkTitle, readSettings, COLLECTORS } from './automation.ts';
 import { clockDate } from './clock.ts';
 import { inSoc2Scope, isSoc2Control, neededControls, soc2Exclusion } from './targets.ts';
+import { INTERVAL_DAYS } from './catalog.ts';
 
-const INTERVAL_DAYS: Record<string, number> = { daily: 1, weekly: 7, monthly: 31, quarterly: 92, annual: 366 };
 
 export type ControlGaps = { id: string; title: string; owner: string; status: string; gaps: string[]; evidence: number; last_evidence: string | null };
 export type CriterionGaps = { id: string; title: string; category: string; controls: string[]; excluded: { id: string; reason: string }[]; ready: boolean; gaps: string[] };
@@ -44,9 +44,12 @@ export function computeGaps(ws: Workspace, asOf = clockDate()): Gaps {
   if (oa) {
     const snap = JSON.parse(oa.text) as Snapshot;
     program.push(...seamFindings(snap).map((f) => `Open Autonomy: ${f}`));
+    // Every needed control the declarations evidence must be on a record of them at this commit; a target added since the
+    // last import leaves some off, and importing again records them.
     const declared = DECLARATION_CONTROLS.filter((c) => needed.has(c));
-    if (declared.length && !ws.evidence.some((e) => e.data.source?.kind === 'open-autonomy' && e.data.source?.commit === snap.commit && declared.some((c) => e.data.controls.includes(c))))
-      program.push(`Open Autonomy: the declarations at ${snap.commit.slice(0, 12)} are not recorded as evidence (open-autonomy import again now that controls are adopted)`);
+    const covered = new Set(ws.evidence.filter((e) => e.data.source?.kind === 'open-autonomy' && e.data.source?.commit === snap.commit).flatMap((e) => e.data.controls));
+    const missing = declared.filter((c) => !covered.has(c));
+    if (missing.length) program.push(`Open Autonomy: the declarations at ${snap.commit.slice(0, 12)} are not recorded as evidence for ${missing.join(', ')} (open-autonomy import again)`);
     const dir = join(ws.root, 'sources/open-autonomy/completeness');
     const checks = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readVersioned(ws.root, `sources/open-autonomy/completeness/${f}`)!.text) as { account: string; vendor: string; checked_at: string; outside: string[] }) : [];
     for (const acct of snap.vendor_accounts) {

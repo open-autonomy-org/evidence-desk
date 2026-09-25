@@ -1,6 +1,6 @@
 {
   "schema": "evidence-desk.control-library/1",
-  "note": "Controls written by this project. A control applies when at least one of its criteria's categories is in scope and every `when` condition matches the scoping answers.",
+  "note": "Controls written by this project. A control applies unless one of its `when` conditions fails; which SOC 2 categories the report covers is worked out when read, and a control is needed when SOC 2's scope or a targeted framework asks for it (docs/decisions/0002-frameworks-are-targets.md). The AI family meets no SOC 2 criterion and is adopted only once an AI framework is targeted.",
   "controls": [
     {
       "id": "GOV-01",
@@ -1013,6 +1013,180 @@
       "description": "Privacy inquiries, complaints and disputes are recorded, addressed and monitored.",
       "evidence": [
         "Inquiry and complaint log"
+      ]
+    },
+    {
+      "id": "AI-01",
+      "title": "AI governance policy",
+      "criteria": [],
+      "frequency": "annual",
+      "policies": [
+        "ai-governance"
+      ],
+      "description": "An approved AI policy says how the organization develops, deploys and uses AI systems responsibly, how that fits its security and privacy policies, what use of AI is acceptable (by personnel, and by the people who use its AI systems, with prohibited uses defined and enforced), and who reviews it; it is reviewed each year.",
+      "evidence": [
+        "The approved AI policy and its latest review",
+        "Acceptable use of AI communicated to personnel and to the users of the organization's AI systems"
+      ]
+    },
+    {
+      "id": "AI-02",
+      "title": "AI system inventory and documentation",
+      "criteria": [],
+      "frequency": "quarterly",
+      "policies": [
+        "ai-governance"
+      ],
+      "description": "Every AI system and agent the organization builds, runs or relies on is listed with its purpose and intended use, model and provider, owner, where its data is processed, and its technical documentation.",
+      "evidence": [
+        "The AI system inventory, reviewed within the quarter",
+        "Technical documentation for each listed system"
+      ]
+    },
+    {
+      "id": "AI-03",
+      "title": "Human oversight and accountability for AI",
+      "criteria": [],
+      "frequency": "continuous",
+      "policies": [
+        "ai-governance"
+      ],
+      "description": "Each AI system has a named accountable owner with the authority to stop it; the decisions that need a person are declared; high-risk outputs and user interventions reach a person; stopping and resuming are recorded.",
+      "evidence": [
+        "Owners and the declared points of human decision",
+        "The record of stops and resumes, and of escalations handled"
+      ]
+    },
+    {
+      "id": "AI-04",
+      "title": "AI risk and impact assessment",
+      "criteria": [],
+      "frequency": "semiannual",
+      "policies": [
+        "ai-governance",
+        "risk-assessment"
+      ],
+      "description": "Before an AI system is deployed and when it changes materially, its risks (using the organization's AI risk taxonomy), the laws that apply to it, and its impacts on individuals, groups and society are assessed and treated; the assessments and the register of applicable AI laws are reviewed at least every six months.",
+      "evidence": [
+        "The AI risk taxonomy and register of applicable AI laws, reviewed within six months",
+        "Impact assessments for each AI system and their review"
+      ]
+    },
+    {
+      "id": "AI-05",
+      "title": "AI activity records and monitoring",
+      "criteria": [],
+      "frequency": "continuous",
+      "policies": [
+        "ai-governance",
+        "logging-and-monitoring"
+      ],
+      "description": "The actions of AI systems and agents (sessions, tool and model calls, third-party connections, outputs where permitted) are recorded, retained and monitored across the organization's risk categories, including for adversarial input.",
+      "evidence": [
+        "Records of agent sessions and model calls for the period",
+        "Monitoring and the alerts it raised"
+      ]
+    },
+    {
+      "id": "AI-06",
+      "title": "AI testing before release and each quarter",
+      "criteria": [],
+      "frequency": "quarterly",
+      "policies": [
+        "ai-governance",
+        "secure-development"
+      ],
+      "description": "AI systems are tested before a release that needs approval and, by an independent tester, at least each quarter for adversarial robustness, harmful and out-of-scope output, the high-risk outputs in the organization's risk taxonomy and those its customers define, hallucination and unsafe tool calls; results and fixes are recorded.",
+      "evidence": [
+        "Pre-release test results for approved changes",
+        "Independent test reports for the quarter and the fixes they led to"
+      ]
+    },
+    {
+      "id": "AI-07",
+      "title": "Controlled change to AI systems",
+      "criteria": [],
+      "frequency": "per-event",
+      "policies": [
+        "ai-governance",
+        "change-management"
+      ],
+      "description": "Changes to an AI system's model, instructions, tools, skills, data or schedule that need formal review are defined, each has an accountable lead, and they are reviewed and released through the change process with the reason recorded.",
+      "evidence": [
+        "The definition of AI changes that need review, with their leads",
+        "Reviewed changes to AI systems in the period"
+      ]
+    },
+    {
+      "id": "AI-08",
+      "title": "Data for AI systems and data-use commitments",
+      "criteria": [],
+      "frequency": "annual",
+      "policies": [
+        "ai-governance",
+        "data-classification"
+      ],
+      "description": "How customer data is used as AI input (training, inference, retention) and who owns and may use AI output are set and communicated; data used to build, tune, ground or evaluate AI systems is documented with its source, rights, quality checks and preparation.",
+      "evidence": [
+        "Published input and output data-use terms",
+        "Records of data used for AI systems with provenance and quality checks"
+      ]
+    },
+    {
+      "id": "AI-09",
+      "title": "Transparency to users and interested parties",
+      "criteria": [],
+      "frequency": "annual",
+      "policies": [
+        "ai-governance"
+      ],
+      "description": "People who use or are affected by an AI system are told they are dealing with AI, what it is for, its limits and how to give feedback or raise concerns; documentation for users and model information are kept current.",
+      "evidence": [
+        "The disclosure users see, and user documentation",
+        "Model and system information kept for interested parties"
+      ]
+    },
+    {
+      "id": "AI-10",
+      "title": "Limits on AI agents' access and actions",
+      "criteria": [],
+      "frequency": "continuous",
+      "policies": [
+        "ai-governance"
+      ],
+      "description": "AI agents act only within the access, tools, spend and rate limits the organization sets for their task and role; actions outside them are blocked, and data of one customer never reaches another's session.",
+      "evidence": [
+        "The limits set for each agent (models, spend, tools, credentials, data)",
+        "Evidence that actions beyond the limits were blocked"
+      ]
+    },
+    {
+      "id": "AI-11",
+      "title": "Safeguards on AI inputs and outputs",
+      "criteria": [],
+      "frequency": "continuous",
+      "policies": [
+        "ai-governance"
+      ],
+      "description": "Safeguards keep AI output from leaking confidential data, personal data or secrets, infringing third-party rights, giving harmful, out-of-scope or fabricated answers, exposing vulnerabilities or insecure code, or enabling cyber or catastrophic misuse; inputs are filtered, prohibited uses are detected and the user is told when a use is blocked, and endpoints are protected from probing.",
+      "evidence": [
+        "The safeguards in place for each AI system and their configuration",
+        "Records of outputs the safeguards blocked or flagged"
+      ]
+    },
+    {
+      "id": "AI-12",
+      "title": "AI failure plans",
+      "criteria": [],
+      "frequency": "annual",
+      "policies": [
+        "ai-governance",
+        "incident-response"
+      ],
+      "description": "Plans for AI failures (a security or privacy breach through an AI system, harmful output that hurts a customer, costly hallucination) name accountable owners, notification and remediation, and how affected people are told; they are reviewed each year.",
+      "evidence": [
+        "The AI failure plans and their review",
+        "Handling of any AI failure in the period"
       ]
     }
   ]
