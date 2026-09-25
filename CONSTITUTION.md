@@ -21,9 +21,11 @@ implementation at merge; compatibility with it alone never authorizes additional
 - **External editing is a supported workflow.** People and tools such as Claude Code or Codex can work
   directly on the files. Validate edits and surface conflicts without silently discarding information.
   Using Evidence Desk does not require entrusting evidence to an AI service chosen by the project.
-- **Storage and synchronization are the owner's choice.** A workspace can be kept locally or tracked
-  in Git. Optional GitHub, Google Drive, Dropbox or other sync must preserve the portable folder and
-  cannot become a prerequisite for core readiness work. Specific integrations are future product choices.
+- **Storage and synchronization are the owner's choice.** A workspace is a Git repository on the owner's
+  machine, and its history is the record of who changed and signed what. Whether it has a remote, and
+  which, is the owner's choice. Optional GitHub, Google Drive, Dropbox or other sync must preserve the
+  portable folder and cannot become a prerequisite for core readiness work. Specific integrations are
+  future product choices.
 - **Private evidence stays outside public development.** The open-source code and development stream
   are public. The fleet uses synthetic workspaces and evidence only. It receives no permission to read
   customer folders, customer repositories, cloud drives or confidential human discussions.
@@ -76,5 +78,9 @@ On 2026-09-23 the owner named the benchmark as the SOC2 SaaS and zero-based the 
 ([issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114)).
 The same day the owner locked the aim: Open Autonomy's `soc2` template is SOC2 ready out of the box with
 Evidence Desk as its program, so a project created from it can engage a CPA almost immediately.
+On 2026-09-25 the owner asked that Evidence Desk work "only ... on git as a backend", a workspace being
+"just a bunch of docs and records with memory and change attribution/approval logs", with a signature
+committed on GitHub as the signer's approval of what a preparer ("a secretary") made ready
+([ADR 0003](docs/decisions/0003-git-is-the-backend.md)).
 Strategy owns product scope and priority under it. PM manages implementation, sequencing and release
 proposals, subject to this constitution and later sourced owner decisions.

@@ -108,12 +108,16 @@ query that produced it (evidence a person added by hand says so).
   commit to a declared file merged under review, the code host's gate with a named reviewer (an environment approval, a
   protected tag), or a platform key no agent holds. A chat message is never the record of an act.
 - **A person's own acts** (a policy's latest approval, acknowledgments, quizzes and attestations, access review sign-off,
-  incident closing, a risk's treatment, a vendor's review) must be recorded in the organization's private workspace
-  repository through a pull request that person opened; the attribution check reports every act that was not (pushed
-  without a pull request, recorded by someone else, changed since merged) as a finding in the gap view. It traces each act to the commit on the
-  default branch that brought it to its present content, and to the merged pull request GitHub associates with that
-  commit, and compares that pull request's author with the person's GitHub account on the roster. A collaborator who
-  pushes to someone's open pull request branch is not told apart from them.
+  incident closing, a risk's treatment, a vendor's review, a self-attestation) must reach the organization's private
+  workspace repository through a pull request that person signed: approved at the exact commit merged (Evidence Desk
+  prepares such a pull request for them, from a branch `sign/<their GitHub login>/…`), or opened themselves. The
+  attribution check reports every act that was not (pushed without a pull request, signed by no one it names, changed
+  since merged) as a finding in the gap view. It traces each act to the commit on the default branch that brought it to
+  its present content, and to the merged pull request GitHub associates with that commit, and reads that pull request's
+  reviews and author against the person's GitHub account on the roster; each row says which (`via`) and, for an
+  approval, when it was given (`signed_at`; the record's own date is when the act was prepared). An approval binds
+  the commit it was given on; where an act rests on the person having opened the pull request, a collaborator who
+  pushes to its branch is not told apart from them.
 - **Completeness of people in scope**: each declared vendor account's administrators, read from the vendor (GitHub and
   Cloudflare) or from an export whose production is recorded, compared with the roster.
 - **Raw responses** sit beside each GitHub population (`*.raw.json`) with the account whose token read them and, for
@@ -151,8 +155,9 @@ query that produced it (evidence a person added by hand says so).
 - Re-perform a population's query: every record names it.
 - Sample from a population, then trace each sample to the vendor: the pull request, its reviews, the Actions run and its
   approvals.
-- For a signed act, open the pull request the attribution check names, and confirm its author is the person the act
-  names and that the file's content matches.
+- For a signed act, open the pull request the attribution check names, and confirm that the person the act names
+  approved it at its final commit (the review shows the commit it was given on), or authored it, and that the file's
+  content matches.
 - Compare the declared seams with the project's workflows and repository rules at the commit read: nothing a person
   does should fall outside them.
 
