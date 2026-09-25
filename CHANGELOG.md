@@ -12,7 +12,8 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
   or certificate as it arrives; and, for a self-attestation, state positions (one at a time, or not met on all those
   still without one) and sign it. The Overview lists every target with its document or readiness. The Trust page shows
   the badges and publishes them to an Open Autonomy project, then shows the line for the project's README; `trust
-  publish` prints it too. The Open Autonomy page collects the project's activity for a period.
+  publish` prints it too. The Open Autonomy page collects the project's activity for a period. `framework <dir> <id>`
+  shows each stated position and, for a self-attestation, how many still need one.
 - `soa <dir> --framework iso42001` writes ISO/IEC 42001's statement of applicability, which its certification asks for, as `soa` already did for ISO/IEC 27001 (still the default).
 - NIST CSF 2.0 can be targeted and self-attested: its 106 subcategories map onto the controls SOC 2 already uses, and
   the 35 no control genuinely covers ask for the organization's stated position.

@@ -594,7 +594,7 @@ async function main(argv: string[]): Promise<number> {
         const baseUrl = process.env.OPEN_AUTONOMY_BASE_URL, key = process.env.OPEN_AUTONOMY_KEY;
         if (!baseUrl || !key) throw new Error('trust publish needs OPEN_AUTONOMY_BASE_URL (the platform, ending in /v1) and OPEN_AUTONOMY_KEY (the project\'s steer key) in the environment');
         const r = await publishStatement(dir, { baseUrl, key });
-        const CLOSED = 'Its README cannot show the badge row: its badge image did not answer signed out (a README\'s images are fetched signed out), usually because the project\'s dashboard: word keeps statements from the public.';
+        const CLOSED = 'Its README cannot show the badge row: its badge image did not answer signed out (a README\'s images are fetched signed out), usually because the project\'s .open-autonomy/config.yaml keeps statements from the public (dashboard: visibility private, or statements: team).';
         const rev = r.body.revision as { revision?: number; changes?: string[] } | undefined;
         const err = typeof r.body.error === 'string' ? r.body.error : (r.body.error as { code?: string } | undefined)?.code;
         const where = r.page ? `\nOn the project: ${r.page}\n${r.readme ? `In its README: ${r.readme}` : CLOSED}` : '';
@@ -683,6 +683,7 @@ async function main(argv: string[]): Promise<number> {
     case 'framework': {
       const [id, act, req] = rest;
       if (!id) throw new Error('framework needs a framework id');
+      let done = '';
       if (act) {
         const known = loadWorkspace(dir).controls.map((c) => c.data.id);
         if (act === 'exclude') decide(dir, id, req ?? '', { exclude: one(a, 'reason') ?? '' }, known);
@@ -694,12 +695,16 @@ async function main(argv: string[]): Promise<number> {
           else decide(dir, id, req ?? '', { position: { position: a.flags.has('partial') ? 'partial' : 'not met', statement: one(a, 'statement') ?? '' } }, known);
         }
         else throw new Error('framework actions are exclude, include, map and position');
+        done = act === 'position' ? (a.flags.has('clear') ? `Cleared the position on ${req}.` : `Stated ${req} ${a.flags.has('partial') ? 'partly met' : 'not met'}.`)
+          : act === 'exclude' ? `Excluded ${req}.` : act === 'include' ? `Included ${req} again.` : `Mapped ${one(a, 'controls')} to ${req}.`;
       }
       const ws = loadWorkspace(dir);
       if (!targetsOf(ws).includes(id)) throw new Error(`${id} is not a target; run: evidence-desk frameworks ${dirArg} target ${id}`);
       const st = frameworkState(ws, id);
-      out(json, st, () => { const s = st.summary; return [`${st.title}: ${s.ready}/${s.requirements - s.excluded} requirements ready, ${s.excluded} excluded, ${s.unaddressed} not addressed; ${s.shared_evidence} evidence records also serve SOC 2.`,
-        ...st.requirements.filter((r) => r.status !== 'ready').map((r) => `  ${r.id.padEnd(11)} ${r.status.padEnd(11)} ${r.title}${r.optional ? ' (optional, not counted)' : ''}${r.reason ? ` (${r.reason.slice(0, 90)})` : ''}`)].join('\n'); });
+      // For a framework that becomes a self-attestation, how many still need a position before attest will sign.
+      const unpositioned = frameworkDescriptions.find((f) => f.id === id)?.outcome === 'self-attestation' ? st.requirements.filter((r) => !r.optional && !r.position).length : null;
+      out(json, st, () => { const s = st.summary; return [...(done ? [done] : []), `${st.title}: ${s.ready}/${s.requirements - s.excluded} requirements ready, ${s.excluded} excluded, ${s.unaddressed} not addressed; ${s.shared_evidence} evidence records also serve SOC 2.${unpositioned === null ? '' : unpositioned ? ` ${unpositioned} still ${unpositioned === 1 ? 'needs' : 'need'} a position before it can be signed.` : ' Every requirement has a position; it can be signed.'}`,
+        ...st.requirements.filter((r) => r.status !== 'ready' || r.statement).map((r) => `  ${r.id.padEnd(11)} ${r.status.padEnd(11)} ${r.title}${r.optional ? ' (optional, not counted)' : ''}${r.reason ? ` (${r.reason.slice(0, 90)})` : ''}${r.statement ? `\n              stated ${r.position}: ${r.statement}` : ''}`)].join('\n'); });
       return 0;
     }
     case 'soa': {
