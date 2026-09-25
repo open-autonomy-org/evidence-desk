@@ -319,7 +319,11 @@ jobs:
 ${settings.some((x) => x.enabled) ? `      - name: Run the checks
         id: run
         continue-on-error: true
-${secrets.length ? `        env:\n${secrets.map((s) => `          ${s}: \${{ secrets.${secretName(s)} }}`).join('\n')}\n` : ''}        run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" run . --by "\${{ vars.EVIDENCE_DESK_RECORDER }}"
+${secrets.length ? `        env:\n${secrets.map((s) => `          ${s}: \${{ secrets.${secretName(s)} }}`).join('\n')}\n` : ''}        run: |
+${secrets.length ? `          # With none of the credentials stored here, the checks are run elsewhere (the command line on a machine that holds
+          # them): record nothing, rather than a run of errors that would hide the results recorded there.
+          if [ -z "${secrets.map((s) => `$${s}`).join('')}" ]; then echo "No credential for the checks is stored in this repository; they run elsewhere."; exit 0; fi
+` : ''}          bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" run . --by "\${{ vars.EVIDENCE_DESK_RECORDER }}"
 ` : ''}      - name: Read the Open Autonomy project again
         id: reread
         if: hashFiles('sources/open-autonomy/latest.json') != ''
