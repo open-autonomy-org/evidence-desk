@@ -6,8 +6,7 @@ See the [PM skill](hermes/skills/open-autonomy/pm/SKILL.md) for the reconciliati
 
 ## Direction
 
-The owner zero-based this plan on 2026-09-23: Evidence Desk is to be the open-source alternative to the SOC2
-compliance SaaS, and the roadmap was rebuilt from scratch to reach parity with them
+Evidence Desk is the open-source alternative to the SOC2 compliance SaaS, built to parity with them
 ([owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114)).
 
 Parity is measured against the whole buyer journey, from "we need SOC2" through a passed Type II audit and
@@ -34,7 +33,7 @@ A row counts only when its owning outcome demonstrates it in the running local p
 | 15 | Security questionnaire answering from sourced facts | demonstrated |
 | 16 | Second framework (ISO 27001) reusing controls and evidence | demonstrated |
 
-Evidence behind the table (reviewed 2026-09-23; vendor statements, not operated products). Commercial table
+Evidence behind the table (vendor statements, not operated products). Commercial table
 stakes across Vanta, Drata, Secureframe, Sprinto, Thoropass and Hyperproof: built-in SOC2/ISO 27001 with
 cross-mapped controls, integrations that collect evidence automatically, continuous monitoring, policies,
 risk register, vendor questionnaires, trust center, AI questionnaire answering, an auditor workspace and
@@ -151,7 +150,7 @@ Completion:
 Status: active
 Dispatch: hold
 
-Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity rows 5–6. 
+Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114); parity row 5. 
 
 Owner-operated collectors pull evidence from the company's systems with the company's own credentials,
 run on demand locally or on a schedule in the workspace repository's own CI, and write dated,
@@ -181,7 +180,11 @@ Completion:
 Dispatch: hold
 Release decision: accumulate
 Target version: 0.2.0
-Scope: CHANGELOG.md's Unreleased section (the audit package a firm can test from)
+Target window: unset; no release date is agreed
+Review by: unset
+Candidate: none
+Scope: CHANGELOG.md's Unreleased section
 Readiness: pending
-
-0.1.0 was published on 2026-09-24 as [v0.1.0](https://github.com/open-autonomy-org/evidence-desk/releases/tag/v0.1.0) at 873506f.
+Readiness evidence: none yet
+Rationale: the Unreleased work (the To sign page, the Frameworks page, ISO 42001, CSA STAR and the audit package) has accumulated since [v0.1.0](https://github.com/open-autonomy-org/evidence-desk/releases/tag/v0.1.0) (`873506f`)
+Version rationale: a minor bump under CONTRIBUTING.md's 0.x policy, because [decision 0002](docs/decisions/0002-frameworks-are-targets.md) reads an existing workspace differently: re-running adoption rewrites the controls excluded only by a category answer as applicable
