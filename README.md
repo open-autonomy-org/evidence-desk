@@ -21,6 +21,11 @@ bun src/cli.ts init ~/acme-soc2 --org "Acme"      # a new or empty folder
 bun src/cli.ts serve ~/acme-soc2                    # then open http://127.0.0.1:4870/
 ```
 
+Run from the checkout, as above, or through `bin/evidence-desk` (the package's command), which runs Bun with Evidence
+Desk's own `bunfig.toml` and no `.env`. Bun otherwise loads a `bunfig.toml` and `.env` from the folder it is started in,
+so starting it inside a workspace someone else wrote (`cd <workspace> && bun <checkout>/src/cli.ts ...`) could run
+code from that workspace.
+
 In the app, answer the scoping questions and adopt the control set, then work through the Overview: assign owners,
 adapt and approve policies, fill the registers and record evidence. People complete their onboarding quizzes,
 acknowledgments and attestations on the People page; Obligations shows what is owed by whom and when; access reviews

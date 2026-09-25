@@ -319,25 +319,35 @@ jobs:
 ${settings.some((x) => x.enabled) ? `      - name: Run the checks
         id: run
         continue-on-error: true
-${secrets.length ? `        env:\n${secrets.map((s) => `          ${s}: \${{ secrets.${secretName(s)} }}`).join('\n')}\n` : ''}        run: |
+        working-directory: \${{ runner.temp }}/evidence-desk
+        env:
+          RECORDER: \${{ vars.EVIDENCE_DESK_RECORDER }}
+${secrets.map((s) => `          ${s}: \${{ secrets.${secretName(s)} }}\n`).join('')}        run: |
 ${secrets.length ? `          # With none of the credentials stored here, the checks are run elsewhere (the command line on a machine that holds
           # them): record nothing, rather than a run of errors that would hide the results recorded there.
           if [ -z "${secrets.map((s) => `$${s}`).join('')}" ]; then echo "No credential for the checks is stored in this repository; they run elsewhere."; exit 0; fi
-` : ''}          bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" run . --by "\${{ vars.EVIDENCE_DESK_RECORDER }}"
+` : ''}          bun src/cli.ts run "$GITHUB_WORKSPACE" --by "$RECORDER"
 ` : ''}      - name: Read the Open Autonomy project again
         id: reread
         if: hashFiles('sources/open-autonomy/latest.json') != ''
         continue-on-error: true
+        working-directory: \${{ runner.temp }}/evidence-desk
+        env:
+          RECORDER: \${{ vars.EVIDENCE_DESK_RECORDER }}
         run: |
-          account=$(bun -e "console.log(JSON.parse(require('fs').readFileSync('sources/open-autonomy/latest.json', 'utf8')).account)")
+          account=$(bun -e "console.log(JSON.parse(require('fs').readFileSync(process.env.GITHUB_WORKSPACE + '/sources/open-autonomy/latest.json', 'utf8')).account)")
+          case "$account" in */*) ;; *) echo "latest.json names no owner/name account"; exit 1;; esac
           git clone -q "https://github.com/$account.git" "$RUNNER_TEMP/project"
-          bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" open-autonomy . import --repo "$RUNNER_TEMP/project" --by "\${{ vars.EVIDENCE_DESK_RECORDER }}"
+          bun src/cli.ts open-autonomy "$GITHUB_WORKSPACE" import --repo "$RUNNER_TEMP/project" --by "$RECORDER"
       - name: Check who recorded each signed act
         if: hashFiles('sources/open-autonomy/latest.json') != ''
         continue-on-error: true
+        working-directory: \${{ runner.temp }}/evidence-desk
         env:
           GITHUB_TOKEN: \${{ github.token }}
-        run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" collect . attribution --repo "\${{ github.repository }}" --by "\${{ vars.EVIDENCE_DESK_RECORDER }}"
+          REPO: \${{ github.repository }}
+          RECORDER: \${{ vars.EVIDENCE_DESK_RECORDER }}
+        run: bun src/cli.ts collect "$GITHUB_WORKSPACE" attribution --repo "$REPO" --by "$RECORDER"
       - name: Commit the results
         run: |
           git config user.name "Evidence Desk checks"
@@ -346,9 +356,11 @@ ${secrets.length ? `          # With none of the credentials stored here, the ch
           git diff --cached --quiet || git commit -m "Evidence Desk checks"
           git push
       - name: Remind people of what they owe
+        working-directory: \${{ runner.temp }}/evidence-desk
         env:
           GITHUB_TOKEN: \${{ github.token }}
-        run: bun "$RUNNER_TEMP/evidence-desk/src/cli.ts" remind . --repo "\${{ github.repository }}" --within 30
+          REPO: \${{ github.repository }}
+        run: bun src/cli.ts remind "$GITHUB_WORKSPACE" --repo "$REPO" --within 30
       - name: Fail when a check failed or the project could not be read
         if: steps.run.outcome == 'failure' || steps.reread.outcome == 'failure'
         run: exit 1
