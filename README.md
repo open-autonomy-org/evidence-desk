@@ -55,6 +55,8 @@ bun src/cli.ts signing-template ~/acme-soc2 && bun src/cli.ts sync ~/acme-soc2
 bun src/cli.ts policy ~/acme-soc2 access-control --approve --by ana --as-is
 # Prepared for ana's signature as sign/ana-ortiz/policy-approval-access-control-1-3f2a9c1; its pull request opens on GitHub in a moment
 bun src/cli.ts sync ~/acme-soc2   # after ana approves it, the approval is in the workspace
+# several acts, one pull request to sign:
+bun src/cli.ts together ~/acme-soc2 -- respond code-of-conduct --person ana --answer read=yes -- respond confidentiality-agreement --person ana --answer agree=yes
 ```
 
 With an [Open Autonomy](https://github.com/open-autonomy-org/open-autonomy) project, much of the program is read from
