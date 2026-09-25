@@ -168,14 +168,26 @@ export const placeholders = (text: string): string[] => [...new Set([...text.mat
 // template word for word as adopted (some templates have no comment). The one test the approval gate and the To sign
 // page share.
 const DRAFTING = /^<!--\s*Template adapted from[\s\S]*?-->\n\n?/m;
-export function stillTemplate(root: string, id: string, text: string): boolean {
-  if (DRAFTING.test(text)) return true;
-  const tpl = policyTemplates.find((t) => t.id === id);
-  if (!tpl) return false;
-  const answers = loadWorkspace(root).scope?.data.answers ?? {};
-  const norm = (t: string) => t.replace(DRAFTING, '').replace(/\s+/g, ' ').trim();
-  return norm(render(tpl.text, answers)) === norm(text);
+const norm = (t: string) => t.replace(DRAFTING, '').replace(/\s+/g, ' ').trim();
+// The catalog template as a pattern, its answer placeholders matching any filled-in value, so a template filled in under an
+// earlier organization name or contact is still known for the template. Built once per template.
+const asPattern = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\{\\\{(organization|security_contact)\\\}\\\}/g, '.+?');
+const whole = new Map<string, RegExp | null>();
+const lineSets = new Map<string, RegExp[]>();
+export function templateLines(id: string): RegExp[] {
+  if (!lineSets.has(id)) {
+    const tpl = policyTemplates.find((t) => t.id === id);
+    lineSets.set(id, tpl ? tpl.text.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => new RegExp(`^${asPattern(l)}$`)) : []);
+  }
+  return lineSets.get(id)!;
 }
+// The text is the catalog template word for word, whatever the organization is called.
+export function unchangedTemplate(id: string, text: string): boolean {
+  if (!whole.has(id)) { const tpl = policyTemplates.find((t) => t.id === id); whole.set(id, tpl ? new RegExp(`^${asPattern(norm(tpl.text))}$`) : null); }
+  return whole.get(id)?.test(norm(text)) ?? false;
+}
+// Still the catalog template: it carries the catalog's drafting comment, or it is the template unchanged.
+export function stillTemplate(id: string, text: string): boolean { return DRAFTING.test(text) || unchangedTemplate(id, text); }
 
 // Freezes the current text as the next approved version. `textVersion` is the version of the text the approver read.
 // A text that is still the catalog template is approved only when its approver confirms it is true of how the
@@ -193,7 +205,8 @@ export function approvePolicy(root: string, id: string, approvedBy: string, text
   if (!people.includes(approvedBy)) throw new Error(`approver ${approvedBy} is not in registers/people.csv`);
   const left = placeholders(text.text);
   if (left.length) throw new Error(`fill in ${left.map((p) => `{{${p}}}`).join(', ')} before approving`);
-  const template = stillTemplate(root, id, text.text);
+  const template = stillTemplate(id, text.text);
+  const unchanged = unchangedTemplate(id, text.text);
   if (template && !asIs) throw new Error(`policies/${id}.md is still the catalog template: adapt it to how the organization operates, or confirm it is true of how the organization operates as it stands (--as-is)`);
   const body = text.text.replace(DRAFTING, '');
   const bodyVersion = sha256(body);
@@ -208,7 +221,7 @@ export function approvePolicy(root: string, id: string, approvedBy: string, text
   writeVersioned(root, rel, pretty(next), rec.version);
   // The approval is GOV-04's evidence, as a passed form response is its form's.
   if (neededControls(loadWorkspace(root)).has('GOV-04')) addEvidence(root, {
-    title: `Policy ${id} version ${version} approved by ${approvedBy}${template ? ', the catalog template confirmed as is' : ''}`, controls: ['GOV-04'], files: [archived], recorded_by: approvedBy,
+    title: `Policy ${id} version ${version} approved by ${approvedBy}${unchanged ? ', the catalog template confirmed as is' : template ? ', adapted from the catalog template' : ''}`, controls: ['GOV-04'], files: [archived], recorded_by: approvedBy,
     source: { kind: 'evidence-desk', name: 'policy-approval' }, collected_at: next.versions.at(-1)!.approved_at,
   });
   return version;
