@@ -3,7 +3,7 @@
 // as text for people or as JSON with --json for scripts and agents.
 import { basename, resolve } from 'node:path';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { addEvidence, adopt, approvePolicy, initWorkspace, saveRegisterRows, type RegisterChange, setPolicyOwner, setScope, unanswered, updateControl } from './actions.ts';
+import { addEvidence, adopt, approvePolicies, initWorkspace, saveRegisterRows, type RegisterChange, setPolicyOwner, setScope, unanswered, updateControl } from './actions.ts';
 import { computeGaps } from './gaps.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
@@ -40,6 +40,7 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                      [--notes <text>] [--exclude <reason>] [--include]
   policies <dir>                          list policies and their approved versions
   policy <dir> <id> [--owner <person>] [--approve --by <person> [--as-is]]   --as-is: approve a catalog template as true of how you operate
+  policy <dir> <id> <id> ... --approve --by <person> [--as-is]   several policies approved in one change (one signature)
   register <dir> <people|systems|vendors|risks|vulnerabilities> [--add key=value ...] [--update <id> key=value ... [--update <id> ...]]
   evidence <dir> [--add --control <id>[,<id>] --file <path> --title <text> --by <person>
                  [--period <start>..<end>] [--subject <person>] [--source <kind>] [--source-name <name>] [--query <text>]]
@@ -272,15 +273,14 @@ async function command(a: Args, cmd: string, dir: string, dirArg: string, rest: 
     case 'policy': {
       const id = rest[0];
       if (!id) throw new Error('policy needs an id');
+      if (rest.length > 1 && !a.flags.has('approve')) throw new Error('only --approve takes several policies');
       if (a.flags.has('owner')) setPolicyOwner(dir, id, one(a, 'owner')!, readVersioned(dir, `policies/${id}.json`)!.version);
+      // policy <dir> <id> [<id> ...] --approve: several policies in one change, one signature for all of them.
       if (a.flags.has('approve')) {
         const by = one(a, 'by');
         if (!by) throw new Error('--approve needs --by <person>');
-        const text = readVersioned(dir, `policies/${id}.md`);
-        const rec = readVersioned(dir, `policies/${id}.json`);
-        if (!text || !rec) throw new Error(`policy ${id} does not exist`);
-        const v = approvePolicy(dir, id, by, text.version, rec.version, a.flags.has('as-is'));
-        out(json, { id, version: v }, () => `Approved ${id} version ${v}.`);
+        const done = approvePolicies(dir, rest, by, a.flags.has('as-is'));
+        out(json, done.length === 1 ? done[0] : done, () => done.map((d) => `Approved ${d.id} version ${d.version}.`).join('\n'));
         return 0;
       }
       const rec = readVersioned(dir, `policies/${id}.json`);
