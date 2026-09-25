@@ -313,8 +313,8 @@ export function signedActs(root: string): Act[] {
     extract: (x) => x?.status === 'closed' ? { status: x.status, review: x.review, closed_at: x.closed_at, closed_by: closer(x) } : null });
   // Register rows a person decides: a risk's treatment and a vendor's review. The act is the decision and what it was
   // made about: a risk's title, description (its account and the treatment's reasons) and controls, a vendor review's
-  // recorded assurance. Rewriting any of those after signing is a new decision; a re-score, a new owner or a new review
-  // date is not. The person who made it is the row's owner as the row stood when the decision was made, so reassigning
+  // recorded assurance and date. Rewriting any of those after signing is a new decision (a vendor's new review date is a
+  // new review); a risk's re-score, new owner or next review date is not. The person who made it is the row's owner as the row stood when the decision was made, so reassigning
   // the row later neither takes the decision over nor asks the new owner to remake it.
   for (const r of ws.registers.risks?.data.rows ?? []) if (r.treatment && r.treatment !== 'undecided') acts.push({ key: `risk-decision:${r.id}`, kind: 'risk-decision', file: 'registers/risks.csv', person: r.owner ?? '', label: `treatment of risk ${r.id} (${r.title})`,
     extract: (rows) => { const x = rowOf(rows, r.id); return x && x.treatment && x.treatment !== 'undecided' ? { risk: r.id, treatment: x.treatment, title: x.title ?? '', description: x.description ?? '', controls: x.controls ?? '' } : null; }, personAt: (rows) => rowOf(rows, r.id)?.owner ?? '' });
