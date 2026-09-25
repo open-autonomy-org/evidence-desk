@@ -291,8 +291,8 @@ export function ciWorkflow(settings: CollectorSettings[]): string {
 # project it reads the project's public repository again (the repository named in sources/open-autonomy/latest.json;
 # whoever can change this repository can change which project is read), so a changed roster, seam or vendor shows the next
 # day, and a project that cannot be read fails the run. It checks who recorded each
-# signed act (with an imported Open Autonomy roster) and keeps one issue per due or overdue obligation, assigned to the
-# person who owes it, using this repository's own workflow token.
+# signed act (with an imported Open Autonomy roster) and keeps one issue per person listing what they owe that is due or
+# overdue, assigned to them, using this repository's own workflow token.
 on:
   schedule:
     - cron: '17 6 * * *'

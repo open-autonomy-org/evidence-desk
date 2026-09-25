@@ -404,10 +404,12 @@ export async function collectAttribution(root: string, input: { repo: string; by
   return { record: rel, file: csv, evidence, rows };
 }
 
-// Reminders for what people owe, as issues in the workspace's own repository: one open issue per owned obligation that
-// is due or overdue, assigned to the owner's GitHub account on the Open Autonomy roster when they have one, retitled when
-// it becomes overdue and closed once the obligation is met; obligations no one owns share one issue. The workspace's obligations say what is owed and when; this
-// only carries them to where people already work. Issue titles and bodies name the obligation, never its evidence.
+// Reminders for what people owe, as issues in the workspace's own repository: one open issue per person, assigned to
+// their GitHub account on the Open Autonomy roster when they have one, listing everything they owe that is overdue or
+// falls due within the window, overdue first; it is updated as the list changes and closed once they owe nothing.
+// Obligations no one owns share one issue. The workspace's obligations say what is owed and when; this only carries them
+// to where people already work, as one list rather than an issue per item. Titles and bodies name the obligations, never
+// their evidence.
 async function send(method: string, path: string, body: unknown): Promise<any> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error('GITHUB_TOKEN is not set; the reminders need a token that can write issues in the workspace repository');
@@ -425,30 +427,35 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
   // What is overdue, and what falls due within the window the workspace's workflow names (--within): a review due next
   // year is not owed today.
   const horizon = new Date((input.asOf ?? clockDate()).getTime() + input.within * 864e5).toISOString().slice(0, 10);
-  const obligations = computeObligations(ws, input.asOf);
-  const owed = obligations.filter((o) => o.state === 'overdue' || (o.state === 'due' && o.due <= horizon));
-  const marker = (o: { kind: string; what: string; who: string }) => `<!-- evidence-desk:obligation ${createHash('sha256').update(`${o.kind}|${o.what}|${o.who}`).digest('hex').slice(0, 16)} -->`;
-  // Only an overdue item carries its date: one never done is due as of each day, and a daily date would retitle it daily.
-  const title = (o: (typeof owed)[number]) => `${o.state === 'overdue' ? `Overdue since ${o.due}` : 'Due'}: ${o.what} (${o.who})`;
-  // Every open issue, not only labelled ones: an issue someone unlabelled still carries its marker and must not be doubled.
-  const open = (await all<{ number: number; title: string; body?: string | null; pull_request?: unknown }>(`/repos/${input.repo}/issues?state=open`)).items.filter((i) => !i.pull_request && /<!-- evidence-desk:obligation [0-9a-f]{16} -->/.test(i.body ?? ''));
+  const owed = computeObligations(ws, input.asOf).filter((o) => o.state === 'overdue' || (o.state === 'due' && o.due <= horizon));
+  const MARK = /<!-- evidence-desk:(?:obligation|owed) [0-9a-f]{16} -->/;
+  const marker = (who: string) => `<!-- evidence-desk:owed ${createHash('sha256').update(who ? `person|${who}` : 'unowned').digest('hex').slice(0, 16)} -->`;
+  // Every open issue carrying a marker, not only labelled ones: an issue someone unlabelled must not be doubled. An issue
+  // of an earlier form (one per obligation) carries the obligation marker; it is closed, its item now in the list.
+  const open = (await all<{ number: number; title: string; body?: string | null; pull_request?: unknown }>(`/repos/${input.repo}/issues?state=open`)).items.filter((i) => !i.pull_request && MARK.test(i.body ?? ''));
   const result = { opened: [] as string[], retitled: [] as string[], closed: [] as string[], kept: 0 };
-  const unowned = owed.filter((o) => !o.who);
-  const unownedMarker = marker({ kind: 'unowned', what: '', who: '' });
-  const wanted = new Set([...owed.filter((o) => o.who).map(marker), ...(unowned.length ? [unownedMarker] : [])]);
-  const later = new Set(obligations.filter((o) => o.state !== 'done' && o.who).map(marker));
-  // Close first, so an error on a later write never leaves a met obligation's issue open.
+  const people = [...new Set(owed.map((o) => o.who))];
+  const wanted = new Set(people.map(marker));
+  // Close first, so an error on a later write never leaves an issue open for someone who owes nothing.
   for (const i of open) {
-    const m = /<!-- evidence-desk:obligation [0-9a-f]{16} -->/.exec(i.body ?? '')?.[0];
-    // Completed when the obligation is met or gone; not planned when it is still owed but now falls outside the window.
-    if (m && !wanted.has(m)) { await send('PATCH', `/repos/${input.repo}/issues/${i.number}`, { state: 'closed', state_reason: later.has(m) ? 'not_planned' : 'completed' }); result.closed.push(i.title); }
+    const m = MARK.exec(i.body ?? '')![0];
+    if (!wanted.has(m)) { await send('PATCH', `/repos/${input.repo}/issues/${i.number}`, { state: 'closed', state_reason: m.includes(':owed ') ? 'completed' : 'not_planned' }); result.closed.push(i.title); }
   }
-  const upsert = async (m: string, t: string, body: string, login?: string) => {
+  const peopleIds = (ws.registers.people?.data.rows ?? []).map((r) => r.id);
+  for (const who of people) {
+    const m = marker(who);
+    const items = owed.filter((o) => o.who === who).sort((a, b) => (a.state === b.state ? a.due.localeCompare(b.due) : a.state === 'overdue' ? -1 : 1));
+    const overdue = items.filter((o) => o.state === 'overdue').length;
+    // The title changes only when the counts do, so a daily run does not retitle an unchanged list.
+    const t = who ? `${who} owes ${[overdue ? `${overdue} overdue` : '', items.length - overdue ? `${items.length - overdue} due` : ''].filter(Boolean).join(', ')}` : `${items.length} obligation${items.length === 1 ? ' has' : 's have'} no one assigned`;
+    const body = [who ? `Everything ${who} owes in the compliance workspace that is overdue or due within ${input.within} days. Each item leaves this list when the workspace no longer shows it owed; this issue closes when the list is empty.` : 'Assign an owner in the workspace for each of these; each then moves to that person\'s list.',
+      items.map((o) => `- [ ] ${o.state === 'overdue' ? `**Overdue since ${o.due}**: ` : ''}${o.what}${o.controls.length ? ` (${o.controls.join(', ')})` : ''}`).join('\n'), m].join('\n\n');
     const existing = open.find((i) => (i.body ?? '').includes(m));
     if (existing) {
       if (existing.title !== t || existing.body !== body) { await send('PATCH', `/repos/${input.repo}/issues/${existing.number}`, { title: t, body }); result.retitled.push(t); } else result.kept++;
-      return;
+      continue;
     }
+    const login = who ? memberOf(team, who, peopleIds)?.github : undefined;
     // GitHub refuses an assignee who cannot be assigned in the repository (not a collaborator): open it unassigned.
     try { await send('POST', `/repos/${input.repo}/issues`, { title: t, body, labels: [LABEL], ...(login ? { assignees: [login] } : {}) }); }
     catch (e) {
@@ -456,16 +463,6 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
       await send('POST', `/repos/${input.repo}/issues`, { title: t, body: body.replace(m, `${login} cannot be assigned in this repository.\n\n${m}`), labels: [LABEL] });
     }
     result.opened.push(t);
-  };
-  // Obligations no one owns share one issue that lists them, so a new workspace does not open one issue per control.
-  if (unowned.length) await upsert(unownedMarker, `${unowned.length} obligation${unowned.length === 1 ? ' has' : 's have'} no one assigned`,
-    ['Assign an owner in the workspace for each of these; each then gets its own reminder.', unowned.map((o) => `- ${o.what}${o.state === 'overdue' ? ` (overdue since ${o.due})` : ''}`).join('\n'), unownedMarker].join('\n\n'));
-  for (const o of owed.filter((x) => x.who)) {
-    const m = marker(o);
-    const login = memberOf(team, o.who, (ws.registers.people?.data.rows ?? []).map((r) => r.id))?.github;
-    const body = [`${o.what} is ${o.state === 'overdue' ? `overdue since ${o.due}` : 'due'}, owed by ${o.who}.`,
-      o.controls.length ? `Controls: ${o.controls.join(', ')}.` : '', 'Record it in the workspace in a pull request of your own; this issue closes once the workspace no longer shows it owed.', m].filter(Boolean).join('\n\n');
-    await upsert(m, title(o), body, login);
   }
   return result;
 }
