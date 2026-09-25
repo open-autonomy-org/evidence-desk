@@ -12,6 +12,7 @@ import { serve } from './server.ts';
 import { serveFirm } from './firm-server.ts';
 import { decide, dropFramework, frameworkState, statementOfApplicability, targetFramework } from './frameworks.ts';
 import { neededControls, targetsOf } from './targets.ts';
+import { collectOpenAutonomyActivity } from './oa-platform.ts';
 import { frameworkDescriptions } from './catalog.ts';
 import { writeCsv } from './csv.ts';
 import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, publishStatement, reviewAnswer, staleLibrary } from './trust.ts';
@@ -59,6 +60,9 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                                           read an Open Autonomy project's roster, agents, seams and rules at a commit
   open-autonomy <dir> completeness --account <id> --by <person> [--file <export> --generated-by <how>]
                                           compare a declared vendor account's administrators with the roster
+  collect <dir> open-autonomy --account <owner/project> --period <start>..<end> --by <person>
+                                          the project's sessions, metered calls, pause history and roadmap revisions from
+                                          the platform (OPEN_AUTONOMY_BASE_URL, OPEN_AUTONOMY_KEY: the project's key or its org's)
   collect <dir> github-changes --repo <owner/name> --period <start>..<end> --by <person>
   collect <dir> github-deployments --repo <owner/name> --environment <name> --period <start>..<end> --by <person>
   collect <dir> github-rule-changes --repo <owner/name> --period <start>..<end> --by <person>
@@ -396,6 +400,12 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
     case 'collect': {
+      if (rest[0] === 'open-autonomy') {
+        const [start, end] = (one(a, 'period') ?? '').split('..');
+        const r = await collectOpenAutonomyActivity(dir, { account: one(a, 'account') ?? '', start: start ?? '', end: end ?? '', by: one(a, 'by') ?? '' });
+        out(json, r, () => `Collected from Open Autonomy: ${Object.entries(r.counts).map(([k, n]) => `${n} ${k}`).join(', ')}; recorded ${r.evidence.join(', ')}.`);
+        return 0;
+      }
       if (rest[0] === 'attribution') {
         const r = await collectAttribution(dir, { repo: one(a, 'repo') ?? '', by: one(a, 'by') ?? '' });
         const bad = r.rows.filter((x) => x.status !== 'verified');
