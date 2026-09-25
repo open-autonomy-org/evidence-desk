@@ -9,6 +9,7 @@
 // merges the pull request once that account approves its exact head, and `collect attribution` checks the approval
 // again from GitHub's record. A change that records no signed act is committed to the default branch like any other.
 // Evidence Desk itself speaks only Git: no token of its own is needed to prepare or to list what waits.
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -37,7 +38,7 @@ function actsOf(root: string): Map<string, ActState> {
 // The GitHub account the Open Autonomy roster gives a person: the account whose approval is their signature.
 function loginOf(root: string, person: string): string {
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
-  const login = latest ? memberOf((JSON.parse(latest.text) as Snapshot).team, person)?.github : undefined;
+  const login = latest ? memberOf((JSON.parse(latest.text) as Snapshot).team, person, (loadWorkspace(root).registers.people?.data.rows ?? []).map((r) => r.id))?.github : undefined;
   if (!login) throw new Error(`${person} has no GitHub account on the imported Open Autonomy roster: a signature on GitHub is that account's approval`);
   if (!/^[A-Za-z0-9-]+$/.test(login)) throw new Error(`${login} is not a GitHub login`);
   return login;
@@ -146,7 +147,8 @@ export function pendingSignatures(root: string): { repo: string | null; status: 
     try {
       const mark = JSON.parse(m[1]) as { person: string; acts: Pending['acts'] };
       const base = tryGit(root, 'symbolic-ref', '-q', 'refs/remotes/origin/HEAD');
-      const merges = !base || tryGit(root, 'merge-tree', '--write-tree', '--quiet', base, `refs/remotes/origin/${ref}`) !== null;
+      // Exit status 1 is a conflict; any other failure (a Git too old for --write-tree) says nothing either way.
+      const merges = !base || spawnSync('git', ['-C', root, 'merge-tree', '--write-tree', base, `refs/remotes/origin/${ref}`], { stdio: 'ignore' }).status !== 1;
       pending.push({ branch: ref, url: pullsOf(repo, ref), person: mark.person, login: ref.split('/')[1], acts: mark.acts, merges });
     } catch { /* a packet that cannot be read is not listed */ }
   }

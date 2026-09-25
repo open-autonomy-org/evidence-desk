@@ -278,7 +278,7 @@ export function serve(root: string, port: number): void {
         let result: Record<string, unknown> | null;
         try { result = await handle(root, url.pathname, b); }
         // Whatever a change wrote before it stopped is committed as such, so no write is left outside the history.
-        catch (e) { commitTouched(root, `${message}: stopped with an error (${(e as Error).message.split('\n')[0].slice(0, 120)})`, person); throw e; }
+        catch (e) { try { commitTouched(root, `${message}: stopped with an error (${(e as Error).message.split('\n')[0].slice(0, 120)})`, person); } catch { /* the change's own error is the one to report */ } throw e; }
         if (!result) return send(res, 404, { error: 'not found' });
         commitTouched(root, message, person);
         return send(res, 200, { ...result, state: state(root) });

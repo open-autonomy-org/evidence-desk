@@ -61,11 +61,13 @@ export function track(root: string, rel: string, sha256: string | null): void {
   if (!touched.has(key)) touched.set(key, new Map());
   touched.get(key)!.set(rel, sha256);
 }
+// A change's own writes, and any a failed commit left behind (kept in the process's record, so the next change in the
+// app takes them).
 export function takeTouched(root: string): [string, string | null][] {
   const key = resolve(root), touched = current();
-  const out = [...(touched.get(key) ?? [])];
-  touched.delete(key);
-  return out;
+  const out = new Map([...(process_.get(key) ?? []), ...(touched.get(key) ?? [])]);
+  touched.delete(key); process_.delete(key);
+  return [...out];
 }
 
 // A commit made as Evidence Desk: the machine's own Git identity where it has one, otherwise Evidence Desk's.
@@ -90,8 +92,8 @@ function authorOf(root: string, person: string | undefined): string | undefined 
 // Commits the files the workspace wrote, with a message saying what changed. Returns the commit, or null when nothing
 // was written or the bytes written were already the committed ones.
 // Each file must still hold the bytes Evidence Desk wrote: one edited outside it since is not committed under its name.
-// A commit that fails (a file changed since, a hook refuses it, signing fails) keeps its files noted, so the next commit
-// takes them.
+// A commit that fails (a file changed since, a hook refuses it, signing fails) keeps its files noted, so the app's next
+// change takes them; a command that fails says so, and its files wait for git.
 export function commitTouched(root: string, message: string, person?: string): string | null {
   const written = takeTouched(root);
   const repo = repoOf(root);
@@ -104,7 +106,9 @@ export function commitTouched(root: string, message: string, person?: string): s
     if (!literal(repo.top, 'diff', '--cached', '--name-only', '--', ...paths)) return null;
     commit(repo.top, ['-m', message, '--', ...paths], authorOf(root, person));
   } catch (e) {
-    for (const [r, sha] of written) track(root, r, sha);
+    const key = resolve(root);
+    if (!process_.has(key)) process_.set(key, new Map());
+    for (const [r, sha] of written) process_.get(key)!.set(r, sha);
     throw new Error(`the change was written but not committed: ${(e as Error).message.split('\n').find((l) => l.trim()) ?? 'git refused it'}`);
   }
   return git(repo.top, 'rev-parse', 'HEAD');

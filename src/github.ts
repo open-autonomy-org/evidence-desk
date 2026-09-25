@@ -253,7 +253,7 @@ export async function checkCompleteness(root: string, input: { account: string; 
     query = `${queries.join('; ')} (all pages), keeping members with ${CF_ADMIN_ROLES.join(' or ')}`;
   } else throw new Error(`${acct.vendor} administrators cannot be read automatically yet; export the list and pass --file`);
   const known = new Set(snap.team.flatMap((m) => [m.github, m.discord, m.id].filter(Boolean).map((x) => String(x).toLowerCase())));
-  const emails = new Set((loadWorkspace(root).registers.people?.data.rows ?? []).filter((p) => !!memberOf(snap.team, p.id)).map((p) => p.email.toLowerCase()).filter(Boolean));
+  const emails = new Set((loadWorkspace(root).registers.people?.data.rows ?? []).filter((p, _, all) => !!memberOf(snap.team, p.id, all.map((x) => x.id))).map((p) => p.email.toLowerCase()).filter(Boolean));
   const outside = admins.filter((a) => !known.has(a.toLowerCase()) && !emails.has(a.toLowerCase()));
   const id = `${acct.id}-${clockDate().toISOString().slice(0, 10)}-${Date.now().toString(36)}`;
   const rel = `sources/open-autonomy/completeness/${id}.json`;
@@ -336,6 +336,7 @@ export async function collectAttribution(root: string, input: { repo: string; by
     catch (e) { if (/answered (404|422)/.test((e as Error).message)) return null; throw e; }
   };
   const rows: Attribution[] = [];
+  const peopleIds = (loadWorkspace(root).registers.people?.data.rows ?? []).map((r) => r.id);
   for (const act of signedActs(root)) {
     const now = readAct(act.file, readVersioned(root, act.file)?.text);
     const current = now === UNREADABLE ? null : act.extract(now);
@@ -365,7 +366,7 @@ export async function collectAttribution(root: string, input: { repo: string; by
     row.commit = intro; row.committed_at = git('show', '-s', '--format=%cI', intro);
     // Who the act names: for a register row, its owner as the row stood at the commit that made the decision.
     if (act.personAt) { const v = at(intro, act.file); row.person = v === UNREADABLE ? '' : act.personAt(v); }
-    row.expected = memberOf(snap.team, row.person)?.github ?? '';
+    row.expected = memberOf(snap.team, row.person, peopleIds)?.github ?? '';
     if (!row.person) { row.status = 'names no one'; continue; }
     if (!row.expected) { row.status = 'no GitHub account on the roster'; continue; }
     const found = await pullsOf(intro);
@@ -461,7 +462,7 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
     ['Assign an owner in the workspace for each of these; each then gets its own reminder.', unowned.map((o) => `- ${o.what}${o.state === 'overdue' ? ` (overdue since ${o.due})` : ''}`).join('\n'), unownedMarker].join('\n\n'));
   for (const o of owed.filter((x) => x.who)) {
     const m = marker(o);
-    const login = memberOf(team, o.who)?.github;
+    const login = memberOf(team, o.who, (ws.registers.people?.data.rows ?? []).map((r) => r.id))?.github;
     const body = [`${o.what} is ${o.state === 'overdue' ? `overdue since ${o.due}` : 'due'}, owed by ${o.who}.`,
       o.controls.length ? `Controls: ${o.controls.join(', ')}.` : '', 'Record it in the workspace in a pull request of your own; this issue closes once the workspace no longer shows it owed.', m].filter(Boolean).join('\n\n');
     await upsert(m, title(o), body, login);

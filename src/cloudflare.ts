@@ -59,7 +59,7 @@ export const cfIsAdmin = (m: any) => (m.roles ?? []).some((r: any) => CF_ADMIN_R
 export function cloudflareRoster(root: string, ws: Workspace): { people: string[]; service_accounts: string[] } {
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
   const team = latest ? (JSON.parse(latest.text) as Snapshot).team : [];
-  return { people: (ws.registers.people?.data.rows ?? []).filter((p) => !team.length || !!memberOf(team, p.id)).map((p) => (p.email ?? '').toLowerCase()).filter(Boolean),
+  return { people: (ws.registers.people?.data.rows ?? []).filter((p, _, all) => !team.length || !!memberOf(team, p.id, all.map((x) => x.id))).map((p) => (p.email ?? '').toLowerCase()).filter(Boolean),
     service_accounts: (ws.registers.systems?.data.rows ?? []).filter((x) => /service account/i.test(x.kind ?? '')).map((x) => (x.name ?? '').toLowerCase()).filter(Boolean) };
 }
 

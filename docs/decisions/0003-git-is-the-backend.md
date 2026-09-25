@@ -69,7 +69,8 @@ brought each act to the default branch and its pull request. The act is verified
 Open Autonomy roster approved that pull request at the head commit that was merged (their latest verdict on it being
 that approval), or opened it themselves (the earlier door, kept for a person who records an act in a pull request of
 their own). Each row says which (`via`). An approval binds the exact commit, so it lacks the earlier door's residual,
-where a collaborator pushing to the person's branch is not told apart from them.
+where a collaborator pushing to the person's branch is not told apart from them. An approval counts only where the approved head
+commit is in the history, as a merge commit keeps it; a squash-merged pull request's approval does not.
 
 A record's own date (an approval's `approved_at`, a response's `submitted_at`) is when the act was prepared; the
 signature's time is the approval's, which attribution records (`signed_at`). A residual the workflow does not remove: a
@@ -113,7 +114,8 @@ Landing with this record:
   commits them. A received audit package or a scratch copy is not made one. The server commits after each change (each
   in its own record of what it wrote, so changes in flight together never take each other's files) and the command line
   after each command, including the part of a change that
-  stopped with an error, so no write is left outside the history. Commits are dated by Evidence Desk's clock.
+  stopped with an error; a commit Git refuses (a hook, a file edited meanwhile) is reported, and its files are taken by
+  the app's next change. Commits are dated by Evidence Desk's clock.
 - `signatures.ts` prepares a signature (worktree, packet, `sign/` branch) and lists what waits from the remote's `sign/`
   branches; `signing-template` writes the workflow (open the pull request, request the review, merge on approval,
   delete a branch closed unsigned) at the top of the repository; `sync` and the app's Sync
