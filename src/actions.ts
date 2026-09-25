@@ -195,6 +195,19 @@ export function approvePolicy(root: string, id: string, approvedBy: string, text
   return version;
 }
 
+// Approving a template its approver has read and confirmed true of how the organization operates: the catalog's drafting
+// comment, its reminder that the text is not yet the organization's, is removed in the same signed act as the approval.
+// Without that confirmation a template is still refused, as approvePolicy refuses it.
+export function approveAsAdapted(root: string, id: string, approvedBy: string, textVersion: string, recordVersion: string): number {
+  const text = readVersioned(root, `policies/${id}.md`);
+  if (!text) throw new Error(`policies/${id}.md is missing`);
+  if (text.version !== textVersion) throw new Error(`policies/${id}.md changed since you read it; review the current text before approving`);
+  const adapted = text.text.replace(/^<!--\s*Template adapted from[\s\S]*?-->\n\n?/m, '');
+  if (adapted === text.text) return approvePolicy(root, id, approvedBy, textVersion, recordVersion);
+  writeVersioned(root, `policies/${id}.md`, adapted, text.version);
+  return approvePolicy(root, id, approvedBy, readVersioned(root, `policies/${id}.md`)!.version, recordVersion);
+}
+
 export function saveRegisterRow(root: string, name: RegisterName, row: Record<string, string>, version: string, replaceId?: string): void {
   if (!REGISTERS.includes(name)) throw new Error(`${name} is not a register`);
   const ws = loadWorkspace(root);
