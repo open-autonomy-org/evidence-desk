@@ -131,7 +131,7 @@ export function frameworkState(ws: Workspace, id: string, asOf = clockDate()) {
   const shared = new Set(requirements.flatMap((r) => r.evidence).filter((e) => socEvidence.has(e)));
   // Readiness counts what the framework requires; an optional requirement is listed with its status but not counted.
   const counted = requirements.filter((r) => !r.optional);
-  return { framework: id, title: fw.title, requirements, summary: {
+  return { framework: id, title: fw.title, requirements, exclusions: settings.exclusions ?? {}, summary: {
     requirements: counted.length, ready: counted.filter((r) => r.status === 'ready').length, excluded: counted.filter((r) => r.status === 'excluded').length,
     unaddressed: counted.filter((r) => r.status === 'unaddressed').length, optional: requirements.length - counted.length, shared_evidence: shared.size } };
 }

@@ -596,7 +596,8 @@ async function main(argv: string[]): Promise<number> {
         const r = await publishStatement(dir, { baseUrl, key });
         const rev = r.body.revision as { revision?: number; changes?: string[] } | undefined;
         const err = typeof r.body.error === 'string' ? r.body.error : (r.body.error as { code?: string } | undefined)?.code;
-        out(json, r.body, () => r.status === 200 ? (r.body.unchanged ? 'Published statement unchanged; no new revision.' : `Published the Compliance statement, revision ${rev?.revision}: ${rev?.changes?.join(', ')}.${r.badges.map((b) => `\n  ${b.label}: ${b.message} (until ${b.until})`).join('')}`)
+        const where = r.page ? `\nOn the project: ${r.page}\nIn its README: ${r.readme}` : '';
+        out(json, { ...r.body, page: r.page, readme: r.readme }, () => r.status === 200 ? (r.body.unchanged ? `Published statement unchanged; no new revision.${where}` : `Published the Compliance statement, revision ${rev?.revision}: ${rev?.changes?.join(', ')}.${r.badges.map((b) => `\n  ${b.label}: ${b.message} (until ${b.until})`).join('')}${where}`)
           : `The platform refused the statement (${r.status}): ${err ?? 'unknown'}${r.body.field ? ` at ${r.body.field}` : ''}.`);
         return r.status === 200 ? 0 : 1;
       }
