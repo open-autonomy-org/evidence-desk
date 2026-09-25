@@ -336,8 +336,8 @@ or a position the organization states in `frameworks/<id>.json` under `positions
 renders the attestation from the records (every requirement, its position, and the controls and evidence behind a met
 one, the reason behind an exclusion, the statement behind the rest) and records it in `certifications/` as a
 `self-attestation` with its `target` and hash. The badge says self-attested; the document discloses everything not met.
-An attestation is a signed act: merge it through your own pull request, and `collect attribution` checks it like a
-policy approval. It lapses a year after it is signed.
+An attestation is a signed act: it is signed by approving a pull request someone else opens with it (the signing
+workflow's bot, where the workspace signs on GitHub), and `collect attribution` checks it like a policy approval. It lapses a year after it is signed.
 
 ## Readiness
 

@@ -80,8 +80,9 @@ default branch without anyone else's review; any act in it that names someone el
 attribution requires that person's approval.
 
 **Elsewhere a signed act is committed where the person works.** Without the signing workflow, on a branch other than
-the default, or with no GitHub remote, the act is committed to the current branch: the person opens their own pull request,
-or the workspace keeps its history on this machine alone.
+the default, or with no GitHub remote, the act is committed to the current branch: someone else opens a pull request with
+it for the person to approve, or the workspace keeps its history on this machine alone (unsigned until the local
+signature lands).
 
 ## Alternatives and tradeoffs
 
