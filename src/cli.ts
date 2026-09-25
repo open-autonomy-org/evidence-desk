@@ -191,7 +191,9 @@ async function together(argv: string[]): Promise<number> {
   for (const x of argv.slice(2)) { if (x === '--') groups.push([]); else groups.at(-1)!.push(x); }
   const subs = groups.map((g) => {
     if (!g.length) throw new Error('together: an empty command between --');
-    if (['together', 'serve', 'init', 'firm', 'audit'].includes(g[0])) throw new Error(`together cannot run ${g[0]}`);
+    // Commands that open servers, create workspaces, act on received packages, or commit or push on their own.
+    if (['together', 'serve', 'init', 'firm', 'audit', 'signing-template', 'sync'].includes(g[0])) throw new Error(`together cannot run ${g[0]}`);
+    if (g.includes('--help')) throw new Error('together runs commands; ask for --help on a command by itself');
     const a = parse([g[0], dirArg, ...g.slice(1)]);
     const [cmd, , ...rest] = a.pos;
     return { a, cmd, rest };
