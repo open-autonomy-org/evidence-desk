@@ -125,7 +125,7 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   framework <dir> iso27001 exclude <requirement> --reason <text> | include <requirement> | map <requirement> --controls <id>,...
   framework <dir> <framework> position <requirement> (--partial | --not-met) --statement <text> | --clear
                                           the organization's position on a requirement not met, which an attestation discloses
-  soa <dir> --out <file.csv|file.md>      the ISO 27001 statement of applicability
+  soa <dir> [--framework iso27001|iso42001] --out <file.csv|file.md>   the statement of applicability: every Annex A control, included or not and why
   gaps <dir> [--as-of YYYY-MM-DD]         what stands between the workspace and readiness
   validate <dir>                          check every file against its schema and references
   serve <dir> [--port <n>]                open the local app on 127.0.0.1
@@ -704,9 +704,10 @@ async function main(argv: string[]): Promise<number> {
       const o = one(a, 'out');
       if (!o) throw new Error('soa needs --out <file.csv or file.md>');
       const ws = loadWorkspace(dir);
-      if (!targetsOf(ws).includes('iso27001')) throw new Error(`ISO 27001 is not a target; run: evidence-desk frameworks ${dirArg} target iso27001`);
-      const t = statementOfApplicability(ws);
-      const text = o.endsWith('.md') ? [`# Statement of applicability: ${ws.manifest?.data.organization ?? ''}`, '', `Generated ${clockDate().toISOString().slice(0, 10)} from the workspace. ISO/IEC 27001:2022 Annex A identifiers with this project's titles.`, '',
+      const fid = one(a, 'framework') ?? 'iso27001';
+      if (!targetsOf(ws).includes(fid)) throw new Error(`${fid} is not a target; run: evidence-desk frameworks ${dirArg} target ${fid}`);
+      const t = statementOfApplicability(ws, fid);
+      const text = o.endsWith('.md') ? [`# Statement of applicability: ${ws.manifest?.data.organization ?? ''}`, '', `Generated ${clockDate().toISOString().slice(0, 10)} from the workspace. ${t.title} Annex A identifiers with this project's titles.`, '',
         '| Control | Title | Included | Justification | Implementation | Evidence |', '|---|---|---|---|---|---|', ...t.rows.map((r) => `| ${r.control} | ${r.title} | ${r.included} | ${r.justification.replaceAll('|', '/')} | ${r.implementation} | ${r.evidence.split(';').filter(Boolean).length} |`)].join('\n') + '\n'
         : writeCsv(t);
       writeFileSync(resolve(o), text);
