@@ -12,7 +12,7 @@ compliance SaaS, and the roadmap was rebuilt from scratch to reach parity with t
 
 Parity is measured against the whole buyer journey, from "we need SOC2" through a passed Type II audit and
 the security reviews that follow, for both the company and the CPA firm. It is not measured by integration
-count. The table below is the denominator. **Headline: 15 of 16 parity capabilities demonstrated** (all but row 5, where only code collection has landed).
+count. The table below is the denominator. **Headline: 15 of 16 parity capabilities demonstrated** (all but row 5, where GitHub and Cloudflare collection have landed).
 A row counts only when its owning outcome demonstrates it in the running local product on synthetic data.
 
 | # | Capability (table stakes unless marked) | Owning outcome |
@@ -21,7 +21,7 @@ A row counts only when its owning outcome demonstrates it in the running local p
 | 2 | Policy library: templates, editing, versioned approval | demonstrated |
 | 3 | Registers: systems/assets, people, vendors, risks with treatment | demonstrated |
 | 4 | Operable by the customer's own coding agent and by a nontechnical admin | demonstrated (a headless Claude Code session worked a workspace from its shipped instructions) |
-| 5 | Automated evidence collection from cloud, identity, HRIS, code and devices | `evidence-automation` (code: GitHub landed) |
+| 5 | Automated evidence collection from cloud, identity, HRIS, code and devices | `evidence-automation` (GitHub and Cloudflare landed) |
 | 6 | Continuous control checks with visible failures and alerting | demonstrated |
 | 7 | Onboarding/offboarding, policy acknowledgment, training, background checks | demonstrated |
 | 8 | Periodic access reviews with reviewer sign-off (near table stakes) | demonstrated |
@@ -82,12 +82,10 @@ licensed AICPA copy locally. Policy templates come from CC0/Apache sources
 ([Tailscale security-policies, CC0](https://github.com/tailscale/security-policies),
 [strongdm/comply, Apache-2.0](https://github.com/strongdm/comply)); SCF and CIS content are not redistributable.
 
-Build mode (owner, 2026-09-23) ended with the product working end to end; the owner asked for every remaining step
-to be handled (2026-09-24), and the fleet's service runs again from main. Its scheduled runs wait on the project's
-operating state on the Open Autonomy platform, which the owner resumes. The remaining outcomes stay `Dispatch: hold`:
-each waits on work outside this repository (twins for further collectors, the human release steps).
+The remaining outcomes are `Dispatch: hold`: each waits on work outside this repository (twins for further
+collectors, the human release steps).
 
-Sequence: `open-autonomy-soc2-ready` (the aim; publication of the template is outstanding), then
+Sequence: `open-autonomy-soc2-ready` (demonstrated; the published twin package lags), then
 `evidence-automation` (further collectors wait on twins). The workspace
 format, control library, policy templates, CLI and local app, the operation of the program, reading Open Autonomy
 projects, collectors and checks, the audit cycle, the trust center and questionnaires, and ISO 27001 have landed; see [CHANGELOG.md](CHANGELOG.md) and
@@ -95,7 +93,7 @@ projects, collectors and checks, the audit cycle, the trust center and questionn
 
 ## open-autonomy-soc2-ready: A project on Open Autonomy's soc2 template is SOC2 ready out of the box
 
-Status: active
+Status: active; every completion below is demonstrated on the published kit, and what remains is a published twin package carrying the fixes the demonstration used
 Dispatch: hold
 
 Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114#issuecomment-5802291630); [ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md); [ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/6e7a769f45236ac010f135695226dfa7f735fddd/docs/decisions/0008-human-seams.md); differentiator D1. Open Autonomy's `soc2` template implements ADR 0008 ([open-autonomy#715](https://github.com/open-autonomy-org/open-autonomy/pull/715)).
@@ -151,7 +149,7 @@ Completion:
 - A completeness reconciliation: the roster compared with the people who actually hold admin or deploy rights in the declared vendor accounts; anyone with rights outside the roster is a finding.
 - Onboarding for each roster member: acknowledgments, quiz results and attestations recorded with the person's verified account as author; a member who has not completed it is a visible gap. Recurring human reviews are scheduled and their verdicts recorded the same way.
 - Period populations only from durable records (merged changes with reviews, production deployments with approvals, roster history), each with its generating query and completeness basis, ready for audit sampling.
-- Demonstrated in the World on a synthetic project created from the `soc2` template (or, until it exists, the current kit with ADR 0008's seams declared) against its twins: two synthetic roster members onboard, one out-of-roster admin is found, synthetic history spans a period, and the gap view ends with only items automation and onboarding cannot establish. No real project is read.
+- Demonstrated in the World on a synthetic project created from the `soc2` template against its twins: two synthetic roster members onboard, one out-of-roster admin is found, synthetic history spans a period, and the gap view ends with only items automation and onboarding cannot establish. No real project is read.
 
 ## evidence-automation: Evidence collects itself, and controls are checked continuously
 
@@ -187,9 +185,9 @@ Completion:
 ## release-next: The auditor packet
 
 Dispatch: hold
-Release decision: none yet
+Release decision: accumulate
 Target version: 0.2.0
 Scope: CHANGELOG.md's Unreleased section (the audit package a firm can test from)
-Readiness: not started
+Readiness: pending
 
 0.1.0 was published on 2026-09-24 as [v0.1.0](https://github.com/open-autonomy-org/evidence-desk/releases/tag/v0.1.0) at 873506f.
