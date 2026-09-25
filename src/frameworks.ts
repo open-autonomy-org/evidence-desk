@@ -138,9 +138,12 @@ export function frameworkState(ws: Workspace, id: string, asOf = clockDate()) {
 
 // The statement of applicability: every Annex A control, whether it is included and why, how far it is implemented,
 // and the evidence behind it.
-export function statementOfApplicability(ws: Workspace): { columns: string[]; rows: Record<string, string>[] } {
-  const st = frameworkState(ws, 'iso27001');
-  return { columns: ['control', 'title', 'included', 'justification', 'implementation', 'addressed_by', 'evidence'], rows: st.requirements.filter((r) => r.id.startsWith('A.')).map((r) => ({
+// For a framework whose catalog marks its Annex A controls (ISO/IEC 27001, ISO/IEC 42001), which certification asks for.
+export function statementOfApplicability(ws: Workspace, id: string): { title: string; columns: string[]; rows: Record<string, string>[] } {
+  const annex = new Set(framework(id).requirements.filter((r) => r.annex_a).map((r) => r.id));
+  if (!annex.size) throw new Error(`${framework(id).title} has no Annex A controls, so it has no statement of applicability`);
+  const st = frameworkState(ws, id);
+  return { title: st.title, columns: ['control', 'title', 'included', 'justification', 'implementation', 'addressed_by', 'evidence'], rows: st.requirements.filter((r) => annex.has(r.id)).map((r) => ({
     control: r.id, title: r.title, included: r.status === 'excluded' ? 'no' : 'yes',
     justification: r.status === 'excluded' ? r.reason ?? '' : r.status === 'unaddressed' ? 'Included by default; no control addresses it yet' : `Addressed by ${r.controls.join(', ')}`,
     implementation: r.implementation, addressed_by: r.controls.join(';'), evidence: r.evidence.join(';') })) };

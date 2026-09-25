@@ -282,7 +282,8 @@ the standard for AI agents: its 51 current requirements across data and privacy,
 accountability and society ([catalog/frameworks/aiuc1.json](../catalog/frameworks/aiuc1.json)). AIUC-1's terms forbid
 reproducing its text, so the catalog holds only its identifiers and this project's titles; read the standard at its
 source. Its eight supplemental requirements are marked `optional`: listed with their status, not counted toward
-readiness. Certification against it is yearly, with quarterly retests.
+readiness. Certification against it is yearly, with quarterly retests. `soa <dir> --framework iso42001` writes ISO/IEC 42001's statement of applicability, its 38 Annex A controls
+included or not and why.
 
 Both map onto the AI family of controls (AI-01 to AI-12: the AI governance policy, the AI system inventory, human
 oversight, risk and impact assessment, activity records, testing before release and each quarter, controlled change,

@@ -7,6 +7,7 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- `soa <dir> --framework iso42001` writes ISO/IEC 42001's statement of applicability, which its certification asks for, as `soa` already did for ISO/IEC 27001 (still the default).
 - NIST CSF 2.0 can be targeted and self-attested: its 106 subcategories map onto the controls SOC 2 already uses, and
   the 35 no control genuinely covers ask for the organization's stated position.
 - NIST AI RMF 1.0 can be targeted, and a self-attestation can be signed: each requirement carries a position (met,
