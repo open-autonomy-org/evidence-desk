@@ -2,7 +2,7 @@
 
 Status: Proposed. Accepted only upon independent review against the constitution and merge of this record and its
 implementation. Implemented in two parts: targets, the scoping split, the framework registry and the documents' targets
-with this record; positions and `attest` with the first self-attestation catalog, where they can be exercised.
+with this record; positions and `attest` with the first self-attestation catalog (NIST AI RMF), where they are exercised.
 
 ## Context and sources
 
