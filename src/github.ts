@@ -427,7 +427,8 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
   // What is overdue, and what falls due within the window the workspace's workflow names (--within): a review due next
   // year is not owed today.
   const horizon = new Date((input.asOf ?? clockDate()).getTime() + input.within * 864e5).toISOString().slice(0, 10);
-  const owed = computeObligations(ws, input.asOf).filter((o) => o.state === 'overdue' || (o.state === 'due' && o.due <= horizon));
+  const all_ = computeObligations(ws, input.asOf);
+  const owed = all_.filter((o) => o.state === 'overdue' || (o.state === 'due' && o.due <= horizon));
   const MARK = /<!-- evidence-desk:(?:obligation|owed) [0-9a-f]{16} -->/;
   const marker = (who: string) => `<!-- evidence-desk:owed ${createHash('sha256').update(who ? `person|${who}` : 'unowned').digest('hex').slice(0, 16)} -->`;
   // Every open issue carrying a marker, not only labelled ones: an issue someone unlabelled must not be doubled. An issue
@@ -436,10 +437,14 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
   const result = { opened: [] as string[], retitled: [] as string[], closed: [] as string[], kept: 0 };
   const people = [...new Set(owed.map((o) => o.who))];
   const wanted = new Set(people.map(marker));
+  // An issue closes as completed when what it named is met, and as not planned when it is still owed but now falls outside
+  // the window: a person with obligations not yet done, or an earlier-form issue whose obligation is not done.
+  const stillOwed = all_.filter((o) => o.state !== 'done');
+  const later = new Set([...stillOwed.map((o) => marker(o.who)), ...stillOwed.map((o) => `<!-- evidence-desk:obligation ${createHash('sha256').update(`${o.kind}|${o.what}|${o.who}`).digest('hex').slice(0, 16)} -->`)]);
   // Close first, so an error on a later write never leaves an issue open for someone who owes nothing.
   for (const i of open) {
     const m = MARK.exec(i.body ?? '')![0];
-    if (!wanted.has(m)) { await send('PATCH', `/repos/${input.repo}/issues/${i.number}`, { state: 'closed', state_reason: m.includes(':owed ') ? 'completed' : 'not_planned' }); result.closed.push(i.title); }
+    if (!wanted.has(m)) { await send('PATCH', `/repos/${input.repo}/issues/${i.number}`, { state: 'closed', state_reason: later.has(m) ? 'not_planned' : 'completed' }); result.closed.push(i.title); }
   }
   const peopleIds = (ws.registers.people?.data.rows ?? []).map((r) => r.id);
   for (const who of people) {
@@ -448,11 +453,20 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
     const overdue = items.filter((o) => o.state === 'overdue').length;
     // The title changes only when the counts do, so a daily run does not retitle an unchanged list.
     const t = who ? `${who} owes ${[overdue ? `${overdue} overdue` : '', items.length - overdue ? `${items.length - overdue} due` : ''].filter(Boolean).join(', ')}` : `${items.length} obligation${items.length === 1 ? ' has' : 's have'} no one assigned`;
+    // Plain items, not checkboxes: the list is the workspace's, and an item leaves it only when the workspace shows it met.
+    // A long list is cut below GitHub's size limit, saying how many more there are.
+    const lines = items.map((o) => `- ${o.state === 'overdue' ? `**Overdue since ${o.due}**: ` : ''}${o.what}${o.controls.length ? ` (${o.controls.join(', ')})` : ''}`);
+    let shown = lines.length;
+    while (shown > 0 && lines.slice(0, shown).join('\n').length > 60000) shown--;
+    const list = [...lines.slice(0, shown), ...(shown < lines.length ? [`- …and ${lines.length - shown} more`] : [])].join('\n');
     const body = [who ? `Everything ${who} owes in the compliance workspace that is overdue or due within ${input.within} days. Each item leaves this list when the workspace no longer shows it owed; this issue closes when the list is empty.` : 'Assign an owner in the workspace for each of these; each then moves to that person\'s list.',
-      items.map((o) => `- [ ] ${o.state === 'overdue' ? `**Overdue since ${o.due}**: ` : ''}${o.what}${o.controls.length ? ` (${o.controls.join(', ')})` : ''}`).join('\n'), m].join('\n\n');
+      list, m].join('\n\n');
     const existing = open.find((i) => (i.body ?? '').includes(m));
     if (existing) {
-      if (existing.title !== t || existing.body !== body) { await send('PATCH', `/repos/${input.repo}/issues/${existing.number}`, { title: t, body }); result.retitled.push(t); } else result.kept++;
+      // The note that the person cannot be assigned, added when the issue opened, is kept rather than rewritten away.
+      const note = /^\S+ cannot be assigned in this repository\.\n\n/m.exec(existing.body ?? '')?.[0] ?? '';
+      const next = note ? body.replace(m, `${note}${m}`) : body;
+      if (existing.title !== t || existing.body !== next) { await send('PATCH', `/repos/${input.repo}/issues/${existing.number}`, { title: t, body: next }); result.retitled.push(t); } else result.kept++;
       continue;
     }
     const login = who ? memberOf(team, who, peopleIds)?.github : undefined;
