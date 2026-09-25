@@ -20,6 +20,17 @@ const API = 'https://api.github.com';
 // ask GitHub about any response in the raw file.
 let requests: { path: string; status: number; date: string; request_id: string }[] = [];
 
+// Names that become API paths are checked before any request: an owner/name, or an organization login, with nothing
+// that could step to another endpoint of the API ("..", more segments, a query).
+export function repoName(repo: string, what = 'the repository'): string {
+  if (!/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(repo) || /\/\.\.?$/.test(repo)) throw new Error(`${what} must be a GitHub repository as owner/name, not ${JSON.stringify(repo)}`);
+  return repo;
+}
+export function orgName(org: string): string {
+  if (!/^[A-Za-z0-9-]+$/.test(org)) throw new Error(`the organization must be a GitHub login, not ${JSON.stringify(org)}`);
+  return org;
+}
+
 async function get(path: string): Promise<unknown> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error('GITHUB_TOKEN is not set; export a read-only token for the account');
@@ -62,6 +73,7 @@ type Review = { user?: { login?: string }; state: string; submitted_at?: string;
 const areas = (paths: string[]) => [...new Set(paths.map((f) => f.startsWith('.github/workflows/') ? 'pipeline' : f.startsWith('records/') ? 'records' : /\.md$|^docs\//.test(f) ? 'docs' : 'code'))].sort().join(';');
 
 export async function collectChanges(root: string, input: { repo: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; unknown: number; notIndependent: number; direct: number }> {
+  repoName(input.repo);
   const controls = evidencing(root, 'github-changes', ['CHG-01', 'CHG-02']);
   const source = await provenance();
   const meta = await get(`/repos/${input.repo}`) as { default_branch: string };
@@ -156,6 +168,7 @@ type Approval = { state: string; user?: { login?: string }; environments?: { nam
 // its statuses, and the run's approvals are the environment's required reviewers acting. An approval by someone other
 // than the person who started the run is independent.
 export async function collectDeployments(root: string, input: { repo: string; environment: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; unapproved: number }> {
+  repoName(input.repo);
   const controls = evidencing(root, 'github-deployments', ['CHG-03']);
   const source = await provenance();
   // Who may act at the two production seams an Open Autonomy project declares: starting a deploy and approving the
@@ -322,7 +335,7 @@ declare const Bun: { YAML: { parse(text: string): unknown } };
 // (--roster), it is the roster as that project's reviewed history holds it on its default branch; read from the
 // workspace's copy, it is whatever the workspace's writers last committed there, and the record says so.
 async function rosterFrom(repo: string): Promise<{ team: Snapshot['team']; source: { repo: string; commit: string; path: string } }> {
-  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error('--roster names the Open Autonomy project\'s repository as owner/name');
+  repoName(repo, '--roster (the Open Autonomy project\'s repository)');
   const branch = (await get(`/repos/${repo}`) as { default_branch: string }).default_branch;
   const commit = (await get(`/repos/${repo}/commits/${encodeURIComponent(branch)}`) as { sha: string }).sha;
   const path = '.open-autonomy/config.yaml';
@@ -335,6 +348,7 @@ async function rosterFrom(repo: string): Promise<{ team: Snapshot['team']; sourc
 }
 
 export async function collectAttribution(root: string, input: { repo: string; by: string; roster?: string }): Promise<{ record: string; file: string; evidence: null; rows: Attribution[] }> {
+  repoName(input.repo);
   if (!/^[\w.-]+\/[\w.-]+$/.test(input.repo)) throw new Error('--repo names the workspace\'s own GitHub repository as owner/name');
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
   if (!latest && !input.roster) throw new Error('import the Open Autonomy project first (evidence-desk open-autonomy import), or name its repository with --roster: its roster holds each person\'s GitHub account');
@@ -442,6 +456,7 @@ async function send(method: string, path: string, body: unknown): Promise<any> {
 }
 const LABEL = 'evidence-desk';
 export async function syncReminders(root: string, input: { repo: string; asOf?: Date; within: number }): Promise<{ opened: string[]; retitled: string[]; closed: string[]; kept: number }> {
+  repoName(input.repo);
   if (!/^[\w.-]+\/[\w.-]+$/.test(input.repo)) throw new Error('--repo names the workspace\'s own GitHub repository as owner/name');
   const { computeObligations } = await import('./obligations.ts');
   const ws = loadWorkspace(root);
@@ -511,6 +526,7 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
 // the version before. A version that lets more people bypass, drops a required review or protection, or stops enforcing
 // weakens the rules. A change by an account not on the roster is marked.
 export async function collectRuleChanges(root: string, input: { repo: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; weakening: number }> {
+  repoName(input.repo);
   const controls = evidencing(root, 'github-rule-changes', ['CHG-01', 'OPS-04']);
   const source = await provenance();
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
@@ -568,6 +584,8 @@ export async function collectRuleChanges(root: string, input: { repo: string; st
 // keys, repository and environment secrets (with when each was last set), the organization's app installations, and
 // the Open Autonomy project's agents with their models. The subjects an access review of machines covers.
 export async function collectNonHumanAccess(root: string, input: { repo: string; org: string; environment: string; by: string }): Promise<{ evidence: string; rows: number }> {
+  repoName(input.repo);
+  orgName(input.org);
   const controls = evidencing(root, 'nonhuman-access', ['AC-03', 'AC-05']);
   const source = await provenance();
   const raw: Record<string, unknown> = { provenance: source };

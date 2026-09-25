@@ -12,6 +12,7 @@ import { loadWorkspace } from './workspace.ts';
 import { cf, cfAccount, cfAll, cfAnswers, cfIsAdmin, cloudflareRoster } from './cloudflare.ts';
 import { clockDate, now } from './clock.ts';
 import { neededControls } from './targets.ts';
+import { orgName, repoName } from './github.ts';
 
 export type CollectorSettings = { id: 'github' | 'cloudflare'; enabled: boolean; params: Record<string, string> };
 type Snapshot = { data: Record<string, unknown>; queries: string[]; responses?: { path: string; status: number; date: string; request_id: string }[] };
@@ -64,6 +65,8 @@ const github: CollectorDef = {
     const queries: string[] = [];
     ghAnswers = [];
     if (!p.org) throw new Error('set the org parameter');
+    orgName(p.org);
+    list(p.repos).forEach((r) => repoName(r, 'each of repos'));
     const org = (await gh(`/orgs/${p.org}`, queries)).body;
     const admins = (await ghAll(`/orgs/${p.org}/members?role=admin`, queries)).map((m) => m.login);
     // Every member with their role, day by day: the population of access changes is the difference between days.

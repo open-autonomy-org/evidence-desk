@@ -56,7 +56,11 @@ export function signsOnGitHub(root: string): { repo: string; branch: string; sta
 }
 
 export type Prepared = { branch: string; url: string; person: string; login: string; acts: { key: string; label: string }[] };
-const MARK = /<!-- evidence-desk:sign (\{.*?\}) -->/;
+// The packet's record of what it asks: the last such comment in the message, the one Evidence Desk writes after every
+// quoted text, and written with no "<" or ">" inside so nothing in it ends the comment early.
+const MARKS = /<!-- evidence-desk:sign (\{.*?\}) -->/g;
+const markOf = (message: string) => [...message.matchAll(MARKS)].at(-1);
+const mark = (record: unknown) => `<!-- evidence-desk:sign ${JSON.stringify(record).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')} -->`;
 const pullsOf = (repo: string, branch: string) => `https://github.com/${repo}/pulls?q=${encodeURIComponent(`is:pr head:${branch}`)}`;
 
 // Runs a change as a signature to prepare. Returns null where the workspace does not sign on GitHub (the caller makes the
@@ -117,6 +121,9 @@ function packet(before: string, root: string, person: string, acts: { key: strin
   const name = (ws.registers.people?.data.rows ?? []).find((r) => r.id === person)?.name || person;
   const out = [`**${name}**, this is prepared for your signature.`, '',
     `Read it here and under **Files changed**. **Approve** this pull request to sign it: GitHub records your approval of its exact head commit, and the workspace's signing workflow then merges it. If anything is not true, choose **Request changes** and say what: whoever prepared it withdraws it, changes it and prepares it again for you. The dates in the records are when it was prepared; your signature's time is your approval's.`, ''];
+  // Texts are quoted while the description has room (GitHub holds 65,536 characters); a text past that is read under
+  // Files changed, and the description is never cut inside a quotation.
+  let room = 55000;
   for (const a of acts) {
     out.push(`## ${a.label[0].toUpperCase()}${a.label.slice(1)}`, '');
     const id = a.kind === 'policy-approval' ? a.key.split(':')[1] : '';
@@ -128,9 +135,15 @@ function packet(before: string, root: string, person: string, acts: { key: strin
     if (unchangedTemplate(id, was, prior.scope?.data.answers ?? {})) out.push(`> **This is Evidence Desk's catalog template, unchanged.** Signing confirms it is true of how ${org} operates. If it is not, request changes.`, '');
     else if (r.template) out.push(`> **This is adapted from Evidence Desk's catalog template.** Signing confirms it is true of how ${org} operates. If it is not, request changes.`, '');
     if (r.commitments.length) out.push(`Signing this commits ${org} to:`, '', ...r.commitments.map((c) => `- ${c.title} (${c.control}), ${c.every}`), '');
-    out.push(`The text you sign, \`policies/${id}.md\`${version ? `, SHA-256 \`${version.sha256}\`` : ''}:`, '', '<blockquote>', '', text.trim(), '', '</blockquote>', '');
+    // Quoted as written, in a fence longer than any run of backticks in it: nothing in the text can hide a clause from
+    // this page (a comment, a collapsed section, a link definition) or pose as the packet's own words.
+    const fence = '`'.repeat(Math.max(3, ...[...text.matchAll(/`+/g)].map((m) => m[0].length + 1)));
+    const named = `The text you sign, \`policies/${id}.md\`${version ? `, SHA-256 \`${version.sha256}\`` : ''}`;
+    if (text.length > room) { out.push(`${named}, is under **Files changed**: this description has no room left to quote it.`, ''); continue; }
+    room -= text.length;
+    out.push(`${named}:`, '', `${fence}markdown`, text.trim(), fence, '');
   }
-  out.push(`<!-- evidence-desk:sign ${JSON.stringify({ workspace, person, acts: acts.map(({ key, kind, file, label }) => ({ key, kind, file, label })) })} -->`);
+  out.push(mark({ workspace, person, acts: acts.map(({ key, kind, file, label }) => ({ key, kind, file, label })) }));
   const body = out.join('\n');
   return body.length <= 60000 ? body : `${body.slice(0, 59000)}\n\n…the rest is under **Files changed**.\n\n${out.at(-1)}`;
 }
@@ -153,7 +166,7 @@ export function pendingSignatures(root: string): { repo: string | null; status: 
   const prefix = repoOf(root)?.prefix ?? '';
   const pending: Pending[] = [];
   for (const ref of (tryGit(root, 'for-each-ref', '--format=%(refname:strip=3)', 'refs/remotes/origin/sign/') ?? '').split('\n').filter(Boolean)) {
-    const m = MARK.exec(tryGit(root, 'log', '-1', '--format=%B', `refs/remotes/origin/${ref}`) ?? '');
+    const m = markOf(tryGit(root, 'log', '-1', '--format=%B', `refs/remotes/origin/${ref}`) ?? '');
     if (!m) continue;
     try {
       const mark = JSON.parse(m[1]) as { workspace?: string; person: string; acts: Pending['acts'] };
@@ -172,7 +185,7 @@ export function pendingSignatures(root: string): { repo: string | null; status: 
 export function withdrawSignature(root: string, branch: string): void {
   if (!/^sign\/[A-Za-z0-9-]+\/[a-z0-9-]+$/.test(branch)) throw new Error(`${branch} is not a branch Evidence Desk prepared for a signature`);
   // Only a signature this workspace prepared: its packet names the workspace's place in the repository.
-  const m = MARK.exec(tryGit(root, 'log', '-1', '--format=%B', `refs/remotes/origin/${branch}`) ?? '');
+  const m = markOf(tryGit(root, 'log', '-1', '--format=%B', `refs/remotes/origin/${branch}`) ?? '');
   const mark = m ? (() => { try { return JSON.parse(m[1]) as { workspace?: string }; } catch { return null; } })() : null;
   if (!mark || (mark.workspace ?? '') !== (repoOf(root)?.prefix ?? '')) throw new Error(`${branch} is not a signature waiting in this workspace`);
   git(root, 'push', '-q', 'origin', '--delete', branch);

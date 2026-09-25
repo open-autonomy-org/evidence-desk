@@ -2,8 +2,8 @@
 // only what trust.json lists. Questionnaires are answered from workspace facts: each drafted answer quotes and cites
 // the records it came from, a person reviews it, and reviewed answers are kept for reuse until a fact they cite changes.
 // Drafting needs no AI service; a customer's own coding agent can refine drafts by editing the files.
-import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, lstatSync, rmSync } from 'node:fs';
+import { basename, join, resolve, sep } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { check, schema } from './schema.ts';
 import { isIdColumn, questionColumn, questionnaireText } from './xlsx.ts';
@@ -141,14 +141,31 @@ export function buildTrustCenter(root: string, out: string): { published: string
 ${contact ? `<section><h2>Security contact</h2><p>${link(contact) ? `<a href="${esc(link(contact)!)}">${esc(contact)}</a>` : esc(contact)}</p></section>` : ''}
 <p class="muted">Updated ${now().slice(0, 10)}.</p></body></html>
 `;
-  mkdirSync(out, { recursive: true });
-  writeFileSync(join(out, 'index.html'), html);
+  // The site is written into the folder named, which may be anywhere but the workspace itself. Only its own files are
+  // written, never through a link, and a badge the last build published that this one does not is removed with it: a
+  // withdrawn claim must not stay at its public address.
+  const full = resolve(out), home = resolve(root);
+  if (full === home || full.startsWith(home + sep)) throw new Error(`build the trust center outside the workspace, not in ${out}`);
+  mkdirSync(full, { recursive: true });
+  const own = (rel: string, kind: 'file' | 'dir') => {
+    const at = join(full, rel);
+    const st = lstatSync(at, { throwIfNoEntry: false });
+    if (st && (kind === 'file' ? !st.isFile() : !st.isDirectory())) throw new Error(`${at} is not a plain ${kind === 'file' ? 'file' : 'folder'}; the trust center writes only its own files`);
+    return at;
+  };
+  for (const b of badges) if (!/^[A-Za-z0-9._-]+$/.test(b.id) || b.id.startsWith('.')) throw new Error(`badge ${JSON.stringify(b.id)} is not a name a file can take`);
+  const before = (() => { try { return (JSON.parse(readFileSync(own('badges.json', 'file'), 'utf8')).badges ?? []) as { svg?: string }[]; } catch { return []; } })();
+  const svgs = new Set(badges.map((b) => `badges/${b.id}.svg`));
+  const stale = before.map((b) => b.svg ?? '').filter((f) => /^badges\/[A-Za-z0-9._-]+\.svg$/.test(f) && !svgs.has(f));
+  writeFileSync(own('index.html', 'file'), html);
   if (badges.length) {
-    mkdirSync(join(out, 'badges'), { recursive: true });
-    for (const b of badges) writeFileSync(join(out, 'badges', `${b.id}.svg`), badgeSvg(b));
-    writeFileSync(join(out, 'badges.json'), pretty({ schema: 'evidence-desk.badges/1', organization: org, as_of: now().slice(0, 10), badges: badges.map((b) => ({ ...b, svg: `badges/${b.id}.svg` })) }));
+    mkdirSync(own('badges', 'dir'), { recursive: true });
+    for (const b of badges) writeFileSync(own(`badges/${b.id}.svg`, 'file'), badgeSvg(b));
+    writeFileSync(own('badges.json', 'file'), pretty({ schema: 'evidence-desk.badges/1', organization: org, as_of: now().slice(0, 10), badges: badges.map((b) => ({ ...b, svg: `badges/${b.id}.svg` })) }));
     published.push(`${badges.length} badges`);
-  }
+  } else if (before.length || existsSync(join(full, 'badges.json'))) rmSync(own('badges.json', 'file'), { force: true });
+  if (lstatSync(join(full, 'badges'), { throwIfNoEntry: false })?.isDirectory()) for (const f of stale) rmSync(own(f, 'file'), { force: true });
+  if (stale.length) published.push(`${stale.length} withdrawn badge${stale.length === 1 ? '' : 's'} removed`);
   return { published, badges };
 }
 
@@ -231,7 +248,7 @@ export function questionnaireCsv(root: string, id: string): string {
   return writeCsv({ columns: ['id', 'question', 'answer', 'status'], rows: doc.questions.map((q) => {
     const current = q.status === 'reviewed' && !stale(root, q.sources);
     return { id: q.id, question: q.question, answer: current ? q.answer : '', status: current ? 'reviewed' : q.status === 'reviewed' ? 'needs-review' : q.status };
-  }) });
+  }) }, { spreadsheet: true });
 }
 
 // A person writes or approves an answer. Reviewing it records who and when, and keeps it in the library for reuse.
