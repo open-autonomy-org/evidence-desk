@@ -303,12 +303,15 @@ every page back past the period's start and refuses a list the platform cannot p
 page could be incomplete. It reads all four before writing anything, so a failure records nothing, and it records
 nothing while no targeted framework needs the AI family.
 
-### Self-attestations: NIST AI RMF
+### Self-attestations: NIST AI RMF and NIST CSF 2.0
 
 A framework whose outcome is a self-attestation has no certifying body: the organization signs its own statement.
 `frameworks <dir> target nist-ai-rmf` adds the NIST AI Risk Management Framework 1.0: its 72 subcategories under Govern,
 Map, Measure and Manage ([catalog/frameworks/nist-ai-rmf.json](../catalog/frameworks/nist-ai-rmf.json)), mapped onto the
-AI family and the security controls.
+AI family and the security controls. `frameworks <dir> target nist-csf2` adds the NIST Cybersecurity Framework 2.0: its
+106 subcategories under Govern, Identify, Protect, Detect, Respond and Recover
+([catalog/frameworks/nist-csf2.json](../catalog/frameworks/nist-csf2.json)), mapped onto the same controls as SOC 2.
+Where no control genuinely covers a subcategory, it maps to none and the organization states its position on it.
 
 Each requirement has a position: *met* when it is ready, *excluded* when the organization excludes it with a reason,
 or a position the organization states in `frameworks/<id>.json` under `positions`:
