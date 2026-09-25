@@ -341,7 +341,8 @@ ${secrets.length ? `          # With none of the credentials stored here, the ch
           git clone -q "https://github.com/$account.git" "$RUNNER_TEMP/project"
           bun src/cli.ts open-autonomy "$GITHUB_WORKSPACE" import --repo "$RUNNER_TEMP/project" --by "$RECORDER"
       - name: Check who recorded each signed act
-        if: hashFiles('sources/open-autonomy/latest.json') != ''
+        id: attribution
+        if: hashFiles('sources/open-autonomy/latest.json') != '' || vars.EVIDENCE_DESK_ROSTER_REPO != ''
         continue-on-error: true
         working-directory: \${{ runner.temp }}/evidence-desk
         env:
@@ -349,7 +350,8 @@ ${secrets.length ? `          # With none of the credentials stored here, the ch
           REPO: \${{ github.repository }}
           RECORDER: \${{ vars.EVIDENCE_DESK_RECORDER }}
           # The Open Autonomy project whose roster says who signs for whom, set by this repository's administrators;
-          # without it the roster is the workspace's own copy, and the check records that.
+          # without it the roster is the workspace's own copy, and the check records that. This workflow's token reads a
+          # public project; a private one needs a token that can read it, and a roster that cannot be read fails the run.
           ROSTER: \${{ vars.EVIDENCE_DESK_ROSTER_REPO }}
         run: bun src/cli.ts collect "$GITHUB_WORKSPACE" attribution --repo "$REPO" --by "$RECORDER" \${ROSTER:+--roster "$ROSTER"}
       - name: Commit the results
@@ -366,7 +368,7 @@ ${secrets.length ? `          # With none of the credentials stored here, the ch
           REPO: \${{ github.repository }}
         run: bun src/cli.ts remind "$GITHUB_WORKSPACE" --repo "$REPO" --within 30
       - name: Fail when a check failed or the project could not be read
-        if: steps.run.outcome == 'failure' || steps.reread.outcome == 'failure'
+        if: steps.run.outcome == 'failure' || steps.reread.outcome == 'failure' || steps.attribution.outcome == 'failure'
         run: exit 1
 `;
 }
