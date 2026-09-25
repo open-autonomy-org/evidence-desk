@@ -223,6 +223,7 @@ function approvalPlan(root: string, id: string, approvedBy: string, textVersion:
   if (last && last.sha256 === bodyVersion) throw new Error(`version ${last.version} of ${id} already approved this exact text`);
   const version = (last?.version ?? 0) + 1;
   const archived = `policies/archive/${id}.v${version}.md`;
+  if (readVersioned(root, archived)) throw new Error(`${archived} already exists; it would be overwritten by this approval`);
   const next = { ...rec.data, versions: [...rec.data.versions, { version, approved_by: approvedBy, approved_at: now(), sha256: bodyVersion, archived }] };
   valid('policy', next, rel);
   return { id, rel, rec, text, body, version, archived, next, template, unchanged, approvedBy };
