@@ -57,36 +57,40 @@ export function computeGaps(ws: Workspace, asOf = clockDate()): Gaps {
       if (!last) program.push(`Open Autonomy: the administrators of ${acct.vendor} ${acct.account} have not been compared with the roster`);
       else for (const o of last.outside) program.push(`Open Autonomy: ${o} administers ${acct.vendor} ${acct.account} but is not on the roster`);
     }
-    // Every signed act must have been recorded by its person's own GitHub account on the roster: each person's latest
-    // passed response per form, each access review sign-off, each policy's latest approval, each incident's closing. A
-    // signer who is not on the roster has no account to check, which is itself the finding.
-    const attributed = readVersioned(ws.root, 'sources/github/attribution.json');
-    const record = attributed ? JSON.parse(attributed.text) as { roster_commit: string; roster_source?: { read_from?: string; repo?: string; commit?: string }; rows: { key: string; value_sha256: string; status: string; author: string; person: string }[] } : null;
-    // A check that read the roster from the project's repository is compared with nothing here (its commit is the
-    // project's, recorded); one that read the workspace's copy says so, and is compared with the copy now held.
-    const fromProject = record?.roster_source?.read_from === 'the project repository';
-    if (record && !fromProject) program.push('Open Autonomy: signed acts were checked against the workspace\'s copy of the roster, which anyone who writes to the workspace can change (collect attribution --roster <the project\'s repository>)');
-    if (record && !fromProject && record.roster_commit !== snap.commit) program.push(`Open Autonomy: signed acts were checked against the roster at ${record.roster_commit.slice(0, 12)}, not ${snap.commit.slice(0, 12)} (collect attribution)`);
-    const latestResponse = new Map<string, { id: string; at: string }>();
-    for (const r of ws.responses) if (r.data.passed) {
-      const k = `${r.data.person} ${r.data.form}`;
-      if ((latestResponse.get(k)?.at ?? '') < r.data.submitted_at) latestResponse.set(k, { id: r.data.id, at: r.data.submitted_at });
-    }
-    const latestIds = new Set([...latestResponse.values()].map((x) => `response:${x.id}`));
-    const acts = signedActs(ws.root).filter((a) => a.kind !== 'response' || latestIds.has(a.key));
-    if (acts.length && !record) program.push('Open Autonomy: signed acts (onboarding, access review sign-offs, policy approvals, incident closures, risk decisions, vendor reviews, attestations) have not been checked against the people\'s GitHub accounts (collect attribution)');
-    else for (const a of acts) {
-      const parsed = readAct(a.file, readVersioned(ws.root, a.file)?.text);
-      const value = actDigest(parsed === UNREADABLE ? null : a.extract(parsed));
-      const row = record!.rows.find((x) => x.key === a.key && x.value_sha256 === value);
-      if (!row) program.push(`Open Autonomy: ${a.person || '(no one)'}'s ${a.label} has not been checked against their GitHub account`);
-      else if (row.status !== 'verified') program.push(`Open Autonomy: ${row.person || '(no one)'}'s ${a.label} is not recorded by their own GitHub account: ${row.status}${row.author ? ` (${row.author})` : ''}`);
-    }
     for (const seam of (snap.seams ?? []).filter((x) => x.door === 'commit' && x.record.startsWith('records/') && RECORD_KINDS[x.id])) {
       const got = readVersioned(ws.root, `sources/open-autonomy/seam-records/${seam.id}.json`);
       if (!got) { program.push(`Open Autonomy: the ${seam.id} records in ${seam.record} have not been collected (collect seam-records)`); continue; }
       for (const f of (JSON.parse(got.text) as { findings: string[] }).findings) program.push(`Open Autonomy: ${f}`);
     }
+  }
+  // Every signed act must have been recorded by its person's own GitHub account on the roster: each person's latest
+  // passed response per form, each access review sign-off, each policy's latest approval, each incident's closing. A
+  // signer who is not on the roster has no account to check, which is itself the finding.
+  const attributed = readVersioned(ws.root, 'sources/github/attribution.json');
+  const record = attributed ? JSON.parse(attributed.text) as { roster_commit: string; roster_source?: { read_from?: string; repo?: string; commit?: string }; rows: { key: string; value_sha256: string; status: string; via?: string; author: string; person: string }[] } : null;
+  // A check that read the roster from the project's repository is compared with nothing here (its commit is the
+  // project's, recorded); one that read the workspace's copy says so, and is compared with the copy now held.
+  const fromProject = record?.roster_source?.read_from === 'the project repository';
+  if (record && !fromProject) program.push('Open Autonomy: signed acts were checked against the workspace\'s copy of the roster, which anyone who writes to the workspace can change (collect attribution --roster <the project\'s repository>)');
+  const snap = oa ? JSON.parse(oa.text) as Snapshot : null;
+  if (record && !fromProject && snap && record.roster_commit !== snap.commit) program.push(`Open Autonomy: signed acts were checked against the roster at ${record.roster_commit.slice(0, 12)}, not ${snap.commit.slice(0, 12)} (collect attribution)`);
+  const latestResponse = new Map<string, { id: string; at: string }>();
+  for (const r of ws.responses) if (r.data.passed) {
+    const k = `${r.data.person} ${r.data.form}`;
+    if ((latestResponse.get(k)?.at ?? '') < r.data.submitted_at) latestResponse.set(k, { id: r.data.id, at: r.data.submitted_at });
+  }
+  const latestIds = new Set([...latestResponse.values()].map((x) => `response:${x.id}`));
+  const acts = signedActs(ws.root).filter((a) => a.kind !== 'response' || latestIds.has(a.key));
+  if (acts.length && !record) program.push('Open Autonomy: signed acts (onboarding, access review sign-offs, policy approvals, incident closures, risk decisions, vendor reviews, attestations) have not been checked against the people\'s GitHub accounts (collect attribution)');
+  else for (const a of acts) {
+    const parsed = readAct(a.file, readVersioned(ws.root, a.file)?.text);
+    const value = actDigest(parsed === UNREADABLE ? null : a.extract(parsed));
+    const row = record!.rows.find((x) => x.key === a.key && x.value_sha256 === value);
+    if (!row) program.push(`Open Autonomy: ${a.person || '(no one)'}'s ${a.label} has not been checked against their GitHub account`);
+    else if (row.status !== 'verified') program.push(`Open Autonomy: ${row.person || '(no one)'}'s ${a.label} is not signed by their own GitHub account: ${row.status}${row.author ? ` (${row.author})` : ''}`);
+    // A check made before opening a pull request stopped counting as a signature recorded "verified" for it: only an
+    // approval of the commit merged signs.
+    else if (row.via !== 'approved') program.push(`Open Autonomy: ${row.person || '(no one)'}'s ${a.label} was recorded as signed only because they opened its pull request; run collect attribution again`);
   }
   const errors = ws.problems.filter((p) => p.severity === 'error');
   if (errors.length) program.push(`${errors.length} validation error(s): run validate to see them`);
