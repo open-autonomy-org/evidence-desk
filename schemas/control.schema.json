@@ -46,6 +46,7 @@
         "weekly",
         "monthly",
         "quarterly",
+        "semiannual",
         "annual"
       ]
     },

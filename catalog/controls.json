@@ -1023,10 +1023,10 @@
       "policies": [
         "ai-governance"
       ],
-      "description": "An approved AI policy says how the organization develops, deploys and uses AI systems responsibly, how that fits its security and privacy policies, what acceptable use of AI is, and who reviews it; it is reviewed each year.",
+      "description": "An approved AI policy says how the organization develops, deploys and uses AI systems responsibly, how that fits its security and privacy policies, what use of AI is acceptable (by personnel, and by the people who use its AI systems, with prohibited uses defined and enforced), and who reviews it; it is reviewed each year.",
       "evidence": [
         "The approved AI policy and its latest review",
-        "Acceptable use of AI communicated to personnel"
+        "Acceptable use of AI communicated to personnel and to the users of the organization's AI systems"
       ]
     },
     {
@@ -1061,14 +1061,14 @@
       "id": "AI-04",
       "title": "AI risk and impact assessment",
       "criteria": [],
-      "frequency": "annual",
+      "frequency": "semiannual",
       "policies": [
         "ai-governance",
         "risk-assessment"
       ],
-      "description": "Before an AI system is deployed and when it changes materially, its risks (using the organization's AI risk taxonomy), the laws that apply to it, and its impacts on individuals, groups and society are assessed and treated; the assessments are reviewed each year.",
+      "description": "Before an AI system is deployed and when it changes materially, its risks (using the organization's AI risk taxonomy), the laws that apply to it, and its impacts on individuals, groups and society are assessed and treated; the assessments and the register of applicable AI laws are reviewed at least every six months.",
       "evidence": [
-        "The AI risk taxonomy and register of applicable AI laws",
+        "The AI risk taxonomy and register of applicable AI laws, reviewed within six months",
         "Impact assessments for each AI system and their review"
       ]
     },
@@ -1096,7 +1096,7 @@
         "ai-governance",
         "secure-development"
       ],
-      "description": "AI systems are tested before a release that needs approval and, by an independent tester, at least each quarter for adversarial robustness, harmful and out-of-scope output, hallucination and unsafe tool calls; results and fixes are recorded.",
+      "description": "AI systems are tested before a release that needs approval and, by an independent tester, at least each quarter for adversarial robustness, harmful and out-of-scope output, the high-risk outputs in the organization's risk taxonomy and those its customers define, hallucination and unsafe tool calls; results and fixes are recorded.",
       "evidence": [
         "Pre-release test results for approved changes",
         "Independent test reports for the quarter and the fixes they led to"
@@ -1168,7 +1168,7 @@
       "policies": [
         "ai-governance"
       ],
-      "description": "Safeguards keep AI output from leaking confidential data, personal data or secrets, infringing third-party rights, giving harmful, out-of-scope or fabricated answers, exposing vulnerabilities or insecure code, or enabling cyber or catastrophic misuse; inputs are filtered and endpoints protected from probing.",
+      "description": "Safeguards keep AI output from leaking confidential data, personal data or secrets, infringing third-party rights, giving harmful, out-of-scope or fabricated answers, exposing vulnerabilities or insecure code, or enabling cyber or catastrophic misuse; inputs are filtered, prohibited uses are detected and the user is told when a use is blocked, and endpoints are protected from probing.",
       "evidence": [
         "The safeguards in place for each AI system and their configuration",
         "Records of outputs the safeguards blocked or flagged"

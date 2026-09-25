@@ -17,7 +17,8 @@
    "title": "Customer data use as AI input set and communicated",
    "controls": [
     "AI-08",
-    "CONF-01"
+    "CONF-01",
+    "CONF-02"
    ]
   },
   {
@@ -26,7 +27,9 @@
    "title": "Ownership and use of AI output set and communicated",
    "controls": [
     "AI-08",
-    "GOV-07"
+    "GOV-07",
+    "CONF-02",
+    "PRIV-02"
    ]
   },
   {
@@ -44,7 +47,8 @@
    "title": "Confidential company data kept out of AI output",
    "controls": [
     "AI-11",
-    "CONF-01"
+    "CONF-01",
+    "AI-01"
    ]
   },
   {
@@ -53,7 +57,8 @@
    "title": "No data crossing between customers",
    "controls": [
     "AC-11",
-    "AI-10"
+    "AI-10",
+    "AI-08"
    ]
   },
   {
@@ -70,7 +75,8 @@
    "group": "A. Data and privacy",
    "title": "Third-party rights respected in AI output",
    "controls": [
-    "AI-11"
+    "AI-11",
+    "VND-03"
    ]
   },
   {
@@ -114,7 +120,8 @@
    "title": "AI endpoints protected from probing and scraping",
    "controls": [
     "AI-11",
-    "AC-08"
+    "AC-08",
+    "MON-02"
    ]
   },
   {
@@ -131,7 +138,8 @@
    "group": "B. Security",
    "title": "Agent actions held to their authority",
    "controls": [
-    "AI-10"
+    "AI-10",
+    "AI-05"
    ]
   },
   {
@@ -140,7 +148,8 @@
    "title": "Access to AI systems by role",
    "controls": [
     "AC-02",
-    "AC-03"
+    "AC-03",
+    "AC-04"
    ]
   },
   {
@@ -150,7 +159,9 @@
    "controls": [
     "AC-08",
     "AC-09",
-    "AC-04"
+    "AC-04",
+    "AC-01",
+    "AC-05"
    ]
   },
   {
@@ -184,7 +195,9 @@
    "title": "Testing before deployment",
    "controls": [
     "AI-06",
-    "CHG-02"
+    "CHG-02",
+    "AI-07",
+    "AI-04"
    ]
   },
   {
@@ -293,7 +306,8 @@
    "group": "D. Reliability",
    "title": "Unsafe tool calls restricted",
    "controls": [
-    "AI-10"
+    "AI-10",
+    "AI-05"
    ]
   },
   {
@@ -310,7 +324,8 @@
    "title": "Failure plan for AI security and privacy breaches",
    "controls": [
     "AI-12",
-    "OPS-02"
+    "OPS-02",
+    "PRIV-06"
    ]
   },
   {
@@ -362,7 +377,8 @@
    "title": "Key processes reviewed internally",
    "controls": [
     "MON-01",
-    "MON-04"
+    "MON-04",
+    "RISK-02"
    ]
   },
   {
@@ -377,10 +393,12 @@
   {
    "id": "E010",
    "group": "E. Accountability",
-   "title": "AI acceptable use policy",
+   "title": "AI acceptable use policy, for staff and for users",
    "controls": [
     "AI-01",
-    "GOV-05"
+    "GOV-05",
+    "AI-11",
+    "AI-05"
    ]
   },
   {
@@ -441,7 +459,8 @@
    "group": "F. Society",
    "title": "Guardrails against cyber misuse",
    "controls": [
-    "AI-11"
+    "AI-11",
+    "VND-02"
    ]
   },
   {
@@ -449,7 +468,8 @@
    "group": "F. Society",
    "title": "Guardrails against catastrophic misuse",
    "controls": [
-    "AI-11"
+    "AI-11",
+    "VND-02"
    ]
   }
  ]

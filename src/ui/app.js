@@ -120,7 +120,7 @@ function frameworkOverview(id) {
       h('div', { class: 'stat' }, h('b', {}, s.excluded), h('span', {}, 'excluded, with reasons')),
       h('div', { class: 'stat' }, h('b', {}, s.unaddressed), h('span', {}, 'not addressed by any control')),
       h('div', { class: 'stat' }, h('b', {}, s.shared_evidence), h('span', {}, 'evidence records also serving SOC 2'))),
-    Object.entries(groups).map(([g, list]) => [h('h2', {}, `${g}: ${list.filter((r) => r.status === 'ready').length} of ${list.filter((r) => r.status !== 'excluded').length} ready`),
+    Object.entries(groups).map(([g, list]) => [h('h2', {}, `${g}: ${list.filter((r) => !r.optional && r.status === 'ready').length} of ${list.filter((r) => !r.optional && r.status !== 'excluded').length} ready`),
       h('table', {}, h('tr', {}, h('th', {}, 'Requirement'), h('th', {}, 'Controls'), h('th', {}, 'State')),
         list.map((r) => h('tr', {}, h('td', {}, h('b', {}, r.id.replace('clause-', 'Clause ')), ' ', r.title, r.optional ? h('span', { class: 'muted' }, ' (optional, not counted)') : null),
           h('td', {}, r.controls.map((id, i) => [i ? ', ' : '', h('a', { href: `#controls/${id}` }, id)])),

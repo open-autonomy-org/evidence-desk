@@ -9,7 +9,7 @@
   "name": "ISO/IEC 42001:2023, Artificial intelligence management system",
   "url": "https://www.iso.org/standard/42001"
  },
- "note": "Clause and Annex A identifiers with short titles written by this project, mapped onto the control library. ISO's requirement and control text is not included; use your own licensed copy.",
+ "note": "Clause and Annex A identifiers with short titles, some of them the standard's own brief headings and the rest written by this project, mapped onto the control library. ISO's requirement and control text is not included; use your own licensed copy. The catalog follows ISO/IEC 42001:2023; check any amendment against your own copy.",
  "requirements": [
   {
    "id": "clause-4.1",
@@ -78,7 +78,8 @@
    "title": "Addressing risks and opportunities",
    "controls": [
     "RISK-01",
-    "RISK-02"
+    "RISK-02",
+    "AI-04"
    ]
   },
   {
@@ -175,7 +176,8 @@
    "group": "Management system (clauses 4 to 10)",
    "title": "AI risk treatment",
    "controls": [
-    "RISK-02"
+    "RISK-02",
+    "AI-04"
    ]
   },
   {

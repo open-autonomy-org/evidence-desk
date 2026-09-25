@@ -42,6 +42,8 @@ It covers every AI system the organization builds or operates, every AI agent th
 
 Personnel use AI tools only as this policy and the acceptable use policy allow: no confidential or personal data in tools not approved for it, and no output used without the review its purpose requires.
 
+The people who use {{organization}}'s AI systems are told what use is acceptable. Prohibited uses are defined for each system, detected where the system can detect them, and blocked, and the user is told when a use is blocked.
+
 ## Review
 
 The policy owner reviews this policy at least yearly and after any significant AI incident, and records the review.
