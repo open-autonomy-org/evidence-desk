@@ -818,7 +818,13 @@ function packaged(baseDir: string, rel: string): string | { problem: string } {
     return lstatSync(full).isFile() ? full : { problem: 'not a regular file in the package' };
   } catch (e) { return { problem: (e as Error).message }; }
 }
-const packagedFile = (baseDir: string, rel: string): string => { const f = packaged(baseDir, rel); if (typeof f !== 'string') throw new Error(`${rel}: ${f.problem}`); return f; };
+// The package's workspace folder, refused if it is a link rather than a folder of the package.
+export function packageWorkspace(dir: string): string {
+  const ws = join(dir, 'workspace');
+  if (!existsSync(ws) || lstatSync(ws).isSymbolicLink() || !lstatSync(ws).isDirectory()) throw new Error(`${ws} is not a folder of the package`);
+  return ws;
+}
+export const packagedFile = (baseDir: string, rel: string): string => { const f = packaged(baseDir, rel); if (typeof f !== 'string') throw new Error(`${rel}: ${f.problem}`); return f; };
 
 export function verifyPackage(dir: string): { ok: boolean; problems: string[]; files: number; digest?: string } {
   const manifest = JSON.parse(readFileSync(packagedFile(dir, 'manifest.json'), 'utf8'));
@@ -921,8 +927,9 @@ export const newId = () => randomBytes(3).toString('hex');
 // select samples from the attached population, mark a sample an exception, and accept or return the request.
 export function respondInPackage(dir: string, requestId: string, version: string, change: { by: string; text?: string; status?: 'accepted' | 'returned'; select?: string[]; exception?: { item: string; note?: string } }): void {
   const manifest = JSON.parse(readFileSync(packagedFile(dir, 'manifest.json'), 'utf8'));
-  const wsDir = join(dir, 'workspace');
+  const wsDir = packageWorkspace(dir);
   const rel = `${base(manifest.engagement)}/requests/${requestId}.json`;
+  packagedFile(wsDir, rel);
   const cur = readVersioned(wsDir, rel);
   if (!cur) throw new Error(`request ${requestId} is not in this package`);
   if (cur.version !== version) throw new Error(`${rel} changed since it was read; reload it and try again`);
@@ -955,10 +962,10 @@ export function respondInPackage(dir: string, requestId: string, version: string
 
 export function packageState(dir: string) {
   const manifest = JSON.parse(readFileSync(packagedFile(dir, 'manifest.json'), 'utf8'));
-  const wsDir = join(dir, 'workspace');
+  const wsDir = packageWorkspace(dir);
   const e = JSON.parse(readFileSync(packagedFile(wsDir, `${base(manifest.engagement)}/engagement.json`), 'utf8')) as Engagement;
   const reqDir = join(wsDir, base(manifest.engagement), 'requests');
-  const requests = readdirSync(reqDir).filter((f) => f.endsWith('.json')).sort().map((f) => { const r = readVersioned(wsDir, `${base(manifest.engagement)}/requests/${f}`)!; return { ...(JSON.parse(r.text) as AuditRequest), version: r.version }; });
+  const requests = readdirSync(reqDir).filter((f) => f.endsWith('.json')).sort().map((f) => { packagedFile(wsDir, `${base(manifest.engagement)}/requests/${f}`); const r = readVersioned(wsDir, `${base(manifest.engagement)}/requests/${f}`)!; return { ...(JSON.parse(r.text) as AuditRequest), version: r.version }; });
   const drafts = existsSync(join(wsDir, base(manifest.engagement), 'drafts')) ? readdirSync(join(wsDir, base(manifest.engagement), 'drafts')).map((f) => `${base(manifest.engagement)}/drafts/${f}`) : [];
   const evidence = Object.fromEntries((manifest.files as { path: string }[]).filter((f) => f.path.startsWith('evidence/records/')).map((f) => { const r = JSON.parse(readFileSync(packagedFile(wsDir, f.path), 'utf8')); return [r.id, { title: r.title, files: r.files.map((x: { path: string }) => x.path), source: r.source, period: r.period ?? null, collected_at: r.collected_at }]; }));
   return { organization: manifest.organization, created_at: manifest.created_at, engagement: e, requests, drafts, evidence, verification: verifyPackage(dir) };

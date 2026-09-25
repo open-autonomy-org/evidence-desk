@@ -3,8 +3,7 @@
 import { createServer, type ServerResponse } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
-import { firmSummary, packageState, respondInPackage } from './audit.ts';
-import { inside } from './files.ts';
+import { firmSummary, packagedFile, packageState, packageWorkspace, respondInPackage } from './audit.ts';
 
 const UI = join(import.meta.dirname, 'ui');
 const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
@@ -22,7 +21,7 @@ export function serveFirm(mode: 'firm' | 'package', target: string, port: number
       const url = new URL(req.url ?? '/', `http://127.0.0.1:${port}`);
       if (req.method === 'GET') {
         if (url.pathname === '/api/state') return send(res, 200, mode === 'firm' ? firmSummary(target) : packageState(target));
-        if (mode === 'package' && url.pathname.startsWith('/files/')) return send(res, 200, readFileSync(inside(join(target, 'workspace'), decodeURIComponent(url.pathname.slice(7)))), 'application/octet-stream');
+        if (mode === 'package' && url.pathname.startsWith('/files/')) return send(res, 200, readFileSync(packagedFile(packageWorkspace(target), decodeURIComponent(url.pathname.slice(7)))), 'application/octet-stream');
         const file = url.pathname === '/' ? page : url.pathname.slice(1);
         if (![page, 'app.css', 'firm.js'].includes(file)) return send(res, 404, { error: 'not found' });
         return send(res, 200, readFileSync(join(UI, file)), TYPES[extname(file)]);
