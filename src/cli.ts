@@ -273,7 +273,7 @@ async function command(a: Args, cmd: string, dir: string, dirArg: string, rest: 
     case 'policy': {
       const id = rest[0];
       if (!id) throw new Error('policy needs an id');
-      if (rest.length > 1 && !a.flags.has('approve')) throw new Error('only --approve takes several policies');
+      if (rest.length > 1 && (!a.flags.has('approve') || a.flags.has('owner'))) throw new Error('only --approve takes several policies, and without --owner: set owners one policy at a time');
       if (a.flags.has('owner')) setPolicyOwner(dir, id, one(a, 'owner')!, readVersioned(dir, `policies/${id}.json`)!.version);
       // policy <dir> <id> [<id> ...] --approve: several policies in one change, one signature for all of them.
       if (a.flags.has('approve')) {
