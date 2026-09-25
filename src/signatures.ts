@@ -143,6 +143,9 @@ function packet(before: string, root: string, person: string, acts: { key: strin
     const named = `The text you sign, \`policies/${id}.md\`${version ? `, SHA-256 \`${version.sha256}\`` : ''}`;
     parts.push({ lines, quote: [`${named}:`, '', `${fence}markdown`, text.trim(), fence, ''], instead: [`${named}, is under **Files changed**: this description has no room left to quote it.`, ''] });
   }
+  // Measured as sent: the skip-directive pass (unskippable) lengthens text, and applying it again changes nothing.
+  for (const p of parts) { p.lines = p.lines.map(unskippable); p.quote = p.quote && p.quote.map(unskippable); p.instead = p.instead.map(unskippable); }
+  out.splice(0, out.length, ...out.map(unskippable));
   const marker = mark({ workspace, person, acts: acts.map(({ key, kind, file, label }) => ({ key, kind, file, label })) });
   const size = (xs: string[]) => xs.reduce((n, x) => n + x.length + 1, 0);
   const LIMIT = 60000;
