@@ -6,8 +6,8 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { check, schema } from './schema.ts';
-import { readVersioned, writeVersioned } from './files.ts';
-import { loadWorkspace } from './workspace.ts';
+import { fileHash, readVersioned, writeVersioned } from './files.ts';
+import { loadWorkspace, readJson } from './workspace.ts';
 import { now } from './clock.ts';
 import { frameworkDescriptions, frameworkOf, kindFits, namedFramework, type Outcome } from './catalog.ts';
 
@@ -55,8 +55,9 @@ export function recordCertification(root: string, input: { framework: string; ki
 export function certifications(root: string, today = now().slice(0, 10)): (Certification & { current: boolean; intact: boolean; fits: boolean })[] {
   const dir = join(root, DIR);
   if (!existsSync(dir)) return [];
-  return readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')) as Certification).map((c) => {
-    const intact = existsSync(join(root, c.file)) && createHash('sha256').update(readFileSync(join(root, c.file))).digest('hex') === c.sha256;
+  // A record that cannot be read stands for nothing here; validate reports it. A document is read only inside the workspace.
+  return readdirSync(dir).filter((f) => f.endsWith('.json')).flatMap((f) => readJson<Certification>(root, `${DIR}/${f}`, 'certification', [])?.data ?? []).map((c) => {
+    const intact = (() => { try { return fileHash(root, c.file)?.sha256 === c.sha256; } catch { return false; } })();
     // A kind the framework cannot have (a certificate for a framework only self-attested) stands for nothing.
     return { ...c, intact, fits: kindFits(c), current: intact && kindFits(c) && c.issued_on <= today && (!c.valid_until || c.valid_until >= today) && (c.kind !== 'self-attestation' || plusYear(c.issued_on) >= today) };
   }).sort((a, b) => b.issued_on.localeCompare(a.issued_on));

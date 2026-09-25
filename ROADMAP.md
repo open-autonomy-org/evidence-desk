@@ -93,7 +93,7 @@ projects, collectors and checks, the audit cycle, the trust center and questionn
 
 ## open-autonomy-soc2-ready: A project on Open Autonomy's soc2 template is SOC2 ready out of the box
 
-Status: active; every completion below is demonstrated on the published kit, and what remains is a published twin package carrying the fixes the demonstration used
+Status: active; demonstrated end to end on the published kit (kit 3.3.0), except on the published twin packages
 Dispatch: hold
 
 Source: [owner direction, issue #114](https://github.com/open-autonomy-org/evidence-desk/issues/114#issuecomment-5802291630); [ADR 0007](https://github.com/open-autonomy-org/open-autonomy/blob/ee4bb46a4588abbdbf62ef6af321c05b73b7f01e/docs/decisions/0007-the-kit-ships-an-agent-setup.md); [ADR 0008](https://github.com/open-autonomy-org/open-autonomy/blob/6e7a769f45236ac010f135695226dfa7f735fddd/docs/decisions/0008-human-seams.md); differentiator D1. Open Autonomy's `soc2` template implements ADR 0008 ([open-autonomy#715](https://github.com/open-autonomy-org/open-autonomy/pull/715)).
@@ -144,12 +144,7 @@ and vendor reviews are attributed like every other signed act, and the organizat
 twin with an owner's token.
 
 Completion:
-- One command turns an Open Autonomy project into a workspace at a named commit: `agent.json` profiles, jobs and models, the `team` roster with scopes, the declared seams, the landing and production rules, and the vendors named by its dependencies and deploy egress; each fact carries that commit as provenance and maps to the controls and criteria it evidences. A later change surfaces as a changed design fact, never a silent overwrite.
-- A seam inventory: every place a human acts, who may act there, and where the act is recorded. Seams whose acts are not durably recorded are gaps, not evidence.
-- A completeness reconciliation: the roster compared with the people who actually hold admin or deploy rights in the declared vendor accounts; anyone with rights outside the roster is a finding.
-- Onboarding for each roster member: acknowledgments, quiz results and attestations recorded with the person's verified account as author; a member who has not completed it is a visible gap. Recurring human reviews are scheduled and their verdicts recorded the same way.
-- Period populations only from durable records (merged changes with reviews, production deployments with approvals, roster history), each with its generating query and completeness basis, ready for audit sampling.
-- Demonstrated in the World on a synthetic project created from the `soc2` template against its twins: two synthetic roster members onboard, one out-of-roster admin is found, synthetic history spans a period, and the gap view ends with only items automation and onboarding cannot establish. No real project is read.
+- The published twin packages the demonstration uses (`@volter/twin-github` is 0.1.2 on npm) carry its fixes, and the demonstration passes again on them.
 
 ## evidence-automation: Evidence collects itself, and controls are checked continuously
 
@@ -179,7 +174,6 @@ and cloud posture on AWS (the AWS twin covers S3 and data services but not IAM o
 Completion:
 - A collector contract (inputs, credential source, output snapshot format, provenance including the generating query) documented so a customer or their agent can write a new collector.
 - Collectors for the startup core, each developed against a vendor twin: AWS, GitHub, Google Workspace, Okta, one HRIS and one MDM. Each has a check library covering the controls it evidences.
-- A scheduled-run template for the workspace repository's CI and a local on-demand run; failures, stale evidence and collector errors are visible per control.
 - Demonstrated end to end in the World against the twins, including a failing check, its remediation and the recorded history.
 
 ## release-next: The auditor packet

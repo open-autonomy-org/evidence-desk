@@ -833,9 +833,11 @@ async function command(a: Args, cmd: string, dir: string, dirArg: string, rest: 
       const at = asOf ? new Date(`${asOf}T23:59:59Z`) : clockDate();
       const g = computeGaps(gws, at);
       // Beside SOC 2, each target's readiness and its steps still open: every requirement not ready, and why.
-      const targets = targetsOf(gws).filter((f) => f !== 'soc2').map((f) => { const st = frameworkState(gws, f, at);
-        return { id: f, title: st.title, ready: st.summary.ready, of: st.summary.requirements - st.summary.excluded,
-          steps: st.requirements.filter((r) => !r.optional && (r.status === 'gaps' || r.status === 'unaddressed')).map((r) => ({ requirement: r.id, title: r.title, gaps: r.gaps })) }; });
+      // A target whose settings cannot be read is named in the program, and the rest are still shown.
+      const targets = targetsOf(gws).filter((f) => f !== 'soc2').flatMap((f) => { let st: ReturnType<typeof frameworkState>;
+        try { st = frameworkState(gws, f, at); } catch (e) { g.program.push((e as Error).message); return []; }
+        return [{ id: f, title: st.title, ready: st.summary.ready, of: st.summary.requirements - st.summary.excluded,
+          steps: st.requirements.filter((r) => !r.optional && (r.status === 'gaps' || r.status === 'unaddressed')).map((r) => ({ requirement: r.id, title: r.title, gaps: r.gaps })) }]; });
       out(json, { ...g, targets }, () => {
         const s = g.summary;
         const lines = [`As of ${g.as_of}: ${s.controls_ready}/${s.controls_applicable} controls ready (${s.controls_excluded} excluded), ${s.criteria_ready}/${s.criteria_in_scope} criteria ready.`];

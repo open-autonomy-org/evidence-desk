@@ -11,11 +11,11 @@ import { parseCsv, spreadsheetCsv, writeCsv } from './csv.ts';
 import { fileHash, inside, readVersioned, sha256, writeVersioned } from './files.ts';
 import { categories, categoryAnswer, criteria } from './catalog.ts';
 import { computeGaps } from './gaps.ts';
-import type { Snapshot } from './open-autonomy.ts';
-import { loadWorkspace, type Workspace } from './workspace.ts';
+import { loadWorkspace, readJson, type Workspace } from './workspace.ts';
 import { accessChanges, buildViews } from './packet.ts';
 import { now } from './clock.ts';
 import { inSoc2Scope, soc2Exclusion } from './targets.ts';
+import { readSnapshot } from './open-autonomy.ts';
 
 export type Engagement = { schema: string; id: string; type: 'type1' | 'type2'; as_of?: string; period?: { start: string; end: string }; firm: string; contact?: string; status: string; created_at: string };
 export type Sample = { item: string; status: 'pending' | 'provided' | 'exception'; evidence?: string[]; note?: string };
@@ -31,16 +31,19 @@ const listUnder = (root: string, dir: string): string[] => existsSync(join(root,
 export function readEngagement(root: string, id: string): { data: Engagement; version: string } {
   const r = readVersioned(root, `${base(id)}/engagement.json`);
   if (!r) throw new Error(`engagement ${id} does not exist`);
-  return { data: JSON.parse(r.text), version: r.version };
+  const e = readJson<Engagement>(root, `${base(id)}/engagement.json`, 'engagement', []);
+  if (!e) throw new Error(`${base(id)}/engagement.json cannot be read: run validate and fix it`);
+  return { data: e.data, version: e.version };
 }
 export function listRequests(root: string, id: string): { data: AuditRequest; version: string; path: string }[] {
   const dir = join(root, base(id), 'requests');
   if (!existsSync(dir)) return [];
   return readdirSync(dir).filter((f) => f.endsWith('.json')).sort().map((f) => {
     const path = `${base(id)}/requests/${f}`;
-    const r = readVersioned(root, path)!;
-    return { data: JSON.parse(r.text) as AuditRequest, version: r.version, path };
-  });
+    // A request that cannot be read is left out here; validate reports it.
+    const r = readJson<AuditRequest>(root, path, 'audit-request', []);
+    return r ? [{ data: r.data, version: r.version, path }] : [];
+  }).flat();
 }
 
 export function createEngagement(root: string, input: { id: string; type: 'type1' | 'type2'; firm: string; as_of?: string; start?: string; end?: string; contact?: string }): void {
@@ -162,9 +165,8 @@ function periodPopulation(ws: Workspace, e: Engagement, kind: 'changes to' | 'de
 const tally = (xs: string[]) => [...xs.reduce((m, x) => m.set(x, (m.get(x) ?? 0) + 1), new Map<string, number>())].map(([k, n]) => `${k || '(unknown)'} ${n}`).join(', ');
 
 function openAutonomySection(ws: Workspace, e: Engagement): string {
-  const latest = readVersioned(ws.root, 'sources/open-autonomy/latest.json');
-  if (!latest) return '';
-  const snap = JSON.parse(latest.text) as Snapshot;
+  if (!ws.openAutonomy) return '';
+  const snap = ws.openAutonomy.data;
   const holders = (scope: string) => snap.team.filter((m) => m.scopes.includes(scope)).map((m) => m.name).join(', ') || '[no one holds it]';
   const prod = snap.rules.production_deploy;
   return `
@@ -600,6 +602,10 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   const e = readEngagement(root, id);
   if (existsSync(out) && readdirSync(out).length) throw new Error(`${out} is not empty`);
   const ws = loadWorkspace(root);
+  // A package is the whole record for its period: one that would silently lack a record the workspace could not read
+  // is not made.
+  const left = [...new Set(ws.problems.filter((p) => p.message.endsWith('(left out until fixed)')).map((p) => p.file))];
+  if (left.length) throw new Error(`these records cannot be read, so the package would leave them out: ${left.join(', ')}. Fix them (evidence-desk validate) and export again`);
   const reqs = listRequests(root, id);
   const problems: string[] = [];
   // Only a regular file inside the workspace joins the package, and it is checked as it joins: a record naming a path
@@ -689,7 +695,7 @@ export function exportPackage(root: string, id: string, out: string): { files: n
     }
   }
   // The latest import travels with the documents it read: the decisions, the SOC 2 checklist, the internal audit's job.
-  const latestCommit = existsSync(join(root, 'sources/open-autonomy/latest.json')) ? String((JSON.parse(readFileSync(join(root, 'sources/open-autonomy/latest.json'), 'utf8')) as { commit?: string }).commit ?? '').slice(0, 12) : '';
+  const latestCommit = (readSnapshot(root)?.commit ?? '').slice(0, 12);
   for (const f of ['sources/open-autonomy/latest.json', ...listUnder(root, 'sources/open-autonomy/completeness'), ...(latestCommit ? listUnder(root, `sources/open-autonomy/${latestCommit}`) : [])]) if (existsSync(join(root, f))) paths.add(f);
   const cited = new Set([...reqs.flatMap((r) => r.data.controls), ...ws.evidence.filter((x) => paths.has(x.path)).flatMap((x) => x.data.controls)]);
   for (const cid of cited) {

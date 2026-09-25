@@ -3,10 +3,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseCsv, writeCsv } from './csv.ts';
-import { readVersioned, writeVersioned } from './files.ts';
+import { writeVersioned } from './files.ts';
 import { addEvidence, evidencing } from './actions.ts';
 import { loadWorkspace, type Workspace } from './workspace.ts';
-import { memberOf, type Snapshot } from './open-autonomy.ts';
+import { memberOf } from './open-autonomy.ts';
 import { now } from './clock.ts';
 const API = 'https://api.cloudflare.com/client/v4';
 
@@ -57,8 +57,7 @@ export const cfIsAdmin = (m: any) => (m.roles ?? []).some((r: any) => CF_ADMIN_R
 // addresses, and the service accounts the systems register declares (kind "service account", named by the account's
 // email), which are known actors but not people: the deploy pipeline's credential acts as one.
 export function cloudflareRoster(root: string, ws: Workspace): { people: string[]; service_accounts: string[] } {
-  const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
-  const team = latest ? (JSON.parse(latest.text) as Snapshot).team : [];
+  const team = ws.openAutonomy?.data.team ?? [];
   return { people: (ws.registers.people?.data.rows ?? []).filter((p, _, all) => !team.length || !!memberOf(team, p.id, all.map((x) => x.id))).map((p) => (p.email ?? '').toLowerCase()).filter(Boolean),
     service_accounts: (ws.registers.systems?.data.rows ?? []).filter((x) => /service account/i.test(x.kind ?? '')).map((x) => (x.name ?? '').toLowerCase()).filter(Boolean) };
 }
