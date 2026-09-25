@@ -158,10 +158,10 @@ binds the exact commit. A signer
 who is not on the roster is a finding. The rows are written under `evidence/files/populations/` for the audit and are
 not recorded as evidence of any control: evidence dates decide when a periodic control is next due.
 
-`remind --within <days>` keeps one issue labelled `evidence-desk` in the workspace repository for each owned obligation
-that is overdue or due within those days, assigned to the owner's GitHub account on the roster (unassigned when GitHub refuses the assignee), updated when
-it becomes overdue and closed once the workspace no longer shows it owed (met, or its owner or title changed, which opens
-its successor); obligations no one owns share one issue that lists them. The daily workflow that `ci-template` writes runs
+`remind --within <days>` keeps one issue labelled `evidence-desk` in the workspace repository for each person who owes
+something overdue or due within those days: a checklist of those obligations, overdue first, assigned to the person's
+GitHub account on the roster (unassigned when GitHub refuses the assignee), updated as the list changes and closed once
+the workspace no longer shows them owing anything; obligations no one owns share one issue that lists them. The daily workflow that `ci-template` writes runs
 the attribution check (where an Open Autonomy roster was imported) and the reminders with the repository's own token.
 
 `evidence-desk collect` writes populations under `evidence/files/populations/` with the requests that produced them:

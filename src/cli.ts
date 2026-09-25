@@ -50,7 +50,7 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                                           record a person's answers (graded; passing responses become evidence)
   obligations <dir> [--person <id>] [--as-of YYYY-MM-DD]   what is owed, by whom and when
   remind <dir> --repo <owner/name> --within <days>
-                                          keep one issue per obligation overdue or due within the days, in the workspace's repository
+                                          keep one issue per person listing what they owe, overdue or due within the days, in the workspace's repository
   access-review <dir> start --system <id> --reviewer <person> --period <start>..<end> --listing <file> --generated-by <how>
   access-review <dir> <id> [--decide <account>=keep|remove|modify ...] [--done <account>=<date> ...]
                      [--person <account>=<person> ...] [--privileged <account>] [--sign-off --by <person>]
