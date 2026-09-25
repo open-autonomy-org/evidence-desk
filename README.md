@@ -126,6 +126,8 @@ was read.
   mapped onto the controls.
 - [catalog/frameworks/csa-star-ai.json](catalog/frameworks/csa-star-ai.json): CSA AI Controls Matrix (AICM v1.1.1)
   control identifiers for STAR for AI Level 1, mapped onto the controls. CSA's control text is not included.
+- [catalog/frameworks/csa-star.json](catalog/frameworks/csa-star.json): CSA Cloud Controls Matrix (CCM v4.1.0) control
+  identifiers for STAR Level 1, mapped onto the controls. CSA's control text is not included.
 - [catalog/controls.json](catalog/controls.json): 59 controls in this project's own words, mapped to criteria, with
   frequency, policies, the evidence an auditor expects, and when each applies.
 - [catalog/forms/](catalog/forms): a security awareness quiz, policy and code-of-conduct acknowledgments, a

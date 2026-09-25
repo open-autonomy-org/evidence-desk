@@ -1,0 +1,2874 @@
+{
+ "schema": "evidence-desk.framework/1",
+ "id": "csa-star",
+ "title": "CSA STAR Level 1",
+ "version": "CCM v4.1.0",
+ "outcome": "self-attestation",
+ "issuer": "the organization itself",
+ "source": {
+  "name": "CSA Cloud Controls Matrix (CCM)",
+  "url": "https://cloudsecurityalliance.org/artifacts/cloud-controls-matrix-v4-1"
+ },
+ "note": "The Cloud Controls Matrix v4.1's 207 control identifiers, with short titles written by this project, mapped onto the control library through CSA's own mappings of CCM v4.0.13 to the AICPA Trust Services Criteria (SOC 2), ISO/IEC 27001:2022 and NIST CSF 2.0 (CSA's ISO/IEC 27002 citations read as the ISO/IEC 27001 Annex A controls of the same number, and a privacy series heading such as P4.0 as that series' criteria), control-level references first and management-system clauses only where none exist. CSA has not yet published v4.1's own mappings, so each v4.1 control carries the mapping of its v4.0.13 predecessor: the control with the same identifier, or the one CSA's CAIQ v4.0.3 to v4.1 change analysis names where v4.1 renumbered it (the IVS domain became I&S); a control new in v4.1 has no predecessor and no mapping. CSA's text is not included: its licence permits only personal, non-commercial use without modification or redistribution, so read the matrix at the source. There is no certification at Level 1: an organization self-assesses and signs its own attestation. Filing the CAIQ with CSA's STAR Registry is the organization's own act, taking the same positions. A control no mapping resolves to the library maps to none, so the organization states its position on it (or maps a control of its own).",
+ "requirements": [
+  {
+   "id": "A&A-01",
+   "group": "A&A. Audit & Assurance",
+   "title": "Audit policy kept current and reviewed yearly",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "GOV-06",
+    "GOV-07",
+    "RISK-01",
+    "RISK-02",
+    "HR-02"
+   ]
+  },
+  {
+   "id": "A&A-02",
+   "group": "A&A. Audit & Assurance",
+   "title": "Independent assessment performed at least yearly",
+   "controls": [
+    "MON-01",
+    "MON-02",
+    "MON-04"
+   ]
+  },
+  {
+   "id": "A&A-03",
+   "group": "A&A. Audit & Assurance",
+   "title": "Assessments planned by risk and after major change",
+   "controls": [
+    "MON-01",
+    "MON-02",
+    "MON-04"
+   ]
+  },
+  {
+   "id": "A&A-04",
+   "group": "A&A. Audit & Assurance",
+   "title": "Compliance with laws, rules and contracts checked in audits",
+   "controls": [
+    "GOV-07",
+    "RISK-01",
+    "MON-01",
+    "MON-04",
+    "CONF-01",
+    "CONF-02",
+    "PRIV-01"
+   ]
+  },
+  {
+   "id": "A&A-05",
+   "group": "A&A. Audit & Assurance",
+   "title": "A defined way of running audits from plan to report",
+   "controls": [
+    "GOV-03",
+    "RISK-01",
+    "RISK-02",
+    "MON-01",
+    "MON-04",
+    "OPS-04",
+    "CHG-01",
+    "CHG-04"
+   ]
+  },
+  {
+   "id": "A&A-06",
+   "group": "A&A. Audit & Assurance",
+   "title": "Audit findings tracked to closure on a corrective plan",
+   "controls": [
+    "GOV-04",
+    "RISK-01",
+    "RISK-02",
+    "MON-01",
+    "MON-04"
+   ]
+  },
+  {
+   "id": "AIS-01",
+   "group": "AIS. Application & Interface Security",
+   "title": "Application security policy kept current and reviewed yearly",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "GOV-06",
+    "GOV-07",
+    "MON-01",
+    "HR-02",
+    "OPS-01",
+    "OPS-02",
+    "OPS-03",
+    "CHG-02",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "AIS-02",
+   "group": "AIS. Application & Interface Security",
+   "title": "Security baselines set for applications",
+   "controls": [
+    "GOV-01",
+    "GOV-04",
+    "MON-01",
+    "MON-02",
+    "MON-04",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "AIS-03",
+   "group": "AIS. Application & Interface Security",
+   "title": "Measures of application security tied to business goals",
+   "controls": [
+    "MON-01",
+    "MON-04",
+    "CHG-02"
+   ]
+  },
+  {
+   "id": "AIS-04",
+   "group": "AIS. Application & Interface Security",
+   "title": "Security built into every stage of software development",
+   "controls": [
+    "MON-03",
+    "AC-08",
+    "AC-10",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "AIS-05",
+   "group": "AIS. Application & Interface Security",
+   "title": "Applications tested for security before release",
+   "controls": [
+    "MON-03",
+    "AC-10",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "AIS-06",
+   "group": "AIS. Application & Interface Security",
+   "title": "Releases deployed in a standard, secure and automated way",
+   "controls": [
+    "GOV-03",
+    "AC-08",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "AIS-07",
+   "group": "AIS. Application & Interface Security",
+   "title": "Flaws found in applications fixed through a set process",
+   "controls": [
+    "GOV-07",
+    "RISK-02",
+    "MON-02",
+    "MON-03",
+    "AC-10",
+    "OPS-02",
+    "OPS-03",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "AIS-08",
+   "group": "AIS. Application & Interface Security",
+   "title": "APIs protected and their safeguards reviewed yearly",
+   "controls": []
+  },
+  {
+   "id": "BCR-01",
+   "group": "BCR. Business Continuity Management and Operational Resilience",
+   "title": "Continuity and resilience policy kept current",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "GOV-07",
+    "GOV-08",
+    "RISK-01",
+    "RISK-02",
+    "MON-01",
+    "MON-04",
+    "OPS-02",
+    "OPS-05",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "BCR-02",
+   "group": "BCR. Business Continuity Management and Operational Resilience",
+   "title": "Impact of disruptions analysed to set continuity criteria",
+   "controls": [
+    "GOV-07",
+    "GOV-08",
+    "RISK-01",
+    "RISK-02",
+    "OPS-01",
+    "OPS-02",
+    "OPS-03",
+    "OPS-05",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "BCR-03",
+   "group": "BCR. Business Continuity Management and Operational Resilience",
+   "title": "Strategies chosen to limit disruption and speed recovery",
+   "controls": [
+    "GOV-07",
+    "GOV-08",
+    "OPS-01",
+    "OPS-02",
+    "OPS-03",
+    "OPS-05",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "BCR-04",
+   "group": "BCR. Business Continuity Management and Operational Resilience",
+   "title": "A continuity plan written from the resilience strategy",
+   "controls": [
+    "OPS-02",
+    "OPS-03",
+    "OPS-05",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "BCR-05",
+   "group": "BCR. Business Continuity Management and Operational Resilience",
+   "title": "Documents needed for continuity gathered and made available",
+   "controls": [
+    "GOV-04",
+    "GOV-06",
+    "GOV-08",
+    "OPS-02",
+    "OPS-07",
+    "PI-01"
+   ]
+  },
+  {
+   "id": "BCR-06",
+   "group": "BCR. Business Continuity Management and Operational Resilience",
+   "title": "Continuity plans exercised yearly or after major change",
+   "controls": [
+    "MON-02",
+    "OPS-02",
+    "OPS-03",
+    "OPS-05",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "BCR-07",
+   "group": "BCR. Business Continuity Management and Operational Resilience",
+   "title": "Channels kept to reach stakeholders during a disruption",
+   "controls": [
+    "GOV-07",
+    "RISK-01",
+    "RISK-02",
+    "MON-02",
+    "OPS-02",
+    "OPS-03",
+    "OPS-05",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "BCR-08",
+   "group": "BCR. Business Continuity Management and Operational Resilience",
+   "title": "Backups taken, protected and test-restored",
+   "controls": [
+    "AC-08",
+    "OPS-05",
+    "OPS-07",
+    "VND-02"
+   ]
+  },
+  {
+   "id": "BCR-09",
+   "group": "BCR. Business Continuity Management and Operational Resilience",
+   "title": "A disaster recovery plan kept and updated yearly",
+   "controls": [
+    "RISK-01",
+    "RISK-02",
+    "OPS-02",
+    "OPS-05",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "BCR-10",
+   "group": "BCR. Business Continuity Management and Operational Resilience",
+   "title": "Disaster recovery plan rehearsed every year",
+   "controls": [
+    "MON-02",
+    "OPS-02",
+    "OPS-05",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "BCR-11",
+   "group": "BCR. Business Continuity Management and Operational Resilience",
+   "title": "Critical equipment duplicated locally and at a distant site",
+   "controls": [
+    "GOV-07",
+    "GOV-08",
+    "RISK-01",
+    "RISK-02",
+    "OPS-05",
+    "OPS-07",
+    "VND-01",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "CCC-01",
+   "group": "CCC. Change Control and Configuration Management",
+   "title": "Change management policy kept current and reviewed yearly",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "MON-01",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "CCC-02",
+   "group": "CCC. Change Control and Configuration Management",
+   "title": "Changes tested and approved against release standards",
+   "controls": [
+    "GOV-03",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "CCC-03",
+   "group": "CCC. Change Control and Configuration Management",
+   "title": "A change procedure that manages the risk of each change",
+   "controls": [
+    "GOV-03",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05",
+    "VND-02"
+   ]
+  },
+  {
+   "id": "CCC-04",
+   "group": "CCC. Change Control and Configuration Management",
+   "title": "Only authorized additions, removals and updates to assets",
+   "controls": [
+    "MON-03",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-10",
+    "AC-11",
+    "OPS-01",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05",
+    "VND-01"
+   ]
+  },
+  {
+   "id": "CCC-05",
+   "group": "CCC. Change Control and Configuration Management",
+   "title": "Changes to customer environments limited to agreed requests",
+   "controls": [
+    "AC-08",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "CCC-06",
+   "group": "CCC. Change Control and Configuration Management",
+   "title": "Configuration baselines set and reviewed yearly",
+   "controls": [
+    "GOV-03",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "CCC-07",
+   "group": "CCC. Change Control and Configuration Management",
+   "title": "Alerts when a system drifts from its baseline",
+   "controls": [
+    "AC-10",
+    "OPS-01",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "CCC-08",
+   "group": "CCC. Change Control and Configuration Management",
+   "title": "Emergency and exception changes handled by a set procedure",
+   "controls": [
+    "GOV-03",
+    "GOV-04",
+    "OPS-01",
+    "OPS-02",
+    "OPS-03",
+    "OPS-04",
+    "OPS-05",
+    "OPS-07",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05",
+    "VND-01",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "CCC-09",
+   "group": "CCC. Change Control and Configuration Management",
+   "title": "Changes rolled back to a known good state when they fail",
+   "controls": [
+    "GOV-03",
+    "MON-03",
+    "AC-10",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "CEK-01",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Cryptography and key management policy kept current",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "MON-01",
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11"
+   ]
+  },
+  {
+   "id": "CEK-02",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Roles for cryptography and key handling assigned",
+   "controls": [
+    "GOV-01",
+    "HR-06",
+    "AC-05",
+    "AC-09"
+   ]
+  },
+  {
+   "id": "CEK-03",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Data encrypted at rest and in transit with vetted libraries",
+   "controls": [
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11"
+   ]
+  },
+  {
+   "id": "CEK-04",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Encryption strength chosen to suit data sensitivity",
+   "controls": [
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11",
+    "CONF-01"
+   ]
+  },
+  {
+   "id": "CEK-05",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Changes to cryptographic systems reviewed and approved",
+   "controls": [
+    "GOV-03",
+    "AC-05",
+    "AC-09",
+    "OPS-04",
+    "CHG-01",
+    "CHG-03",
+    "CHG-04"
+   ]
+  },
+  {
+   "id": "CEK-06",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Knock-on effects weighed before cryptography changes",
+   "controls": [
+    "GOV-03",
+    "RISK-01",
+    "AC-05",
+    "AC-09",
+    "OPS-04",
+    "CHG-01",
+    "CHG-03",
+    "CHG-04"
+   ]
+  },
+  {
+   "id": "CEK-07",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Risks of encryption and keys assessed and treated",
+   "controls": [
+    "RISK-01",
+    "RISK-02",
+    "AC-05",
+    "AC-09"
+   ]
+  },
+  {
+   "id": "CEK-08",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Customers able to manage their own encryption keys",
+   "controls": [
+    "AC-05",
+    "AC-08",
+    "AC-09",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "CEK-09",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Key management audited at least yearly by risk",
+   "controls": [
+    "MON-01",
+    "MON-02",
+    "MON-04",
+    "AC-05",
+    "AC-09"
+   ]
+  },
+  {
+   "id": "CEK-10",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Keys generated with accepted libraries and strong randomness",
+   "controls": [
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09"
+   ]
+  },
+  {
+   "id": "CEK-11",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Each key provisioned for one purpose",
+   "controls": [
+    "GOV-05",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-10"
+   ]
+  },
+  {
+   "id": "CEK-12",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Keys rotated on a set lifetime",
+   "controls": [
+    "GOV-07",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09"
+   ]
+  },
+  {
+   "id": "CEK-13",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Keys revoked early when compromised or no longer needed",
+   "controls": [
+    "GOV-07",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "OPS-02",
+    "OPS-03"
+   ]
+  },
+  {
+   "id": "CEK-14",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Keys destroyed securely when retired",
+   "controls": [
+    "GOV-07",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09"
+   ]
+  },
+  {
+   "id": "CEK-15",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "New keys held inactive until authorized",
+   "controls": [
+    "GOV-07",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09"
+   ]
+  },
+  {
+   "id": "CEK-16",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Suspending and resuming keys reviewed and approved",
+   "controls": [
+    "GOV-07",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09"
+   ]
+  },
+  {
+   "id": "CEK-17",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Keys deactivated when they expire",
+   "controls": [
+    "GOV-07",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09"
+   ]
+  },
+  {
+   "id": "CEK-18",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Archived keys stored securely with least privilege",
+   "controls": [
+    "GOV-07",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09"
+   ]
+  },
+  {
+   "id": "CEK-19",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Compromised keys used only to decrypt existing data",
+   "controls": [
+    "GOV-07",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "OPS-03"
+   ]
+  },
+  {
+   "id": "CEK-20",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Risk of recovering lost keys weighed against exposure",
+   "controls": [
+    "GOV-07",
+    "RISK-01",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "OPS-02",
+    "OPS-03",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "CEK-21",
+   "group": "CEK. Cryptography, Encryption & Key Management",
+   "title": "Inventory of keys and their status maintained",
+   "controls": [
+    "GOV-07",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "CHG-01",
+    "CHG-03",
+    "CHG-04",
+    "CONF-01"
+   ]
+  },
+  {
+   "id": "DCS-01",
+   "group": "DCS. Datacenter Security",
+   "title": "Physical security and environment policy kept current",
+   "controls": []
+  },
+  {
+   "id": "DCS-02",
+   "group": "DCS. Datacenter Security",
+   "title": "Equipment used off-site disposed of securely",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "RISK-01",
+    "MON-01",
+    "AC-07",
+    "CONF-02",
+    "PRIV-01",
+    "PRIV-02",
+    "PRIV-03",
+    "PRIV-04",
+    "PRIV-05"
+   ]
+  },
+  {
+   "id": "DCS-03",
+   "group": "DCS. Datacenter Security",
+   "title": "Moving assets or data off-site requires authorization",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "MON-01",
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-06",
+    "AC-09",
+    "AC-11",
+    "OPS-05",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "DCS-04",
+   "group": "DCS. Datacenter Security",
+   "title": "Offices and facilities kept safe and secure by policy",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "RISK-01",
+    "MON-01",
+    "AC-06",
+    "AC-07",
+    "AC-09"
+   ]
+  },
+  {
+   "id": "DCS-05",
+   "group": "DCS. Datacenter Security",
+   "title": "Physical media transported securely",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "MON-01",
+    "AC-07",
+    "AC-09"
+   ]
+  },
+  {
+   "id": "DCS-06",
+   "group": "DCS. Datacenter Security",
+   "title": "Physical and logical assets classified by business risk",
+   "controls": [
+    "GOV-04",
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11",
+    "CONF-01"
+   ]
+  },
+  {
+   "id": "DCS-07",
+   "group": "DCS. Datacenter Security",
+   "title": "Assets at every site catalogued and tracked",
+   "controls": [
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11",
+    "VND-01",
+    "CONF-01"
+   ]
+  },
+  {
+   "id": "DCS-08",
+   "group": "DCS. Datacenter Security",
+   "title": "Physical perimeters protect people, data and systems",
+   "controls": [
+    "RISK-01",
+    "AC-06",
+    "AC-07",
+    "AC-09"
+   ]
+  },
+  {
+   "id": "DCS-09",
+   "group": "DCS. Datacenter Security",
+   "title": "Equipment identity used to authenticate connections",
+   "controls": [
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11"
+   ]
+  },
+  {
+   "id": "DCS-10",
+   "group": "DCS. Datacenter Security",
+   "title": "Secure areas entered only by authorized staff, with records",
+   "controls": [
+    "RISK-01",
+    "AC-06",
+    "AC-07"
+   ]
+  },
+  {
+   "id": "DCS-11",
+   "group": "DCS. Datacenter Security",
+   "title": "Datacenter entry points watched by cameras",
+   "controls": [
+    "AC-06"
+   ]
+  },
+  {
+   "id": "DCS-12",
+   "group": "DCS. Datacenter Security",
+   "title": "Datacenter staff trained to handle incidents on site",
+   "controls": [
+    "GOV-06",
+    "HR-01",
+    "HR-02",
+    "HR-03",
+    "HR-06",
+    "AC-06",
+    "OPS-02"
+   ]
+  },
+  {
+   "id": "DCS-13",
+   "group": "DCS. Datacenter Security",
+   "title": "Power and network cabling protected from harm",
+   "controls": [
+    "AC-06",
+    "AC-08",
+    "OPS-05",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "DCS-14",
+   "group": "DCS. Datacenter Security",
+   "title": "Temperature and humidity controlled and monitored",
+   "controls": [
+    "AC-06",
+    "AC-10",
+    "OPS-05",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "DCS-15",
+   "group": "DCS. Datacenter Security",
+   "title": "Utilities secured, monitored and tested",
+   "controls": [
+    "AC-06",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "DCS-16",
+   "group": "DCS. Datacenter Security",
+   "title": "Critical equipment sited away from environmental hazards",
+   "controls": [
+    "RISK-01",
+    "RISK-02",
+    "AC-06",
+    "OPS-05",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "DCS-17",
+   "group": "DCS. Datacenter Security",
+   "title": "Datacenter security measured and reported",
+   "controls": []
+  },
+  {
+   "id": "DCS-18",
+   "group": "DCS. Datacenter Security",
+   "title": "Datacenter operations kept running without interruption",
+   "controls": []
+  },
+  {
+   "id": "DSP-01",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Data handling and privacy policy kept current",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "MON-01",
+    "AC-10",
+    "CONF-01",
+    "PI-01",
+    "PI-03",
+    "PRIV-01",
+    "PRIV-03",
+    "PRIV-04"
+   ]
+  },
+  {
+   "id": "DSP-02",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Storage media wiped so data cannot be recovered",
+   "controls": [
+    "MON-03",
+    "HR-03",
+    "HR-04",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-06",
+    "AC-07",
+    "AC-09",
+    "AC-10",
+    "AC-11",
+    "CHG-05",
+    "CONF-02",
+    "PRIV-04"
+   ]
+  },
+  {
+   "id": "DSP-03",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Inventory of sensitive and personal data kept up to date",
+   "controls": [
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11",
+    "CONF-01"
+   ]
+  },
+  {
+   "id": "DSP-04",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Data classified by type and sensitivity",
+   "controls": [
+    "HR-05",
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11",
+    "VND-03",
+    "CONF-01"
+   ]
+  },
+  {
+   "id": "DSP-05",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Where data flows and is stored documented and reviewed",
+   "controls": []
+  },
+  {
+   "id": "DSP-06",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Owners and stewards named for sensitive data",
+   "controls": [
+    "GOV-01",
+    "GOV-02",
+    "GOV-05",
+    "HR-05",
+    "CONF-01",
+    "PRIV-02",
+    "PRIV-06"
+   ]
+  },
+  {
+   "id": "DSP-07",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Security designed into systems from the start",
+   "controls": [
+    "CHG-01",
+    "CHG-02",
+    "CHG-05",
+    "PI-01",
+    "PI-02"
+   ]
+  },
+  {
+   "id": "DSP-08",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Privacy designed in and set as the default",
+   "controls": [
+    "PRIV-01"
+   ]
+  },
+  {
+   "id": "DSP-09",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Privacy impact assessed before processing personal data",
+   "controls": [
+    "RISK-01",
+    "RISK-02",
+    "CONF-01",
+    "PRIV-01"
+   ]
+  },
+  {
+   "id": "DSP-10",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Transfers of personal or sensitive data protected",
+   "controls": [
+    "AC-07",
+    "AC-08",
+    "AC-09",
+    "CONF-01"
+   ]
+  },
+  {
+   "id": "DSP-11",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Data subjects can see, correct or delete their data",
+   "controls": [
+    "CONF-01",
+    "PRIV-01",
+    "PRIV-02"
+   ]
+  },
+  {
+   "id": "DSP-12",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Personal data used only for the purposes declared",
+   "controls": [
+    "CONF-01",
+    "PRIV-01",
+    "PRIV-02"
+   ]
+  },
+  {
+   "id": "DSP-13",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Sub-processing of personal data governed along the chain",
+   "controls": [
+    "AC-09",
+    "VND-03",
+    "PRIV-02"
+   ]
+  },
+  {
+   "id": "DSP-14",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Owners told of sub-processor access before it starts",
+   "controls": [
+    "VND-03",
+    "PRIV-06"
+   ]
+  },
+  {
+   "id": "DSP-15",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Production data used outside production only with approval",
+   "controls": [
+    "AC-08",
+    "CHG-03",
+    "CONF-01"
+   ]
+  },
+  {
+   "id": "DSP-16",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Data kept, archived and deleted per business and legal needs",
+   "controls": [
+    "RISK-01",
+    "HR-05",
+    "AC-07",
+    "AC-11",
+    "VND-03",
+    "CONF-01",
+    "CONF-02",
+    "PRIV-04"
+   ]
+  },
+  {
+   "id": "DSP-17",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Sensitive data protected throughout its life",
+   "controls": [
+    "GOV-06",
+    "GOV-08",
+    "HR-04",
+    "HR-05",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05",
+    "VND-03",
+    "CONF-01",
+    "PRIV-02",
+    "PRIV-03",
+    "PRIV-04",
+    "PRIV-05",
+    "PRIV-06"
+   ]
+  },
+  {
+   "id": "DSP-18",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Law-enforcement requests for personal data handled openly",
+   "controls": [
+    "GOV-06",
+    "OPS-03",
+    "CONF-01",
+    "PRIV-01",
+    "PRIV-03"
+   ]
+  },
+  {
+   "id": "DSP-19",
+   "group": "DSP. Data Security and Privacy Lifecycle Management",
+   "title": "Where data is stored, processed and backed up recorded",
+   "controls": [
+    "AC-11",
+    "OPS-05",
+    "OPS-07",
+    "CONF-01"
+   ]
+  },
+  {
+   "id": "GRC-01",
+   "group": "GRC. Governance, Risk and Compliance",
+   "title": "Governance program policy with leadership backing",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "MON-01",
+    "HR-01",
+    "HR-02",
+    "HR-03",
+    "HR-06"
+   ]
+  },
+  {
+   "id": "GRC-02",
+   "group": "GRC. Governance, Risk and Compliance",
+   "title": "Enterprise risk management program in place",
+   "controls": [
+    "GOV-03",
+    "RISK-01",
+    "RISK-02",
+    "AC-08",
+    "OPS-05",
+    "OPS-07",
+    "VND-02"
+   ]
+  },
+  {
+   "id": "GRC-03",
+   "group": "GRC. Governance, Risk and Compliance",
+   "title": "Policies reviewed yearly or after major change",
+   "controls": [
+    "GOV-01",
+    "GOV-04",
+    "GOV-05"
+   ]
+  },
+  {
+   "id": "GRC-04",
+   "group": "GRC. Governance, Risk and Compliance",
+   "title": "Exceptions to policy approved through a set process",
+   "controls": [
+    "GOV-02",
+    "GOV-03",
+    "GOV-04",
+    "HR-05",
+    "OPS-04",
+    "CHG-01",
+    "CHG-04",
+    "VND-01",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "GRC-05",
+   "group": "GRC. Governance, Risk and Compliance",
+   "title": "Information security program covering every domain",
+   "controls": [
+    "GOV-08"
+   ]
+  },
+  {
+   "id": "GRC-06",
+   "group": "GRC. Governance, Risk and Compliance",
+   "title": "Roles for running the governance program defined",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "HR-01",
+    "HR-02",
+    "HR-03",
+    "HR-06"
+   ]
+  },
+  {
+   "id": "GRC-07",
+   "group": "GRC. Governance, Risk and Compliance",
+   "title": "Applicable laws, standards and contracts identified yearly",
+   "controls": [
+    "GOV-07",
+    "RISK-01",
+    "OPS-02",
+    "OPS-03",
+    "CONF-01",
+    "CONF-02",
+    "PRIV-01"
+   ]
+  },
+  {
+   "id": "GRC-08",
+   "group": "GRC. Governance, Risk and Compliance",
+   "title": "Ties kept with cloud security interest groups",
+   "controls": []
+  },
+  {
+   "id": "HRS-01",
+   "group": "HRS. Human Resources",
+   "title": "Background checks for new staff and contractors",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "MON-01",
+    "HR-01",
+    "HR-02",
+    "HR-03",
+    "HR-04",
+    "HR-05",
+    "HR-06",
+    "VND-01",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "HRS-02",
+   "group": "HRS. Human Resources",
+   "title": "Acceptable use of company technology defined",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "MON-01",
+    "HR-06",
+    "AC-10"
+   ]
+  },
+  {
+   "id": "HRS-03",
+   "group": "HRS. Human Resources",
+   "title": "Unattended desks and screens show no confidential data",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "GOV-06",
+    "MON-01",
+    "HR-02",
+    "HR-06",
+    "AC-10"
+   ]
+  },
+  {
+   "id": "HRS-04",
+   "group": "HRS. Human Resources",
+   "title": "Information protected when staff work remotely",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "GOV-06",
+    "MON-01",
+    "HR-02",
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-06",
+    "AC-09",
+    "AC-10",
+    "AC-11"
+   ]
+  },
+  {
+   "id": "HRS-05",
+   "group": "HRS. Human Resources",
+   "title": "Company assets returned when people leave",
+   "controls": [
+    "HR-01",
+    "HR-03",
+    "HR-04",
+    "HR-05"
+   ]
+  },
+  {
+   "id": "HRS-06",
+   "group": "HRS. Human Resources",
+   "title": "Duties on role change and departure communicated",
+   "controls": [
+    "GOV-01",
+    "GOV-04",
+    "GOV-05",
+    "GOV-06",
+    "HR-01",
+    "HR-02",
+    "HR-03",
+    "HR-04",
+    "HR-05",
+    "HR-06"
+   ]
+  },
+  {
+   "id": "HRS-07",
+   "group": "HRS. Human Resources",
+   "title": "Employment agreement signed before access is given",
+   "controls": [
+    "GOV-01",
+    "GOV-02",
+    "GOV-04",
+    "GOV-05",
+    "GOV-06",
+    "HR-01",
+    "HR-02",
+    "HR-03",
+    "HR-04",
+    "HR-05",
+    "HR-06",
+    "AC-01",
+    "OPS-04",
+    "CHG-01"
+   ]
+  },
+  {
+   "id": "HRS-08",
+   "group": "HRS. Human Resources",
+   "title": "Employment agreements require following security policy",
+   "controls": [
+    "GOV-01",
+    "GOV-02",
+    "GOV-04",
+    "GOV-05",
+    "GOV-06",
+    "HR-01",
+    "HR-02",
+    "HR-03",
+    "HR-04",
+    "HR-05",
+    "HR-06",
+    "AC-01",
+    "OPS-04",
+    "CHG-01"
+   ]
+  },
+  {
+   "id": "HRS-09",
+   "group": "HRS. Human Resources",
+   "title": "Staff security and privacy duties defined and shared",
+   "controls": [
+    "GOV-01",
+    "GOV-02",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "GOV-06",
+    "GOV-07",
+    "HR-01",
+    "HR-02",
+    "HR-03",
+    "HR-06",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "HRS-10",
+   "group": "HRS. Human Resources",
+   "title": "Confidentiality agreement needs set and reviewed",
+   "controls": [
+    "GOV-07",
+    "HR-01",
+    "HR-03",
+    "HR-04",
+    "HR-05",
+    "VND-01",
+    "VND-02",
+    "VND-03",
+    "PRIV-06"
+   ]
+  },
+  {
+   "id": "HRS-11",
+   "group": "HRS. Human Resources",
+   "title": "Security awareness training for everyone, kept current",
+   "controls": [
+    "GOV-04",
+    "GOV-05",
+    "GOV-06",
+    "HR-02"
+   ]
+  },
+  {
+   "id": "HRS-12",
+   "group": "HRS. Human Resources",
+   "title": "Extra training for staff who handle sensitive data",
+   "controls": [
+    "GOV-04",
+    "GOV-05",
+    "GOV-06",
+    "HR-02"
+   ]
+  },
+  {
+   "id": "HRS-13",
+   "group": "HRS. Human Resources",
+   "title": "Staff made aware of their compliance duties",
+   "controls": [
+    "GOV-01",
+    "GOV-02",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "GOV-06",
+    "GOV-07",
+    "HR-02",
+    "HR-05",
+    "HR-06",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "IAM-01",
+   "group": "IAM. Identity & Access Management",
+   "title": "Identity and access policy kept current and reviewed yearly",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "MON-01",
+    "HR-03",
+    "HR-04",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11"
+   ]
+  },
+  {
+   "id": "IAM-02",
+   "group": "IAM. Identity & Access Management",
+   "title": "Password and credential policy kept current",
+   "controls": [
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "MON-01",
+    "HR-02",
+    "AC-01",
+    "AC-05"
+   ]
+  },
+  {
+   "id": "IAM-03",
+   "group": "IAM. Identity & Access Management",
+   "title": "Inventory of identities and their access reviewed",
+   "controls": [
+    "HR-04",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-06",
+    "AC-09",
+    "AC-11",
+    "OPS-01"
+   ]
+  },
+  {
+   "id": "IAM-04",
+   "group": "IAM. Identity & Access Management",
+   "title": "Duties separated when granting system access",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "RISK-01",
+    "RISK-02",
+    "HR-04",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "CHG-01"
+   ]
+  },
+  {
+   "id": "IAM-05",
+   "group": "IAM. Identity & Access Management",
+   "title": "Access limited to least privilege",
+   "controls": [
+    "HR-04",
+    "AC-02",
+    "AC-03",
+    "AC-04"
+   ]
+  },
+  {
+   "id": "IAM-06",
+   "group": "IAM. Identity & Access Management",
+   "title": "Access granted through an approved, recorded process",
+   "controls": [
+    "HR-04",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "IAM-07",
+   "group": "IAM. Identity & Access Management",
+   "title": "Access removed or changed promptly",
+   "controls": [
+    "GOV-01",
+    "GOV-04",
+    "HR-01",
+    "HR-03",
+    "HR-04",
+    "HR-05",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05"
+   ]
+  },
+  {
+   "id": "IAM-08",
+   "group": "IAM. Identity & Access Management",
+   "title": "Access reviewed at least yearly for need and conflicts",
+   "controls": [
+    "HR-03",
+    "HR-04",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-11",
+    "CHG-01"
+   ]
+  },
+  {
+   "id": "IAM-09",
+   "group": "IAM. Identity & Access Management",
+   "title": "Privileged roles kept separate from each other",
+   "controls": [
+    "GOV-03",
+    "RISK-01",
+    "RISK-02",
+    "HR-04",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11"
+   ]
+  },
+  {
+   "id": "IAM-10",
+   "group": "IAM. Identity & Access Management",
+   "title": "Privileged access granted for limited periods only",
+   "controls": [
+    "HR-03",
+    "HR-04",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11"
+   ]
+  },
+  {
+   "id": "IAM-11",
+   "group": "IAM. Identity & Access Management",
+   "title": "Customers take part in approving high-risk privileged access",
+   "controls": [
+    "GOV-07",
+    "RISK-01",
+    "RISK-02",
+    "HR-04",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11",
+    "VND-01",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "IAM-12",
+   "group": "IAM. Identity & Access Management",
+   "title": "Every identity traceable to a unique ID",
+   "controls": [
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11"
+   ]
+  },
+  {
+   "id": "IAM-13",
+   "group": "IAM. Identity & Access Management",
+   "title": "Multi-factor sign-in for privileged and sensitive access",
+   "controls": [
+    "HR-03",
+    "HR-04",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11"
+   ]
+  },
+  {
+   "id": "IAM-14",
+   "group": "IAM. Identity & Access Management",
+   "title": "Credentials, including passwords, managed securely",
+   "controls": [
+    "HR-03",
+    "HR-04",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11"
+   ]
+  },
+  {
+   "id": "IAM-15",
+   "group": "IAM. Identity & Access Management",
+   "title": "Access to data and functions checked for authorization",
+   "controls": [
+    "HR-03",
+    "HR-04",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-11",
+    "OPS-01"
+   ]
+  },
+  {
+   "id": "IPY-01",
+   "group": "IPY. Interoperability & Portability",
+   "title": "Interoperability and portability policy kept current",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "MON-01",
+    "AC-08",
+    "CHG-02",
+    "VND-02"
+   ]
+  },
+  {
+   "id": "IPY-02",
+   "group": "IPY. Interoperability & Portability",
+   "title": "Customers can retrieve their data through an interface",
+   "controls": [
+    "AC-08",
+    "CHG-02",
+    "VND-02",
+    "PI-01",
+    "PI-02"
+   ]
+  },
+  {
+   "id": "IPY-03",
+   "group": "IPY. Interoperability & Portability",
+   "title": "Secure protocols used to import and export data",
+   "controls": [
+    "GOV-07",
+    "AC-08",
+    "AC-09",
+    "VND-01",
+    "VND-02",
+    "CONF-01",
+    "CONF-02",
+    "PRIV-01"
+   ]
+  },
+  {
+   "id": "IPY-04",
+   "group": "IPY. Interoperability & Portability",
+   "title": "Contracts cover customer data access at termination",
+   "controls": [
+    "AC-08",
+    "VND-02",
+    "VND-03",
+    "CONF-01",
+    "PI-01",
+    "PI-02"
+   ]
+  },
+  {
+   "id": "I&S-01",
+   "group": "I&S. Infrastructure Security",
+   "title": "Infrastructure and virtualization policy kept current",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "RISK-01",
+    "MON-01",
+    "AC-01",
+    "AC-08",
+    "OPS-04",
+    "CHG-01",
+    "VND-02"
+   ]
+  },
+  {
+   "id": "I&S-02",
+   "group": "I&S. Infrastructure Security",
+   "title": "Capacity planned and monitored against demand",
+   "controls": [
+    "GOV-07",
+    "GOV-08",
+    "OPS-06",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "I&S-03",
+   "group": "I&S. Infrastructure Security",
+   "title": "Network traffic restricted, encrypted and monitored",
+   "controls": [
+    "GOV-04",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-08",
+    "AC-09",
+    "AC-11",
+    "OPS-01",
+    "OPS-04"
+   ]
+  },
+  {
+   "id": "I&S-04",
+   "group": "I&S. Infrastructure Security",
+   "title": "Hosts, hypervisors and control planes hardened",
+   "controls": [
+    "GOV-04",
+    "MON-02",
+    "MON-03",
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-08",
+    "AC-09",
+    "AC-10",
+    "AC-11",
+    "OPS-01",
+    "OPS-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "I&S-05",
+   "group": "I&S. Infrastructure Security",
+   "title": "Production kept apart from test and development",
+   "controls": [
+    "AC-08",
+    "CHG-03"
+   ]
+  },
+  {
+   "id": "I&S-06",
+   "group": "I&S. Infrastructure Security",
+   "title": "Tenants segmented and isolated from each other",
+   "controls": [
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-08",
+    "AC-10",
+    "AC-11",
+    "OPS-01",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-05",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "I&S-07",
+   "group": "I&S. Infrastructure Security",
+   "title": "Encrypted channels used when migrating to the cloud",
+   "controls": [
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-08",
+    "AC-09",
+    "AC-11"
+   ]
+  },
+  {
+   "id": "I&S-08",
+   "group": "I&S. Infrastructure Security",
+   "title": "High-risk environments identified and documented",
+   "controls": [
+    "GOV-04",
+    "RISK-01",
+    "RISK-02",
+    "MON-02",
+    "MON-03",
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-08",
+    "AC-09",
+    "AC-11",
+    "OPS-01",
+    "OPS-02",
+    "OPS-03",
+    "OPS-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "I&S-09",
+   "group": "I&S. Infrastructure Security",
+   "title": "Layered defenses against network attacks",
+   "controls": [
+    "MON-02",
+    "MON-03",
+    "AC-08",
+    "AC-10",
+    "OPS-01",
+    "OPS-02",
+    "OPS-03",
+    "OPS-04",
+    "OPS-05",
+    "OPS-07",
+    "CHG-02",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "LOG-01",
+   "group": "LOG. Logging and Monitoring",
+   "title": "Logging and monitoring policy kept current",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "MON-01",
+    "AC-10",
+    "OPS-01"
+   ]
+  },
+  {
+   "id": "LOG-02",
+   "group": "LOG. Logging and Monitoring",
+   "title": "Audit logs kept secure and retained",
+   "controls": [
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-09",
+    "OPS-01",
+    "OPS-03",
+    "CONF-02"
+   ]
+  },
+  {
+   "id": "LOG-03",
+   "group": "LOG. Logging and Monitoring",
+   "title": "Security events monitored with alerts to owners",
+   "controls": [
+    "AC-10",
+    "OPS-01",
+    "OPS-02",
+    "OPS-03"
+   ]
+  },
+  {
+   "id": "LOG-04",
+   "group": "LOG. Logging and Monitoring",
+   "title": "Access to audit logs restricted and itself recorded",
+   "controls": [
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "OPS-01",
+    "CONF-02"
+   ]
+  },
+  {
+   "id": "LOG-05",
+   "group": "LOG. Logging and Monitoring",
+   "title": "Logs correlated to spot unusual activity, and acted on",
+   "controls": [
+    "AC-10",
+    "OPS-01",
+    "OPS-03"
+   ]
+  },
+  {
+   "id": "LOG-06",
+   "group": "LOG. Logging and Monitoring",
+   "title": "System clocks synchronized to a trusted source",
+   "controls": []
+  },
+  {
+   "id": "LOG-07",
+   "group": "LOG. Logging and Monitoring",
+   "title": "What gets logged decided and reviewed yearly",
+   "controls": [
+    "OPS-01"
+   ]
+  },
+  {
+   "id": "LOG-08",
+   "group": "LOG. Logging and Monitoring",
+   "title": "Sensitive data kept out of logs by masking or scrubbing",
+   "controls": []
+  },
+  {
+   "id": "LOG-09",
+   "group": "LOG. Logging and Monitoring",
+   "title": "Audit records capture the security details needed",
+   "controls": [
+    "AC-10",
+    "OPS-01"
+   ]
+  },
+  {
+   "id": "LOG-10",
+   "group": "LOG. Logging and Monitoring",
+   "title": "Audit records protected from tampering and deletion",
+   "controls": [
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-09",
+    "OPS-01"
+   ]
+  },
+  {
+   "id": "LOG-11",
+   "group": "LOG. Logging and Monitoring",
+   "title": "Operation of cryptographic controls monitored and reported",
+   "controls": [
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-10",
+    "AC-11",
+    "OPS-01"
+   ]
+  },
+  {
+   "id": "LOG-12",
+   "group": "LOG. Logging and Monitoring",
+   "title": "Key lifecycle events logged for audit",
+   "controls": [
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-10",
+    "AC-11",
+    "OPS-01"
+   ]
+  },
+  {
+   "id": "LOG-13",
+   "group": "LOG. Logging and Monitoring",
+   "title": "Physical entry logged in an auditable system",
+   "controls": [
+    "AC-06",
+    "OPS-01"
+   ]
+  },
+  {
+   "id": "LOG-14",
+   "group": "LOG. Logging and Monitoring",
+   "title": "Monitoring failures reported to owners at once",
+   "controls": [
+    "GOV-06",
+    "GOV-07",
+    "OPS-01",
+    "OPS-02",
+    "OPS-03"
+   ]
+  },
+  {
+   "id": "SEF-01",
+   "group": "SEF. Security Incident Management, E-Discovery, & Cloud Forensics",
+   "title": "Incident, e-discovery and forensics policy kept current",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "GOV-06",
+    "MON-01",
+    "MON-02",
+    "OPS-01",
+    "OPS-02",
+    "OPS-03",
+    "OPS-05",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "SEF-02",
+   "group": "SEF. Security Incident Management, E-Discovery, & Cloud Forensics",
+   "title": "Policy for handling incidents in a timely way",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "GOV-06",
+    "MON-01",
+    "HR-02",
+    "OPS-01",
+    "OPS-02",
+    "OPS-03",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "SEF-03",
+   "group": "SEF. Security Incident Management, E-Discovery, & Cloud Forensics",
+   "title": "Incident response plan including who to notify",
+   "controls": [
+    "MON-02",
+    "HR-02",
+    "OPS-01",
+    "OPS-02",
+    "OPS-03",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "SEF-04",
+   "group": "SEF. Security Incident Management, E-Discovery, & Cloud Forensics",
+   "title": "Incident response plan exercised periodically",
+   "controls": [
+    "MON-01",
+    "MON-02",
+    "MON-04",
+    "OPS-02",
+    "OPS-03",
+    "OPS-05",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "SEF-05",
+   "group": "SEF. Security Incident Management, E-Discovery, & Cloud Forensics",
+   "title": "Incident metrics tracked and reported",
+   "controls": [
+    "MON-01",
+    "MON-02",
+    "OPS-01",
+    "OPS-02",
+    "OPS-03",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "SEF-06",
+   "group": "SEF. Security Incident Management, E-Discovery, & Cloud Forensics",
+   "title": "Security events triaged through a set process",
+   "controls": [
+    "OPS-01",
+    "OPS-02",
+    "OPS-03",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "SEF-07",
+   "group": "SEF. Security Incident Management, E-Discovery, & Cloud Forensics",
+   "title": "Incidents handled by category and severity",
+   "controls": []
+  },
+  {
+   "id": "SEF-08",
+   "group": "SEF. Security Incident Management, E-Discovery, & Cloud Forensics",
+   "title": "Breaches reported as contracts and law require",
+   "controls": [
+    "GOV-06",
+    "AC-08",
+    "OPS-02",
+    "OPS-03",
+    "OPS-05",
+    "OPS-07",
+    "VND-01",
+    "VND-02"
+   ]
+  },
+  {
+   "id": "SEF-09",
+   "group": "SEF. Security Incident Management, E-Discovery, & Cloud Forensics",
+   "title": "Incident records kept and reviewed for root causes",
+   "controls": []
+  },
+  {
+   "id": "SEF-10",
+   "group": "SEF. Security Incident Management, E-Discovery, & Cloud Forensics",
+   "title": "Contacts at authorities and law enforcement kept current",
+   "controls": [
+    "GOV-01",
+    "GOV-07",
+    "HR-06",
+    "OPS-02",
+    "OPS-03"
+   ]
+  },
+  {
+   "id": "STA-01",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Supply chain risk policy kept current",
+   "controls": []
+  },
+  {
+   "id": "STA-02",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Shared responsibility policy kept current",
+   "controls": [
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "GOV-07",
+    "RISK-01",
+    "MON-01",
+    "AC-08",
+    "VND-01",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "STA-03",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Shared responsibility applied across suppliers",
+   "controls": [
+    "GOV-01",
+    "GOV-07",
+    "HR-06",
+    "AC-08",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "STA-04",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Customers told how responsibility is shared",
+   "controls": [
+    "GOV-07",
+    "AC-08",
+    "CHG-05",
+    "VND-01",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "STA-05",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Owner of each control under shared responsibility set out",
+   "controls": [
+    "GOV-01",
+    "GOV-07",
+    "HR-06",
+    "AC-08",
+    "VND-01",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "STA-06",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Shared responsibility documents reviewed and validated",
+   "controls": [
+    "GOV-07",
+    "GOV-08",
+    "AC-08",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "STA-07",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Own share of shared responsibility run and assessed",
+   "controls": [
+    "GOV-07",
+    "RISK-01",
+    "MON-01",
+    "AC-08",
+    "CHG-05",
+    "VND-01",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "STA-08",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Inventory of every supplier relationship",
+   "controls": [
+    "CHG-05",
+    "VND-01",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "STA-09",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Bill of materials kept for the services relied on",
+   "controls": []
+  },
+  {
+   "id": "STA-10",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Supplier risks reviewed periodically",
+   "controls": [
+    "RISK-01",
+    "AC-08",
+    "CHG-05",
+    "VND-01",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "STA-11",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Service agreements carry the required terms",
+   "controls": [
+    "VND-01",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "STA-12",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Supplier agreements reviewed yearly",
+   "controls": [
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "STA-13",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Conformance with agreements assessed internally each year",
+   "controls": [
+    "RISK-01",
+    "MON-01",
+    "VND-02"
+   ]
+  },
+  {
+   "id": "STA-14",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Suppliers bound to security and privacy requirements",
+   "controls": [
+    "GOV-07",
+    "RISK-01",
+    "CHG-05",
+    "VND-01",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "STA-15",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Suppliers' IT governance reviewed yearly",
+   "controls": [
+    "RISK-01",
+    "RISK-02",
+    "MON-01",
+    "CHG-05",
+    "VND-01",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "STA-16",
+   "group": "STA. Supply Chain Management, Transparency, and Accountability",
+   "title": "Suppliers' security assessed according to risk",
+   "controls": [
+    "RISK-01",
+    "RISK-02",
+    "MON-02",
+    "AC-08",
+    "OPS-02",
+    "CHG-05",
+    "VND-01",
+    "VND-02",
+    "VND-03"
+   ]
+  },
+  {
+   "id": "TVM-01",
+   "group": "TVM. Threat & Vulnerability Management",
+   "title": "Threat and vulnerability policy kept current",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "RISK-01",
+    "RISK-02",
+    "MON-01",
+    "MON-02",
+    "MON-03",
+    "AC-08",
+    "OPS-02",
+    "OPS-03",
+    "OPS-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "TVM-02",
+   "group": "TVM. Threat & Vulnerability Management",
+   "title": "Malware protection policy kept current",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "MON-01",
+    "AC-10",
+    "OPS-01"
+   ]
+  },
+  {
+   "id": "TVM-03",
+   "group": "TVM. Threat & Vulnerability Management",
+   "title": "Managed assets scanned for vulnerabilities monthly",
+   "controls": [
+    "GOV-01",
+    "GOV-04",
+    "GOV-07",
+    "RISK-02",
+    "MON-02",
+    "MON-03",
+    "AC-10",
+    "OPS-02",
+    "OPS-03",
+    "OPS-04",
+    "CHG-01",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "TVM-04",
+   "group": "TVM. Threat & Vulnerability Management",
+   "title": "Threats analysed and modelled to guide mitigation",
+   "controls": []
+  },
+  {
+   "id": "TVM-05",
+   "group": "TVM. Threat & Vulnerability Management",
+   "title": "Detection signatures and indicators updated weekly",
+   "controls": [
+    "GOV-04",
+    "MON-03",
+    "AC-10",
+    "OPS-01",
+    "CHG-03",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "TVM-06",
+   "group": "TVM. Threat & Vulnerability Management",
+   "title": "Third-party and open-source libraries kept patched",
+   "controls": [
+    "RISK-01",
+    "RISK-02",
+    "MON-03",
+    "AC-10",
+    "CHG-02",
+    "CHG-03",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "TVM-07",
+   "group": "TVM. Threat & Vulnerability Management",
+   "title": "Independent penetration tests run periodically",
+   "controls": [
+    "MON-01",
+    "MON-02",
+    "MON-03",
+    "MON-04",
+    "OPS-01",
+    "OPS-02",
+    "OPS-04",
+    "CHG-02",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "TVM-08",
+   "group": "TVM. Threat & Vulnerability Management",
+   "title": "Vulnerabilities fixed on a schedule set by risk",
+   "controls": [
+    "MON-02",
+    "MON-03",
+    "OPS-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "TVM-09",
+   "group": "TVM. Threat & Vulnerability Management",
+   "title": "Vulnerability fixes prioritized by a recognized method",
+   "controls": [
+    "RISK-01",
+    "RISK-02",
+    "MON-03",
+    "AC-10",
+    "CHG-03",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "TVM-10",
+   "group": "TVM. Threat & Vulnerability Management",
+   "title": "Threats prioritized and mitigated by risk",
+   "controls": []
+  },
+  {
+   "id": "TVM-11",
+   "group": "TVM. Threat & Vulnerability Management",
+   "title": "Vulnerability work tracked and reported to stakeholders",
+   "controls": [
+    "GOV-04",
+    "GOV-05",
+    "GOV-06",
+    "GOV-07",
+    "RISK-01",
+    "RISK-02",
+    "MON-03",
+    "HR-02",
+    "OPS-01",
+    "OPS-02",
+    "OPS-03",
+    "OPS-05",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "TVM-12",
+   "group": "TVM. Threat & Vulnerability Management",
+   "title": "Vulnerability metrics reported at set intervals",
+   "controls": [
+    "GOV-06",
+    "RISK-02",
+    "MON-03",
+    "AC-10",
+    "OPS-01"
+   ]
+  },
+  {
+   "id": "UEM-01",
+   "group": "UEM. Universal Endpoint Management",
+   "title": "Endpoint policy kept current and reviewed yearly",
+   "controls": [
+    "GOV-01",
+    "GOV-03",
+    "GOV-04",
+    "GOV-05",
+    "MON-01",
+    "AC-09",
+    "AC-10"
+   ]
+  },
+  {
+   "id": "UEM-02",
+   "group": "UEM. Universal Endpoint Management",
+   "title": "Approved apps and app sources for endpoints listed",
+   "controls": [
+    "MON-03",
+    "AC-02",
+    "AC-10",
+    "AC-11",
+    "CHG-02",
+    "CHG-03",
+    "CHG-05",
+    "VND-01",
+    "CONF-01"
+   ]
+  },
+  {
+   "id": "UEM-03",
+   "group": "UEM. Universal Endpoint Management",
+   "title": "Endpoint compatibility with systems and apps validated",
+   "controls": [
+    "MON-03",
+    "AC-10",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "UEM-04",
+   "group": "UEM. Universal Endpoint Management",
+   "title": "Inventory of endpoints that handle company data",
+   "controls": [
+    "AC-10",
+    "VND-01",
+    "CONF-01"
+   ]
+  },
+  {
+   "id": "UEM-05",
+   "group": "UEM. Universal Endpoint Management",
+   "title": "Policies enforced on every endpoint that has access",
+   "controls": [
+    "GOV-04",
+    "GOV-05",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-06",
+    "AC-08",
+    "AC-09",
+    "AC-11",
+    "OPS-04",
+    "CHG-03"
+   ]
+  },
+  {
+   "id": "UEM-06",
+   "group": "UEM. Universal Endpoint Management",
+   "title": "Endpoints lock automatically when idle",
+   "controls": [
+    "AC-01",
+    "AC-05",
+    "AC-06",
+    "AC-10",
+    "OPS-04"
+   ]
+  },
+  {
+   "id": "UEM-07",
+   "group": "UEM. Universal Endpoint Management",
+   "title": "Endpoint system and patch changes go through change control",
+   "controls": [
+    "GOV-03",
+    "RISK-01",
+    "MON-03",
+    "AC-10",
+    "OPS-04",
+    "CHG-01",
+    "CHG-02",
+    "CHG-03",
+    "CHG-04",
+    "CHG-05"
+   ]
+  },
+  {
+   "id": "UEM-08",
+   "group": "UEM. Universal Endpoint Management",
+   "title": "Endpoint storage encrypted",
+   "controls": [
+    "AC-01",
+    "AC-04",
+    "AC-05",
+    "AC-09",
+    "AC-10",
+    "AC-11"
+   ]
+  },
+  {
+   "id": "UEM-09",
+   "group": "UEM. Universal Endpoint Management",
+   "title": "Anti-malware on managed endpoints",
+   "controls": [
+    "AC-10",
+    "OPS-01",
+    "OPS-03",
+    "OPS-04"
+   ]
+  },
+  {
+   "id": "UEM-10",
+   "group": "UEM. Universal Endpoint Management",
+   "title": "Host firewall on managed endpoints",
+   "controls": [
+    "AC-08",
+    "AC-10",
+    "OPS-01",
+    "OPS-04"
+   ]
+  },
+  {
+   "id": "UEM-11",
+   "group": "UEM. Universal Endpoint Management",
+   "title": "Data loss prevention on endpoints by risk",
+   "controls": [
+    "AC-02",
+    "AC-09",
+    "AC-10",
+    "AC-11",
+    "OPS-01",
+    "OPS-04",
+    "CONF-01"
+   ]
+  },
+  {
+   "id": "UEM-12",
+   "group": "UEM. Universal Endpoint Management",
+   "title": "Managed mobile devices can be located remotely",
+   "controls": [
+    "AC-10",
+    "OPS-04"
+   ]
+  },
+  {
+   "id": "UEM-13",
+   "group": "UEM. Universal Endpoint Management",
+   "title": "Company data wiped remotely from managed devices",
+   "controls": [
+    "AC-10",
+    "OPS-04"
+   ]
+  },
+  {
+   "id": "UEM-14",
+   "group": "UEM. Universal Endpoint Management",
+   "title": "Third-party devices with access held to security standards",
+   "controls": [
+    "GOV-01",
+    "GOV-07",
+    "RISK-01",
+    "MON-02",
+    "HR-02",
+    "HR-06",
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-06",
+    "AC-08",
+    "AC-09",
+    "AC-10",
+    "OPS-02",
+    "CHG-05",
+    "VND-02",
+    "VND-03"
+   ]
+  }
+ ]
+}

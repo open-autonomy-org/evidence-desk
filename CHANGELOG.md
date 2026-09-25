@@ -16,6 +16,10 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
   publish` prints it too. The Open Autonomy page collects the project's activity for a period. `framework <dir> <id>`
   shows each stated position and, for a self-attestation, how many still need one.
 - `soa <dir> --framework iso42001` writes ISO/IEC 42001's statement of applicability, which its certification asks for, as `soa` already did for ISO/IEC 27001 (still the default).
+- CSA STAR Level 1 can be targeted and self-attested: the Cloud Controls Matrix v4.1's 207 controls map onto the control
+  library through CSA's own v4.0.13 mappings to the AICPA TSC (SOC 2), ISO/IEC 27001 and NIST CSF 2.0, each v4.1 control
+  carrying its predecessor's mapping until CSA publishes v4.1's, and the 14 no mapping resolves ask for the organization's
+  stated position. Filing the CAIQ with CSA's STAR Registry stays the organization's own act.
 - CSA STAR for AI Level 1 can be targeted and self-attested: the AI Controls Matrix's 247 controls map onto the control
   library through CSA's own mappings to AIUC-1, ISO/IEC 42001, ISO/IEC 27001 and NIST AI RMF, and the 4 no mapping
   resolves ask for the organization's stated position. Filing the AI-CAIQ with CSA's STAR Registry stays the
