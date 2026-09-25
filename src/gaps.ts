@@ -68,7 +68,7 @@ export function computeGaps(ws: Workspace, asOf = clockDate()): Gaps {
     }
     for (const seam of (snap.seams ?? []).filter((x) => x.door === 'commit' && x.record.startsWith('records/') && RECORD_KINDS[x.id])) {
       const rel = `sources/open-autonomy/seam-records/${seam.id}.json`;
-      const got = collected<{ findings: string[] }>(rel, (x) => Array.isArray(x.findings));
+      const got = collected<{ findings: string[] }>(rel, (x) => Array.isArray(x.findings) && x.findings.every((f) => typeof f === 'string'));
       if (!got) { if (got === null) program.push(`Open Autonomy: the ${seam.id} records in ${seam.record} have not been collected (collect seam-records)`); continue; }
       for (const f of got.findings) program.push(`Open Autonomy: ${f}`);
     }
@@ -77,7 +77,7 @@ export function computeGaps(ws: Workspace, asOf = clockDate()): Gaps {
   // passed response per form, each access review sign-off, each policy's latest approval, each incident's closing. A
   // signer who is not on the roster has no account to check, which is itself the finding.
   const record = collected<{ roster_commit: string; roster_source?: { read_from?: string; repo?: string; commit?: string }; rows: { key: string; value_sha256: string; status: string; via?: string; author: string; person: string }[] }>(
-    'sources/github/attribution.json', (x) => typeof x.roster_commit === 'string' && Array.isArray(x.rows)) ?? null;
+    'sources/github/attribution.json', (x) => typeof x.roster_commit === 'string' && Array.isArray(x.rows) && x.rows.every((r) => !!r && typeof r === 'object' && ['key', 'value_sha256', 'status', 'author', 'person'].every((k) => typeof (r as Record<string, unknown>)[k] === 'string'))) ?? null;
   // A check that read the roster from the project's repository is compared with nothing here (its commit is the
   // project's, recorded); one that read the workspace's copy says so, and is compared with the copy now held.
   const fromProject = record?.roster_source?.read_from === 'the project repository';

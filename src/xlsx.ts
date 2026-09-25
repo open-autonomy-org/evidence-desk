@@ -158,6 +158,7 @@ export function xlsxToCsv(buf: Buffer, file: string): string {
     if (at < 0) continue;
     const body = rows.slice(at);
     const width = Math.max(...body.map((r) => r.length));
+    if (width * body.length > CELLS) throw new Error(`the sheet spreads over more than ${CELLS.toLocaleString('en')} cells, far more than a questionnaire`);
     const seen = new Map<string, number>();
     const columns = body[0].concat(Array(width - body[0].length).fill('')).map((c, i) => {
       const base = c.trim() || `column ${i + 1}`;

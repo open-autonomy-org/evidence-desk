@@ -1,11 +1,11 @@
 // Validates records against the JSON Schemas in schemas/, which are the single source of each record's contract.
-// Supports the subset those schemas use: type, const, enum, required, properties, additionalProperties (schema form),
+// Supports the subset those schemas use: type (one, or a list such as ["string", "null"]), const, enum, required, properties, additionalProperties (schema form),
 // items, contains, pattern, minLength and format date-time. Unknown fields are allowed everywhere, so extensions survive.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export type Schema = {
-  type?: string; const?: unknown; enum?: unknown[]; required?: string[]; properties?: Record<string, Schema>;
+  type?: string | string[]; const?: unknown; enum?: unknown[]; required?: string[]; properties?: Record<string, Schema>;
   additionalProperties?: Schema | boolean; items?: Schema; contains?: Schema; pattern?: string; minLength?: number; format?: string;
   title?: string; 'x-columns'?: string[];
 };
@@ -27,9 +27,9 @@ export function check(s: Schema, v: unknown, path = ''): string[] {
   if (s.const !== undefined && v !== s.const) return [`${at}: must be ${JSON.stringify(s.const)}`];
   if (s.enum && !s.enum.includes(v)) return [`${at}: must be one of ${s.enum.map((e) => JSON.stringify(e)).join(', ')}`];
   if (s.type) {
-    const t = typeOf(v);
-    const ok = t === s.type || (s.type === 'number' && t === 'integer');
-    if (!ok) return [`${at}: must be ${s.type}, found ${t}`];
+    const t = typeOf(v), types = [s.type].flat();
+    const ok = types.some((x) => t === x || (x === 'number' && t === 'integer'));
+    if (!ok) return [`${at}: must be ${types.join(' or ')}, found ${t}`];
   }
   const out: string[] = [];
   if (typeof v === 'string') {

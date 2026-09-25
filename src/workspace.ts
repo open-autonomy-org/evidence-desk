@@ -76,7 +76,7 @@ export function readJson<T>(root: string, rel: string, schemaName: string, probl
   // which would read as yes ("false" is a text, and true). One whose values are merely wrong (a format, a choice, a
   // number written otherwise) stays, reported, so no view loses it.
   const wrong = check(schema(schemaName), data);
-  const unreadable = typeof data !== 'object' || data === null || Array.isArray(data) || wrong.some((m) => /: must be (object|array|string|boolean), found \w+$|: is required$/.test(m));
+  const unreadable = typeof data !== 'object' || data === null || Array.isArray(data) || wrong.some((m) => /: must be (object|array|string|boolean)( or \w+)*, found \w+$|: is required$/.test(m));
   for (const m of wrong) problems.push({ severity: 'error', file: rel, message: unreadable ? `${m} (left out until fixed)` : m });
   if (unreadable) return null;
   return { path: rel, version: r.version, data: data as T };
@@ -121,6 +121,7 @@ export function loadWorkspace(root: string): Workspace {
   // Records no view needs loaded are still validated, so `validate` covers every file Evidence Desk defines.
   for (const [rel, name] of [['trust.json', 'trust'], ['answers.json', 'answer-library'], ['collectors.json', 'collectors']] as const) readJson(root, rel, name, problems);
   for (const f of list(root, 'questionnaires', '.json')) readJson(root, f, 'questionnaire', problems);
+  for (const f of list(root, 'certifications', '.json')) readJson(root, f, 'certification', problems);
   for (const f of list(root, 'sources/open-autonomy/completeness', '.json')) readJson(root, f, 'completeness', problems);
   const openAutonomy = readJson<Snapshot>(root, 'sources/open-autonomy/latest.json', 'open-autonomy', problems);
   for (const f of list(root, 'frameworks', '.json')) {
