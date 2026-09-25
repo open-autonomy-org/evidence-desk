@@ -13,11 +13,11 @@ import { COLLECTORS, checkTitle, configureCollector, readSettings, runChecks } f
 import { actOnRequest, draft, exportPackage, importReturn, listRequests, readEngagement } from './audit.ts';
 import { questionnaireText } from './xlsx.ts';
 import { buildTrustCenter, importQuestionnaireText, questionnaireCsv, reviewAnswer } from './trust.ts';
-import { attest, decide, dropFramework, frameworkState, targetFramework } from './frameworks.ts';
+import { attest, decide, dropFramework, frameworkState, stateNotMet, targetFramework } from './frameworks.ts';
 import { certifications, recordCertification, type Certification } from './certifications.ts';
 import { publishStatement, reportOf } from './trust.ts';
 import { collectOpenAutonomyActivity } from './oa-platform.ts';
-import { frameworkDescriptions } from './catalog.ts';
+import { frameworkDescriptions, frameworkOf } from './catalog.ts';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { neededControls, targetsOf } from './targets.ts';
@@ -56,8 +56,10 @@ function state(root: string) {
     // published statement would say (the badges); and whether this server may publish to or read from Open Autonomy,
     // which needs the project's key in its own environment (never in the page).
     frameworkCatalog: frameworkDescriptions,
-    certifications: certifications(root),
-    report: (() => { try { return reportOf(root); } catch { return null; } })(),
+    // Each document with the framework it is for (frameworkOf, the rule the badges use). A record that cannot be read is
+    // reported, not allowed to take the rest of the app down; the badges then say nothing until it is fixed.
+    ...(() => { try { return { certifications: certifications(root).map((c) => ({ ...c, for: frameworkOf(c) ?? null })), report: reportOf(root), documentsError: null }; }
+      catch (e) { return { certifications: [], report: null, documentsError: (e as Error).message }; } })(),
     openAutonomyKey: Boolean(process.env.OPEN_AUTONOMY_BASE_URL && process.env.OPEN_AUTONOMY_KEY),
     trust: (() => { const t = readVersioned(root, 'trust.json'); return t ? JSON.parse(t.text) : null; })(),
     questionnaires: (existsSync(join(root, 'questionnaires')) ? readdirSync(join(root, 'questionnaires')).filter((f) => f.endsWith('.json')).sort() : []).map((f) => {
@@ -168,10 +170,16 @@ export function serve(root: string, port: number): void {
           if (!input) throw new Error('say what to decide: exclude, include, a position or clear');
           decide(root, s('id'), s('requirement'), input, known); break;
         }
+        case '/api/framework/not-met': {
+          const reqs = Array.isArray(b.requirements) ? b.requirements.map(String) : [];
+          return send(res, 200, { result: { stated: stateNotMet(root, s('id'), reqs, s('statement')) }, state: state(root) });
+        }
         case '/api/frameworks/attest': return send(res, 200, { result: attest(root, s('id'), s('by')), state: state(root) });
         case '/api/certifications/add': {
           // The uploaded document goes through the same door as the CLI's: recorded with its hash, the gate for a
           // self-attestation framework included.
+          // Every document recorded here is for a framework on the page it was uploaded from.
+          if (!s('target')) throw new Error('say which framework the document is for (target)');
           const dir = mkdtempSync(join(tmpdir(), 'upload-'));
           try {
             // Only the extension is kept: the record names the stored copy itself.
@@ -188,7 +196,7 @@ export function serve(root: string, port: number): void {
           if (!baseUrl || !key) throw new Error('publishing needs OPEN_AUTONOMY_BASE_URL and OPEN_AUTONOMY_KEY in the environment Evidence Desk was started in');
           const r = await publishStatement(root, { baseUrl, key });
           if (r.status !== 200) throw new Error(`the platform refused the statement (${r.status}): ${JSON.stringify((r.body as { error?: unknown }).error ?? r.body)}`);
-          return send(res, 200, { result: { ...r.body, page: r.page, readme: r.readme }, state: state(root) });
+          return send(res, 200, { result: { ...r.body, page: r.page, readme: r.readme, readmeClosed: r.readmeClosed }, state: state(root) });
         }
         case '/api/open-autonomy/collect': return send(res, 200, { result: await collectOpenAutonomyActivity(root, { account: s('account'), start: s('start'), end: s('end'), by: s('by') }), state: state(root) });
         case '/api/trust/build': return send(res, 200, { result: buildTrustCenter(root, s('out')), state: state(root) });

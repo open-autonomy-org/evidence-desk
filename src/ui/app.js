@@ -103,7 +103,8 @@ function statusPill(c) {
 // for each framework, how far it is, the steps still open, and what makes it done: an auditor's or certifying body's
 // document recorded here, or the organization's own self-attestation, positioned and signed here.
 const OUTCOME = { 'audit report': 'an audit report', certificate: 'a certificate', 'self-attestation': 'a self-attestation you sign' };
-const docsFor = (f) => S.certifications.filter((c) => c.target ? c.target === f.id : f.id === 'soc2' ? /soc ?2/i.test(c.framework) : c.framework === f.title);
+const docsFor = (f) => S.certifications.filter((c) => c.for === f.id);
+const documentsError = () => S.documentsError ? h('p', { style: 'color:var(--bad)' }, `The documents held cannot be read, so nothing is claimed from them: ${S.documentsError}`) : null;
 // The document that stands for a framework today, as the badge says it; null when there is none.
 function docPill(f) {
   const c = docsFor(f).find((x) => x.current);
@@ -118,6 +119,7 @@ function frameworksView() {
   if (detail) return frameworkPage(S.frameworkCatalog.find((f) => f.id === detail));
   return h('div', {},
     h('h1', {}, 'Frameworks'),
+    documentsError(),
     h('p', { class: 'lead' }, 'Choose what the program aims at. SOC 2 is always a target; every other framework reuses the same controls, policies and evidence, so targeting one adds only what it needs beyond them. A framework becomes done only with its document: an auditor\'s report, a certifying body\'s certificate, or a self-attestation you sign here.'),
     h('table', {}, h('tr', {}, h('th', {}, 'Framework'), h('th', {}, 'Becomes'), h('th', {}, 'Readiness'), h('th', {}, 'Document'), h('th', {}, '')),
       S.frameworkCatalog.map((f) => {
@@ -174,8 +176,8 @@ function frameworkPage(f) {
   // document lists each one.
   const bulk = h('form', { class: 'row', onsubmit: (e) => { e.preventDefault();
     if (!bulk.statement.value.trim()) return notice('Say what is in place for them, or that nothing is yet.', false);
-    (async () => { for (const r of unpositioned) if (!(await post('/api/framework/decide', { id: f.id, requirement: r.id, position: 'not met', statement: bulk.statement.value }, null))) return;
-      notice(`Stated not met on ${unpositioned.length} requirement${unpositioned.length === 1 ? '' : 's'}.`, true); })(); } },
+    (async () => { const res = await post('/api/framework/not-met', { id: f.id, requirements: unpositioned.map((r) => r.id), statement: bulk.statement.value }, null);
+      if (res) notice(`Stated not met on ${res.result.stated.length} requirement${res.result.stated.length === 1 ? '' : 's'}${res.result.stated.length < unpositioned.length ? '; the others had been given a position or excluded meanwhile, and were left as they are' : ''}.`, true); })(); } },
     h('input', { type: 'text', name: 'statement', placeholder: 'Statement for all of them, for example "Not yet in place."', style: 'flex:1' }),
     h('button', { class: 'secondary', type: 'submit' }, `State not met on the ${unpositioned.length} without a position`));
   return h('div', {}, back,
@@ -204,7 +206,9 @@ function frameworkPage(f) {
         h('table', {}, h('tr', {}, h('th', {}, 'Requirement'), h('th', {}, 'Controls'), h('th', {}, 'State')),
           list.map((r) => h('tr', {}, h('td', {}, h('b', {}, r.id.replace('clause-', 'Clause ')), ' ', r.title, r.optional ? h('span', { class: 'muted' }, ' (optional, not counted)') : null),
             h('td', {}, r.controls.map((id, i) => [i ? ', ' : '', h('a', { href: `#controls/${id}` }, id)])),
-            h('td', {}, pill(r.status === 'unaddressed' ? 'not addressed' : r.status, kind[r.status]), r.position && r.position !== 'met' && r.position !== 'excluded' ? h('div', {}, pill(r.position, 'warn'), ' ', r.statement) : null, r.reason ? h('div', { class: 'muted' }, r.reason) : null,
+            h('td', {}, pill(r.status === 'unaddressed' ? 'not addressed' : r.status, kind[r.status]), r.position && r.position !== 'met' && r.position !== 'excluded' ? h('div', {}, pill(r.position, 'warn'), ' ', r.statement,
+              r.status === 'ready' ? h('span', { class: 'muted' }, ' It is ready now; the self-attestation says what you stated until you clear it.') : null, ' ',
+              h('button', { class: 'secondary', onclick: () => post('/api/framework/decide', { id: f.id, requirement: r.id, clear: true }, `Position on ${r.id} cleared.`) }, 'Clear')) : null, r.reason ? h('div', { class: 'muted' }, r.reason) : null,
               st.exclusions?.[r.id] ? h('button', { class: 'secondary', onclick: () => post('/api/framework/decide', { id: f.id, requirement: r.id, include: true }, `${r.id} included again.`) }, 'Include again') : null))))])));
 }
 // Recording the document an auditor or certifying body issued: the only ground for saying audited or certified.
@@ -220,12 +224,12 @@ function recordCard(f) {
     h('h2', { style: 'margin-top:0' }, f.outcome === 'certificate' ? 'Record the certificate' : 'Record the audit report'),
     h('p', { class: 'muted' }, `Upload the document ${f.issuer} issued. It is kept with its hash; the page claims only what an intact, current document says.`),
     h('div', { class: 'grid2' },
-      h('div', {}, h('label', {}, 'Framework, as the document names it'), h('input', { type: 'text', name: 'framework', value: f.id === 'soc2' ? 'SOC 2 Type 2' : f.title })),
-      h('div', {}, h('label', {}, 'Issued by'), h('input', { type: 'text', name: 'issuer' })),
-      h('div', {}, h('label', {}, 'Issued on'), h('input', { type: 'date', name: 'issued_on' })),
-      f.outcome === 'certificate' ? h('div', {}, h('label', {}, 'Valid until'), h('input', { type: 'date', name: 'valid_until' }))
+      h('div', {}, h('label', {}, 'Framework, as the document names it'), h('input', { type: 'text', name: 'framework', required: true, value: f.id === 'soc2' ? 'SOC 2 Type 2' : f.title })),
+      h('div', {}, h('label', {}, 'Issued by'), h('input', { type: 'text', name: 'issuer', required: true })),
+      h('div', {}, h('label', {}, 'Issued on'), h('input', { type: 'date', name: 'issued_on', required: true })),
+      f.outcome === 'certificate' ? h('div', {}, h('label', {}, 'Valid until'), h('input', { type: 'date', name: 'valid_until', required: true }))
         : h('div', {}, h('label', {}, 'Period covered'), h('div', { class: 'row' }, h('input', { type: 'date', name: 'period_start' }), h('input', { type: 'date', name: 'period_end' })))),
-    h('label', {}, 'The document'), h('input', { type: 'file', name: 'file' }),
+    h('label', {}, 'The document'), h('input', { type: 'file', name: 'file', required: true }),
     h('label', {}, 'Recorded by'), personSelect('by', '', 'Choose a person'),
     h('div', { class: 'row' }, h('button', { class: 'primary', type: 'submit' }, 'Record')));
   return form;
@@ -456,7 +460,7 @@ function evidence() {
     h('select', { name: 'controls', multiple: true, size: 8 }, applicable.map((c) => h('option', { value: c.id, selected: c.id === preset }, `${c.id} ${c.title}`))),
     h('div', { class: 'grid2' },
       h('div', {}, h('label', {}, 'Recorded by'), personSelect('by', '', 'Choose a person')),
-      h('div', {}, h('label', {}, 'File'), h('input', { type: 'file', name: 'file' }))),
+      h('div', {}, h('label', {}, 'File'), h('input', { type: 'file', name: 'file', required: true }))),
     h('div', { class: 'grid2' },
       h('div', {}, h('label', {}, 'Covers the period from', h('small', {}, 'Optional')), h('input', { type: 'date', name: 'start' })),
       h('div', {}, h('label', {}, 'to'), h('input', { type: 'date', name: 'end' }))),
@@ -840,6 +844,7 @@ function badgesCard() {
   const tone = { positive: 'ok', info: '', neutral: '' };
   return h('div', { class: 'card' },
     h('h2', { style: 'margin-top:0' }, 'Badges'),
+    documentsError(),
     h('p', { class: 'muted' }, 'What the trust center and a published statement say for each target: the document held, or readiness. A badge stands until its date and then lapses, so a claim cannot outlive its document.'),
     r ? h('table', {}, h('tr', {}, h('th', {}, 'Framework'), h('th', {}, 'Says'), h('th', {}, 'Until')),
       r.badges.map((b) => h('tr', {}, h('td', {}, b.label), h('td', {}, pill(b.message, tone[b.tone])), h('td', {}, b.until)))) : h('p', { class: 'muted' }, 'Nothing to show yet.'),
@@ -850,8 +855,9 @@ function badgesCard() {
           h('div', { class: 'row' }, h('button', { class: 'primary', disabled: !S.trust?.publish?.report, onclick: async () => {
             const res = await post('/api/trust/publish', {}, null);
             if (res) { published = res.result; render(); notice(res.result.unchanged ? 'Published: nothing changed since the last time.' : `Published revision ${res.result.revision?.revision}.`, true); } } }, 'Publish to Open Autonomy')),
-          published?.page ? h('div', {}, h('p', {}, 'It shows on ', h('a', { href: published.page, target: '_blank', rel: 'noopener' }, 'the project\'s dashboard'), ' under "Stated by the owner". To show the badge row in the project\'s README, add this line; each badge leaves it when its date passes:'),
-            h('pre', { style: 'white-space:pre-wrap;word-break:break-all' }, published.readme)) : null,
+          published?.page ? h('div', {}, h('p', {}, 'It shows on ', h('a', { href: published.page, target: '_blank', rel: 'noopener' }, 'the project\'s dashboard'), ' under "Stated by the owner".',
+              published.readme ? ' To show the badge row in the project\'s README, add this line; each badge leaves it when its date passes:' : ' Its README cannot show the badge row: the project\'s dashboard: word keeps statements from the public, and a README\'s images are fetched signed out.'),
+            published.readme ? h('pre', { style: 'white-space:pre-wrap;word-break:break-all' }, published.readme) : null) : null,
           S.trust?.publish?.report ? null : h('p', { class: 'muted' }, 'trust.json does not publish the audits and certifications section, so there is nothing to publish.'))
       : h('p', { class: 'muted' }, 'To publish to the Open Autonomy project, start Evidence Desk with OPEN_AUTONOMY_BASE_URL and OPEN_AUTONOMY_KEY (the project\'s steer key, kept with the workspace, never in the project) in its environment.'));
 }

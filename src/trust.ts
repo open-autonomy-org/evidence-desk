@@ -50,9 +50,9 @@ export function reportOf(root: string): { claims: string[]; status: string[]; ba
   // Readiness for each target (docs/decisions/0002-frameworks-are-targets.md) that no document covers.
   const readinessOf = targetsOf(ws).map((f: string) => {
     const d = frameworkDescriptions.find((x) => x.id === f)!;
-    if (f === 'soc2') return { id: f, outcome: d.outcome, framework: 'SOC 2', matches: /soc ?2/i, ready: g.summary.controls_ready, of: g.summary.controls_applicable, unit: 'controls' };
+    if (f === 'soc2') return { id: f, outcome: d.outcome, framework: 'SOC 2', ready: g.summary.controls_ready, of: g.summary.controls_applicable, unit: 'controls' };
     const st = frameworkState(ws, f);
-    return { id: f, outcome: d.outcome, framework: st.title, matches: new RegExp(f.replace(/^iso/i, 'ISO.*'), 'i'), ready: st.summary.ready, of: st.summary.requirements - st.summary.excluded, unit: 'requirements' };
+    return { id: f, outcome: d.outcome, framework: st.title, ready: st.summary.ready, of: st.summary.requirements - st.summary.excluded, unit: 'requirements' };
   });
   return { claims: held.map(claimOf), status: [...(held.some((c) => c.kind !== 'self-attestation') ? [] : ['No audit report or certificate is held yet.']), ...underway, readiness],
     badges: badgesOf(held, readinessOf, now().slice(0, 10)) };
@@ -61,7 +61,7 @@ export function reportOf(root: string): { claims: string[]; status: string[]; ba
 // The same words as the trust page's section, published as the owner's statement on an Open Autonomy project page (its
 // ADR 0012): the badges, and the section's text as the body. Only what trust.json publishes: without the report
 // section there is nothing to publish. The key is the project's steer key, which the owner mints and keeps.
-export async function publishStatement(root: string, input: { baseUrl: string; key: string }): Promise<{ status: number; body: Record<string, unknown>; badges: Badge[]; page?: string; readme?: string }> {
+export async function publishStatement(root: string, input: { baseUrl: string; key: string }): Promise<{ status: number; body: Record<string, unknown>; badges: Badge[]; page?: string; readme?: string; readmeClosed?: boolean }> {
   const t = readVersioned(root, 'trust.json');
   if (!t) throw new Error('trust.json is missing; it lists what may be published (see docs/workspace-format.md)');
   const cfg = JSON.parse(t.text);
@@ -80,8 +80,12 @@ export async function publishStatement(root: string, input: { baseUrl: string; k
   const me = await fetch(`${base}/keys`, { headers: { authorization: `Bearer ${input.key}` } }).then((x) => x.json()).catch(() => ({})) as { account?: string };
   if (!me.account) return { status: res.status, body, badges: r.badges };
   const origin = base.replace(/\/v1$/, '');
+  const svg = `${origin}/v1/accounts/${encodeURIComponent(me.account)}/statements/${statement.id}/badges.svg`;
+  // A README's image is fetched signed out (GitHub's proxy): offered only if the public can read it, which the project's
+  // `dashboard:` word decides (a statements panel not open to the public answers 404).
+  const open = await fetch(svg).then((x) => x.ok).catch(() => false);
   return { status: res.status, body, badges: r.badges, page: `${origin}/${me.account}/dashboard/statements/${statement.id}`,
-    readme: `![${statement.title}](${origin}/v1/accounts/${encodeURIComponent(me.account)}/statements/${statement.id}/badges.svg)` };
+    ...(open ? { readme: `![${statement.title}](${svg})` } : { readmeClosed: true }) };
 }
 
 export function buildTrustCenter(root: string, out: string): { published: string[]; badges: Badge[] } {

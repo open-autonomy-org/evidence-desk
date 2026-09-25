@@ -53,6 +53,17 @@ export const SOC2: FrameworkDescription = { id: 'soc2', title: 'SOC 2', version:
 // Every framework Evidence Desk maps, SOC 2 first.
 export const frameworkDescriptions: FrameworkDescription[] = [SOC2, ...[...frameworkCatalogs.values()].map(({ schema: _s, requirements: _r, note: _n, ...d }) => d)];
 
+// Which framework a held document is for: its recorded target, or, for a record made without one, the framework its name
+// names (SOC 2, an ISO standard by number, or another by its title without the version). The recording gate, the badges
+// and the app all read documents through this one rule.
+const nameKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+export function frameworkOf(c: { target?: string; framework: string }): string | undefined {
+  if (c.target) return c.target;
+  return frameworkDescriptions.find((f) => f.id === 'soc2' ? /soc ?2/i.test(c.framework)
+    : /^iso\d+$/.test(f.id) ? new RegExp(`ISO.*${f.id.slice(3)}`, 'i').test(c.framework)
+    : [f.id, f.title.replace(/[\s:v-]*\d+(\.\d+)*$/i, '')].some((n) => nameKey(c.framework).includes(nameKey(n))))?.id;
+}
+
 // How often a control's evidence is due, by its frequency: the one table gaps and obligations both read, so a frequency
 // cannot be known to one and missing from the other. Continuous and per-event controls have no interval.
 export const INTERVAL_DAYS: Record<string, number> = { daily: 1, weekly: 7, monthly: 31, quarterly: 92, semiannual: 184, annual: 366 };
