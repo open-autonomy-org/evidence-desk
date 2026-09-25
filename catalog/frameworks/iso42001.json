@@ -1,0 +1,590 @@
+{
+ "schema": "evidence-desk.framework/1",
+ "id": "iso42001",
+ "title": "ISO/IEC 42001:2023",
+ "version": "2023",
+ "outcome": "certificate",
+ "issuer": "an accredited certification body",
+ "source": {
+  "name": "ISO/IEC 42001:2023, Artificial intelligence management system",
+  "url": "https://www.iso.org/standard/42001"
+ },
+ "note": "Clause and Annex A identifiers with short titles written by this project, mapped onto the control library. ISO's requirement and control text is not included; use your own licensed copy.",
+ "requirements": [
+  {
+   "id": "clause-4.1",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "The organization and its context",
+   "controls": [
+    "RISK-01",
+    "AI-04"
+   ]
+  },
+  {
+   "id": "clause-4.2",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Interested parties and their requirements",
+   "controls": [
+    "GOV-07",
+    "AI-09"
+   ]
+  },
+  {
+   "id": "clause-4.3",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Scope of the AI management system",
+   "controls": [
+    "GOV-08",
+    "AI-02"
+   ]
+  },
+  {
+   "id": "clause-4.4",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "The AI management system",
+   "controls": [
+    "GOV-01",
+    "AI-01"
+   ]
+  },
+  {
+   "id": "clause-5.1",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Leadership and commitment",
+   "controls": [
+    "GOV-03"
+   ]
+  },
+  {
+   "id": "clause-5.2",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "AI policy",
+   "controls": [
+    "AI-01"
+   ]
+  },
+  {
+   "id": "clause-5.3",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Roles, responsibilities and authorities",
+   "controls": [
+    "GOV-01",
+    "AI-03"
+   ]
+  },
+  {
+   "id": "clause-6.1",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Addressing risks and opportunities",
+   "controls": [
+    "RISK-01",
+    "RISK-02"
+   ]
+  },
+  {
+   "id": "clause-6.1.4",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "AI system impact assessment",
+   "controls": [
+    "AI-04"
+   ]
+  },
+  {
+   "id": "clause-6.2",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "AI objectives",
+   "controls": [
+    "GOV-03",
+    "AI-01"
+   ]
+  },
+  {
+   "id": "clause-6.3",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Planning changes",
+   "controls": [
+    "GOV-03"
+   ]
+  },
+  {
+   "id": "clause-7.1",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Resources",
+   "controls": [
+    "GOV-03",
+    "AI-02"
+   ]
+  },
+  {
+   "id": "clause-7.2",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Competence",
+   "controls": [
+    "HR-06",
+    "HR-02"
+   ]
+  },
+  {
+   "id": "clause-7.3",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Awareness",
+   "controls": [
+    "HR-02",
+    "GOV-05"
+   ]
+  },
+  {
+   "id": "clause-7.4",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Communication",
+   "controls": [
+    "GOV-06",
+    "GOV-07",
+    "AI-09"
+   ]
+  },
+  {
+   "id": "clause-7.5",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Documented information",
+   "controls": [
+    "GOV-04",
+    "AI-01"
+   ]
+  },
+  {
+   "id": "clause-8.1",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Operational planning and control",
+   "controls": [
+    "MON-01",
+    "AI-07"
+   ]
+  },
+  {
+   "id": "clause-8.2",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "AI risk assessment",
+   "controls": [
+    "RISK-01",
+    "AI-04"
+   ]
+  },
+  {
+   "id": "clause-8.3",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "AI risk treatment",
+   "controls": [
+    "RISK-02"
+   ]
+  },
+  {
+   "id": "clause-8.4",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "AI system impact assessment in operation",
+   "controls": [
+    "AI-04"
+   ]
+  },
+  {
+   "id": "clause-9.1",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Monitoring, measurement and evaluation",
+   "controls": [
+    "MON-01",
+    "AI-05"
+   ]
+  },
+  {
+   "id": "clause-9.2",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Internal audit",
+   "controls": [
+    "MON-04"
+   ]
+  },
+  {
+   "id": "clause-9.3",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Management review",
+   "controls": [
+    "GOV-03"
+   ]
+  },
+  {
+   "id": "clause-10.1",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Continual improvement",
+   "controls": [
+    "MON-01"
+   ]
+  },
+  {
+   "id": "clause-10.2",
+   "group": "Management system (clauses 4 to 10)",
+   "title": "Nonconformity and corrective action",
+   "controls": [
+    "MON-01",
+    "OPS-03"
+   ]
+  },
+  {
+   "id": "A.2.2",
+   "group": "Annex A: Policies related to AI",
+   "title": "AI policy in place",
+   "controls": [
+    "AI-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.2.3",
+   "group": "Annex A: Policies related to AI",
+   "title": "AI policy aligned with other policies",
+   "controls": [
+    "AI-01",
+    "GOV-04"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.2.4",
+   "group": "Annex A: Policies related to AI",
+   "title": "AI policy reviewed",
+   "controls": [
+    "AI-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.3.2",
+   "group": "Annex A: Internal organization",
+   "title": "AI roles and responsibilities",
+   "controls": [
+    "AI-03",
+    "HR-06"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.3.3",
+   "group": "Annex A: Internal organization",
+   "title": "Reporting concerns",
+   "controls": [
+    "GOV-06"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.4.2",
+   "group": "Annex A: Resources for AI systems",
+   "title": "Resources documented",
+   "controls": [
+    "AI-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.4.3",
+   "group": "Annex A: Resources for AI systems",
+   "title": "Data resources",
+   "controls": [
+    "AI-08"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.4.4",
+   "group": "Annex A: Resources for AI systems",
+   "title": "Tooling resources",
+   "controls": [
+    "AI-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.4.5",
+   "group": "Annex A: Resources for AI systems",
+   "title": "System and computing resources",
+   "controls": [
+    "AI-02",
+    "AI-10"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.4.6",
+   "group": "Annex A: Resources for AI systems",
+   "title": "Human resources",
+   "controls": [
+    "HR-06",
+    "HR-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.2",
+   "group": "Annex A: Assessing impacts of AI systems",
+   "title": "Impact assessment process",
+   "controls": [
+    "AI-04"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.3",
+   "group": "Annex A: Assessing impacts of AI systems",
+   "title": "Impact assessments documented",
+   "controls": [
+    "AI-04"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.4",
+   "group": "Annex A: Assessing impacts of AI systems",
+   "title": "Impacts on individuals and groups",
+   "controls": [
+    "AI-04"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.5.5",
+   "group": "Annex A: Assessing impacts of AI systems",
+   "title": "Impacts on society",
+   "controls": [
+    "AI-04"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.1.2",
+   "group": "Annex A: AI system life cycle",
+   "title": "Objectives for responsible development",
+   "controls": [
+    "AI-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.1.3",
+   "group": "Annex A: AI system life cycle",
+   "title": "Responsible design and development process",
+   "controls": [
+    "AI-07",
+    "CHG-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.2.2",
+   "group": "Annex A: AI system life cycle",
+   "title": "Requirements and specification",
+   "controls": [
+    "AI-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.2.3",
+   "group": "Annex A: AI system life cycle",
+   "title": "Design and development documented",
+   "controls": [
+    "AI-02",
+    "AI-07"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.2.4",
+   "group": "Annex A: AI system life cycle",
+   "title": "Verification and validation",
+   "controls": [
+    "AI-06"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.2.5",
+   "group": "Annex A: AI system life cycle",
+   "title": "Deployment",
+   "controls": [
+    "AI-07",
+    "CHG-03"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.2.6",
+   "group": "Annex A: AI system life cycle",
+   "title": "Operation and monitoring",
+   "controls": [
+    "AI-05",
+    "OPS-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.2.7",
+   "group": "Annex A: AI system life cycle",
+   "title": "Technical documentation",
+   "controls": [
+    "AI-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.6.2.8",
+   "group": "Annex A: AI system life cycle",
+   "title": "Event logs",
+   "controls": [
+    "AI-05"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.2",
+   "group": "Annex A: Data for AI systems",
+   "title": "Data for development and enhancement",
+   "controls": [
+    "AI-08"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.3",
+   "group": "Annex A: Data for AI systems",
+   "title": "Acquiring data",
+   "controls": [
+    "AI-08"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.4",
+   "group": "Annex A: Data for AI systems",
+   "title": "Data quality",
+   "controls": [
+    "AI-08"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.5",
+   "group": "Annex A: Data for AI systems",
+   "title": "Data provenance",
+   "controls": [
+    "AI-08"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.7.6",
+   "group": "Annex A: Data for AI systems",
+   "title": "Data preparation",
+   "controls": [
+    "AI-08"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.2",
+   "group": "Annex A: Information for interested parties",
+   "title": "Documentation and information for users",
+   "controls": [
+    "AI-09"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.3",
+   "group": "Annex A: Information for interested parties",
+   "title": "External reporting",
+   "controls": [
+    "AI-09",
+    "GOV-06"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.4",
+   "group": "Annex A: Information for interested parties",
+   "title": "Communicating incidents",
+   "controls": [
+    "AI-12",
+    "OPS-03"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.8.5",
+   "group": "Annex A: Information for interested parties",
+   "title": "Information for interested parties",
+   "controls": [
+    "AI-09",
+    "GOV-07"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.9.2",
+   "group": "Annex A: Use of AI systems",
+   "title": "Responsible use process",
+   "controls": [
+    "AI-01",
+    "AI-03"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.9.3",
+   "group": "Annex A: Use of AI systems",
+   "title": "Objectives for responsible use",
+   "controls": [
+    "AI-01"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.9.4",
+   "group": "Annex A: Use of AI systems",
+   "title": "Intended use",
+   "controls": [
+    "AI-02",
+    "AI-03"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.10.2",
+   "group": "Annex A: Third-party and customer relationships",
+   "title": "Responsibilities allocated",
+   "controls": [
+    "VND-03",
+    "GOV-07"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.10.3",
+   "group": "Annex A: Third-party and customer relationships",
+   "title": "Suppliers",
+   "controls": [
+    "VND-01",
+    "VND-02"
+   ],
+   "annex_a": true
+  },
+  {
+   "id": "A.10.4",
+   "group": "Annex A: Third-party and customer relationships",
+   "title": "Customers",
+   "controls": [
+    "GOV-07",
+    "AI-09"
+   ],
+   "annex_a": true
+  }
+ ]
+}

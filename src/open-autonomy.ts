@@ -141,7 +141,9 @@ const pretty = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
 
 // The controls a project's declarations evidence: the program and its roles, change and deployment rules, credential
 // custody by name, vendors and the agents' configuration.
-export const DECLARATION_CONTROLS = ['GOV-01', 'CHG-01', 'CHG-03', 'AC-05', 'VND-01', 'OPS-04', 'HR-06'];
+// The controls a project's declarations evidence: its roster and seams, its agents, its landing and production rules. The
+// AI family's are recorded only while an AI framework is targeted, since only then are those controls needed.
+export const DECLARATION_CONTROLS = ['GOV-01', 'CHG-01', 'CHG-03', 'AC-05', 'VND-01', 'OPS-04', 'HR-06', 'AI-02', 'AI-03', 'AI-07', 'AI-10'];
 
 export type ImportReport = { commit: string; snapshot: string; changed: string[]; seams: string[]; added: string[]; conflicts: string[]; evidence: string | null; evidence_existing?: boolean };
 

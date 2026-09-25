@@ -698,7 +698,7 @@ async function main(argv: string[]): Promise<number> {
       // Beside SOC 2, each target's readiness and its steps still open: every requirement not ready, and why.
       const targets = targetsOf(gws).filter((f) => f !== 'soc2').map((f) => { const st = frameworkState(gws, f, at);
         return { id: f, title: st.title, ready: st.summary.ready, of: st.summary.requirements - st.summary.excluded,
-          steps: st.requirements.filter((r) => r.status === 'gaps' || r.status === 'unaddressed').map((r) => ({ requirement: r.id, title: r.title, gaps: r.gaps })) }; });
+          steps: st.requirements.filter((r) => !r.optional && (r.status === 'gaps' || r.status === 'unaddressed')).map((r) => ({ requirement: r.id, title: r.title, gaps: r.gaps })) }; });
       out(json, { ...g, targets }, () => {
         const s = g.summary;
         const lines = [`As of ${g.as_of}: ${s.controls_ready}/${s.controls_applicable} controls ready (${s.controls_excluded} excluded), ${s.criteria_ready}/${s.criteria_in_scope} criteria ready.`];

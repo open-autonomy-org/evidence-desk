@@ -79,7 +79,7 @@ export function decide(root: string, id: string, requirement: string, input: { e
   writeVersioned(root, `frameworks/${id}.json`, JSON.stringify(data, null, 2) + '\n', version);
 }
 
-export type RequirementState = { id: string; group: string; title: string; controls: string[]; status: 'ready' | 'gaps' | 'excluded' | 'unaddressed'; reason?: string; gaps: string[]; evidence: string[]; implementation: 'implemented' | 'partial' | 'not implemented' | 'not applicable' };
+export type RequirementState = { id: string; group: string; title: string; controls: string[]; optional?: boolean; status: 'ready' | 'gaps' | 'excluded' | 'unaddressed'; reason?: string; gaps: string[]; evidence: string[]; implementation: 'implemented' | 'partial' | 'not implemented' | 'not applicable' };
 
 export function frameworkState(ws: Workspace, id: string, asOf = clockDate()) {
   const fw = framework(id);
@@ -91,7 +91,7 @@ export function frameworkState(ws: Workspace, id: string, asOf = clockDate()) {
     const mapped = [...new Set([...r.controls, ...(settings.mappings?.[r.id] ?? [])])].filter((c) => controls.has(c));
     const applicable = mapped.filter((c) => controls.get(c)!.applicable);
     const evidence = [...new Set(ws.evidence.filter((e) => e.data.controls.some((c) => applicable.includes(c))).map((e) => e.data.id))];
-    const base = { id: r.id, group: r.group, title: r.title, controls: applicable, evidence };
+    const base = { id: r.id, group: r.group, title: r.title, controls: applicable, evidence, ...(r.optional ? { optional: true } : {}) };
     if (settings.exclusions?.[r.id]) return { ...base, status: 'excluded' as const, reason: settings.exclusions[r.id], gaps: [], implementation: 'not applicable' as const };
     if (!applicable.length && mapped.length) return { ...base, status: 'excluded' as const, reason: mapped.map((c) => `${c}: ${controls.get(c)!.exclusion_reason}`).join(' '), gaps: [], implementation: 'not applicable' as const };
     if (!applicable.length) return { ...base, status: 'unaddressed' as const, gaps: ['no control addresses this requirement: map a control to it, or exclude it with a reason'], implementation: 'not implemented' as const };
@@ -102,9 +102,11 @@ export function frameworkState(ws: Workspace, id: string, asOf = clockDate()) {
   // Evidence that also serves SOC 2: SOC 2's own count, over the controls in its scope.
   const socEvidence = new Set(ws.evidence.filter((e) => e.data.controls.some((c) => { const x = controls.get(c); return x ? inSoc2Scope(ws, x) : false; })).map((e) => e.data.id));
   const shared = new Set(requirements.flatMap((r) => r.evidence).filter((e) => socEvidence.has(e)));
+  // Readiness counts what the framework requires; an optional requirement is listed with its status but not counted.
+  const counted = requirements.filter((r) => !r.optional);
   return { framework: id, title: fw.title, requirements, summary: {
-    requirements: requirements.length, ready: requirements.filter((r) => r.status === 'ready').length, excluded: requirements.filter((r) => r.status === 'excluded').length,
-    unaddressed: requirements.filter((r) => r.status === 'unaddressed').length, shared_evidence: shared.size } };
+    requirements: counted.length, ready: counted.filter((r) => r.status === 'ready').length, excluded: counted.filter((r) => r.status === 'excluded').length,
+    unaddressed: counted.filter((r) => r.status === 'unaddressed').length, optional: requirements.length - counted.length, shared_evidence: shared.size } };
 }
 
 // The statement of applicability: every Annex A control, whether it is included and why, how far it is implemented,

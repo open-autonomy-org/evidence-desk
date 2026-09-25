@@ -273,6 +273,25 @@ requirement whose mapped controls are all excluded is excluded with their reason
 until it is mapped to a control or excluded with a reason in `frameworks/iso27001.json`. `evidence-desk soa` writes the
 statement of applicability as CSV or Markdown.
 
+### AI frameworks: ISO/IEC 42001 and AIUC-1
+
+`frameworks <dir> target iso42001` adds ISO/IEC 42001:2023, the AI management system standard: its clauses 4 to 10
+(with the AI system impact assessment of 6.1.4) and its 38 Annex A controls, identifiers with this project's titles
+([catalog/frameworks/iso42001.json](../catalog/frameworks/iso42001.json)). `frameworks <dir> target aiuc1` adds AIUC-1,
+the standard for AI agents: its 51 current requirements across data and privacy, security, safety, reliability,
+accountability and society ([catalog/frameworks/aiuc1.json](../catalog/frameworks/aiuc1.json)). AIUC-1's terms forbid
+reproducing its text, so the catalog holds only its identifiers and this project's titles; read the standard at its
+source. Its eight supplemental requirements are marked `optional`: listed with their status, not counted toward
+readiness. Certification against it is yearly, with quarterly retests.
+
+Both map onto the AI family of controls (AI-01 to AI-12: the AI governance policy, the AI system inventory, human
+oversight, risk and impact assessment, activity records, testing before release and each quarter, controlled change,
+data for AI, transparency, limits on agents, safeguards on inputs and outputs, and AI failure plans), and onto the
+security controls they share with SOC 2. The AI family meets no SOC 2 criterion, so it is adopted only when an AI
+framework is targeted, with the `ai-governance` policy, and never appears in SOC 2's deliverables. For an Open Autonomy
+project, the import's declarations also evidence the inventory, oversight, change and limits controls (AI-02, AI-03,
+AI-07, AI-10) while they are needed.
+
 ## Readiness
 
 `evidence-desk gaps` derives readiness from the files each time. An applicable control is ready when it has an owner,

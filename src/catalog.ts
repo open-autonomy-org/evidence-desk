@@ -42,7 +42,8 @@ export const formTemplates: FormTemplate[] = readdirSync(join(dir, 'forms')).fil
 // criteria above, the mapping inside each control); every other framework is a catalog in catalog/frameworks/ whose
 // requirements name the controls that address them. `outcome` is what a framework can become with its document.
 export type Outcome = 'audit report' | 'certificate' | 'self-attestation';
-export type FrameworkRequirement = { id: string; group: string; title: string; controls: string[]; annex_a?: boolean };
+// `optional`: a requirement the framework lists as supplemental; shown with its status, not counted toward readiness.
+export type FrameworkRequirement = { id: string; group: string; title: string; controls: string[]; annex_a?: boolean; optional?: boolean };
 export type FrameworkCatalog = { schema: string; id: string; title: string; version: string; outcome: Outcome; issuer: string; source: { name: string; url?: string }; note?: string; requirements: FrameworkRequirement[] };
 export type FrameworkDescription = Omit<FrameworkCatalog, 'schema' | 'requirements' | 'note'>;
 export const frameworkCatalogs = new Map(readdirSync(join(dir, 'frameworks')).filter((f) => f.endsWith('.json')).sort()

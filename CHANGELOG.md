@@ -7,6 +7,11 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- ISO/IEC 42001 (the AI management system standard) and AIUC-1 (the standard for AI agents) can be targeted: their
+  catalogs map onto a new AI family of twelve controls (AI-01 to AI-12) with an `ai-governance` policy, adopted only
+  when an AI framework is targeted, and onto the security controls they share with SOC 2. AIUC-1's supplemental
+  requirements are listed apart and not counted toward readiness. An Open Autonomy project's declarations evidence the
+  AI inventory, oversight, change and limits controls while an AI framework needs them.
 - Frameworks are targets ([decision 0002](docs/decisions/0002-frameworks-are-targets.md)): `frameworks <dir> target <id>`
   and `drop <id>` choose what the program aims at beside SOC 2, which is always a target; `frameworks <dir> available`
   lists what each can become. A control applies by its own scoping conditions alone, and which SOC 2 categories the
