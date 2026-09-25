@@ -38,7 +38,8 @@ manifest's `derived` list (the README too), and every line names the file it com
 Each population in `index.html` carries a test memo: how many items it holds and whether its completeness comes from
 the system of record or from records the organization keeps itself. A change merged without an independent approval
 is an exception. Where the package holds, for the whole period, the repository's deployments to the production
-environment the project declares, each started from its declared release tag, and the Worker deployments population
+environment the project declares, each started from its declared release tag and independently approved, and the Worker
+deployments population
 with every production deployment matched to a GitHub deployment, the default branch is shown to be only a release
 candidate: such a change is a review lapse (a Worker deployed some other way, with no population of its own, is not
 seen), and whether

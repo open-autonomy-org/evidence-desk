@@ -207,19 +207,23 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   // reaches production is then judged at the deployment (its approval, in the deployments population and the
   // change-releases view). The package shows it with, for the whole period: the deployments of the same repository to
   // the production environment the project declares, each started from the release tag its production workflow declares
-  // (so a push to the branch deploys nothing), and the Worker deployments population with every production deployment
+  // (so a push to the branch deploys nothing) and independently approved, and the Worker deployments population with every production deployment
   // matched to a GitHub deployment, so nothing reached production another way.
   const covers = (x: (typeof evidence)[number]) => !!x.data.period && x.data.period.start <= period.start && x.data.period.end >= period.end;
   const prod = (latestSnapOf(root) as { rules?: { production_deploy?: { environment?: string | null; tag_trigger?: string | null } | null } } | null)?.rules?.production_deploy;
   const prodEnv = prod?.tag_trigger ? prod.environment ?? null : null;
   const rowsOf = (x: (typeof evidence)[number]) => x.data.files.filter((f) => f.path.endsWith('.csv')).flatMap((f) => parseCsv(readFileSync(join(root, f.path), 'utf8'), f.path).rows);
-  const changeRepos = [...new Set(evidence.filter((x) => x.data.controls.includes('CHG-01')).map((x) => /^Population: \d+ changes to (\S+?)'s /.exec(x.data.title)?.[1]).filter(Boolean))];
+  // Every changes population must name its repository: one that cannot be read keeps the emergency check for all.
+  const changePops = evidence.filter((x) => x.data.controls.includes('CHG-01') && x.data.files.some((f) => f.path.includes('/github-changes-')));
+  const changeRepos = [...new Set(changePops.map((x) => /^Population: \d+ changes to (\S+?)'s /.exec(x.data.title)?.[1]))];
   const workerPop = evidence.filter((x) => covers(x) && x.data.files.some((f) => f.path.includes('/cloudflare-worker-deployments-') && f.path.endsWith('.csv')));
   const prodPops = prodEnv ? changeRepos.map((repo) => evidence.filter((x) => covers(x) && new RegExp(`^Population: \\d+ deployments of ${repo!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} to ${prodEnv.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, `).test(x.data.title))) : [];
   // A Worker deployment counts as matched only to one of those production deployments, not to another environment's.
   const prodIds = new Set(prodPops.flat().flatMap(rowsOf).map((r) => r.id));
-  const releaseGated = !!prodEnv && changeRepos.length > 0
-    && prodPops.every((pops) => pops.length > 0 && pops.every((x) => rowsOf(x).every((r) => r.trigger_as_declared === 'yes')))
+  // Each production deployment started from the declared tag and approved by someone other than who started it: a tag
+  // an automation cuts and deploys unapproved does not make the branch a release candidate.
+  const releaseGated = !!prodEnv && changeRepos.length > 0 && changeRepos.every(Boolean)
+    && prodPops.every((pops) => pops.length > 0 && pops.every((x) => rowsOf(x).every((r) => r.trigger_as_declared === 'yes' && r.independent_approval === 'yes')))
     && workerPop.length > 0 && workerPop.every((x) => rowsOf(x).every((r) => r.matched === 'yes' && prodIds.has(r.github_deployment)));
   const glass = ws.evidence.filter((x) => x.data.source?.name === 'break-glass seam').sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
   const glassText = glass ? glass.data.files.map((f) => existsSync(join(root, f.path)) ? readFileSync(join(root, f.path), 'utf8') : '').join('\n') : '';
