@@ -8,6 +8,7 @@ import { computeGaps } from './gaps.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
 import { questions } from './catalog.ts';
+import { check, schema } from './schema.ts';
 import { serve } from './server.ts';
 import { serveFirm } from './firm-server.ts';
 import { attest, decide, dropFramework, frameworkState, statementOfApplicability, targetFramework } from './frameworks.ts';
@@ -40,7 +41,7 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                      [--notes <text>] [--exclude <reason>] [--include]
   policies <dir>                          list policies and their approved versions
   policy <dir> <id> [--owner <person>] [--approve --by <person> [--as-is]]   --as-is: approve a catalog template as true of how you operate
-  register <dir> <people|systems|vendors|risks|vulnerabilities> [--add key=value ...] [--update <id> key=value ...]
+  register <dir> <people|systems|vendors|risks|vulnerabilities> [--add key=value ...] [--update <id> key=value ... [--update <id> ...]]
   evidence <dir> [--add --control <id>[,<id>] --file <path> --title <text> --by <person>
                  [--period <start>..<end>] [--subject <person>] [--source <kind>] [--source-name <name>] [--query <text>]]
   forms <dir>                             list the forms people complete
@@ -293,12 +294,22 @@ async function command(a: Args, cmd: string, dir: string, dirArg: string, rest: 
       if (!REGISTERS.includes(name)) throw new Error(`register needs one of: ${REGISTERS.join(', ')}`);
       const version = () => readVersioned(dir, `registers/${name}.csv`)!.version;
       if (a.flags.has('add')) saveRegisterRow(dir, name, pairs(a.flags.get('add')!), version());
+      // --update <id> key=value ... [--update <id> key=value ...]: several rows in one change, so decisions a person
+      // signs together (a risk register's treatments) are one signature rather than several that collide in one file.
       if (a.flags.has('update')) {
-        const [target, ...kv] = a.flags.get('update')!;
-        const ws = loadWorkspace(dir);
-        const row = ws.registers[name]?.data.rows.find((r) => r.id === target);
-        if (!row) throw new Error(`${target} is not in registers/${name}.csv`);
-        saveRegisterRow(dir, name, { ...row, ...pairs(kv) }, version(), target);
+        const groups: string[][] = [];
+        for (const v of a.flags.get('update')!) { if (!v.includes('=')) groups.push([v]); else if (groups.length) groups.at(-1)!.push(v); else throw new Error(`--update needs a row id before ${v}`); }
+        // Every row is found and every pair read before anything is written, so a mistake leaves the register as it was.
+        const rows = loadWorkspace(dir).registers[name]?.data.rows ?? [];
+        const changes = groups.map(([target, ...kv]) => {
+          const row = rows.find((r) => r.id === target);
+          if (!row) throw new Error(`${target} is not in registers/${name}.csv`);
+          const next = Object.fromEntries(Object.entries({ ...row, ...pairs(kv) }).map(([k, v]) => [k, String(v ?? '').trim()]));
+          const errs = check(schema(`register-${name}`), next);
+          if (errs.length) throw new Error(`${target}: the row is invalid: ${errs.join('; ')}`);
+          return { target, set: pairs(kv) };
+        });
+        for (const { target, set } of changes) saveRegisterRow(dir, name, { ...loadWorkspace(dir).registers[name]!.data.rows.find((r) => r.id === target)!, ...set }, version(), target);
       }
       const t = loadWorkspace(dir).registers[name];
       out(json, t?.data.rows ?? [], () => t ? [t.data.columns.join(' | '), ...t.data.rows.map((r) => t.data.columns.map((c) => r[c]).join(' | '))].join('\n') : 'unreadable');
