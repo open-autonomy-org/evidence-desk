@@ -103,7 +103,9 @@ async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
 }
 
 const send = (res: ServerResponse, status: number, data: unknown, type = 'application/json') => {
-  res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
+  res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff',
+    // Never shown inside another site's page, where a hidden frame could trick a click on approve or publish.
+    'x-frame-options': 'DENY', 'content-security-policy': "frame-ancestors 'none'" });
   res.end(typeof data === 'string' || Buffer.isBuffer(data) ? data : JSON.stringify(data));
 };
 

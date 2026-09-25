@@ -39,7 +39,12 @@ export function ensureRepo(root: string): void {
   if (known.has(key) || !workspaces.has(key) || !existsSync(root)) return;
   if (!repoOf(root)) {
     git(root, 'init', '-q', '-b', 'main');
-    if (!existsSync(join(root, '.gitignore'))) writeFileSync(join(root, '.gitignore'), IGNORE);
+    // The exclusions hold even where the folder already has its own .gitignore: environment files that may hold keys
+    // never enter the first commit.
+    const ignore = join(root, '.gitignore');
+    const had = existsSync(ignore) ? readFileSync(ignore, 'utf8') : '';
+    const missing = IGNORE.split('\n').filter((l) => l && !had.split('\n').map((x) => x.trim()).includes(l));
+    if (missing.length) writeFileSync(ignore, `${had}${had && !had.endsWith('\n') ? '\n' : ''}${missing.join('\n')}\n`);
     if (readdirSync(root).some((f) => f !== '.git' && f !== '.gitignore')) {
       git(root, 'add', '-A');
       commit(root, ['-m', 'The workspace as it stood when Evidence Desk began keeping its history']);

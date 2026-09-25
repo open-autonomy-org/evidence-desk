@@ -9,7 +9,9 @@ import { inside } from './files.ts';
 const UI = join(import.meta.dirname, 'ui');
 const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
 const send = (res: ServerResponse, status: number, data: unknown, type = 'application/json') => {
-  res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
+  res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff',
+    // Never shown inside another site's page, where a hidden frame could trick a click on approve or publish.
+    'x-frame-options': 'DENY', 'content-security-policy': "frame-ancestors 'none'" });
   res.end(typeof data === 'string' || Buffer.isBuffer(data) ? data : JSON.stringify(data));
 };
 
@@ -29,7 +31,9 @@ export function serveFirm(mode: 'firm' | 'package', target: string, port: number
       }
       if (req.method !== 'POST' || mode !== 'package') return send(res, 405, { error: 'method not allowed' });
       if (req.headers.origin !== `http://${req.headers.host}`) return send(res, 403, { error: 'changes must come from this page' });
-      const chunks: Buffer[] = []; for await (const c of req) chunks.push(c as Buffer);
+      if (!String(req.headers['content-type'] ?? '').startsWith('application/json')) return send(res, 415, { error: 'send JSON' });
+      const chunks: Buffer[] = []; let size = 0;
+      for await (const c of req) { size += (c as Buffer).length; if (size > 5 * 1024 * 1024) return send(res, 413, { error: 'request is larger than 5 MB' }); chunks.push(c as Buffer); }
       const b = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
       if (url.pathname !== '/api/respond') return send(res, 404, { error: 'not found' });
       respondInPackage(target, String(b.id), String(b.version), { by: String(b.by ?? ''), text: b.text || undefined, status: b.status || undefined, select: b.select, exception: b.exception });
