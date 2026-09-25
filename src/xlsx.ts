@@ -96,15 +96,15 @@ export function xlsxToCsv(buf: Buffer, file: string): string {
     const qOf = (r: string[]) => r.indexOf(questionColumn(r)!);
     let at = rows.findIndex(isHeader);
     // A heading row with nothing under it gives way to the header below it: when the first cell filled under its question
-    // column is itself a column's name ("Question", "Question ID"), that row is the header. A question is never a
-    // column's name, so a question never becomes the header.
+    // column reads as a column's name (a bare "Question", or an id heading such as "Question ID", with no "?"), that row
+    // is the header. A question mentioning a question's id ("Is each question given a reference ID?") asks, and stays.
     for (;;) {
       if (at < 0) break;
       const q = qOf(rows[at]);
       const next = rows.findIndex((r, i) => i > at && (r[q] ?? '').trim());
       if (next < 0) { at = -1; break; }
       const cell = rows[next][q];
-      if (isHeader(rows[next]) && (/^\s*questions?\s*$/i.test(cell) || isIdColumn(cell))) at = next; else break;
+      if (isHeader(rows[next]) && !cell.includes('?') && (/^\s*questions?\s*$/i.test(cell) || isIdColumn(cell))) at = next; else break;
     }
     if (at < 0) continue;
     const body = rows.slice(at);
