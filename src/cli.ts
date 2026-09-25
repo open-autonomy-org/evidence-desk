@@ -138,7 +138,7 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   serve <dir> [--port <n>]                open the local app on 127.0.0.1
   together <dir> -- <command> <args> -- <command> <args> ...
                                           several commands that change the workspace (respond, policy, register, control,
-                                          scope, access-review, incident, frameworks, framework) as one change: one commit,
+                                          scope, evidence, access-review, incident, frameworks, framework) as one change: one commit,
                                           and one pull request to sign where the workspace signs on GitHub
 
   --json   print JSON instead of text`;
@@ -183,12 +183,13 @@ const signableCommand = (a: Args, cmd: string, rest: string[]) => (cmd === 'poli
 
 // together <dir> -- <command> <args> -- <command> <args> ...: several commands that change the workspace, as one change,
 // so the acts they record are one commit and, where the workspace signs on GitHub, one pull request its signer approves
-// once (carrying every change in it). Each command is given without the workspace folder. Only commands that change the
-// workspace alone are allowed (nothing that writes elsewhere, publishes, pushes or commits by itself), and every one is
+// once (carrying every change in it), such as a document recorded as evidence beside the acts it supports. Each command
+// is given without the workspace folder. Only commands that change the workspace alone are allowed (nothing that writes
+// elsewhere, publishes, pushes or commits by itself; evidence --add copies a file in from outside), and every one is
 // read and checked before any runs. The first that fails stops the rest: where the change is prepared for a signature
 // nothing of it is recorded; elsewhere what ran before the failure is committed as stopped with an error, as any
 // command's partial change is. A literal -- separates commands and cannot be a value.
-const TOGETHER = ['respond', 'policy', 'register', 'control', 'scope', 'access-review', 'incident', 'frameworks', 'framework'];
+const TOGETHER = ['respond', 'policy', 'register', 'control', 'scope', 'evidence', 'access-review', 'incident', 'frameworks', 'framework'];
 async function together(argv: string[]): Promise<number> {
   const dirArg = argv[1];
   if (!dirArg || argv[2] !== '--') throw new Error('together <dir> -- <command> <args> -- <command> <args> ...');
