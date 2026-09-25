@@ -1,0 +1,597 @@
+{
+ "schema": "evidence-desk.framework/1",
+ "id": "nist-ai-rmf",
+ "title": "NIST AI RMF 1.0",
+ "version": "1.0",
+ "outcome": "self-attestation",
+ "issuer": "the organization itself",
+ "source": {
+  "name": "NIST AI 100-1, Artificial Intelligence Risk Management Framework (AI RMF 1.0)",
+  "url": "https://doi.org/10.6028/NIST.AI.100-1"
+ },
+ "note": "The AI RMF Core's 72 subcategories, with short titles written by this project, mapped onto the control library. NIST's text is in the public domain; read the full subcategory text and the Playbook's suggested actions at the source. There is no certification: an organization self-assesses against it and signs its own attestation. A subcategory no control in the library genuinely covers maps to none, so the organization states its position on it (or maps a control of its own).",
+ "requirements": [
+  {
+   "id": "GOVERN 1.1",
+   "group": "Govern",
+   "title": "Legal and regulatory requirements for AI understood and managed",
+   "controls": [
+    "AI-04"
+   ]
+  },
+  {
+   "id": "GOVERN 1.2",
+   "group": "Govern",
+   "title": "Trustworthy AI built into policies",
+   "controls": [
+    "AI-01"
+   ]
+  },
+  {
+   "id": "GOVERN 1.3",
+   "group": "Govern",
+   "title": "Level of risk management set by risk tolerance",
+   "controls": [
+    "AI-04",
+    "RISK-01"
+   ]
+  },
+  {
+   "id": "GOVERN 1.4",
+   "group": "Govern",
+   "title": "Risk management process transparent and set by policy",
+   "controls": [
+    "AI-01",
+    "RISK-01"
+   ]
+  },
+  {
+   "id": "GOVERN 1.5",
+   "group": "Govern",
+   "title": "Risk management monitored and reviewed, roles clear",
+   "controls": [
+    "MON-01",
+    "AI-04"
+   ]
+  },
+  {
+   "id": "GOVERN 1.6",
+   "group": "Govern",
+   "title": "AI systems inventoried",
+   "controls": [
+    "AI-02"
+   ]
+  },
+  {
+   "id": "GOVERN 1.7",
+   "group": "Govern",
+   "title": "AI systems decommissioned safely",
+   "controls": [
+    "AI-07",
+    "AC-07"
+   ]
+  },
+  {
+   "id": "GOVERN 2.1",
+   "group": "Govern",
+   "title": "Roles, responsibilities and lines of communication for AI risk",
+   "controls": [
+    "AI-03",
+    "HR-06"
+   ]
+  },
+  {
+   "id": "GOVERN 2.2",
+   "group": "Govern",
+   "title": "AI risk management training",
+   "controls": []
+  },
+  {
+   "id": "GOVERN 2.3",
+   "group": "Govern",
+   "title": "Executive leadership accountable for AI risk decisions",
+   "controls": [
+    "GOV-03"
+   ]
+  },
+  {
+   "id": "GOVERN 3.1",
+   "group": "Govern",
+   "title": "AI risk decisions informed by a diverse team",
+   "controls": []
+  },
+  {
+   "id": "GOVERN 3.2",
+   "group": "Govern",
+   "title": "Roles for human-AI configurations and oversight defined",
+   "controls": [
+    "AI-03"
+   ]
+  },
+  {
+   "id": "GOVERN 4.1",
+   "group": "Govern",
+   "title": "Critical thinking and safety-first culture",
+   "controls": [
+    "AI-01"
+   ]
+  },
+  {
+   "id": "GOVERN 4.2",
+   "group": "Govern",
+   "title": "Teams document AI risks and impacts",
+   "controls": [
+    "AI-04"
+   ]
+  },
+  {
+   "id": "GOVERN 4.3",
+   "group": "Govern",
+   "title": "AI testing, incident identification and information sharing",
+   "controls": [
+    "AI-06",
+    "AI-12"
+   ]
+  },
+  {
+   "id": "GOVERN 5.1",
+   "group": "Govern",
+   "title": "Feedback gathered from outside the team",
+   "controls": [
+    "AI-09"
+   ]
+  },
+  {
+   "id": "GOVERN 5.2",
+   "group": "Govern",
+   "title": "Feedback incorporated into system design",
+   "controls": [
+    "AI-09",
+    "MON-01"
+   ]
+  },
+  {
+   "id": "GOVERN 6.1",
+   "group": "Govern",
+   "title": "Third-party AI risks addressed by policy",
+   "controls": [
+    "VND-02",
+    "AI-01"
+   ]
+  },
+  {
+   "id": "GOVERN 6.2",
+   "group": "Govern",
+   "title": "Contingency for third-party AI failures",
+   "controls": [
+    "AI-12",
+    "OPS-07"
+   ]
+  },
+  {
+   "id": "MAP 1.1",
+   "group": "Map",
+   "title": "Intended purpose, context and applicable laws documented",
+   "controls": [
+    "AI-02",
+    "AI-04"
+   ]
+  },
+  {
+   "id": "MAP 1.2",
+   "group": "Map",
+   "title": "Context set by interdisciplinary actors",
+   "controls": []
+  },
+  {
+   "id": "MAP 1.3",
+   "group": "Map",
+   "title": "Mission and goals for AI documented",
+   "controls": [
+    "AI-01"
+   ]
+  },
+  {
+   "id": "MAP 1.4",
+   "group": "Map",
+   "title": "Business value or context defined",
+   "controls": [
+    "AI-02"
+   ]
+  },
+  {
+   "id": "MAP 1.5",
+   "group": "Map",
+   "title": "Risk tolerances determined and documented",
+   "controls": [
+    "RISK-01",
+    "AI-04"
+   ]
+  },
+  {
+   "id": "MAP 1.6",
+   "group": "Map",
+   "title": "System requirements elicited from relevant actors",
+   "controls": [
+    "AI-02"
+   ]
+  },
+  {
+   "id": "MAP 2.1",
+   "group": "Map",
+   "title": "Tasks and methods of the system defined",
+   "controls": [
+    "AI-02"
+   ]
+  },
+  {
+   "id": "MAP 2.2",
+   "group": "Map",
+   "title": "Knowledge limits and human use of output documented",
+   "controls": [
+    "AI-02",
+    "AI-09"
+   ]
+  },
+  {
+   "id": "MAP 2.3",
+   "group": "Map",
+   "title": "Scientific integrity and test considerations documented",
+   "controls": [
+    "AI-06"
+   ]
+  },
+  {
+   "id": "MAP 3.1",
+   "group": "Map",
+   "title": "Potential benefits documented",
+   "controls": [
+    "AI-04"
+   ]
+  },
+  {
+   "id": "MAP 3.2",
+   "group": "Map",
+   "title": "Potential costs of errors documented",
+   "controls": [
+    "AI-04"
+   ]
+  },
+  {
+   "id": "MAP 3.3",
+   "group": "Map",
+   "title": "Application scope specified",
+   "controls": [
+    "AI-02"
+   ]
+  },
+  {
+   "id": "MAP 3.4",
+   "group": "Map",
+   "title": "Operator proficiency processes defined",
+   "controls": []
+  },
+  {
+   "id": "MAP 3.5",
+   "group": "Map",
+   "title": "Human oversight processes defined",
+   "controls": [
+    "AI-03"
+   ]
+  },
+  {
+   "id": "MAP 4.1",
+   "group": "Map",
+   "title": "Legal and technology risks of components mapped, third parties included",
+   "controls": [
+    "AI-04",
+    "VND-02"
+   ]
+  },
+  {
+   "id": "MAP 4.2",
+   "group": "Map",
+   "title": "Internal risk controls for components identified",
+   "controls": [
+    "AI-10",
+    "AI-11"
+   ]
+  },
+  {
+   "id": "MAP 5.1",
+   "group": "Map",
+   "title": "Likelihood and magnitude of impacts characterized",
+   "controls": [
+    "AI-04"
+   ]
+  },
+  {
+   "id": "MAP 5.2",
+   "group": "Map",
+   "title": "Engagement with affected actors and their feedback",
+   "controls": [
+    "AI-09"
+   ]
+  },
+  {
+   "id": "MEASURE 1.1",
+   "group": "Measure",
+   "title": "Methods and metrics for the most significant risks chosen",
+   "controls": [
+    "AI-06"
+   ]
+  },
+  {
+   "id": "MEASURE 1.2",
+   "group": "Measure",
+   "title": "Metrics and control effectiveness reassessed",
+   "controls": [
+    "AI-06",
+    "MON-01"
+   ]
+  },
+  {
+   "id": "MEASURE 1.3",
+   "group": "Measure",
+   "title": "Independent assessors involved",
+   "controls": [
+    "AI-06"
+   ]
+  },
+  {
+   "id": "MEASURE 2.1",
+   "group": "Measure",
+   "title": "Test sets, metrics and tools documented",
+   "controls": [
+    "AI-06"
+   ]
+  },
+  {
+   "id": "MEASURE 2.2",
+   "group": "Measure",
+   "title": "Evaluations with people meet human-subject requirements",
+   "controls": []
+  },
+  {
+   "id": "MEASURE 2.3",
+   "group": "Measure",
+   "title": "Performance measured for the deployment conditions",
+   "controls": [
+    "AI-06"
+   ]
+  },
+  {
+   "id": "MEASURE 2.4",
+   "group": "Measure",
+   "title": "Behaviour monitored in production",
+   "controls": [
+    "AI-05"
+   ]
+  },
+  {
+   "id": "MEASURE 2.5",
+   "group": "Measure",
+   "title": "Validity and reliability demonstrated",
+   "controls": [
+    "AI-06"
+   ]
+  },
+  {
+   "id": "MEASURE 2.6",
+   "group": "Measure",
+   "title": "Safety evaluated regularly",
+   "controls": [
+    "AI-06",
+    "AI-11"
+   ]
+  },
+  {
+   "id": "MEASURE 2.7",
+   "group": "Measure",
+   "title": "Security and resilience evaluated",
+   "controls": [
+    "AI-06",
+    "MON-02"
+   ]
+  },
+  {
+   "id": "MEASURE 2.8",
+   "group": "Measure",
+   "title": "Transparency and accountability risks examined",
+   "controls": [
+    "AI-09"
+   ]
+  },
+  {
+   "id": "MEASURE 2.9",
+   "group": "Measure",
+   "title": "Model explained and output interpreted in context",
+   "controls": [
+    "AI-02",
+    "AI-09"
+   ]
+  },
+  {
+   "id": "MEASURE 2.10",
+   "group": "Measure",
+   "title": "Privacy risk examined",
+   "controls": [
+    "AI-04",
+    "AI-11"
+   ]
+  },
+  {
+   "id": "MEASURE 2.11",
+   "group": "Measure",
+   "title": "Fairness and bias evaluated",
+   "controls": []
+  },
+  {
+   "id": "MEASURE 2.12",
+   "group": "Measure",
+   "title": "Environmental impact assessed",
+   "controls": []
+  },
+  {
+   "id": "MEASURE 2.13",
+   "group": "Measure",
+   "title": "Effectiveness of test metrics evaluated",
+   "controls": []
+  },
+  {
+   "id": "MEASURE 3.1",
+   "group": "Measure",
+   "title": "Existing and emergent risks tracked",
+   "controls": [
+    "AI-05",
+    "AI-04"
+   ]
+  },
+  {
+   "id": "MEASURE 3.2",
+   "group": "Measure",
+   "title": "Risks that are hard to measure tracked",
+   "controls": [
+    "AI-04"
+   ]
+  },
+  {
+   "id": "MEASURE 3.3",
+   "group": "Measure",
+   "title": "Users and affected people can report problems and appeal",
+   "controls": [
+    "AI-09"
+   ]
+  },
+  {
+   "id": "MEASURE 4.1",
+   "group": "Measure",
+   "title": "Measurement tied to deployment context",
+   "controls": [
+    "AI-06"
+   ]
+  },
+  {
+   "id": "MEASURE 4.2",
+   "group": "Measure",
+   "title": "Trustworthiness results validated with relevant actors",
+   "controls": [
+    "AI-06"
+   ]
+  },
+  {
+   "id": "MEASURE 4.3",
+   "group": "Measure",
+   "title": "Performance changes tracked",
+   "controls": []
+  },
+  {
+   "id": "MANAGE 1.1",
+   "group": "Manage",
+   "title": "Whether the system meets its purpose decides deployment",
+   "controls": [
+    "AI-04",
+    "AI-07"
+   ]
+  },
+  {
+   "id": "MANAGE 1.2",
+   "group": "Manage",
+   "title": "Treatment of AI risks prioritized",
+   "controls": [
+    "RISK-02"
+   ]
+  },
+  {
+   "id": "MANAGE 1.3",
+   "group": "Manage",
+   "title": "Responses to high-priority risks planned",
+   "controls": [
+    "RISK-02",
+    "AI-04"
+   ]
+  },
+  {
+   "id": "MANAGE 1.4",
+   "group": "Manage",
+   "title": "Residual risks documented for acquirers and users",
+   "controls": [
+    "RISK-02",
+    "AI-09"
+   ]
+  },
+  {
+   "id": "MANAGE 2.1",
+   "group": "Manage",
+   "title": "Resources and non-AI alternatives considered",
+   "controls": []
+  },
+  {
+   "id": "MANAGE 2.2",
+   "group": "Manage",
+   "title": "Value of deployed systems sustained",
+   "controls": [
+    "AI-05"
+   ]
+  },
+  {
+   "id": "MANAGE 2.3",
+   "group": "Manage",
+   "title": "Response and recovery for newly found risks",
+   "controls": [
+    "AI-12",
+    "OPS-03"
+   ]
+  },
+  {
+   "id": "MANAGE 2.4",
+   "group": "Manage",
+   "title": "Systems can be superseded, disengaged or deactivated",
+   "controls": [
+    "AI-03",
+    "AI-10"
+   ]
+  },
+  {
+   "id": "MANAGE 3.1",
+   "group": "Manage",
+   "title": "Third-party AI risks monitored",
+   "controls": [
+    "VND-02",
+    "AI-05"
+   ]
+  },
+  {
+   "id": "MANAGE 3.2",
+   "group": "Manage",
+   "title": "Pre-trained models monitored",
+   "controls": [
+    "AI-05",
+    "VND-02"
+   ]
+  },
+  {
+   "id": "MANAGE 4.1",
+   "group": "Manage",
+   "title": "Post-deployment monitoring, including user input, appeal and decommissioning",
+   "controls": [
+    "AI-05"
+   ]
+  },
+  {
+   "id": "MANAGE 4.2",
+   "group": "Manage",
+   "title": "Continual improvement built into updates",
+   "controls": []
+  },
+  {
+   "id": "MANAGE 4.3",
+   "group": "Manage",
+   "title": "Incidents and errors communicated to those affected",
+   "controls": [
+    "AI-12",
+    "OPS-03"
+   ]
+  }
+ ]
+}

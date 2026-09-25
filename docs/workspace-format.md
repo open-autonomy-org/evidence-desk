@@ -303,6 +303,23 @@ every page back past the period's start and refuses a list the platform cannot p
 page could be incomplete. It reads all four before writing anything, so a failure records nothing, and it records
 nothing while no targeted framework needs the AI family.
 
+### Self-attestations: NIST AI RMF
+
+A framework whose outcome is a self-attestation has no certifying body: the organization signs its own statement.
+`frameworks <dir> target nist-ai-rmf` adds the NIST AI Risk Management Framework 1.0: its 72 subcategories under Govern,
+Map, Measure and Manage ([catalog/frameworks/nist-ai-rmf.json](../catalog/frameworks/nist-ai-rmf.json)), mapped onto the
+AI family and the security controls.
+
+Each requirement has a position: *met* when it is ready, *excluded* when the organization excludes it with a reason,
+or a position the organization states in `frameworks/<id>.json` under `positions`:
+`framework <dir> <id> position <requirement> --partial|--not-met --statement <text>` (and `--clear`).
+`frameworks <dir> attest <id> --by <person>` is refused while a required requirement has no position; otherwise it
+renders the attestation from the records (every requirement, its position, and the controls and evidence behind a met
+one, the reason behind an exclusion, the statement behind the rest) and records it in `certifications/` as a
+`self-attestation` with its `target` and hash. The badge says self-attested; the document discloses everything not met.
+An attestation is a signed act: merge it through your own pull request, and `collect attribution` checks it like a
+policy approval. It lapses a year after it is signed.
+
 ## Readiness
 
 `evidence-desk gaps` derives readiness from the files each time. An applicable control is ready when it has an owner,
