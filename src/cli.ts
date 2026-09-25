@@ -137,7 +137,9 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                                           for a person's signature, and merges it once they approve it
   serve <dir> [--port <n>]                open the local app on 127.0.0.1
   together <dir> -- <command> <args> -- <command> <args> ...
-                                          several commands as one change: one commit, and one signature where it signs on GitHub
+                                          several commands that change the workspace (respond, policy, register, control,
+                                          scope, access-review, incident, frameworks, framework) as one change: one commit,
+                                          and one pull request to sign where the workspace signs on GitHub
 
   --json   print JSON instead of text`;
 
@@ -179,11 +181,14 @@ function out(json: boolean, data: unknown, text: () => string): void {
 const signableCommand = (a: Args, cmd: string, rest: string[]) => (cmd === 'policy' && a.flags.has('approve')) || cmd === 'respond' || (cmd === 'access-review' && a.flags.has('sign-off'))
   || (cmd === 'incident' && !!rest[0] && rest[0] !== 'new') || (cmd === 'register' && (a.flags.has('add') || a.flags.has('update'))) || (cmd === 'frameworks' && rest[0] === 'attest');
 
-// together <dir> -- <command> <args> -- <command> <args> ...: several commands as one change, so the acts they record
-// are one commit and, where the workspace signs on GitHub, one pull request its signer approves once. Each command is
-// given without the workspace folder; the first that fails stops the rest. Where the change is prepared for a signature
+// together <dir> -- <command> <args> -- <command> <args> ...: several commands that change the workspace, as one change,
+// so the acts they record are one commit and, where the workspace signs on GitHub, one pull request its signer approves
+// once (carrying every change in it). Each command is given without the workspace folder. Only commands that change the
+// workspace alone are allowed (nothing that writes elsewhere, publishes, pushes or commits by itself), and every one is
+// read and checked before any runs. The first that fails stops the rest: where the change is prepared for a signature
 // nothing of it is recorded; elsewhere what ran before the failure is committed as stopped with an error, as any
-// command's partial change is.
+// command's partial change is. A literal -- separates commands and cannot be a value.
+const TOGETHER = ['respond', 'policy', 'register', 'control', 'scope', 'access-review', 'incident', 'frameworks', 'framework'];
 async function together(argv: string[]): Promise<number> {
   const dirArg = argv[1];
   if (!dirArg || argv[2] !== '--') throw new Error('together <dir> -- <command> <args> -- <command> <args> ...');
@@ -191,20 +196,18 @@ async function together(argv: string[]): Promise<number> {
   for (const x of argv.slice(2)) { if (x === '--') groups.push([]); else groups.at(-1)!.push(x); }
   const subs = groups.map((g) => {
     if (!g.length) throw new Error('together: an empty command between --');
-    // Commands that open servers, create workspaces, act on received packages, or commit or push on their own.
-    if (['together', 'serve', 'init', 'firm', 'audit', 'signing-template', 'sync'].includes(g[0])) throw new Error(`together cannot run ${g[0]}`);
-    if (g.includes('--help')) throw new Error('together runs commands; ask for --help on a command by itself');
-    const a = parse([g[0], dirArg, ...g.slice(1)]);
-    const [cmd, , ...rest] = a.pos;
+    if (g.includes('--help') || g.includes('--json')) throw new Error('together takes neither --help nor --json; run a command by itself for those');
+    const a = parse(g);
+    const [cmd, ...rest] = a.pos;
+    if (!TOGETHER.includes(cmd)) throw new Error(`together runs only ${TOGETHER.join(', ')}; not ${cmd ?? '(no command)'}`);
     return { a, cmd, rest };
   });
   const dir = resolve(dirArg);
-  const json = subs.some((x) => x.a.flags.has('json'));
   const person = subs.map((x) => one(x.a, 'by') ?? one(x.a, 'person') ?? one(x.a, 'reviewer')).find(Boolean);
-  const message = `evidence-desk together: ${groups.map((g) => g.filter((x) => x !== '--json').map((x) => (/[\s"']/.test(x) ? JSON.stringify(x) : x)).join(' ')).join('; ')}`;
+  const message = `evidence-desk together: ${groups.map((g) => g.map((x) => (/[\s"']/.test(x) ? JSON.stringify(x) : x)).join(' ')).join('; ')}`;
   keepHistory(dir);
   const runAll = async (at: string) => {
-    for (const x of subs) { const code = await command(x.a, x.cmd, at, dirArg, x.rest, json); if (code !== 0) throw new Error(`${x.cmd} ended with ${code}; nothing after it ran`); }
+    for (const x of subs) { const code = await command(x.a, x.cmd, at, dirArg, x.rest, false); if (code !== 0) throw new Error(`${x.cmd} ended with ${code}; nothing after it ran`); }
     return 0;
   };
   if (subs.some((x) => signableCommand(x.a, x.cmd, x.rest))) {
@@ -212,9 +215,8 @@ async function together(argv: string[]): Promise<number> {
     const signed = await prepareSignature(dir, message, person, async (at: string) => { held = said; try { return await runAll(at); } finally { held = null; } });
     if (signed) {
       const p = signed.prepared;
-      if (json) console.log(p ? JSON.stringify({ prepared: p, sync_error: signed.syncError }, null, 2) : said.join('\n'));
-      else console.log(p ? `Prepared for ${p.person}'s signature as ${p.branch}; its pull request opens on GitHub in a moment: ${p.url}\n${p.login} signs it by approving that pull request.` : said.join('\n'));
-      if (signed.syncError && !json) console.error(`Not yet on the remote: ${signed.syncError}`);
+      console.log(p ? `Prepared for ${p.person}'s signature as ${p.branch}; its pull request opens on GitHub in a moment: ${p.url}\n${p.login} signs it by approving that pull request.` : said.join('\n'));
+      if (signed.syncError) console.error(`Not yet on the remote: ${signed.syncError}`);
       return signed.result;
     }
   }
