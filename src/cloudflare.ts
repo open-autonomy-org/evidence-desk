@@ -6,7 +6,7 @@ import { parseCsv, writeCsv } from './csv.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { addEvidence, evidencing } from './actions.ts';
 import { loadWorkspace, type Workspace } from './workspace.ts';
-import type { Snapshot } from './open-autonomy.ts';
+import { memberOf, type Snapshot } from './open-autonomy.ts';
 import { now } from './clock.ts';
 const API = 'https://api.cloudflare.com/client/v4';
 
@@ -58,8 +58,8 @@ export const cfIsAdmin = (m: any) => (m.roles ?? []).some((r: any) => CF_ADMIN_R
 // email), which are known actors but not people: the deploy pipeline's credential acts as one.
 export function cloudflareRoster(root: string, ws: Workspace): { people: string[]; service_accounts: string[] } {
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
-  const team = latest ? (JSON.parse(latest.text) as Snapshot).team.map((m) => m.id) : [];
-  return { people: (ws.registers.people?.data.rows ?? []).filter((p) => !team.length || team.includes(p.id)).map((p) => (p.email ?? '').toLowerCase()).filter(Boolean),
+  const team = latest ? (JSON.parse(latest.text) as Snapshot).team : [];
+  return { people: (ws.registers.people?.data.rows ?? []).filter((p) => !team.length || !!memberOf(team, p.id)).map((p) => (p.email ?? '').toLowerCase()).filter(Boolean),
     service_accounts: (ws.registers.systems?.data.rows ?? []).filter((x) => /service account/i.test(x.kind ?? '')).map((x) => (x.name ?? '').toLowerCase()).filter(Boolean) };
 }
 

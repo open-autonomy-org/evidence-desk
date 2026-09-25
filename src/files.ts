@@ -4,7 +4,7 @@
 // is noted for the commit that ends the change it belongs to (git.ts): the workspace is a Git repository.
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync, realpathSync, statSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { ensureRepo, track } from './git.ts';
 
 export const sha256 = (b: Buffer | string): string => createHash('sha256').update(b).digest('hex');
@@ -19,7 +19,11 @@ export function inside(root: string, rel: string): string {
     throw new Error(`${JSON.stringify(rel)} is not a workspace-relative path`);
   }
   const full = resolve(root, rel);
-  const real = existsSync(full) ? realpathSync(full) : full;
+  // A path not yet written is judged by its deepest existing folder, resolved like the root is: a root reached through a
+  // symbolic link (macOS's /var and /tmp are) must not make every new file look outside it.
+  let probe = full, rest: string[] = [];
+  while (!existsSync(probe) && dirname(probe) !== probe) { rest = [basename(probe), ...rest]; probe = dirname(probe); }
+  const real = join(realpathSync(probe), ...rest);
   const base = realpathSync(root);
   if (real !== base && !real.startsWith(base + sep)) throw new Error(`${rel} resolves outside the workspace`);
   return full;

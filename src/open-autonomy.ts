@@ -14,6 +14,14 @@ import { neededControls } from './targets.ts';
 declare const Bun: { YAML: { parse(text: string): unknown } };
 
 export type Seam = { id: string; scope: string; door: string; record: string };
+// The roster member a workspace person is: the member with that id, or else the member whose GitHub login is that id (a
+// workspace that named its people by their GitHub logins before it read the roster). Every match of people to the roster
+// goes through here, so signing, attribution and reminders agree on who someone is.
+export function memberOf<M extends { id: string; github?: string }>(team: M[], person: string): M | undefined {
+  if (!person) return undefined;
+  return team.find((m) => m.id === person) ?? team.find((m) => !!m.github && m.github.toLowerCase() === person.toLowerCase());
+}
+
 export type Snapshot = {
   schema: string; repository: string; repository_path?: string; remote_url?: string; remote_branches?: string[];
   // The project's architecture decision records, and whether each answers the soc2 template's checklist.
@@ -151,7 +159,7 @@ export type ImportReport = { commit: string; snapshot: string; changed: string[]
 export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD', by: string): ImportReport {
   const snap = readProject(repo, commitish);
   const ws = loadWorkspace(root);
-  if (!(ws.registers.people?.data.rows ?? []).some((r) => r.id === by) && !snap.team.some((m) => m.id === by)) throw new Error(`recorder ${by} is not in registers/people.csv or the project's roster`);
+  if (!(ws.registers.people?.data.rows ?? []).some((r) => r.id === by) && !memberOf(snap.team, by)) throw new Error(`recorder ${by} is not in registers/people.csv or the project's roster`);
   const latestRel = 'sources/open-autonomy/latest.json';
   const prevText = readVersioned(root, latestRel);
   const prev = prevText ? JSON.parse(prevText.text) as Snapshot : null;
@@ -193,7 +201,9 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
     }
     for (const [k, v] of Object.entries(row)) if (k === 'name' && v && existing[k] && existing[k] !== v) report.conflicts.push(`${name} ${row.id}: ${k} is "${existing[k]}" in the register and "${v}" in the project`);
   };
-  for (const m of snap.team) register('people', { id: m.id, name: m.name, role: `Open Autonomy scopes: ${m.scopes.join(', ') || 'none'}`, notes: `From the team roster at ${snap.commit.slice(0, 12)}${m.github ? `; GitHub ${m.github}` : ''}` });
+  // A member already in the register under their GitHub login is that person, not someone to add again.
+  const peopleIds = (loadWorkspace(root).registers.people?.data.rows ?? []).map((r) => r.id);
+  for (const m of snap.team.filter((x) => !peopleIds.some((id) => id !== x.id && memberOf(snap.team, id) === x))) register('people', { id: m.id, name: m.name, role: `Open Autonomy scopes: ${m.scopes.join(', ') || 'none'}`, notes: `From the team roster at ${snap.commit.slice(0, 12)}${m.github ? `; GitHub ${m.github}` : ''}` });
   const SERVICE: Record<string, string> = { GitHub: 'Source code hosting, change review and deployment automation', Cloudflare: 'Hosting of the production service',
     npm: 'Package registry for dependencies', OpenAI: 'Model provider for development agents', [VENDOR_OF['open-autonomy.org']]: 'Model access and metering for development agents' };
   for (const v of snap.vendors) register('vendors', { id: v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), name: v, service: SERVICE[v] ?? 'Named in the project\'s configuration; describe the service', criticality: 'high', owner: '' });

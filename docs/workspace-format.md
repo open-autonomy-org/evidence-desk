@@ -140,8 +140,11 @@ signing workflow (`.github/workflows/evidence-desk-signatures.yml`, written by `
 is checked out, such a change is pushed as a branch `sign/<the signer's GitHub login>/…` whose head commit's message is
 the packet (for a policy, its whole text and what signing it commits the organization to); the workflow opens the pull
 request from it as the repository's bot, asks the signer to review it, merges it with a merge commit once that account
-approves its current head, and deletes the branch of one closed unsigned. The repository must let GitHub Actions create
-pull requests. Elsewhere the act is committed to the current branch, and the person may open the pull request
+approves its current head (or comments that it cannot be merged, when another signature changed the same lines first),
+and deletes the branch of one closed unsigned. The repository must let GitHub Actions create pull requests; without that
+the workflow's run fails and no pull request appears. A signature not yet given is withdrawn from the To sign page (its
+branch deleted) and prepared again. A record's own date is when the act was prepared; attribution's `signed_at` is when
+it was signed. Elsewhere the act is committed to the current branch, and the person may open the pull request
 themselves. A register row's decision names the row's owner as the row
 stood when the decision was made, so reassigning the row later does not move the decision. `collect attribution`
 finds, on the default branch's first-parent line (`git log --first-parent origin/<default>`), the commit that brought

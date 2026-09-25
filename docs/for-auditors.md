@@ -114,7 +114,8 @@ query that produced it (evidence a person added by hand says so).
   attribution check reports every act that was not (pushed without a pull request, signed by no one it names, changed
   since merged) as a finding in the gap view. It traces each act to the commit on the default branch that brought it to
   its present content, and to the merged pull request GitHub associates with that commit, and reads that pull request's
-  reviews and author against the person's GitHub account on the roster; each row says which (`via`). An approval binds
+  reviews and author against the person's GitHub account on the roster; each row says which (`via`) and, for an
+  approval, when it was given (`signed_at`; the record's own date is when the act was prepared). An approval binds
   the commit it was given on; where an act rests on the person having opened the pull request, a collaborator who
   pushes to its branch is not told apart from them.
 - **Completeness of people in scope**: each declared vendor account's administrators, read from the vendor (GitHub and

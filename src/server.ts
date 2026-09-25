@@ -19,8 +19,8 @@ import { publishStatement, reportOf } from './trust.ts';
 import { collectOpenAutonomyActivity } from './oa-platform.ts';
 import { frameworkDescriptions, frameworkOf } from './catalog.ts';
 import { policyReading } from './signing.ts';
-import { pendingSignatures, prepareSignature, signsOnGitHub } from './signatures.ts';
-import { commitTouched, statusOf, syncWorkspace } from './git.ts';
+import { pendingSignatures, prepareSignature, signsOnGitHub, withdrawSignature } from './signatures.ts';
+import { commitTouched, inChange, keepHistory, statusOf, syncWorkspace } from './git.ts';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { neededControls, targetsOf } from './targets.ts';
@@ -170,7 +170,7 @@ async function handle(root: string, pathname: string, b: Record<string, unknown>
       title: s('title'), controls: (b.controls as string[]) ?? [], recorded_by: s('by'), filename: s('filename'),
       bytes: Buffer.from(s('data'), 'base64'), period: b.period as { start: string; end: string } | undefined, notes: s('notes') || undefined,
     }); break;
-    case '/api/respond': submitResponse(root, { form: s('form'), person: s('person'), answers: b.answers as Record<string, string>, formVersion: s('version'), identity: 'local-app-selection' }); break;
+    case '/api/respond': return { result: submitResponse(root, { form: s('form'), person: s('person'), answers: b.answers as Record<string, string>, formVersion: s('version'), identity: 'local-app-selection' }) };
     case '/api/access-review/start': {
       const listing = `evidence/files/listings/${Date.now()}-${s('filename').replace(/[^A-Za-z0-9._-]/g, '_') || 'listing.csv'}`;
       if (!s('generated_by').trim()) throw new Error('say how the user listing was produced, so its completeness can be checked');
@@ -238,6 +238,7 @@ async function handle(root: string, pathname: string, b: Record<string, unknown>
 }
 
 export function serve(root: string, port: number): void {
+  keepHistory(root);
   const origin = `http://127.0.0.1:${port}`;
   const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
   const server = createServer(async (req, res) => {
@@ -246,8 +247,6 @@ export function serve(root: string, port: number): void {
       const url = new URL(req.url ?? '/', origin);
       if (req.method === 'GET') {
         if (url.pathname === '/api/state') return send(res, 200, state(root));
-        // What waits for signatures on GitHub; reading it brings the workspace level with its remote first.
-        if (url.pathname === '/api/signing') { const p = pendingSignatures(root); return send(res, 200, { ...p, state: state(root) }); }
         if (url.pathname.startsWith('/questionnaire/')) {
           res.setHeader('content-disposition', 'attachment; filename="answers.csv"');
           return send(res, 200, questionnaireCsv(root, decodeURIComponent(url.pathname.slice('/questionnaire/'.length))), 'text/csv; charset=utf-8');
@@ -266,18 +265,24 @@ export function serve(root: string, port: number): void {
       if (!String(req.headers['content-type'] ?? '').startsWith('application/json')) return send(res, 415, { error: 'send JSON' });
       const b = await body(req);
       if (url.pathname === '/api/sync') { const status = syncWorkspace(root); return send(res, 200, { result: status, state: state(root) }); }
+      // What waits for signatures on GitHub; reading it brings the workspace level with its remote first.
+      if (url.pathname === '/api/signing') { const p = pendingSignatures(root); return send(res, 200, { ...p, state: state(root) }); }
+      if (url.pathname === '/api/signing/withdraw') { withdrawSignature(root, String(b.branch ?? '')); const p = pendingSignatures(root); return send(res, 200, { ...p, state: state(root) }); }
       const { message, person } = describe(url.pathname, b);
-      if (SIGNABLE.has(url.pathname)) {
-        const signed = await prepareSignature(root, message, (at) => handle(at, url.pathname, b));
-        if (signed) return send(res, 200, { ...(signed.result ?? {}), prepared: signed.prepared, state: state(root) });
-      }
-      let result: Record<string, unknown> | null;
-      try { result = await handle(root, url.pathname, b); }
-      // Whatever a change wrote before it stopped is committed as such, so no write is left outside the history.
-      catch (e) { commitTouched(root, `${message}: stopped with an error (${(e as Error).message.split('\n')[0].slice(0, 120)})`, person); throw e; }
-      if (!result) return send(res, 404, { error: 'not found' });
-      commitTouched(root, message, person);
-      return send(res, 200, { ...result, state: state(root) });
+      // Each change keeps its own record of what it wrote, so requests in flight together never commit each other's files.
+      return await inChange(async () => {
+        if (SIGNABLE.has(url.pathname)) {
+          const signed = await prepareSignature(root, message, person || undefined, (at) => handle(at, url.pathname, b));
+          if (signed) return send(res, 200, { ...(signed.result ?? {}), prepared: signed.prepared, syncError: signed.syncError, state: state(root) });
+        }
+        let result: Record<string, unknown> | null;
+        try { result = await handle(root, url.pathname, b); }
+        // Whatever a change wrote before it stopped is committed as such, so no write is left outside the history.
+        catch (e) { commitTouched(root, `${message}: stopped with an error (${(e as Error).message.split('\n')[0].slice(0, 120)})`, person); throw e; }
+        if (!result) return send(res, 404, { error: 'not found' });
+        commitTouched(root, message, person);
+        return send(res, 200, { ...result, state: state(root) });
+      });
     } catch (e) {
       const conflict = e instanceof ConflictError || /changed (on disk )?since/.test((e as Error).message);
       return send(res, conflict ? 409 : 400, { error: (e as Error).message, conflict });

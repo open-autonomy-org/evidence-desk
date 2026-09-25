@@ -51,7 +51,7 @@ async function post(path, payload, okText) {
   S = j.state;
   // A signed act, where the workspace signs on GitHub, is prepared as a pull request for its signer instead of recorded.
   if (j.prepared) { notice(`Prepared for ${personName(j.prepared.person)}'s signature: its pull request opens on GitHub in a moment, and it is signed by approving it there.`, true); okText = null; signing = null; }
-  else if (j.prepared === null && S.signingOnGitHub && !okText) notice('Saved. It records no signature, so it went straight into the workspace.', true);
+  else if (j.prepared === null && S.signingOnGitHub && !okText) notice(`Saved. It records no signature, so it went straight into the workspace${j.syncError ? `; it is not on GitHub yet (${j.syncError})` : ''}.`, !j.syncError);
   if (okText) notice(okText, true);
   savedBox = box;
   render();
@@ -198,7 +198,7 @@ function frameworkPage(f) {
       unpositioned.length ? [h('p', {}, pill(`${unpositioned.length} ${unpositioned.length === 1 ? 'requirement still needs' : 'requirements still need'} a position`, 'warn')), bulk] : h('p', {}, pill('every required requirement has a position', 'ok')),
       h('div', { class: 'row' }, h('div', { style: 'flex:1' }, signBy), h('button', { class: 'primary', disabled: unpositioned.length > 0, onclick: async () => {
         const r = await post('/api/frameworks/attest', { id: f.id, by: signBy.value }, null);
-        if (r) notice(`Signed: ${r.result.counts.met} met, ${r.result.counts.excluded} excluded, ${r.result.counts.partial} partly met, ${r.result.counts['not met']} not met. Merge it through your own pull request so attribution can check it.`, true); } }, 'Sign'))) : recordCard(f),
+        if (r) notice(`${r.prepared ? 'Prepared for signature' : 'Signed'}: ${r.result.counts.met} met, ${r.result.counts.excluded} excluded, ${r.result.counts.partial} partly met, ${r.result.counts['not met']} not met. ${r.prepared ? `It is signed by approving its pull request on GitHub as ${r.prepared.login}.` : 'Merge it through your own pull request so attribution can check it.'}`, true); } }, 'Sign'))) : recordCard(f),
     heldCard,
     h('h2', {}, `Steps still open: ${open.length}`),
     open.length ? h('table', {}, h('tr', {}, h('th', {}, 'Requirement'), h('th', {}, 'Why it is not ready'), selfAttest ? h('th', {}, 'Your position') : null),
@@ -376,7 +376,11 @@ let signer = '';
 let signing = null, signingLoading = false;
 async function loadSigning() {
   signingLoading = true;
-  try { const r = await fetch('/api/signing'); const j = await r.json(); S = j.state; signing = j; } catch { signing = { pending: [], error: 'Evidence Desk is not reachable' }; }
+  try {
+    const r = await fetch('/api/signing', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    const j = await r.json();
+    if (r.ok) { S = j.state; signing = j; } else signing = { pending: [], error: j.error };
+  } catch { signing = { pending: [], error: 'Evidence Desk is not reachable' }; }
   signingLoading = false;
   if (tab === 'sign') render();
 }
@@ -385,7 +389,7 @@ function pendingFor(i, person) {
   const mine = (signing?.pending ?? []).filter((p) => p.person === person);
   const is = (a) => i.kind === 'policy' ? a.kind === 'policy-approval' && a.file === `policies/${i.p.id}.json`
     : i.kind === 'risk' ? a.key === `risk-decision:${i.r.id}`
-    : i.kind === 'form' ? a.kind === 'response' && a.label.startsWith(`${i.f.title} (`)
+    : i.kind === 'form' ? a.kind === 'response' && a.label.startsWith(`${i.f.title} (`) && !a.label.slice(i.f.title.length + 2).includes('(')
     : i.kind === 'access' ? a.key === `access-review:${i.a.id}`
     : i.kind === 'attest' ? a.kind === 'attestation' && a.label.startsWith(`${i.f.title} `) : false;
   return mine.find((p) => p.acts.some(is)) ?? null;
@@ -454,9 +458,17 @@ function signView() {
 function signItem(i, nextBtn) {
   const org = S.organization || 'the organization';
   const pr = pendingFor(i, signer);
-  const waiting = pr ? h('div', { class: 'act' }, h('p', { style: 'margin-top:0' },
-      `Prepared for signature on GitHub. ${personName(signer)} signs it by approving its pull request as ${pr.login}; to change it instead, request changes there. Once approved it is merged, and it leaves this list at the next sync.`),
-    h('div', { class: 'row' }, h('a', { class: 'primary btnlink', href: pr.url, target: '_blank', rel: 'noopener' }, 'Open it on GitHub to sign'), nextBtn)) : null;
+  // Withdrawing deletes the prepared branch (closing its pull request), so the act can be changed and prepared again.
+  const withdraw = pr ? h('button', { class: 'secondary', onclick: async () => {
+    const r = await fetch('/api/signing/withdraw', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ branch: pr.branch }) });
+    const j = await r.json();
+    if (!r.ok) return notice(`Not withdrawn: ${j.error}`, false);
+    S = j.state; signing = j; notice('Withdrawn: its pull request is closed, and it can be prepared again.', true); render();
+  } }, 'Withdraw it') : null;
+  const waiting = pr ? h('div', { class: 'act' }, h('p', { style: 'margin-top:0' }, pr.merges
+      ? `Prepared for signature on GitHub. ${personName(signer)} signs it by approving its pull request as ${pr.login}; to change it instead, request changes there, then withdraw it here and prepare it again. Once approved it is merged, and it leaves this list at the next sync. If no pull request appears within a minute, the repository's Actions page shows why.`
+      : 'This no longer merges into the workspace: another signature changed the same lines first, so an approval could not land. Withdraw it and prepare it again.'),
+    h('div', { class: 'row' }, pr.merges ? h('a', { class: 'primary btnlink', href: pr.url, target: '_blank', rel: 'noopener' }, 'Open it on GitHub to sign') : null, withdraw, nextBtn)) : null;
   if (i.kind === 'policy') {
     const p = i.p, r = p.reading;
     const confirm = h('input', { type: 'checkbox', id: 'adapted' });
@@ -676,7 +688,11 @@ function formView(id, person) {
       answers[q.id] = q.type === 'text' ? form.querySelector(`[name="${q.id}"]`).value : (form.querySelector(`input[name="${q.id}"]:checked`)?.value ?? '');
     }
     const r = await post('/api/respond', { form: f.id, person: form.person.value, answers, version: f.version }, null);
-    if (r) {
+    if (r?.prepared) {
+      const g = r.result;
+      notice(`${g?.passed ? 'Passed' : 'Not passed'}${g?.score !== undefined ? ` (${g.score}%)` : ''}. Prepared for ${personName(form.person.value)}'s signature: it is recorded once they approve its pull request on GitHub.${g?.passed ? '' : ' You can review the answers and submit again.'}`, !!g?.passed);
+      if (g?.passed) go('people');
+    } else if (r) {
       const mine = S.responses.filter((x) => x.form === f.id && x.person === form.person.value).sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)).at(-1);
       notice(mine?.passed ? `Recorded and passed${mine.score !== undefined ? ` (${mine.score}%)` : ''}.` : `Recorded, but not passed${mine?.score !== undefined ? ` (${mine.score}%)` : ''}. Review and submit again.`, !!mine?.passed);
       if (mine?.passed) go('people');

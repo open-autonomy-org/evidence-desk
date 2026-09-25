@@ -1,8 +1,10 @@
 // The workspace's store is Git (docs/decisions/0003-git-is-the-backend.md). A workspace is a Git repository, or a folder
-// inside one; the first write to a folder that is in none makes it one, committing the folder as it stood. Every change
+// inside one; the first write to a workspace folder that is in none makes it one, committing the folder as it stood. Only
+// a folder opened as a workspace (keepHistory) becomes one: a received audit package or a scratch copy does not. Every change
 // Evidence Desk makes is one commit of exactly the files it wrote, so the history says who changed what and when; a file
 // someone else is editing is never swept into Evidence Desk's commit. Commits are dated by the clock Evidence Desk
 // records by (clock.ts), and name the person who acted as their author where the people register gives an email.
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -24,10 +26,13 @@ export function repoOf(root: string): { top: string; prefix: string } | null {
 // Files a workspace keeps out of its history: the operating system's litter and environment files that may hold keys.
 const IGNORE = '.DS_Store\n.env\n.env.*\n';
 const known = new Set<string>();
+const workspaces = new Set<string>();
+// The folder is a workspace whose history Evidence Desk keeps: the command line's and the app's workspace.
+export function keepHistory(root: string): void { workspaces.add(resolve(root)); }
 // Called before every write: a workspace that is in no repository becomes one, its existing files the first commit.
 export function ensureRepo(root: string): void {
   const key = resolve(root);
-  if (known.has(key) || !existsSync(root)) return;
+  if (known.has(key) || !workspaces.has(key) || !existsSync(root)) return;
   if (!repoOf(root)) {
     git(root, 'init', '-q', '-b', 'main');
     if (!existsSync(join(root, '.gitignore'))) writeFileSync(join(root, '.gitignore'), IGNORE);
@@ -39,15 +44,20 @@ export function ensureRepo(root: string): void {
   known.add(key);
 }
 
-// The files each workspace has written since its last commit, by workspace root.
-const touched = new Map<string, Set<string>>();
+// The files each workspace has written since its last commit, by workspace root. A change the app makes runs in its own
+// record (inChange), so two requests in flight never commit each other's files; the command line makes one change.
+type Touched = Map<string, Set<string>>;
+const changes = new AsyncLocalStorage<Touched>();
+const process_: Touched = new Map();
+const current = () => changes.getStore() ?? process_;
+export const inChange = <T>(fn: () => T): T => changes.run(new Map(), fn);
 export function track(root: string, rel: string): void {
-  const key = resolve(root);
+  const key = resolve(root), touched = current();
   if (!touched.has(key)) touched.set(key, new Set());
   touched.get(key)!.add(rel);
 }
 export function takeTouched(root: string): string[] {
-  const key = resolve(root);
+  const key = resolve(root), touched = current();
   const out = [...(touched.get(key) ?? [])];
   touched.delete(key);
   return out;
@@ -74,14 +84,20 @@ function authorOf(root: string, person: string | undefined): string | undefined 
 
 // Commits the files the workspace wrote, with a message saying what changed. Returns the commit, or null when nothing
 // was written or the bytes written were already the committed ones.
+// A commit that fails (a hook refuses it, signing fails) keeps its files noted, so the next commit takes them.
 export function commitTouched(root: string, message: string, person?: string): string | null {
   const rels = takeTouched(root);
   const repo = repoOf(root);
   if (!rels.length || !repo) return null;
   const paths = rels.map((r) => `${repo.prefix}${r}`);
-  git(repo.top, 'add', '--', ...paths);
-  if (!git(repo.top, 'diff', '--cached', '--name-only', '--', ...paths)) return null;
-  commit(repo.top, ['-m', message, '--', ...paths], authorOf(root, person));
+  try {
+    git(repo.top, 'add', '--', ...paths);
+    if (!git(repo.top, 'diff', '--cached', '--name-only', '--', ...paths)) return null;
+    commit(repo.top, ['-m', message, '--', ...paths], authorOf(root, person));
+  } catch (e) {
+    for (const r of rels) track(root, r);
+    throw new Error(`the change was written but not committed: ${(e as Error).message.split('\n').find((l) => l.trim()) ?? 'git refused it'}`);
+  }
   return git(repo.top, 'rev-parse', 'HEAD');
 }
 
@@ -105,16 +121,25 @@ export function syncWorkspace(root: string): Status | null {
   if (!before?.upstream) return before;
   const remote = before.upstream.split('/')[0];
   git(root, 'fetch', '-q', remote);
+  // The remote's default branch as it is now, so a renamed one is known (signatures.ts reads it).
+  tryGit(root, 'remote', 'set-head', remote, '--auto');
   let s = statusOf(root)!;
   if (s.behind && !s.ahead) git(root, 'merge', '-q', '--ff-only', '@{u}');
   else if (s.behind && s.ahead) {
-    if (s.uncommitted.length) throw new Error(`the workspace has edits not yet committed (${s.uncommitted.slice(0, 3).join(', ')}${s.uncommitted.length > 3 ? ', …' : ''}): commit or discard them, then sync again`);
+    const dirty = git(repoOf(root)!.top, 'status', '--porcelain', '--untracked-files=no').split('\n').filter(Boolean).map((l) => l.slice(3));
+    if (dirty.length) throw new Error(`the repository has edits not yet committed (${dirty.slice(0, 3).join(', ')}${dirty.length > 3 ? ', …' : ''}): commit or discard them, then sync again`);
     try { git(root, 'rebase', '-q', '@{u}'); }
-    catch (e) { tryGit(root, 'rebase', '--abort'); throw new Error(`this workspace and ${s.upstream} changed the same lines; resolve it with git (git pull --rebase), then sync again: ${(e as Error).message.split('\n')[0]}`); }
+    catch (e) { tryGit(root, 'rebase', '--abort'); throw new Error(`this workspace's commits could not be replayed on ${s.upstream} (usually both changed the same lines); resolve it with git (git pull --rebase), then sync again: ${(e as Error).message.split('\n').find((l) => l.trim()) ?? ''}`); }
   }
   s = statusOf(root)!;
   if (s.ahead) git(root, 'push', '-q', remote, `HEAD:${s.upstream!.slice(remote.length + 1)}`);
   return statusOf(root);
+}
+
+// A sync that may fail without failing the change it follows (the network is not needed to change the workspace): its
+// error, or null.
+export function trySync(root: string): string | null {
+  try { syncWorkspace(root); return null; } catch (e) { return (e as Error).message; }
 }
 
 // The GitHub repository the workspace's origin names, as owner/name, or null.

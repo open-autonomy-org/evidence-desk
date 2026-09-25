@@ -53,8 +53,12 @@ whole text, whether it is the catalog template unchanged, and what signing it co
 repository's workflow opens the pull request from that branch as the repository's own bot, so the signer is never its
 author (a host does not let an author approve their own pull request), and asks the signer to review it. The signer
 reads it and approves on GitHub; GitHub records the approval against the exact head commit, and the workflow merges the
-pull request, with a merge commit, once the account the branch names approves its current head. A pull request closed
-without merging has its branch deleted. Evidence Desk speaks only Git: it needs no token to prepare a signature, and
+pull request, with a merge commit, once the account the branch names approves its current head; where it cannot (another
+signature changed the same lines first), it says so on the pull request, and Evidence Desk shows the signature as no
+longer merging. A signature not yet given can be withdrawn (its branch deleted, which closes the pull request) and
+prepared again; a pull request closed without merging has its branch deleted. Only pushing a signature needs the
+remote: a change that signs nothing is committed locally and synced where the remote can be reached. Evidence Desk
+speaks only Git: it needs no token to prepare a signature, and
 lists what waits from the `sign/` branches on the remote. A change that records no signed act (a register edit that
 decides nothing) is committed to the default branch like any other. One pull request is one person's signature; a
 change recording acts of two people is refused. Which change records a signed act is worked out, not declared: the acts
@@ -66,6 +70,12 @@ Open Autonomy roster approved that pull request at the head commit that was merg
 that approval), or opened it themselves (the earlier door, kept for a person who records an act in a pull request of
 their own). Each row says which (`via`). An approval binds the exact commit, so it lacks the earlier door's residual,
 where a collaborator pushing to the person's branch is not told apart from them.
+
+A record's own date (an approval's `approved_at`, a response's `submitted_at`) is when the act was prepared; the
+signature's time is the approval's, which attribution records (`signed_at`). A residual the workflow does not remove: a
+collaborator with write access can push a `sign/<their own login>/…` branch and approve it, landing a change on the
+default branch without anyone else's review; any act in it that names someone else is still not verified, since
+attribution requires that person's approval.
 
 **Elsewhere a signed act is committed where the person works.** Without the signing workflow, on a branch other than
 the default, or with no GitHub remote, the act is committed to the current branch: the person opens their own pull request,
@@ -99,8 +109,10 @@ or the workspace keeps its history on this machine alone.
 
 Landing with this record:
 
-- `files.ts` makes a folder a repository before its first write and notes each file written; `git.ts` commits them.
-  The server commits after each change and the command line after each command, including the part of a change that
+- `files.ts` makes a workspace folder a repository before its first write and notes each file written; `git.ts`
+  commits them. A received audit package or a scratch copy is not made one. The server commits after each change (each
+  in its own record of what it wrote, so changes in flight together never take each other's files) and the command line
+  after each command, including the part of a change that
   stopped with an error, so no write is left outside the history. Commits are dated by Evidence Desk's clock.
 - `signatures.ts` prepares a signature (worktree, packet, `sign/` branch) and lists what waits from the remote's `sign/`
   branches; `signing-template` writes the workflow (open the pull request, request the review, merge on approval,

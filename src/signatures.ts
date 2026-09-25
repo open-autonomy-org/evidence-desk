@@ -12,12 +12,12 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { commitTouched, git, githubRepoOf, repoOf, statusOf, syncWorkspace, takeTouched, type Status } from './git.ts';
+import { commitTouched, git, githubRepoOf, repoOf, statusOf, syncWorkspace, takeTouched, trySync, type Status } from './git.ts';
 import { readVersioned } from './files.ts';
 import { actDigest, readAct, signedActs, UNREADABLE } from './github.ts';
 import { loadWorkspace } from './workspace.ts';
 import { policyReading } from './signing.ts';
-import type { Snapshot } from './open-autonomy.ts';
+import { memberOf, type Snapshot } from './open-autonomy.ts';
 
 export const SIGNING_WORKFLOW = '.github/workflows/evidence-desk-signatures.yml';
 const tryGit = (cwd: string, ...args: string[]): string | null => { try { return git(cwd, ...args); } catch { return null; } };
@@ -36,7 +36,7 @@ function actsOf(root: string): Map<string, ActState> {
 // The GitHub account the Open Autonomy roster gives a person: the account whose approval is their signature.
 function loginOf(root: string, person: string): string {
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
-  const login = latest ? (JSON.parse(latest.text) as Snapshot).team.find((m) => m.id === person)?.github : undefined;
+  const login = latest ? memberOf((JSON.parse(latest.text) as Snapshot).team, person)?.github : undefined;
   if (!login) throw new Error(`${person} has no GitHub account on the imported Open Autonomy roster: a signature on GitHub is that account's approval`);
   if (!/^[A-Za-z0-9-]+$/.test(login)) throw new Error(`${login} is not a GitHub login`);
   return login;
@@ -59,15 +59,14 @@ const pullsOf = (repo: string, branch: string) => `https://github.com/${repo}/pu
 
 // Runs a change as a signature to prepare. Returns null where the workspace does not sign on GitHub (the caller makes the
 // change as usual); otherwise the change's result and what was prepared, or none when it recorded no signed act (then it
-// is committed to the default branch like any change).
-export async function prepareSignature<T>(root: string, message: string, change: (root: string) => T | Promise<T>): Promise<{ result: T; prepared: Prepared | null } | null> {
-  // The default branch as GitHub has it now, so a renamed branch is not mistaken for it.
-  if (githubRepoOf(root)) tryGit(root, 'remote', 'set-head', 'origin', '--auto');
+// is committed to the default branch like any change, as the person who made it). Only pushing a signature needs the
+// remote: the workspace is brought level with it first where it can be, and a change that signs nothing never waits on it.
+export async function prepareSignature<T>(root: string, message: string, person: string | undefined, change: (root: string) => T | Promise<T>): Promise<{ result: T; prepared: Prepared | null; syncError: string | null } | null> {
   const target = signsOnGitHub(root);
   if (!target) return null;
   const { repo } = target;
   if (target.status.uncommitted.length) throw new Error(`the workspace has edits not yet committed (${target.status.uncommitted.slice(0, 3).join(', ')}): a signature is prepared from the committed workspace, so commit or discard them first`);
-  syncWorkspace(root);
+  let syncError = trySync(root);
   const { top, prefix } = repoOf(root)!;
   const wt = mkdtempSync(join(tmpdir(), 'evidence-desk-sign-'));
   const at = join(wt, prefix);
@@ -77,21 +76,22 @@ export async function prepareSignature<T>(root: string, message: string, change:
     const result = await change(at);
     const changed = [...actsOf(at)].filter(([k, v]) => before.get(k)?.digest !== v.digest);
     if (!changed.length) {
-      const sha = commitTouched(at, message);
-      if (sha) { git(root, 'merge', '-q', '--ff-only', sha); syncWorkspace(root); }
-      return { result, prepared: null };
+      const sha = commitTouched(at, message, person);
+      if (sha) { git(root, 'merge', '-q', '--ff-only', sha); syncError = trySync(root); }
+      return { result, prepared: null, syncError };
     }
     const persons = [...new Set(changed.map(([, v]) => v.person))];
     if (persons.length !== 1 || !persons[0]) throw new Error(`a signature is one person's; this change records acts of ${persons.map((p) => p || 'no one').join(' and ')}: make them one at a time`);
-    const person = persons[0], login = loginOf(root, person);
+    const signer = persons[0], login = loginOf(root, signer);
     const acts = changed.map(([key, v]) => ({ key, label: v.label, kind: v.kind, file: v.file }));
     // The packet is the head commit's message: the workflow opens the pull request with it, and the history keeps it
     // beside the change it describes.
     const title = acts.length === 1 ? `Sign: ${acts[0].label}` : `Sign: ${acts.length} acts`;
-    if (!commitTouched(at, `${title}\n\n${packet(root, at, person, acts)}`)) return { result, prepared: null };
+    if (!commitTouched(at, `${title}\n\n${packet(root, at, signer, acts)}`)) return { result, prepared: null, syncError };
     const head = `sign/${login}/${acts[0].key.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)}-${git(wt, 'rev-parse', '--short=7', 'HEAD')}`;
-    git(wt, 'push', '-q', 'origin', `HEAD:refs/heads/${head}`);
-    return { result, prepared: { branch: head, url: pullsOf(repo, head), person, login, acts: acts.map(({ key, label }) => ({ key, label })) } };
+    try { git(wt, 'push', '-q', 'origin', `HEAD:refs/heads/${head}`); }
+    catch (e) { throw new Error(`a signature is prepared on GitHub, and origin could not be reached; nothing was recorded, so try again when it can: ${(e as Error).message.split('\n').find((l) => l.trim()) ?? ''}`); }
+    return { result, prepared: { branch: head, url: pullsOf(repo, head), person: signer, login, acts: acts.map(({ key, label }) => ({ key, label })) }, syncError };
   } finally {
     takeTouched(at);
     try { git(top, 'worktree', 'remove', '--force', wt); } catch { rmSync(wt, { recursive: true, force: true }); tryGit(top, 'worktree', 'prune'); }
@@ -105,7 +105,7 @@ function packet(before: string, root: string, person: string, acts: { key: strin
   const org = ws.manifest?.data.organization || 'the organization';
   const name = (ws.registers.people?.data.rows ?? []).find((r) => r.id === person)?.name || person;
   const out = [`**${name}**, this is prepared for your signature.`, '',
-    `Read it here and under **Files changed**. **Approve** this pull request to sign it: GitHub records your approval of its exact head commit, and the workspace's signing workflow then merges it. If anything is not true, choose **Request changes** and say what; it will be prepared again.`, ''];
+    `Read it here and under **Files changed**. **Approve** this pull request to sign it: GitHub records your approval of its exact head commit, and the workspace's signing workflow then merges it. If anything is not true, choose **Request changes** and say what: whoever prepared it withdraws it, changes it and prepares it again for you. The dates in the records are when it was prepared; your signature's time is your approval's.`, ''];
   for (const a of acts) {
     out.push(`## ${a.label[0].toUpperCase()}${a.label.slice(1)}`, '');
     const id = a.kind === 'policy-approval' ? a.key.split(':')[1] : '';
@@ -125,7 +125,9 @@ function packet(before: string, root: string, person: string, acts: { key: strin
 // What waits for signatures: every `sign/` branch on the remote, read from its head commit's packet. Reading it first
 // brings the workspace level with its remote, so a signature merged there shows here; the workflow deletes a branch once
 // its pull request is merged or closed.
-export type Pending = { branch: string; url: string; person: string; login: string; acts: { key: string; kind: string; file: string; label: string }[] };
+// \`merges\` is false when the branch no longer merges cleanly into the default branch (another signature changed the same
+// lines first): its approval could not land, so it is withdrawn and prepared again.
+export type Pending = { branch: string; url: string; person: string; login: string; acts: { key: string; kind: string; file: string; label: string }[]; merges: boolean };
 export function pendingSignatures(root: string): { repo: string | null; status: Status | null; pending: Pending[]; error: string | null } {
   let status: Status | null = null, error: string | null = null;
   const repo = githubRepoOf(root);
@@ -140,10 +142,20 @@ export function pendingSignatures(root: string): { repo: string | null; status: 
     if (!m) continue;
     try {
       const mark = JSON.parse(m[1]) as { person: string; acts: Pending['acts'] };
-      pending.push({ branch: ref, url: pullsOf(repo, ref), person: mark.person, login: ref.split('/')[1], acts: mark.acts });
+      const base = tryGit(root, 'symbolic-ref', '-q', 'refs/remotes/origin/HEAD');
+      const merges = !base || tryGit(root, 'merge-tree', '--write-tree', '--quiet', base, `refs/remotes/origin/${ref}`) !== null;
+      pending.push({ branch: ref, url: pullsOf(repo, ref), person: mark.person, login: ref.split('/')[1], acts: mark.acts, merges });
     } catch { /* a packet that cannot be read is not listed */ }
   }
   return { repo, status, pending, error };
+}
+
+// Withdraws a signature not yet given: deletes its branch on the remote, which closes its pull request, so the act can be
+// changed and prepared again.
+export function withdrawSignature(root: string, branch: string): void {
+  if (!/^sign\/[A-Za-z0-9-]+\/[a-z0-9-]+$/.test(branch)) throw new Error(`${branch} is not a branch Evidence Desk prepared for a signature`);
+  git(root, 'push', '-q', 'origin', '--delete', branch);
+  tryGit(root, 'fetch', '-q', '--prune', 'origin', '+refs/heads/sign/*:refs/remotes/origin/sign/*');
 }
 
 // The workflow that carries a signature on GitHub: it opens the pull request for a pushed `sign/<login>/…` branch as the
@@ -206,7 +218,10 @@ jobs:
           SHA: \${{ github.event.review.commit_id }}
           BRANCH: \${{ github.event.pull_request.head.ref }}
         run: |
-          gh api -X PUT "repos/$REPO/pulls/$PR/merge" -f merge_method=merge -f sha="$SHA" > /dev/null
+          if ! gh api -X PUT "repos/$REPO/pulls/$PR/merge" -f merge_method=merge -f sha="$SHA" > /dev/null 2> error.txt; then
+            gh api "repos/$REPO/issues/$PR/comments" -f body="Signed, but this could not be merged: $(head -c 300 error.txt). Usually another signature changed the same lines first. Withdraw it in Evidence Desk, prepare it again and sign the new pull request." > /dev/null
+            exit 1
+          fi
           gh api -X DELETE "repos/$REPO/git/refs/heads/$BRANCH" > /dev/null || true
   close:
     if: >-

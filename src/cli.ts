@@ -27,7 +27,7 @@ import { collectCloudflareChanges, collectCloudflareTokens, collectWorkerDeploym
 import { COLLECTORS, checkTitle, ciWorkflow, configureCollector, readSettings, runChecks } from './automation.ts';
 import { exceptionsRegister, respondToException, actOnRequest, createEngagement, draft, exportPackage, firmSummary, importRequests, importReturn, listRequests, readEngagement, verifyPackage } from './audit.ts';
 import { clockDate } from './clock.ts';
-import { commitTouched, repoOf, syncWorkspace } from './git.ts';
+import { commitTouched, keepHistory, repoOf, syncWorkspace } from './git.ts';
 import { prepareSignature, signingWorkflow } from './signatures.ts';
 
 const USAGE = `evidence-desk <command> <workspace> [options]
@@ -164,7 +164,10 @@ const pairs = (vals: string[]): Record<string, string> => Object.fromEntries(val
   return [v.slice(0, i), v.slice(i + 1)];
 }));
 
+// A change prepared for someone's signature is not yet recorded, so what the command would say about it is not said.
+let preparing = false;
 function out(json: boolean, data: unknown, text: () => string): void {
+  if (preparing) return;
   console.log(json ? JSON.stringify(data, null, 2) : text());
 }
 
@@ -181,12 +184,15 @@ async function main(argv: string[]): Promise<number> {
   // An act a person signs, where the workspace signs on GitHub, is prepared as a pull request for them (signatures.ts).
   const signable = (cmd === 'policy' && a.flags.has('approve')) || cmd === 'respond' || (cmd === 'access-review' && a.flags.has('sign-off'))
     || (cmd === 'incident' && !!rest[0] && rest[0] !== 'new') || (cmd === 'register' && (a.flags.has('add') || a.flags.has('update'))) || (cmd === 'frameworks' && rest[0] === 'attest');
+  // Commands that read or answer a received audit package or a firm's file are not a workspace whose history is kept.
+  if (!['firm'].includes(cmd) && !(cmd === 'audit' && ['verify', 'recollect', 'package-serve'].includes(dirArg))) keepHistory(dir);
   if (signable) {
-    const signed = await prepareSignature(dir, message, (at) => command(a, cmd, at, dirArg, rest, json));
+    const signed = await prepareSignature(dir, message, person, async (at: string) => { preparing = true; try { return await command(a, cmd, at, dirArg, rest, json); } finally { preparing = false; } });
     if (signed) {
       const p = signed.prepared;
-      if (json) console.error(JSON.stringify({ prepared: p }));
+      if (json) console.error(JSON.stringify({ prepared: p, sync_error: signed.syncError }));
       else console.log(p ? `Prepared for ${p.person}'s signature as ${p.branch}; its pull request opens on GitHub in a moment: ${p.url}\n${p.login} signs it by approving that pull request.` : 'It records no signature, so it was committed to the workspace as it is.');
+      if (signed.syncError && !json) console.error(`Not yet on the remote: ${signed.syncError}`);
       return signed.result;
     }
   }

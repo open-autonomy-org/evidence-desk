@@ -8,7 +8,7 @@ import { CF_ADMIN_ROLES, cfAccount, cfAll, cfIsAdmin } from './cloudflare.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { addEvidence, evidencing } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
-import type { Snapshot } from './open-autonomy.ts';
+import { memberOf, type Snapshot } from './open-autonomy.ts';
 import { clockDate, now } from './clock.ts';
 import { neededControls } from './targets.ts';
 import { certifications } from './certifications.ts';
@@ -253,7 +253,7 @@ export async function checkCompleteness(root: string, input: { account: string; 
     query = `${queries.join('; ')} (all pages), keeping members with ${CF_ADMIN_ROLES.join(' or ')}`;
   } else throw new Error(`${acct.vendor} administrators cannot be read automatically yet; export the list and pass --file`);
   const known = new Set(snap.team.flatMap((m) => [m.github, m.discord, m.id].filter(Boolean).map((x) => String(x).toLowerCase())));
-  const emails = new Set((loadWorkspace(root).registers.people?.data.rows ?? []).filter((p) => snap.team.some((m) => m.id === p.id)).map((p) => p.email.toLowerCase()).filter(Boolean));
+  const emails = new Set((loadWorkspace(root).registers.people?.data.rows ?? []).filter((p) => !!memberOf(snap.team, p.id)).map((p) => p.email.toLowerCase()).filter(Boolean));
   const outside = admins.filter((a) => !known.has(a.toLowerCase()) && !emails.has(a.toLowerCase()));
   const id = `${acct.id}-${clockDate().toISOString().slice(0, 10)}-${Date.now().toString(36)}`;
   const rel = `sources/open-autonomy/completeness/${id}.json`;
@@ -312,11 +312,11 @@ export function signedActs(root: string): Act[] {
 }
 export type AttributionStatus = 'verified' | 'names no one' | 'no GitHub account on the roster' | 'not on the default branch' | 'changed since merged'
   | 'not on GitHub' | 'no merged pull request' | 'recorded by someone else' | 'history unreadable';
-// \`via\` says how a verified act was signed: \`approved\` (the person approved the pull request at its merged head) or
-// \`opened\` (the person opened it).
-export type Attribution = { key: string; kind: Act['kind']; file: string; person: string; label: string; value_sha256: string; commit: string; committed_at: string; pull: string; author: string; expected: string; via: '' | 'approved' | 'opened'; status: AttributionStatus };
+// \`via\` says how a verified act was signed: \`approved\` (the person approved the pull request at its merged head; \`signed_at\`
+// is when) or \`opened\` (the person opened it). A record's own date is when the act was prepared, which can be earlier.
+export type Attribution = { key: string; kind: Act['kind']; file: string; person: string; label: string; value_sha256: string; commit: string; committed_at: string; pull: string; author: string; expected: string; via: '' | 'approved' | 'opened'; signed_at: string; status: AttributionStatus };
 export const actDigest = (v: unknown) => createHash('sha256').update(JSON.stringify(v ?? null)).digest('hex');
-const writeCsvFile = (root: string, rel: string, rows: Attribution[]) => writeVersioned(root, rel, writeCsv({ columns: ['key', 'kind', 'file', 'person', 'label', 'value_sha256', 'commit', 'committed_at', 'pull', 'author', 'expected', 'via', 'status'], rows }), null);
+const writeCsvFile = (root: string, rel: string, rows: Attribution[]) => writeVersioned(root, rel, writeCsv({ columns: ['key', 'kind', 'file', 'person', 'label', 'value_sha256', 'commit', 'committed_at', 'pull', 'author', 'expected', 'via', 'signed_at', 'status'], rows }), null);
 export async function collectAttribution(root: string, input: { repo: string; by: string }): Promise<{ record: string; file: string; evidence: null; rows: Attribution[] }> {
   if (!/^[\w.-]+\/[\w.-]+$/.test(input.repo)) throw new Error('--repo names the workspace\'s own GitHub repository as owner/name');
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
@@ -339,7 +339,7 @@ export async function collectAttribution(root: string, input: { repo: string; by
   for (const act of signedActs(root)) {
     const now = readAct(act.file, readVersioned(root, act.file)?.text);
     const current = now === UNREADABLE ? null : act.extract(now);
-    const row: Attribution = { key: act.key, kind: act.kind, file: act.file, person: act.person, label: act.label, value_sha256: actDigest(current), commit: '', committed_at: '', pull: '', author: '', expected: '', via: '', status: 'verified' };
+    const row: Attribution = { key: act.key, kind: act.kind, file: act.file, person: act.person, label: act.label, value_sha256: actDigest(current), commit: '', committed_at: '', pull: '', author: '', expected: '', via: '', signed_at: '', status: 'verified' };
     rows.push(row);
     const holds = (c: string): boolean | undefined => { const v = at(c, act.file); return v === UNREADABLE ? undefined : actDigest(act.extract(v)) === row.value_sha256; };
     // The default branch's own line (first parents), newest first: the act was introduced by the newest commit whose
@@ -365,7 +365,7 @@ export async function collectAttribution(root: string, input: { repo: string; by
     row.commit = intro; row.committed_at = git('show', '-s', '--format=%cI', intro);
     // Who the act names: for a register row, its owner as the row stood at the commit that made the decision.
     if (act.personAt) { const v = at(intro, act.file); row.person = v === UNREADABLE ? '' : act.personAt(v); }
-    row.expected = snap.team.find((m) => m.id === row.person)?.github ?? '';
+    row.expected = memberOf(snap.team, row.person)?.github ?? '';
     if (!row.person) { row.status = 'names no one'; continue; }
     if (!row.expected) { row.status = 'no GitHub account on the roster'; continue; }
     const found = await pullsOf(intro);
@@ -378,10 +378,10 @@ export async function collectAttribution(root: string, input: { repo: string; by
     const approvedBy = async (p: Merged) => {
       const verdicts = (await all<Review>(`/repos/${input.repo}/pulls/${p.number}/reviews`)).items.filter((r) => is(r.user?.login) && ['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(r.state));
       const last = verdicts.at(-1);
-      return !!last && last.state === 'APPROVED' && !!p.head?.sha && last.commit_id === p.head.sha;
+      return !!last && last.state === 'APPROVED' && !!p.head?.sha && last.commit_id === p.head.sha ? last.submitted_at ?? '' : null;
     };
     let pr: Merged | undefined;
-    for (const p of into) if (await approvedBy(p)) { pr = p; row.via = 'approved'; break; }
+    for (const p of into) { const at = await approvedBy(p); if (at !== null) { pr = p; row.via = 'approved'; row.signed_at = at; break; } }
     if (!pr) { pr = into.find((p) => is(p.user?.login)); if (pr) row.via = 'opened'; }
     pr ??= into[0];
     row.pull = String(pr.number); row.author = pr.user?.login ?? '';
@@ -458,7 +458,7 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
     ['Assign an owner in the workspace for each of these; each then gets its own reminder.', unowned.map((o) => `- ${o.what}${o.state === 'overdue' ? ` (overdue since ${o.due})` : ''}`).join('\n'), unownedMarker].join('\n\n'));
   for (const o of owed.filter((x) => x.who)) {
     const m = marker(o);
-    const login = team.find((t) => t.id === o.who)?.github;
+    const login = memberOf(team, o.who)?.github;
     const body = [`${o.what} is ${o.state === 'overdue' ? `overdue since ${o.due}` : 'due'}, owed by ${o.who}.`,
       o.controls.length ? `Controls: ${o.controls.join(', ')}.` : '', 'Record it in the workspace in a pull request of your own; this issue closes once the workspace no longer shows it owed.', m].filter(Boolean).join('\n\n');
     await upsert(m, title(o), body, login);
