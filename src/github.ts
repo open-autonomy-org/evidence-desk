@@ -23,11 +23,11 @@ let requests: { path: string; status: number; date: string; request_id: string }
 // Names that become API paths are checked before any request: an owner/name, or an organization login, with nothing
 // that could step to another endpoint of the API ("..", more segments, a query).
 export function repoName(repo: string, what = 'the repository'): string {
-  if (!/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(repo) || /\/\.\.?$/.test(repo)) throw new Error(`${what} must be a GitHub repository as owner/name, not ${JSON.stringify(repo)}`);
+  if (!/^[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/.test(repo) || /\/\.\.?$/.test(repo)) throw new Error(`${what} must be a GitHub repository as owner/name, not ${JSON.stringify(repo)}`);
   return repo;
 }
 export function orgName(org: string): string {
-  if (!/^[A-Za-z0-9-]+$/.test(org)) throw new Error(`the organization must be a GitHub login, not ${JSON.stringify(org)}`);
+  if (!/^[A-Za-z0-9_-]+$/.test(org)) throw new Error(`the organization must be a GitHub login, not ${JSON.stringify(org)}`);
   return org;
 }
 
@@ -257,6 +257,7 @@ export async function checkCompleteness(root: string, input: { account: string; 
     admins = (col >= 0 ? lines.slice(1).map((l) => l.split(',')[col].trim()) : lines).filter(Boolean);
     query = `${input.generated_by} (file ${input.file})`;
   } else if (acct.vendor === 'github') {
+    orgName(acct.account);
     admins = (await all<{ login: string }>(`/orgs/${acct.account}/members?role=admin`)).items.map((m) => m.login);
     query = `GET /orgs/${acct.account}/members?role=admin (all pages)`;
   } else if (acct.vendor === 'cloudflare') {
@@ -349,7 +350,6 @@ async function rosterFrom(repo: string): Promise<{ team: Snapshot['team']; sourc
 
 export async function collectAttribution(root: string, input: { repo: string; by: string; roster?: string }): Promise<{ record: string; file: string; evidence: null; rows: Attribution[] }> {
   repoName(input.repo);
-  if (!/^[\w.-]+\/[\w.-]+$/.test(input.repo)) throw new Error('--repo names the workspace\'s own GitHub repository as owner/name');
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
   if (!latest && !input.roster) throw new Error('import the Open Autonomy project first (evidence-desk open-autonomy import), or name its repository with --roster: its roster holds each person\'s GitHub account');
   const workspaceSnap = latest ? JSON.parse(latest.text) as Snapshot : null;
@@ -457,7 +457,6 @@ async function send(method: string, path: string, body: unknown): Promise<any> {
 const LABEL = 'evidence-desk';
 export async function syncReminders(root: string, input: { repo: string; asOf?: Date; within: number }): Promise<{ opened: string[]; retitled: string[]; closed: string[]; kept: number }> {
   repoName(input.repo);
-  if (!/^[\w.-]+\/[\w.-]+$/.test(input.repo)) throw new Error('--repo names the workspace\'s own GitHub repository as owner/name');
   const { computeObligations } = await import('./obligations.ts');
   const ws = loadWorkspace(root);
   const latest = readVersioned(root, 'sources/open-autonomy/latest.json');

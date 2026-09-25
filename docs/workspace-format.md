@@ -257,7 +257,7 @@ library; a reviewed answer whose cited files are unchanged is reused as reviewed
 `needs-review`. Otherwise the answer is drafted by quoting the applicable controls, the reasons for excluded ones, and
 approved policy text that match the question, each cited with its file and SHA-256; a question with no matching fact is
 left `unanswered`. A draft carries a marker and cannot be marked reviewed until a person replaces it with their answer.
-Only reviewed, current answers are exported. The export is made for a spreadsheet: a cell that begins with `=`, `+`, `-` or `@` is written after an apostrophe, so it opens as text, never as a formula. Drafting uses no AI service; a customer's own coding agent may refine
+Only reviewed, current answers are exported. The export is made for a spreadsheet: a cell that begins with `=`, `+`, `-`, `@`, a tab or a carriage return is written after an apostrophe (the audit package's `review/` tables are written the same way; evidence files are copied exactly), so it opens as text, never as a formula. Drafting uses no AI service; a customer's own coding agent may refine
 drafts in the files.
 
 ## Targets
