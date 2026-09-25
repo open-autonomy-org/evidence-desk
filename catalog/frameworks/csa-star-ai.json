@@ -9,7 +9,7 @@
   "name": "CSA AI Controls Matrix (AICM)",
   "url": "https://cloudsecurityalliance.org/artifacts/ai-controls-matrix-v1-1"
  },
- "note": "The AI Controls Matrix's 247 control identifiers, with short titles written by this project, mapped onto the control library through CSA's own mappings of the matrix to AIUC-1, ISO/IEC 42001, ISO/IEC 27001 and NIST AI RMF, control-level references first and management-system clauses only where none exist. CSA's text is not included: its licence permits only personal, non-commercial use without modification or redistribution, so read the matrix at the source. There is no certification at Level 1: an organization self-assesses and signs its own attestation. Filing the AI-CAIQ with CSA's STAR Registry is the organization's own act, taking the same positions. A control no mapping resolves to the library maps to none, so the organization states its position on it (or maps a control of its own).",
+ "note": "The AI Controls Matrix's 247 control identifiers, with short titles written by this project, mapped onto the control library through CSA's own mappings of the matrix to AIUC-1, ISO/IEC 42001, ISO/IEC 27001 and NIST AI RMF (CSA's ISO/IEC 27002 citations read as the ISO/IEC 27001 Annex A controls of the same number), control-level references first and management-system clauses only where none exist. CSA's text is not included: its licence permits only personal, non-commercial use without modification or redistribution, so read the matrix at the source. There is no certification at Level 1: an organization self-assesses and signs its own attestation. Filing the AI-CAIQ with CSA's STAR Registry is the organization's own act, taking the same positions. A control no mapping resolves to the library maps to none, so the organization states its position on it (or maps a control of its own).",
  "requirements": [
   {
    "id": "A&A-01",
@@ -484,11 +484,13 @@
    "group": "BCR. Business Continuity & Resilience",
    "title": "Stakeholders reachable during a continuity event",
    "controls": [
+    "GOV-07",
     "RISK-01",
     "HR-06",
     "OPS-07",
     "AI-01",
     "AI-03",
+    "AI-09",
     "AI-12"
    ]
   },
