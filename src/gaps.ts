@@ -2,9 +2,9 @@
 // whole. Derived on every call from the files; nothing is cached.
 import { categories, categoryAnswer, criteria, questions } from './catalog.ts';
 import { placeholders, unanswered } from './actions.ts';
-import type { Workspace } from './workspace.ts';
+import { readJson, type Workspace } from './workspace.ts';
 import { computeObligations, type Obligation } from './obligations.ts';
-import { DECLARATION_CONTROLS, RECORD_KINDS, seamFindings, type Snapshot } from './open-autonomy.ts';
+import { DECLARATION_CONTROLS, RECORD_KINDS, seamFindings } from './open-autonomy.ts';
 import { actDigest, readAct, signedActs, UNREADABLE } from './github.ts';
 import { readVersioned } from './files.ts';
 import { existsSync, readdirSync } from 'node:fs';
@@ -40,9 +40,18 @@ export function computeGaps(ws: Workspace, asOf = clockDate()): Gaps {
   if (!(ws.registers.vendors?.data.rows ?? []).length) program.push('The vendor register is empty');
   if (!(ws.registers.risks?.data.rows ?? []).length) program.push('The risk register is empty');
   for (const r of ws.registers.risks?.data.rows ?? []) if (r.treatment === 'undecided' && r.status === 'open') program.push(`Risk ${r.id} has no treatment decision`);
-  const oa = readVersioned(ws.root, 'sources/open-autonomy/latest.json');
+  // A collected record, when it has the shape its readers need: null when it has not been collected, undefined (and a
+  // finding) when it cannot be read, so one damaged file is reported instead of taking every other gap with it.
+  const collected = <T>(rel: string, shaped: (x: Record<string, unknown>) => boolean): T | null | undefined => {
+    const got = readVersioned(ws.root, rel);
+    if (!got) return null;
+    try { const x = JSON.parse(got.text); if (x && typeof x === 'object' && shaped(x)) return x as T; } catch { /* reported below */ }
+    program.push(`${rel} cannot be read: collect it again`);
+    return undefined;
+  };
+  const oa = ws.openAutonomy;
   if (oa) {
-    const snap = JSON.parse(oa.text) as Snapshot;
+    const snap = oa.data;
     program.push(...seamFindings(snap).map((f) => `Open Autonomy: ${f}`));
     // Every needed control the declarations evidence must be on a record of them at this commit; a target added since the
     // last import leaves some off, and importing again records them.
@@ -51,28 +60,29 @@ export function computeGaps(ws: Workspace, asOf = clockDate()): Gaps {
     const missing = declared.filter((c) => !covered.has(c));
     if (missing.length) program.push(`Open Autonomy: the declarations at ${snap.commit.slice(0, 12)} are not recorded as evidence for ${missing.join(', ')} (open-autonomy import again)`);
     const dir = join(ws.root, 'sources/open-autonomy/completeness');
-    const checks = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readVersioned(ws.root, `sources/open-autonomy/completeness/${f}`)!.text) as { account: string; vendor: string; checked_at: string; outside: string[] }) : [];
+    const checks = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => readJson<{ account: string; vendor: string; checked_at: string; outside: string[] }>(ws.root, `sources/open-autonomy/completeness/${f}`, 'completeness', [])?.data).filter((c) => c !== undefined) : [];
     for (const acct of snap.vendor_accounts) {
       const last = checks.filter((c) => c.vendor === acct.vendor && c.account === acct.account).sort((a, b) => a.checked_at.localeCompare(b.checked_at)).at(-1);
       if (!last) program.push(`Open Autonomy: the administrators of ${acct.vendor} ${acct.account} have not been compared with the roster`);
       else for (const o of last.outside) program.push(`Open Autonomy: ${o} administers ${acct.vendor} ${acct.account} but is not on the roster`);
     }
     for (const seam of (snap.seams ?? []).filter((x) => x.door === 'commit' && x.record.startsWith('records/') && RECORD_KINDS[x.id])) {
-      const got = readVersioned(ws.root, `sources/open-autonomy/seam-records/${seam.id}.json`);
-      if (!got) { program.push(`Open Autonomy: the ${seam.id} records in ${seam.record} have not been collected (collect seam-records)`); continue; }
-      for (const f of (JSON.parse(got.text) as { findings: string[] }).findings) program.push(`Open Autonomy: ${f}`);
+      const rel = `sources/open-autonomy/seam-records/${seam.id}.json`;
+      const got = collected<{ findings: string[] }>(rel, (x) => Array.isArray(x.findings) && x.findings.every((f) => typeof f === 'string'));
+      if (!got) { if (got === null) program.push(`Open Autonomy: the ${seam.id} records in ${seam.record} have not been collected (collect seam-records)`); continue; }
+      for (const f of got.findings) program.push(`Open Autonomy: ${f}`);
     }
   }
   // Every signed act must have been recorded by its person's own GitHub account on the roster: each person's latest
   // passed response per form, each access review sign-off, each policy's latest approval, each incident's closing. A
   // signer who is not on the roster has no account to check, which is itself the finding.
-  const attributed = readVersioned(ws.root, 'sources/github/attribution.json');
-  const record = attributed ? JSON.parse(attributed.text) as { roster_commit: string; roster_source?: { read_from?: string; repo?: string; commit?: string }; rows: { key: string; value_sha256: string; status: string; via?: string; author: string; person: string }[] } : null;
+  const record = collected<{ roster_commit: string; roster_source?: { read_from?: string; repo?: string; commit?: string }; rows: { key: string; value_sha256: string; status: string; via?: string; author: string; person: string }[] }>(
+    'sources/github/attribution.json', (x) => typeof x.roster_commit === 'string' && Array.isArray(x.rows) && x.rows.every((r) => !!r && typeof r === 'object' && ['key', 'value_sha256', 'status', 'author', 'person'].every((k) => typeof (r as Record<string, unknown>)[k] === 'string'))) ?? null;
   // A check that read the roster from the project's repository is compared with nothing here (its commit is the
   // project's, recorded); one that read the workspace's copy says so, and is compared with the copy now held.
   const fromProject = record?.roster_source?.read_from === 'the project repository';
   if (record && !fromProject) program.push('Open Autonomy: signed acts were checked against the workspace\'s copy of the roster, which anyone who writes to the workspace can change (collect attribution --roster <the project\'s repository>)');
-  const snap = oa ? JSON.parse(oa.text) as Snapshot : null;
+  const snap = oa?.data ?? null;
   if (record && !fromProject && snap && record.roster_commit !== snap.commit) program.push(`Open Autonomy: signed acts were checked against the roster at ${record.roster_commit.slice(0, 12)}, not ${snap.commit.slice(0, 12)} (collect attribution)`);
   const latestResponse = new Map<string, { id: string; at: string }>();
   for (const r of ws.responses) if (r.data.passed) {

@@ -2,11 +2,12 @@
 // Nothing here writes. Each load rereads the folder, so edits made by people or other tools are always seen.
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { check, schema } from './schema.ts';
+import { check, schema, shapeErrors } from './schema.ts';
 import { parseCsv, type Table } from './csv.ts';
 import { fileHash, readVersioned } from './files.ts';
 import { criterionCategory, frameworkCatalogs, type FormTemplate } from './catalog.ts';
 import { neededControls } from './targets.ts';
+import type { Snapshot } from './open-autonomy.ts';
 
 export type Versioned<T> = { path: string; version: string; data: T };
 export type Control = {
@@ -59,16 +60,25 @@ export type Workspace = {
   accessReviews: Versioned<AccessReview>[];
   incidents: Versioned<Incident>[];
   runs: Versioned<CheckRun>[];
+  // The Open Autonomy project as last imported (sources/open-autonomy/latest.json), when it reads as a snapshot.
+  openAutonomy: Versioned<Snapshot> | null;
   registers: Record<RegisterName, Versioned<Table> | null>;
   problems: Problem[];
 };
 
-function readJson<T>(root: string, rel: string, schemaName: string, problems: Problem[]): Versioned<T> | null {
+export function readJson<T>(root: string, rel: string, schemaName: string, problems: Problem[]): Versioned<T> | null {
   const r = readVersioned(root, rel);
   if (!r) return null;
   let data: unknown;
-  try { data = JSON.parse(r.text); } catch (e) { problems.push({ severity: 'error', file: rel, message: `not valid JSON: ${(e as Error).message}` }); return null; }
-  for (const m of check(schema(schemaName), data)) problems.push({ severity: 'error', file: rel, message: m });
+  try { data = JSON.parse(r.text); } catch (e) { problems.push({ severity: 'error', file: rel, message: `not valid JSON: ${(e as Error).message} (left out until fixed)` }); return null; }
+  // A record the code cannot read (not an object, a field missing, a value of another type than its readers take:
+  // shapeErrors) is reported and left out, so the rest of the workspace still loads. A scoping answer is the exception:
+  // it counts only when it is true, so one written otherwise is safe. A record whose values are of the right kind but
+  // wrong (a format, a text outside its choices) stays, reported, so no view loses it.
+  const wrong = check(schema(schemaName), data);
+  const unreadable = shapeErrors(schema(schemaName), data).some((e) => !(e.path.startsWith('answers.') && schemaName === 'scope'));
+  for (const m of wrong) problems.push({ severity: 'error', file: rel, message: unreadable ? `${m} (left out until fixed)` : m });
+  if (unreadable) return null;
   return { path: rel, version: r.version, data: data as T };
 }
 
@@ -80,7 +90,7 @@ export function loadWorkspace(root: string): Workspace {
   if (!existsSync(join(root, MANIFEST))) throw new Error(`${root} is not an Evidence Desk workspace: ${MANIFEST} is missing`);
   const manifest = readJson<Manifest>(root, MANIFEST, 'workspace', problems);
   const scope = readJson<Scope>(root, 'scope.json', 'scope', problems);
-  if (!scope) problems.push({ severity: 'error', file: 'scope.json', message: 'is missing' });
+  if (!scope && !existsSync(join(root, 'scope.json'))) problems.push({ severity: 'error', file: 'scope.json', message: 'is missing' });
 
   const controls = list(root, 'controls', '.json').map((f) => readJson<Control>(root, f, 'control', problems)).filter((c) => c !== null);
   const policies = list(root, 'policies', '.json').map((f) => readJson<Policy>(root, f, 'policy', problems)).filter((p) => p !== null).map((p) => {
@@ -111,6 +121,9 @@ export function loadWorkspace(root: string): Workspace {
   // Records no view needs loaded are still validated, so `validate` covers every file Evidence Desk defines.
   for (const [rel, name] of [['trust.json', 'trust'], ['answers.json', 'answer-library'], ['collectors.json', 'collectors']] as const) readJson(root, rel, name, problems);
   for (const f of list(root, 'questionnaires', '.json')) readJson(root, f, 'questionnaire', problems);
+  for (const f of list(root, 'certifications', '.json')) readJson(root, f, 'certification', problems);
+  for (const f of list(root, 'sources/open-autonomy/completeness', '.json')) readJson(root, f, 'completeness', problems);
+  const openAutonomy = readJson<Snapshot>(root, 'sources/open-autonomy/latest.json', 'open-autonomy', problems);
   for (const f of list(root, 'frameworks', '.json')) {
     const r = readJson<{ framework: string }>(root, f, 'framework-settings', problems);
     if (r && (!frameworkCatalogs.has(r.data.framework) || f !== `frameworks/${r.data.framework}.json`)) problems.push({ severity: 'error', file: f, message: `${r.data.framework} is not a framework Evidence Desk maps with its own settings, or this file is not frameworks/${r.data.framework}.json` });
@@ -121,7 +134,7 @@ export function loadWorkspace(root: string): Workspace {
     for (const f of list(root, `audits/${d}/requests`, '.json')) readJson(root, f, 'audit-request', problems);
   }
   syncConflicts(root, problems);
-  const ws: Workspace = { root, manifest, scope, controls, policies, evidence, forms, responses, accessReviews, incidents, runs, registers, problems };
+  const ws: Workspace = { root, manifest, scope, controls, policies, evidence, forms, responses, accessReviews, incidents, runs, openAutonomy, registers, problems };
   crossCheck(ws);
   return ws;
 }
@@ -178,7 +191,8 @@ function crossCheck(ws: Workspace): void {
     if (pol.data.owner && !people.has(pol.data.owner)) p.push({ severity: 'error', file: pol.path, message: `owner ${pol.data.owner} is not in registers/people.csv` });
     if (!pol.text) p.push({ severity: 'error', file: pol.path, message: `its text policies/${pol.data.id}.md is missing` });
     for (const v of pol.data.versions ?? []) {
-      const h = fileHash(ws.root, v.archived);
+      let h: ReturnType<typeof fileHash> = null;
+      try { h = fileHash(ws.root, v.archived); } catch (err) { p.push({ severity: 'error', file: pol.path, message: (err as Error).message }); continue; }
       if (!h) p.push({ severity: 'error', file: pol.path, message: `approved version ${v.version} archive ${v.archived} is missing` });
       else if (h.sha256 !== v.sha256) p.push({ severity: 'error', file: pol.path, message: `approved version ${v.version} archive ${v.archived} no longer matches its approval` });
     }

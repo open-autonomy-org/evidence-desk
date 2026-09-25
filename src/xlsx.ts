@@ -28,6 +28,7 @@ function unzip(buf: Buffer): { names: Set<string>; read(name: string): Buffer | 
       if (!e) return undefined;
       if (e.full > PART_LIMIT) throw new Error(`${name} expands to more than ${PART_LIMIT / 1048576} MiB`);
       const dataAt = e.local + 30 + buf.readUInt16LE(e.local + 26) + buf.readUInt16LE(e.local + 28);
+      if (dataAt + e.size > buf.length) throw new Error(`${name} runs past the end of the archive`);
       const raw = buf.subarray(dataAt, dataAt + e.size);
       if (e.method === 0) return Buffer.from(raw);
       if (e.method === 8) return inflateRawSync(raw, { maxOutputLength: PART_LIMIT });
@@ -36,24 +37,72 @@ function unzip(buf: Buffer): { names: Set<string>; read(name: string): Buffer | 
   };
 }
 
+// The elements named tag, in order, found by scanning forward once: a part whose tags never close is read to its end
+// once, not once per opening tag as a lazy regular expression would. Elements of this format do not nest in themselves.
+function* elements(xml: string, tag: string): Generator<{ attrs: string; body: string | undefined }> {
+  const open = `<${tag}`, close = `</${tag}>`;
+  for (let at = 0; ;) {
+    const i = xml.indexOf(open, at);
+    if (i < 0) return;
+    at = i + open.length;
+    if (!/[\s/>]/.test(xml[at] ?? '')) continue;
+    const gt = xml.indexOf('>', at);
+    if (gt < 0) return;
+    const attrs = xml.slice(at, gt);
+    if (attrs.endsWith('/')) { yield { attrs: attrs.slice(0, -1), body: undefined }; at = gt + 1; continue; }
+    const end = xml.indexOf(close, gt);
+    if (end < 0) return;
+    yield { attrs, body: xml.slice(gt + 1, end) };
+    at = end + close.length;
+  }
+}
+// The part without the named elements (phonetic runs), in one forward scan.
+function without(xml: string, tag: string): string {
+  let out = '', at = 0;
+  for (const open = `<${tag}`, close = `</${tag}>`; ;) {
+    const i = xml.indexOf(open, at);
+    if (i < 0) return out + xml.slice(at);
+    out += xml.slice(at, i);
+    const end = xml.indexOf(close, i);
+    if (end < 0) return out;
+    at = end + close.length;
+  }
+}
+
 const decode = (s: string) => s.replace(/&(lt|gt|amp|quot|apos|#(\d+)|#x([0-9a-fA-F]+));/g, (_m, e, d, x) =>
   e === 'lt' ? '<' : e === 'gt' ? '>' : e === 'amp' ? '&' : e === 'quot' ? '"' : e === 'apos' ? "'" : String.fromCodePoint(d ? Number(d) : parseInt(x, 16)));
 // The text of every <t> in a string item, in order (rich text splits one string across runs).
-const textOf = (xml: string) => [...xml.replace(/<rPh\b[\s\S]*?<\/rPh>/g, '').matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => decode(m[1])).join('');
-const column = (ref: string) => { let n = 0; for (const ch of ref.replace(/\d+$/, '')) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1; };
+const textOf = (xml: string) => [...elements(without(xml, 'rPh'), 't')].map((t) => decode(t.body ?? '')).join('');
+// A cell's column from its reference; the format ends at column XFD (16,384), and a reference past it is refused
+// rather than allocated.
+const COLUMNS = 16384;
+const column = (ref: string) => {
+  let n = 0; for (const ch of ref.replace(/\d+$/, '')) { n = n * 26 + (ch.charCodeAt(0) - 64); if (n > COLUMNS) throw new Error(`cell ${ref} is past the last column a spreadsheet can have`); }
+  return n - 1;
+};
+// Cells a sheet may spread over, counting the empty ones placed before a cell: far more than any questionnaire.
+const CELLS = 2_000_000;
 
 const attr = (tag: string, name: string) => new RegExp(`\\b${name}="([^"]*)"`).exec(tag)?.[1];
 function rowsOf(sheet: string, shared: string[]): string[][] {
   const grid: string[][] = [];
-  for (const row of sheet.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)) {
+  let budget = CELLS;
+  for (const row of elements(sheet, 'row')) {
     const cells: string[] = [];
-    for (const c of row[1].matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
-      const ref = /\br="([A-Z]+\d+)"/.exec(c[1])?.[1];
-      const type = /\bt="([^"]+)"/.exec(c[1])?.[1];
-      const body = c[2] ?? '';
-      const v = /<v>([\s\S]*?)<\/v>/.exec(body)?.[1];
+    // A cell with no reference follows the one before it, whether or not that one was placed.
+    let next = 0;
+    for (const c of elements(row.body ?? '', 'c')) {
+      const ref = /\br="([A-Z]+\d+)"/.exec(c.attrs)?.[1];
+      const type = /\bt="([^"]+)"/.exec(c.attrs)?.[1];
+      const body = c.body ?? '';
+      const v = elements(body, 'v').next().value?.body;
       const value = type === 's' ? shared[Number(v)] ?? '' : type === 'inlineStr' ? textOf(body) : v !== undefined ? decode(v) : '';
-      const i = ref ? column(ref) : cells.length;
+      const i = ref ? column(ref) : next;
+      next = i + 1;
+      // An empty cell placed by reference (formatting, often far to the right) takes no room: only a value is placed.
+      if (!value) continue;
+      budget -= Math.max(1, i + 1 - cells.length);
+      if (budget < 0) throw new Error(`the sheet spreads over more than ${CELLS.toLocaleString('en')} cells, far more than a questionnaire`);
       while (cells.length < i) cells.push('');
       cells[i] = value;
     }
@@ -81,10 +130,10 @@ export function xlsxToCsv(buf: Buffer, file: string): string {
   const zip = unzip(buf);
   const part = (name: string) => zip.read(name)?.toString('utf8');
   const workbook = part('xl/workbook.xml') ?? '';
-  const rels = new Map([...(part('xl/_rels/workbook.xml.rels') ?? '').matchAll(/<Relationship\b[^>]*>/g)].map((m) => [attr(m[0], 'Id'), attr(m[0], 'Target')]));
-  const sheets = [...workbook.matchAll(/<sheet\b[^>]*>/g)].map((m) => rels.get(attr(m[0], 'r:id')))
+  const rels = new Map([...elements(part('xl/_rels/workbook.xml.rels') ?? '', 'Relationship')].map((m) => [attr(m.attrs, 'Id'), attr(m.attrs, 'Target')]));
+  const sheets = [...elements(workbook, 'sheet')].map((m) => rels.get(attr(m.attrs, 'r:id')))
     .filter((t): t is string => !!t).map((t) => (t.startsWith('/') ? t.slice(1) : `xl/${t.replace(/^\.\//, '')}`));
-  const shared = [...(part('xl/sharedStrings.xml') ?? '').matchAll(/<si\b[^>]*?(?:\/>|>([\s\S]*?)<\/si>)/g)].map((m) => textOf(m[1] ?? ''));
+  const shared = [...elements(part('xl/sharedStrings.xml') ?? '', 'si')].map((m) => textOf(m.body ?? ''));
   for (const path of sheets.length ? sheets : ['xl/worksheets/sheet1.xml']) {
     const sheet = part(path);
     if (!sheet) continue;
@@ -109,6 +158,7 @@ export function xlsxToCsv(buf: Buffer, file: string): string {
     if (at < 0) continue;
     const body = rows.slice(at);
     const width = Math.max(...body.map((r) => r.length));
+    if (width * body.length > CELLS) throw new Error(`the sheet spreads over more than ${CELLS.toLocaleString('en')} cells, far more than a questionnaire`);
     const seen = new Map<string, number>();
     const columns = body[0].concat(Array(width - body[0].length).fill('')).map((c, i) => {
       const base = c.trim() || `column ${i + 1}`;

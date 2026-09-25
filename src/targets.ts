@@ -6,9 +6,8 @@
 //   requirements to it (with the organization's own mappings) and that framework's settings do not exclude it.
 // SOC 2's deliverables act on controls in SOC 2's scope; the program's work acts on needed controls; a framework's view
 // acts on its own requirements' controls.
-import type { Workspace } from './workspace.ts';
+import { readJson, type Workspace } from './workspace.ts';
 import { categoryAnswer, criterionCategory, frameworkCatalogs } from './catalog.ts';
-import { readVersioned } from './files.ts';
 
 type ControlLike = { id: string; criteria: string[]; applicable: boolean; exclusion_reason?: string };
 export const targetsOf = (ws: Workspace): string[] => ws.manifest?.data.frameworks ?? ['soc2'];
@@ -33,11 +32,8 @@ export const isSoc2Control = (c: ControlLike): boolean => c.criteria.length > 0;
 // The organization's own decisions for a framework: exclusions and extra mappings. An unreadable file adds nothing here;
 // validation reports it.
 export function settingsOf(root: string, id: string): { exclusions: Record<string, string>; mappings: Record<string, string[]> } {
-  try {
-    const r = readVersioned(root, `frameworks/${id}.json`);
-    const d = r ? JSON.parse(r.text) : {};
-    return { exclusions: d.exclusions ?? {}, mappings: d.mappings ?? {} };
-  } catch { return { exclusions: {}, mappings: {} }; }
+  const d = readJson<{ exclusions?: Record<string, string>; mappings?: Record<string, string[]> }>(root, `frameworks/${id}.json`, 'framework-settings', [])?.data;
+  return { exclusions: d?.exclusions ?? {}, mappings: d?.mappings ?? {} };
 }
 
 export function neededControls(ws: Workspace): Set<string> {

@@ -156,7 +156,9 @@ function frameworkPage(f) {
       : h('p', { class: 'muted' }, 'None yet. Until one is held, the trust center and the badges show readiness.'));
   if (f.id === 'soc2') return h('div', {}, back, h('h1', {}, 'SOC 2'), h('p', { class: 'lead' }, 'SOC 2\'s criteria and their state are on the Overview; the audit engagement and its package are under Audit. It becomes an audit report from an independent CPA firm.'),
     h('p', {}, h('a', { href: '#overview' }, 'Readiness by criterion →'), ' · ', h('a', { href: '#audit' }, 'Audit →')), heldCard, recordCard(f));
-  const st = S.frameworkStates[f.id], sm = st.summary;
+  const st = S.frameworkStates[f.id];
+  if (!st) return h('div', {}, back, h('h1', {}, f.title), h('p', { class: 'lead' }, `frameworks/${f.id}.json cannot be read. Its problem is listed under the workspace's problems; fix the file and reload.`));
+  const sm = st.summary;
   const selfAttest = f.outcome === 'self-attestation';
   const open = st.requirements.filter((r) => !r.optional && r.status !== 'ready' && r.status !== 'excluded');
   const unpositioned = st.requirements.filter((r) => !r.optional && !r.position);

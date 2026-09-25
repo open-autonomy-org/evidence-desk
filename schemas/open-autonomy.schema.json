@@ -33,7 +33,9 @@
     },
     "remote_branches": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "The origin branches that contain the commit read"
     },
     "commit": {
@@ -86,7 +88,62 @@
           "profile",
           "models",
           "jobs"
-        ]
+        ],
+        "properties": {
+          "profile": {
+            "type": "string"
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "provider",
+                "model"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "model": {
+                  "type": "string"
+                },
+                "credential": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "jobs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "schedule",
+                "skills"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "schedule": {
+                  "type": "string"
+                },
+                "skills": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "vendor_accounts": {
@@ -116,12 +173,116 @@
       "required": [
         "pr_landing",
         "production_deploy"
-      ]
+      ],
+      "properties": {
+        "pr_landing": {
+          "type": "boolean"
+        },
+        "production_deploy": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "workflow",
+            "tag_trigger",
+            "environment",
+            "egress"
+          ],
+          "properties": {
+            "workflow": {
+              "type": "string"
+            },
+            "tag_trigger": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "environment": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "egress": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "production_workflows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "workflow",
+              "tag_trigger",
+              "environment",
+              "egress"
+            ],
+            "properties": {
+              "workflow": {
+                "type": "string"
+              },
+              "tag_trigger": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "environment": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "egress": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "vendors": {
       "type": "array",
       "items": {
         "type": "string"
+      }
+    },
+    "seams": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "scope",
+          "door",
+          "record"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "door": {
+            "type": "string"
+          },
+          "record": {
+            "type": "string"
+          }
+        }
       }
     }
   }

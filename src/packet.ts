@@ -12,6 +12,7 @@ import type { Workspace } from './workspace.ts';
 import { categories, categoryAnswer, criteria } from './catalog.ts';
 import type { AuditRequest, Engagement } from './audit.ts';
 import { inSoc2Scope, isSoc2Control, soc2Exclusion } from './targets.ts';
+import { readSnapshot, type Snapshot } from './open-autonomy.ts';
 
 // occurred: when the deviation happened (a merge, a deployment, the first failing reading); detected: when a collector or
 // check found it.
@@ -55,7 +56,7 @@ export function accessChanges(root: string, ws: Workspace, period: { start: stri
   return out.sort((a, b) => a.at.localeCompare(b.at));
 }
 
-const latestSnapOf = (root: string) => existsSync(join(root, 'sources/open-autonomy/latest.json')) ? JSON.parse(readFileSync(join(root, 'sources/open-autonomy/latest.json'), 'utf8')) as { team?: { github?: string }[] } : null;
+const latestSnapOf = (root: string) => readSnapshot(root);
 
 export function readResponses(root: string, id: string): Responses {
   const f = join(root, 'audits', id, 'exceptions.json');
@@ -99,7 +100,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       // theirs to take, or to record.
       const seamOf = /\/(incidents|break-glass|credentials|escalations|restore-tests)-/.exec(f.path)?.[1];
       if (seamOf && t.columns.includes('added_by') && existsSync(join(root, 'sources/open-autonomy/latest.json'))) {
-        const snap = JSON.parse(readFileSync(join(root, 'sources/open-autonomy/latest.json'), 'utf8')) as { team?: { id: string; name?: string; scopes: string[] }[]; seams?: { id: string; scope: string }[] };
+        const snap = readSnapshot(root)!;
         const scope = snap.seams?.find((x) => x.id === seamOf)?.scope;
         const holders = (snap.team ?? []).filter((m) => scope && m.scopes.includes(scope)).map((m) => m.id);
         if (scope) for (const r of t.rows) {
@@ -326,7 +327,7 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   // Every identity seen acting in the package's populations, what kind it is, and whether an access review in the
   // package covered it. One that acted in the period and no review covered is an exception.
   const people = ws.registers.people?.data.rows ?? [];
-  const latestSnap = existsSync(join(root, 'sources/open-autonomy/latest.json')) ? JSON.parse(readFileSync(join(root, 'sources/open-autonomy/latest.json'), 'utf8')) as { team?: { id: string; github?: string }[]; agents?: { profile: string }[] } : {};
+  const latestSnap: Partial<Snapshot> = readSnapshot(root) ?? {};
   const services = new Set((ws.registers.systems?.data.rows ?? []).filter((x) => /service account/i.test(x.kind ?? '')).map((x) => (x.name ?? '').toLowerCase()));
   const agentAccounts = new Set((ws.registers.systems?.data.rows ?? []).filter((x) => /agent/i.test(x.kind ?? '')).map((x) => (x.name ?? '').toLowerCase()));
   const kindOf = (a: string) => { const l = a.toLowerCase();

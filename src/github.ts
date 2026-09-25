@@ -8,7 +8,7 @@ import { CF_ADMIN_ROLES, cfAccount, cfAll, cfIsAdmin } from './cloudflare.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { addEvidence, evidencing } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
-import { memberOf, type Snapshot } from './open-autonomy.ts';
+import { memberOf, readSnapshot, type Snapshot } from './open-autonomy.ts';
 import { clockDate, now } from './clock.ts';
 import { neededControls } from './targets.ts';
 import { certifications } from './certifications.ts';
@@ -70,8 +70,8 @@ export async function collectChanges(root: string, input: { repo: string; start:
   const intoBranch = pulls.items.filter((p) => p.merged_at && (p.base?.ref ?? branch) === branch);
   // What each account is: a person on the project's roster, an agent account the organization declares in its systems
   // register, or neither. An approval by an agent is recorded as such, so the firm sees who reviewed what.
-  const rosterSnap = readVersioned(root, 'sources/open-autonomy/latest.json');
-  const rosterLogins = new Set((rosterSnap ? (JSON.parse(rosterSnap.text) as Snapshot).team.map((m) => m.github ?? '') : []).filter(Boolean).map((x) => x.toLowerCase()));
+  const rosterSnap = readSnapshot(root);
+  const rosterLogins = new Set((rosterSnap ? rosterSnap.team.map((m) => m.github ?? '') : []).filter(Boolean).map((x) => x.toLowerCase()));
   const agentLogins = new Set((loadWorkspace(root).registers.systems?.data.rows ?? []).filter((x) => /agent/i.test(x.kind ?? '')).map((x) => (x.name ?? '').toLowerCase()));
   const kindOf = (l: string) => !l ? '' : rosterLogins.has(l.toLowerCase()) ? 'person' : agentLogins.has(l.toLowerCase()) ? 'agent' : 'not on the roster';
   const merged = intoBranch.filter((p) => inPeriod(p.merged_at, input.start, input.end));
@@ -160,8 +160,8 @@ export async function collectDeployments(root: string, input: { repo: string; en
   const source = await provenance();
   // Who may act at the two production seams an Open Autonomy project declares: starting a deploy and approving the
   // environment. Each is a scope on the roster; a person acting without it acted outside the declared design.
-  const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
-  const snap = latest ? JSON.parse(latest.text) as Snapshot : null;
+  const latest = readSnapshot(root);
+  const snap = latest ? latest : null;
   const holders = (seamId: string): Set<string> | null => {
     const seam = snap?.seams?.find((x) => x.id === seamId);
     return seam ? new Set(snap!.team.filter((m) => m.scopes.includes(seam.scope) && m.github).map((m) => m.github!.toLowerCase())) : null;
@@ -227,9 +227,9 @@ export async function collectDeployments(root: string, input: { repo: string; en
 // Compares a vendor account's administrators with the project's roster. The list comes from GitHub for a GitHub
 // organization, or from an exported file (one login or email per line, or a CSV with an account column) otherwise.
 export async function checkCompleteness(root: string, input: { account: string; by: string; file?: string; generated_by?: string }): Promise<{ record: string; outside: string[] }> {
-  const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
+  const latest = readSnapshot(root);
   if (!latest) throw new Error('import the Open Autonomy project first (evidence-desk open-autonomy import)');
-  const snap = JSON.parse(latest.text) as Snapshot;
+  const snap = latest;
   const acct = snap.vendor_accounts.find((a) => a.id === input.account);
   if (!acct) throw new Error(`${input.account} is not a vendor account the project declares (${snap.vendor_accounts.map((a) => a.id).join(', ') || 'none'})`);
   let admins: string[];
@@ -336,9 +336,9 @@ async function rosterFrom(repo: string): Promise<{ team: Snapshot['team']; sourc
 
 export async function collectAttribution(root: string, input: { repo: string; by: string; roster?: string }): Promise<{ record: string; file: string; evidence: null; rows: Attribution[] }> {
   if (!/^[\w.-]+\/[\w.-]+$/.test(input.repo)) throw new Error('--repo names the workspace\'s own GitHub repository as owner/name');
-  const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
+  const latest = readSnapshot(root);
   if (!latest && !input.roster) throw new Error('import the Open Autonomy project first (evidence-desk open-autonomy import), or name its repository with --roster: its roster holds each person\'s GitHub account');
-  const workspaceSnap = latest ? JSON.parse(latest.text) as Snapshot : null;
+  const workspaceSnap = latest ? latest : null;
   const fromProject = input.roster ? await rosterFrom(input.roster) : null;
   // The commit recorded is the one the team was read at: the project's, where it was read from there.
   const snap = { ...(workspaceSnap ?? {}), team: fromProject?.team ?? workspaceSnap!.team, commit: fromProject?.source.commit ?? workspaceSnap!.commit } as Snapshot;
@@ -445,8 +445,8 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
   if (!/^[\w.-]+\/[\w.-]+$/.test(input.repo)) throw new Error('--repo names the workspace\'s own GitHub repository as owner/name');
   const { computeObligations } = await import('./obligations.ts');
   const ws = loadWorkspace(root);
-  const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
-  const team = latest ? (JSON.parse(latest.text) as Snapshot).team : [];
+  const latest = readSnapshot(root);
+  const team = latest ? latest.team : [];
   // What is overdue, and what falls due within the window the workspace's workflow names (--within): a review due next
   // year is not owed today.
   const horizon = new Date((input.asOf ?? clockDate()).getTime() + input.within * 864e5).toISOString().slice(0, 10);
@@ -513,8 +513,8 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
 export async function collectRuleChanges(root: string, input: { repo: string; start: string; end: string; by: string }): Promise<{ evidence: string; rows: number; weakening: number }> {
   const controls = evidencing(root, 'github-rule-changes', ['CHG-01', 'OPS-04']);
   const source = await provenance();
-  const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
-  const roster = new Set((latest ? (JSON.parse(latest.text) as Snapshot).team.map((m) => m.github ?? '') : []).filter(Boolean).map((x) => x.toLowerCase()));
+  const latest = readSnapshot(root);
+  const roster = new Set((latest ? latest.team.map((m) => m.github ?? '') : []).filter(Boolean).map((x) => x.toLowerCase()));
   type Version = { version_id: number; actor?: { id?: number | null; type?: string }; updated_at: string };
   type State = { name?: string; enforcement?: string; bypass_actors?: { actor_type?: string; actor_id?: number | null; bypass_mode?: string }[]; rules?: { type: string; parameters?: { required_approving_review_count?: number } }[] };
   const rulesets = await get(`/repos/${input.repo}/rulesets`) as { id: number; name: string }[];
@@ -581,8 +581,8 @@ export async function collectNonHumanAccess(root: string, input: { repo: string;
   for (const s of envSecrets?.secrets ?? []) rows.push({ kind: 'environment secret', name: s.name, scope: `${input.repo} ${input.environment}`, access: `jobs approved into ${input.environment}`, created_at: String(s.created_at ?? ''), last_set: String(s.updated_at ?? ''), detail: '' });
   const installs = await tryGet(`/orgs/${input.org}/installations`) as any; raw.app_installations = installs;
   for (const i of installs?.installations ?? []) rows.push({ kind: 'app installation', name: String(i.app_slug ?? i.id), scope: `${input.org} (${i.repository_selection ?? ''})`, access: Object.entries(i.permissions ?? {}).map(([k, v]) => `${k}:${v}`).join(' '), created_at: String(i.created_at ?? ''), last_set: String(i.updated_at ?? ''), detail: '' });
-  const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
-  if (latest) { const snap = JSON.parse(latest.text) as Snapshot; raw.agents = snap.agents;
+  const latest = readSnapshot(root);
+  if (latest) { const snap = latest; raw.agents = snap.agents;
     for (const a of snap.agents) rows.push({ kind: 'agent', name: a.profile, scope: snap.account, access: 'the project repository through the landing workflow', created_at: '', last_set: '', detail: `models ${a.models.map((m) => `${m.provider} ${m.model}`).join(', ') || 'none'}; jobs ${a.jobs.map((j) => j.name).join(', ') || 'none'}` }); }
   const stem = `evidence/files/listings/nonhuman-access-${input.repo.replace('/', '-')}-${clockDate().toISOString().slice(0, 10)}-${Date.now()}`;
   writeVersioned(root, `${stem}.raw.json`, JSON.stringify(raw, null, 2) + '\n', null);
