@@ -1,6 +1,6 @@
 // Every change Evidence Desk makes to a workspace. The CLI and the local UI both call these, so they validate and
 // refuse the same way. Each edit names the version of the file it read; a file changed since is a conflict.
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { check, schema } from './schema.ts';
@@ -10,6 +10,8 @@ import { formTemplates, library, policyTemplates, questions } from './catalog.ts
 import { libraryNeeded, neededControls } from './targets.ts';
 import { loadWorkspace, MANIFEST, REGISTERS, type Control, type Evidence, type Policy, type RegisterName, type Scope } from './workspace.ts';
 import { clockDate, now } from './clock.ts';
+import { repoOf, track } from './git.ts';
+import { spawnSync } from 'node:child_process';
 
 const pretty = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
 function valid(schemaName: string, data: unknown, what: string): void {
@@ -312,23 +314,33 @@ export function addEvidence(root: string, input: {
   if (!input.files.length) throw new Error('name at least one file');
   if (!(ws.registers.people?.data.rows ?? []).some((r) => r.id === input.recorded_by)) throw new Error(`recorder ${input.recorded_by} is not in registers/people.csv`);
   const id = `EV-${clockDate().toISOString().slice(0, 10).replaceAll('-', '')}-${randomBytes(3).toString('hex')}`;
-  const files = input.files.map((f) => {
-    const outside = resolve(f);
+  // Each file's place is settled before anything is written, so the record commits with its files or nothing is
+  // written. A workspace file that keeps changing (a register, a policy's current text, a top-level settings file) is
+  // captured as it stands, and so is one reached through a link (its bytes, not the link); any other file already in
+  // the workspace is recorded where it is and joins the record's commit. A path the repository's ignore rules exclude
+  // cannot be kept in its history, so it is refused.
+  const repo = repoOf(root);
+  const ignored = (rel: string) => !!repo && spawnSync('git', ['check-ignore', '-q', '--', rel], { cwd: root }).status === 0;
+  const plan = input.files.map((f) => {
     const isOutside = f.startsWith('/') || f.startsWith('.') || !existsSync(join(root, f));
-    // A workspace file that keeps changing (a register, a policy's current text, a top-level settings file) is captured
-    // as it stands: the evidence is that version, and the file may be edited afterwards without breaking it.
-    const living = !isOutside && (f.startsWith('registers/') || !f.includes('/') || /^policies\/[^/]+\.md$/.test(f));
-    if (living) {
-      const rel = `evidence/files/${id}/${basename(f)}`;
-      writeVersioned(root, rel, readFileSync(join(root, f)), null);
-      return { path: rel, ...fileHash(root, rel)! };
+    if (isOutside) {
+      const outside = resolve(f);
+      if (!existsSync(outside)) throw new Error(`${f} does not exist`);
+      return { from: outside, to: `evidence/files/${id}/${basename(outside)}` };
     }
-    if (!isOutside) { const h = fileHash(root, f); if (!h) throw new Error(`${f} is not a file`); return { path: f, ...h }; }
-    if (!existsSync(outside)) throw new Error(`${f} does not exist`);
-    const rel = `evidence/files/${id}/${basename(outside)}`;
-    inside(root, rel);
-    writeVersioned(root, rel, readFileSync(outside), null);
-    return { path: rel, ...fileHash(root, rel)! };
+    const full = inside(root, f);
+    const linked = realpathSync(full) !== join(realpathSync(root), f);
+    const living = f.startsWith('registers/') || !f.includes('/') || /^policies\/[^/]+\.md$/.test(f);
+    if (living || linked) return { from: full, to: `evidence/files/${id}/${basename(f)}` };
+    if (!fileHash(root, f)) throw new Error(`${f} is not a file`);
+    return { from: null, to: f };
+  });
+  for (const p of plan) if (ignored(p.to)) throw new Error(`${p.to} is excluded by the repository's ignore rules, so the workspace's history cannot hold it; keep what the evidence needs in a file that is not ignored`);
+  const files = plan.map((p) => {
+    if (p.from === null) { const h = fileHash(root, p.to)!; track(root, p.to, h.sha256); return { path: p.to, ...h }; }
+    inside(root, p.to);
+    writeVersioned(root, p.to, readFileSync(p.from), null);
+    return { path: p.to, ...fileHash(root, p.to)! };
   });
   const rec: Evidence = { schema: 'evidence-desk.evidence/1', id, title: input.title, controls: input.controls, source: input.source ?? { kind: 'manual' },
     collected_at: input.collected_at ?? now(), files, recorded_by: input.recorded_by };
