@@ -37,7 +37,7 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   control <dir> <id> [--owner <person>] [--status not-started|in-progress|implemented]
                      [--notes <text>] [--exclude <reason>] [--include]
   policies <dir>                          list policies and their approved versions
-  policy <dir> <id> [--owner <person>] [--approve --by <person>]
+  policy <dir> <id> [--owner <person>] [--approve --by <person> [--as-is]]   --as-is: approve a catalog template as true of how you operate
   register <dir> <people|systems|vendors|risks|vulnerabilities> [--add key=value ...] [--update <id> key=value ...]
   evidence <dir> [--add --control <id>[,<id>] --file <path> --title <text> --by <person>
                  [--period <start>..<end>] [--subject <person>] [--source <kind>] [--source-name <name>] [--query <text>]]
@@ -143,7 +143,7 @@ function parse(argv: string[]): Args {
     const vals = flags.get(key) ?? [];
     if (['set', 'add', 'update'].includes(key)) {
       while (argv[i + 1] !== undefined && !argv[i + 1].startsWith('--')) vals.push(argv[++i]);
-    } else if (!['json', 'approve', 'include', 'help', 'sign-off', 'enable', 'disable', 'serve', 'stale', 'partial', 'not-met', 'clear'].includes(key)) {
+    } else if (!['json', 'approve', 'include', 'help', 'sign-off', 'enable', 'disable', 'serve', 'stale', 'partial', 'not-met', 'clear', 'as-is'].includes(key)) {
       if (i + 1 >= argv.length) throw new Error(`--${key} needs a value`);
       vals.push(argv[++i]);
     }
@@ -243,8 +243,8 @@ async function main(argv: string[]): Promise<number> {
         const text = readVersioned(dir, `policies/${id}.md`);
         const rec = readVersioned(dir, `policies/${id}.json`);
         if (!text || !rec) throw new Error(`policy ${id} does not exist`);
-        const v = approvePolicy(dir, id, by, text.version, rec.version);
-        out(json, { id, version: v }, () => `Approved ${id} version ${v} (text sha256 ${text.version}).`);
+        const v = approvePolicy(dir, id, by, text.version, rec.version, a.flags.has('as-is'));
+        out(json, { id, version: v }, () => `Approved ${id} version ${v}.`);
         return 0;
       }
       const rec = readVersioned(dir, `policies/${id}.json`);

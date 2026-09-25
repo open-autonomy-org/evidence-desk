@@ -18,6 +18,7 @@ import { certifications, recordCertification, type Certification } from './certi
 import { publishStatement, reportOf } from './trust.ts';
 import { collectOpenAutonomyActivity } from './oa-platform.ts';
 import { frameworkDescriptions, frameworkOf } from './catalog.ts';
+import { policyReading } from './signing.ts';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { neededControls, targetsOf } from './targets.ts';
@@ -36,7 +37,7 @@ function state(root: string) {
     scope: ws.scope ? { answers: ws.scope.data.answers, sources: ws.scope.data.sources ?? {}, version: ws.scope.version } : null,
     questions, criteria, categories,
     controls: ws.controls.map((c) => ({ ...c.data, version: c.version })),
-    policies: ws.policies.map((p) => ({ ...p.data, version: p.version, text: p.text?.body ?? '', textVersion: p.text?.version ?? null })),
+    policies: ws.policies.map((p) => ({ ...p.data, version: p.version, text: p.text?.body ?? '', textVersion: p.text?.version ?? null, reading: policyReading(ws, p.data.id, p.text?.body ?? '') })),
     registers: Object.fromEntries(REGISTERS.map((n) => [n, ws.registers[n] ? {
       columns: ws.registers[n]!.data.columns, rows: ws.registers[n]!.data.rows, version: ws.registers[n]!.version,
       required: schema(`register-${n}`).required ?? [], enums: Object.fromEntries(Object.entries(schema(`register-${n}`).properties ?? {}).filter(([, s]) => s.enum).map(([k, s]) => [k, s.enum])),
@@ -133,7 +134,7 @@ export function serve(root: string, port: number): void {
         case '/api/control': updateControl(root, s('id'), b.patch as Record<string, unknown>, s('version')); break;
         case '/api/policy/text': savePolicyText(root, s('id'), s('text'), s('version')); break;
         case '/api/policy/owner': setPolicyOwner(root, s('id'), s('owner'), s('version')); break;
-        case '/api/policy/approve': approvePolicy(root, s('id'), s('by'), s('textVersion'), s('version')); break;
+        case '/api/policy/approve': approvePolicy(root, s('id'), s('by'), s('textVersion'), s('version'), b.asIs === true); break;
         case '/api/register': {
           const name = s('name') as RegisterName;
           saveRegisterRow(root, name, b.row as Record<string, string>, s('version'), b.replaceId === undefined ? undefined : s('replaceId'));

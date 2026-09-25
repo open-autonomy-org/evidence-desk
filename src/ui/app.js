@@ -92,7 +92,7 @@ function render() {
   const edits = page === rendered ? fieldsOf(view).filter(({ key, el }) => current(el) !== initial(el) && !key.startsWith(`${savedBox}|`)).map(({ key, el }) => ({ key, from: initial(el), value: current(el) })) : [];
   savedBox = null;
   rendered = page;
-  view.replaceChildren(({ overview, scope, controls, policies, registers, evidence, people: peopleView, obligations, access, incidents, oa: openAutonomy, checks: checksView, audit: auditView, trust: trustView, frameworks: frameworksView })[tab]?.() ?? overview());
+  view.replaceChildren(({ overview, sign: signView, scope, controls, policies, registers, evidence, people: peopleView, obligations, access, incidents, oa: openAutonomy, checks: checksView, audit: auditView, trust: trustView, frameworks: frameworksView })[tab]?.() ?? overview());
   if (edits.length) { const now = new Map(fieldsOf(view).map((f) => [f.key, f.el])); for (const e of edits) { const el = now.get(e.key); if (el && initial(el) === e.from) apply(el, e.value); } }
 }
 
@@ -350,6 +350,113 @@ function controlDetail(c) {
     h('h2', {}, `Evidence (${ev.length})`),
     ev.length ? evidenceTable(ev) : h('p', { class: 'muted' }, 'None recorded yet.'),
     h('div', { class: 'row' }, h('button', { class: 'secondary', onclick: () => go('evidence', `new:${c.id}`) }, 'Record evidence for this control')));
+}
+
+// ── To sign ─────────────────────────────────────────────────────────────────────────────────────────────────
+// Everything waiting for one person's read-and-sign, as one queue: policies to approve, risk treatments to decide,
+// forms due, access reviews to sign off and self-attestations ready to sign. Each item is read on its own screen with
+// its whole text shown; the queue on the left says how far the person has got. Nothing here is stored: the queue is
+// worked out from the workspace each time, and each act is the existing one (a policy approval, a register row, …).
+let signer = '';
+function signQueue(person) {
+  const items = [];
+  // A policy with no owner waits in everyone's queue until someone owns or approves it.
+  for (const p of S.policies.filter((x) => x.owner === person || !x.owner)) {
+    const last = p.versions.at(-1);
+    if (!last || last.sha256 !== p.textVersion) items.push({ key: `policy:${p.id}`, kind: 'policy', title: p.owner ? p.title : `${p.title} (no owner)`, p, again: Boolean(last) });
+  }
+  for (const r of (S.registers.risks?.rows ?? []).filter((x) => x.owner === person && x.treatment === 'undecided')) items.push({ key: `risk:${r.id}`, kind: 'risk', title: `Risk: ${r.title}`, r });
+  for (const o of S.gaps.obligations.filter((x) => x.kind === 'person' && x.who === person && x.state !== 'done')) {
+    const f = S.forms.find((x) => x.title === o.what);
+    if (f) items.push({ key: `form:${f.id}`, kind: 'form', title: f.title, f, o });
+  }
+  for (const a of S.accessReviews.filter((x) => x.reviewer === person && x.status === 'open')) items.push({ key: `access:${a.id}`, kind: 'access', title: `Access review: ${a.system}`, a });
+  for (const f of S.frameworkCatalog.filter((x) => x.outcome === 'self-attestation' && S.frameworks.includes(x.id))) {
+    const st = S.frameworkStates?.[f.id];
+    if (st && st.requirements.every((r) => r.optional || r.position) && !docsFor(f).some((c) => c.current)) items.push({ key: `attest:${f.id}`, kind: 'attest', title: `Self-attestation: ${f.title}`, f });
+  }
+  return items;
+}
+
+// A policy's Markdown as read: headings, list items and paragraphs, one block per line so each carries its mark. The
+// catalog's drafting comment is shown as a note, not hidden.
+function readable(lines) {
+  const out = [];
+  for (const l of lines) {
+    if (l.mark === 'blank') continue;
+    const t = l.text.trim();
+    const cls = l.mark === 'yours' ? 'line yours' : 'line';
+    const c = /^<!--\s*([\s\S]*?)\s*-->$/.exec(t);
+    if (c) { out.push(h('p', { class: 'drafting' }, `Drafting note from the template: ${c[1]}`)); continue; }
+    const hd = /^(#{1,4})\s+(.*)$/.exec(t);
+    if (hd) { out.push(h(hd[1].length <= 2 ? 'h3' : 'h4', { class: cls }, hd[2])); continue; }
+    const li = /^[-*]\s+(.*)$/.exec(t);
+    if (li) { out.push(h('p', { class: `${cls} bullet` }, `• ${li[1].replace(/\*\*/g, '')}`)); continue; }
+    out.push(h('p', { class: cls }, t.replace(/\*\*/g, '')));
+  }
+  return out;
+}
+
+function signView() {
+  const people = S.registers.people?.rows ?? [];
+  if (!signer || !people.some((p) => p.id === signer)) signer = people[0]?.id ?? '';
+  const items = signer ? signQueue(signer) : [];
+  const at = items.find((i) => i.key === detail) ?? items[0];
+  const pick = h('select', { onchange: (e) => { signer = e.target.value; go('sign'); } }, people.map((p) => h('option', { value: p.id, selected: p.id === signer }, `${p.name} (${p.id})`)));
+  const rail = h('div', { class: 'rail' },
+    h('p', { class: 'muted', style: 'margin:0 0 8px' }, items.length ? `${items.length} waiting` : 'Nothing waiting'),
+    items.map((i, n) => h('a', { class: `railitem${i === at ? ' on' : ''}`, href: `#sign/${encodeURIComponent(i.key)}` }, h('span', { class: 'n' }, n + 1), i.title)));
+  const next = at ? items[items.indexOf(at) + 1] : null;
+  const nextBtn = next ? h('a', { class: 'secondary btnlink', href: `#sign/${encodeURIComponent(next.key)}` }, `Next: ${next.title} →`) : null;
+  return h('div', {},
+    h('h1', {}, 'To sign'),
+    h('p', { class: 'lead' }, 'Everything waiting for one person\'s reading and signature, one item at a time. Each act is recorded under that person\'s name.'),
+    h('div', { class: 'row', style: 'margin:0 0 16px' }, h('label', { style: 'margin:0' }, 'Signing as'), pick),
+    items.length ? h('div', { class: 'reader' }, rail, h('div', { class: 'page' }, signItem(at, nextBtn))) : h('div', { class: 'card' }, h('p', { style: 'margin:0' }, 'Nothing is waiting for this person\'s signature.')));
+}
+
+function signItem(i, nextBtn) {
+  const org = S.organization || 'the organization';
+  if (i.kind === 'policy') {
+    const p = i.p, r = p.reading;
+    const confirm = h('input', { type: 'checkbox', id: 'adapted' });
+    const approve = h('button', { class: 'primary', disabled: r.unfilled.length > 0, onclick: async () => {
+      if (r.template && !confirm.checked) return notice(`Confirm the text is true of how ${org} operates, or change it first.`, false);
+      const res = await post('/api/policy/approve', { id: p.id, by: signer, textVersion: p.textVersion, version: p.version, ...(r.template ? { asIs: true } : {}) }, null);
+      if (res) notice(`${p.title} approved by ${personName(signer)}.`, true);
+    } }, 'Approve');
+    return h('div', {},
+      h('h2', { style: 'margin-top:0' }, p.title),
+      h('p', { class: 'muted' }, `About ${Math.max(1, Math.round(r.words / 200))} min to read · ${i.again ? 'changed since its last approved version' : 'never approved'}`),
+      r.commitments.length ? h('div', { class: 'commit' }, h('b', {}, `Signing this commits ${org} to:`),
+        h('ul', {}, r.commitments.map((c) => h('li', {}, `${c.title} (${c.control}), ${c.every}`, c.owner ? h('span', { class: 'muted' }, ` · ${personName(c.owner)}`) : null)))) : null,
+      r.template ? h('div', { class: 'callout' }, `This is still Evidence Desk's template text. Read it as a description of how ${org} works: change what is not true in the editor, or confirm below that it is true.`) : null,
+      r.unfilled.length ? h('div', { class: 'callout bad' }, `Fill in ${r.unfilled.map((x) => `{{${x}}}`).join(', ')} before this can be approved.`) : null,
+      h('p', { class: 'legend' }, h('span', { class: 'line yours' }, 'Highlighted'), ' lines are your organization\'s own; the rest is Evidence Desk\'s template text, shown in full.'),
+      h('div', { class: 'doc' }, readable(r.lines)),
+      h('div', { class: 'act' },
+        r.template ? h('label', { class: 'check', for: 'adapted' }, confirm, ` I have read this and it is true of how ${org} operates`) : null,
+        h('div', { class: 'row' }, approve, h('a', { class: 'secondary btnlink', href: `#policies/${p.id}` }, 'Needs a change: edit it'), nextBtn)));
+  }
+  if (i.kind === 'risk') {
+    const r = i.r;
+    const choice = h('select', {}, h('option', { value: '' }, 'Choose a treatment'), [['mitigate', 'Mitigate: act to reduce it'], ['accept', 'Accept it as it is'], ['transfer', 'Transfer it (insurance, contract)'], ['avoid', 'Avoid it: stop the activity']].map(([v, t]) => h('option', { value: v }, t)));
+    return h('div', {},
+      h('h2', { style: 'margin-top:0' }, r.title),
+      h('p', {}, r.description),
+      h('p', { class: 'muted' }, `Likelihood ${r.likelihood} of 5 · impact ${r.impact} of 5 · controls ${r.controls || 'none'} · review due ${r.review_due || 'unset'}`),
+      h('div', { class: 'act' }, h('label', { style: 'margin-top:0' }, 'Your treatment decision'),
+        h('div', { class: 'row' }, choice, h('button', { class: 'primary', onclick: async () => {
+          if (!choice.value) return notice('Choose a treatment first.', false);
+          const reg = S.registers.risks;
+          const res = await post('/api/register', { name: 'risks', row: { ...r, treatment: choice.value, description: `${r.description.replace(/^Draft for owner review\.\s*/, '')} Treatment decided (${choice.value}) by ${personName(signer)} on ${new Date().toISOString().slice(0, 10)}.` }, version: reg.version, replaceId: r.id }, null);
+          if (res) notice(`Risk ${r.id}: ${choice.value}.`, true);
+        } }, 'Decide'), nextBtn)));
+  }
+  const open = { form: [`#people/form:${i.f?.id}:${signer}`, `Complete it: ${i.f?.title}`, `Due ${i.o?.due}${i.o?.state === 'overdue' ? ' (overdue)' : ''}.`],
+    access: [`#access/${i.a?.id}`, 'Open the review', `Review of ${i.a?.system} for ${i.a?.period.start} to ${i.a?.period.end}.`],
+    attest: [`#frameworks/${i.f?.id}`, 'Open it to sign', 'Every requirement has a position; the attestation can be signed.'] }[i.kind];
+  return h('div', {}, h('h2', { style: 'margin-top:0' }, i.title), h('p', {}, open[2]), h('div', { class: 'row' }, h('a', { class: 'primary btnlink', href: open[0] }, open[1]), nextBtn));
 }
 
 function policies() {

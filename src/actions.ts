@@ -5,7 +5,7 @@ import { basename, join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { check, schema } from './schema.ts';
 import { writeCsv } from './csv.ts';
-import { fileHash, readVersioned, writeVersioned, inside } from './files.ts';
+import { fileHash, readVersioned, writeVersioned, inside, sha256 } from './files.ts';
 import { formTemplates, library, policyTemplates, questions } from './catalog.ts';
 import { libraryNeeded, neededControls } from './targets.ts';
 import { loadWorkspace, MANIFEST, REGISTERS, type Control, type Evidence, type Policy, type RegisterName, type Scope } from './workspace.ts';
@@ -164,8 +164,24 @@ export function savePolicyText(root: string, id: string, text: string, version: 
 
 export const placeholders = (text: string): string[] => [...new Set([...text.matchAll(/\{\{([a-z_]+)\}\}/g)].map((m) => m[1]))];
 
+// A policy text that is still Evidence Desk's catalog template: it carries the catalog's drafting comment, or it is the
+// template word for word as adopted (some templates have no comment). The one test the approval gate and the To sign
+// page share.
+const DRAFTING = /^<!--\s*Template adapted from[\s\S]*?-->\n\n?/m;
+export function stillTemplate(root: string, id: string, text: string): boolean {
+  if (DRAFTING.test(text)) return true;
+  const tpl = policyTemplates.find((t) => t.id === id);
+  if (!tpl) return false;
+  const answers = loadWorkspace(root).scope?.data.answers ?? {};
+  const norm = (t: string) => t.replace(DRAFTING, '').replace(/\s+/g, ' ').trim();
+  return norm(render(tpl.text, answers)) === norm(text);
+}
+
 // Freezes the current text as the next approved version. `textVersion` is the version of the text the approver read.
-export function approvePolicy(root: string, id: string, approvedBy: string, textVersion: string, recordVersion: string): number {
+// A text that is still the catalog template is approved only when its approver confirms it is true of how the
+// organization operates (`asIs`); the catalog's drafting comment is then removed in the same act, and the approval's
+// evidence says the template was approved as is. Every check runs before anything is written.
+export function approvePolicy(root: string, id: string, approvedBy: string, textVersion: string, recordVersion: string, asIs = false): number {
   const rel = `policies/${id}.json`;
   const rec = readRecord<Policy>(root, rel);
   if (rec.version !== recordVersion) throw new Error(`${rel} changed on disk since it was read; reload it and approve again`);
@@ -177,19 +193,22 @@ export function approvePolicy(root: string, id: string, approvedBy: string, text
   if (!people.includes(approvedBy)) throw new Error(`approver ${approvedBy} is not in registers/people.csv`);
   const left = placeholders(text.text);
   if (left.length) throw new Error(`fill in ${left.map((p) => `{{${p}}}`).join(', ')} before approving`);
-  // A template's own drafting comment says it is not yet the organization's policy.
-  if (/<!--\s*Template adapted from/.test(text.text)) throw new Error(`policies/${id}.md is still the catalog template: adapt it to how the organization operates and remove its drafting comment before approving`);
+  const template = stillTemplate(root, id, text.text);
+  if (template && !asIs) throw new Error(`policies/${id}.md is still the catalog template: adapt it to how the organization operates, or confirm it is true of how the organization operates as it stands (--as-is)`);
+  const body = text.text.replace(DRAFTING, '');
+  const bodyVersion = sha256(body);
   const last = rec.data.versions.at(-1);
-  if (last && last.sha256 === text.version) throw new Error(`version ${last.version} already approved this exact text`);
+  if (last && last.sha256 === bodyVersion) throw new Error(`version ${last.version} already approved this exact text`);
   const version = (last?.version ?? 0) + 1;
   const archived = `policies/archive/${id}.v${version}.md`;
-  writeVersioned(root, archived, text.text, null);
-  const next = { ...rec.data, versions: [...rec.data.versions, { version, approved_by: approvedBy, approved_at: now(), sha256: text.version, archived }] };
+  const next = { ...rec.data, versions: [...rec.data.versions, { version, approved_by: approvedBy, approved_at: now(), sha256: bodyVersion, archived }] };
   valid('policy', next, rel);
+  if (body !== text.text) writeVersioned(root, `policies/${id}.md`, body, text.version);
+  writeVersioned(root, archived, body, null);
   writeVersioned(root, rel, pretty(next), rec.version);
   // The approval is GOV-04's evidence, as a passed form response is its form's.
   if (neededControls(loadWorkspace(root)).has('GOV-04')) addEvidence(root, {
-    title: `Policy ${id} version ${version} approved by ${approvedBy}`, controls: ['GOV-04'], files: [archived], recorded_by: approvedBy,
+    title: `Policy ${id} version ${version} approved by ${approvedBy}${template ? ', the catalog template confirmed as is' : ''}`, controls: ['GOV-04'], files: [archived], recorded_by: approvedBy,
     source: { kind: 'evidence-desk', name: 'policy-approval' }, collected_at: next.versions.at(-1)!.approved_at,
   });
   return version;
