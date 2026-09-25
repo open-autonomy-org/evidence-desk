@@ -1,5 +1,7 @@
 # AI governance policy
 
+<!-- Template adapted from Evidence Desk's policy library. Adapt it to how {{organization}} actually operates before approving it. -->
+
 ## Purpose
 
 This policy sets how {{organization}} develops, deploys and uses AI systems and agents: who is accountable for them, what they may do, how they are tested and watched, and what people are told about them.

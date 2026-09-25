@@ -1,5 +1,7 @@
 # Logging and monitoring policy
 
+<!-- Template adapted from Evidence Desk's policy library. Adapt it to how {{organization}} actually operates before approving it. -->
+
 ## Purpose
 
 This policy sets what {{organization}} logs, how long it keeps logs, and how it notices and acts on security events.

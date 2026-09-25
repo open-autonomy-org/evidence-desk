@@ -171,54 +171,24 @@ const DRAFTING = /^<!--\s*Template adapted from[\s\S]*?-->\n\n?/m;
 const norm = (t: string) => t.replace(DRAFTING, '').replace(/\s+/g, ' ').trim();
 // The catalog template as a pattern, its answer placeholders matching any filled-in value, so a template filled in under an
 // earlier organization name or contact is still known for the template. Built once per template.
-// The catalog template as a pattern whose answer placeholders take the organization's name as it was filled in, so a
-// template filled in under an earlier name is still known for the template. The first mention is captured as a plain
-// name (no punctuation, at most 80 characters) and every later mention must repeat it exactly; a template that names
-// the organization once must name it as the scope does now. An edit beside the name is never swallowed as the name.
-const escape = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const PH = /\\\{\\\{(organization|security_contact)\\\}\\\}/g;
-function pattern(t: string, current: string): RegExp {
-  const seen = new Set<string>();
-  return new RegExp(`^${escape(t).replace(PH, (_m, k: string) => {
-    if (seen.has(k)) return `\\k<${k}>`;
-    seen.add(k);
-    return k === 'organization' ? `(?<${k}>${current ? `${escape(current)}|` : ''}[^\\n.,;:!?]{1,80}?)` : `(?<${k}>\\S{1,200}?)`;
-  })}$`);
-}
-// Keyed by template and the organization's current name, which is always accepted as written (it may carry punctuation).
-const whole = new Map<string, { re: RegExp; mentions: number } | null>();
-function wholeOf(id: string, current: string) {
-  const key = `${id}\u0000${current}`;
-  if (!whole.has(key)) {
-    const tpl = policyTemplates.find((t) => t.id === id);
-    whole.set(key, tpl ? { re: pattern(norm(tpl.text), current), mentions: (tpl.text.match(/\{\{organization\}\}/g) ?? []).length } : null);
-  }
-  return whole.get(key)!;
-}
-// The name the text gives the organization where the template names it, when the text is the template unchanged.
-function filledName(id: string, text: string, current: string): string | null {
-  const w = wholeOf(id, current);
-  const m = w?.re.exec(norm(text));
-  if (!m) return null;
-  const name = m.groups?.organization ?? current;
-  return w!.mentions >= 2 || name === current ? name : null;
-}
-// The text is the catalog template word for word, under the organization's current name or a name it consistently used.
-export function unchangedTemplate(id: string, text: string, current: string): boolean { return filledName(id, text, current) !== null; }
-// The template's lines with the organization's name in place, for marking a text's lines: the current name, and the
-// name the text itself uses where it is otherwise the template.
-export function templateLines(id: string, text: string, answers: Record<string, unknown>): RegExp[] {
+// The catalog template as the scope's answers fill it in now. Every catalog template carries the drafting comment, which
+// only an edit or an as-is confirmation removes; comparing with the filled-in template is the backstop for a copy adopted
+// before its template had the comment. A line naming the organization otherwise (after a rename) is not the template.
+const filledTemplate = (id: string, answers: Record<string, unknown>): string | null => {
   const tpl = policyTemplates.find((t) => t.id === id);
-  if (!tpl) return [];
-  const current = String(answers.organization ?? '');
-  const names = [...new Set([current, filledName(id, text, current) ?? current].filter(Boolean))];
-  const contact = String(answers.security_contact ?? '');
-  return tpl.text.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => new RegExp(`^${escape(l)
-    .replace(/\\\{\\\{organization\\\}\\\}/g, `(?:${names.map(escape).join('|') || '\\{\\{organization\\}\\}'})`)
-    .replace(/\\\{\\\{security_contact\\\}\\\}/g, contact ? escape(contact) : '\\{\\{security_contact\\}\\}')}$`));
+  return tpl ? render(tpl.text, answers as Scope['answers']) : null;
+};
+// The text is the catalog template word for word as the scope's answers fill it in now.
+export function unchangedTemplate(id: string, text: string, answers: Record<string, unknown>): boolean {
+  const t = filledTemplate(id, answers);
+  return t !== null && norm(t) === norm(text);
+}
+// The filled-in template's lines, for marking which lines of a text are the template's.
+export function templateLines(id: string, answers: Record<string, unknown>): Set<string> {
+  return new Set((filledTemplate(id, answers) ?? '').split('\n').map((l) => l.trim()).filter(Boolean));
 }
 // Still the catalog template: it carries the catalog's drafting comment, or it is the template unchanged.
-export function stillTemplate(id: string, text: string, current: string): boolean { return DRAFTING.test(text) || unchangedTemplate(id, text, current); }
+export function stillTemplate(id: string, text: string, answers: Record<string, unknown>): boolean { return DRAFTING.test(text) || unchangedTemplate(id, text, answers); }
 
 // Freezes the current text as the next approved version. `textVersion` is the version of the text the approver read.
 // A text that is still the catalog template is approved only when its approver confirms it is true of how the
@@ -236,9 +206,9 @@ export function approvePolicy(root: string, id: string, approvedBy: string, text
   if (!people.includes(approvedBy)) throw new Error(`approver ${approvedBy} is not in registers/people.csv`);
   const left = placeholders(text.text);
   if (left.length) throw new Error(`fill in ${left.map((p) => `{{${p}}}`).join(', ')} before approving`);
-  const org = String(loadWorkspace(root).scope?.data.answers.organization ?? '');
-  const template = stillTemplate(id, text.text, org);
-  const unchanged = unchangedTemplate(id, text.text, org);
+  const answers = loadWorkspace(root).scope?.data.answers ?? {};
+  const template = stillTemplate(id, text.text, answers);
+  const unchanged = unchangedTemplate(id, text.text, answers);
   if (template && !asIs) throw new Error(`policies/${id}.md is still the catalog template: adapt it to how the organization operates, or confirm it is true of how the organization operates as it stands (--as-is)`);
   const body = text.text.replace(DRAFTING, '');
   const bodyVersion = sha256(body);
