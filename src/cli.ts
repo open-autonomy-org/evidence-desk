@@ -685,6 +685,7 @@ async function main(argv: string[]): Promise<number> {
       if (!id) throw new Error('framework needs a framework id');
       let done = '';
       if (act) {
+        if (!targetsOf(loadWorkspace(dir)).includes(id)) throw new Error(`${id} is not a target; run: evidence-desk frameworks ${dirArg} target ${id}`);
         const known = loadWorkspace(dir).controls.map((c) => c.data.id);
         if (act === 'exclude') done = decide(dir, id, req ?? '', { exclude: one(a, 'reason') ?? '' }, known);
         else if (act === 'include') done = decide(dir, id, req ?? '', { include: true }, known);

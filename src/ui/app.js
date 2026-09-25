@@ -28,6 +28,8 @@ async function load() {
   S = await r.json();
   render();
 }
+// A framework decision, told as the workspace recorded it: what changed, what it replaced, or that nothing did.
+async function decided(payload) { const r = await post('/api/framework/decide', payload, null); if (r) notice(r.result, true); return r; }
 async function post(path, payload, okText) {
   const view = document.getElementById('view');
   const holder = (trigger instanceof Element ? trigger : document.activeElement)?.closest?.('form, .card');
@@ -156,7 +158,7 @@ function frameworkPage(f) {
   const positionForm = (r) => {
     const form = h('form', { class: 'row', style: 'margin-top:6px', onsubmit: (e) => { e.preventDefault();
       const pos = form.position.value;
-      post('/api/framework/decide', pos ? { id: f.id, requirement: r.id, position: pos, statement: form.statement.value } : { id: f.id, requirement: r.id, clear: true }, pos ? `Position on ${r.id} saved.` : `Position on ${r.id} cleared.`); } },
+      decided(pos ? { id: f.id, requirement: r.id, position: pos, statement: form.statement.value } : { id: f.id, requirement: r.id, clear: true }); } },
       h('select', { name: 'position' }, h('option', { value: '' }, 'No position'), ['partial', 'not met'].map((v) => h('option', { value: v, selected: r.position === v && !!r.statement }, v === 'partial' ? 'Partly met' : 'Not met'))),
       h('input', { type: 'text', name: 'statement', value: r.statement ?? '', placeholder: 'What is in place and what is not', style: 'flex:1' }),
       h('button', { class: 'secondary', type: 'submit' }, 'Save'));
@@ -168,7 +170,7 @@ function frameworkPage(f) {
   const stepsFor = (r) => r.status === 'unaddressed' ? h('p', { class: 'muted' }, 'No control addresses it: map a control of yours to it, exclude it with a reason, or state your position.')
     : h('div', {}, r.controls.filter((id) => byControl.get(id)?.gaps.length).map((id) => h('div', {}, h('a', { href: `#controls/${id}` }, `${id} ${byControl.get(id).title}`), h('ul', { class: 'gaps' }, byControl.get(id).gaps.map((x) => h('li', {}, x))))));
   const excludeForm = (r) => {
-    const form = h('form', { class: 'row', style: 'margin-top:6px', onsubmit: (e) => { e.preventDefault(); post('/api/framework/decide', { id: f.id, requirement: r.id, exclude: form.reason.value }, `${r.id} excluded.`); } },
+    const form = h('form', { class: 'row', style: 'margin-top:6px', onsubmit: (e) => { e.preventDefault(); decided({ id: f.id, requirement: r.id, exclude: form.reason.value }); } },
       h('input', { type: 'text', name: 'reason', placeholder: 'Or exclude it: why it does not apply', style: 'flex:1' }), h('button', { class: 'secondary', type: 'submit' }, 'Exclude'));
     return form;
   };
@@ -208,8 +210,8 @@ function frameworkPage(f) {
             h('td', {}, r.controls.map((id, i) => [i ? ', ' : '', h('a', { href: `#controls/${id}` }, id)])),
             h('td', {}, pill(r.status === 'unaddressed' ? 'not addressed' : r.status, kind[r.status]), r.position && r.position !== 'met' && r.position !== 'excluded' ? h('div', {}, pill(r.position, 'warn'), ' ', r.statement,
               r.status === 'ready' ? h('span', { class: 'muted' }, ' It is ready now; the self-attestation says what you stated until you clear it.') : null, ' ',
-              h('button', { class: 'secondary', onclick: () => post('/api/framework/decide', { id: f.id, requirement: r.id, clear: true }, `Position on ${r.id} cleared.`) }, 'Clear')) : null, r.reason ? h('div', { class: 'muted' }, r.reason) : null,
-              st.exclusions?.[r.id] ? h('button', { class: 'secondary', onclick: () => post('/api/framework/decide', { id: f.id, requirement: r.id, include: true }, `${r.id} included again.`) }, 'Include again') : null))))])));
+              h('button', { class: 'secondary', onclick: () => decided({ id: f.id, requirement: r.id, clear: true }) }, 'Clear')) : null, r.reason ? h('div', { class: 'muted' }, r.reason) : null,
+              st.exclusions?.[r.id] ? h('button', { class: 'secondary', onclick: () => decided({ id: f.id, requirement: r.id, include: true }) }, 'Include again') : null))))])));
 }
 // Recording the document an auditor or certifying body issued: the only ground for saying audited or certified.
 function recordCard(f) {

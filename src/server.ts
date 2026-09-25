@@ -168,7 +168,7 @@ export function serve(root: string, port: number): void {
           const input = b.exclude !== undefined ? { exclude: s('exclude') } : b.include ? { include: true } : b.clear ? { clearPosition: true }
             : b.position ? { position: { position: s('position') as 'partial' | 'not met', statement: s('statement') } } : null;
           if (!input) throw new Error('say what to decide: exclude, include, a position or clear');
-          decide(root, s('id'), s('requirement'), input, known); break;
+          return send(res, 200, { result: decide(root, s('id'), s('requirement'), input, known), state: state(root) });
         }
         case '/api/framework/not-met': {
           const reqs = Array.isArray(b.requirements) ? b.requirements.map(String) : [];
