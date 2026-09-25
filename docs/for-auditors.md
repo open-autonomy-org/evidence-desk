@@ -40,7 +40,8 @@ the system of record or from records the organization keeps itself. A change mer
 is an exception. Where the package holds, for the whole period, the repository's deployments to the production
 environment the project declares, each started from its declared release tag, and the Worker deployments population
 with every production deployment matched to a GitHub deployment, the default branch is shown to be only a release
-candidate: such a change is a review lapse, and whether
+candidate: such a change is a review lapse (a Worker deployed some other way, with no population of its own, is not
+seen), and whether
 anything reached production without a person's approval is judged at the deployment (CHG-03). Otherwise a change merged
 without an independent approval that no break-glass record names is an emergency change without its record, an
 exception of its own (CHG-04). A management response lists the workspace files it

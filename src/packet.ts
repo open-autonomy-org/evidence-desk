@@ -215,10 +215,12 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   const rowsOf = (x: (typeof evidence)[number]) => x.data.files.filter((f) => f.path.endsWith('.csv')).flatMap((f) => parseCsv(readFileSync(join(root, f.path), 'utf8'), f.path).rows);
   const changeRepos = [...new Set(evidence.filter((x) => x.data.controls.includes('CHG-01')).map((x) => /^Population: \d+ changes to (\S+?)'s /.exec(x.data.title)?.[1]).filter(Boolean))];
   const workerPop = evidence.filter((x) => covers(x) && x.data.files.some((f) => f.path.includes('/cloudflare-worker-deployments-') && f.path.endsWith('.csv')));
+  const prodPops = prodEnv ? changeRepos.map((repo) => evidence.filter((x) => covers(x) && new RegExp(`^Population: \\d+ deployments of ${repo!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} to ${prodEnv.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, `).test(x.data.title))) : [];
+  // A Worker deployment counts as matched only to one of those production deployments, not to another environment's.
+  const prodIds = new Set(prodPops.flat().flatMap(rowsOf).map((r) => r.id));
   const releaseGated = !!prodEnv && changeRepos.length > 0
-    && changeRepos.every((repo) => evidence.some((x) => covers(x) && new RegExp(`^Population: \\d+ deployments of ${repo!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} to ${prodEnv.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, `).test(x.data.title)
-      && rowsOf(x).every((r) => r.trigger_as_declared === 'yes')))
-    && workerPop.length > 0 && workerPop.every((x) => rowsOf(x).every((r) => r.matched === 'yes'));
+    && prodPops.every((pops) => pops.length > 0 && pops.every((x) => rowsOf(x).every((r) => r.trigger_as_declared === 'yes')))
+    && workerPop.length > 0 && workerPop.every((x) => rowsOf(x).every((r) => r.matched === 'yes' && prodIds.has(r.github_deployment)));
   const glass = ws.evidence.filter((x) => x.data.source?.name === 'break-glass seam').sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
   const glassText = glass ? glass.data.files.map((f) => existsSync(join(root, f.path)) ? readFileSync(join(root, f.path), 'utf8') : '').join('\n') : '';
   for (const ev of evidence.filter((x) => !releaseGated && x.data.controls.includes('CHG-01'))) for (const f of ev.data.files.filter((f) => f.path.endsWith('.csv') && f.path.includes('/populations/'))) {
