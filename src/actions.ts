@@ -165,27 +165,32 @@ export function savePolicyText(root: string, id: string, text: string, version: 
 export const placeholders = (text: string): string[] => [...new Set([...text.matchAll(/\{\{([a-z_]+)\}\}/g)].map((m) => m[1]))];
 
 // A policy text that is still Evidence Desk's catalog template: it carries the catalog's drafting comment, or it is the
-// template word for word as adopted (some templates have no comment). The one test the approval gate and the To sign
-// page share.
+// template word for word. The one test the approval gate and the To sign page share.
 const DRAFTING = /^<!--\s*Template adapted from[\s\S]*?-->\n\n?/m;
 const norm = (t: string) => t.replace(DRAFTING, '').replace(/\s+/g, ' ').trim();
-// The catalog template as a pattern, its answer placeholders matching any filled-in value, so a template filled in under an
-// earlier organization name or contact is still known for the template. Built once per template.
 // The catalog template as the scope's answers fill it in now. Every catalog template carries the drafting comment, which
 // only an edit or an as-is confirmation removes; comparing with the filled-in template is the backstop for a copy adopted
 // before its template had the comment. A line naming the organization otherwise (after a rename) is not the template.
+// Where the text still carries the drafting note, the note names the organization the template was filled in for ("how
+// Acme, Inc. actually operates"), and the text is compared with the template filled in under that name, so a rename
+// since does not make an untouched template look adapted.
+const filledFor = (text: string, answers: Record<string, unknown>): Record<string, unknown> => {
+  const named = /<!--\s*Template adapted from[\s\S]*?how ([\s\S]+?) actually operates before approving it\.\s*-->/.exec(text)?.[1];
+  return named ? { ...answers, organization: named } : answers;
+};
 const filledTemplate = (id: string, answers: Record<string, unknown>): string | null => {
   const tpl = policyTemplates.find((t) => t.id === id);
   return tpl ? render(tpl.text, answers as Scope['answers']) : null;
 };
-// The text is the catalog template word for word as the scope's answers fill it in now.
+// The text is the catalog template word for word, filled in under the name its drafting note gives, or else the scope's
+// answers now.
 export function unchangedTemplate(id: string, text: string, answers: Record<string, unknown>): boolean {
-  const t = filledTemplate(id, answers);
+  const t = filledTemplate(id, filledFor(text, answers));
   return t !== null && norm(t) === norm(text);
 }
 // The filled-in template's lines, for marking which lines of a text are the template's.
-export function templateLines(id: string, answers: Record<string, unknown>): Set<string> {
-  return new Set((filledTemplate(id, answers) ?? '').split('\n').map((l) => l.trim()).filter(Boolean));
+export function templateLines(id: string, text: string, answers: Record<string, unknown>): Set<string> {
+  return new Set((filledTemplate(id, filledFor(text, answers)) ?? '').split('\n').map((l) => l.trim()).filter(Boolean));
 }
 // Still the catalog template: it carries the catalog's drafting comment, or it is the template unchanged.
 export function stillTemplate(id: string, text: string, answers: Record<string, unknown>): boolean { return DRAFTING.test(text) || unchangedTemplate(id, text, answers); }
@@ -209,7 +214,7 @@ export function approvePolicy(root: string, id: string, approvedBy: string, text
   const answers = loadWorkspace(root).scope?.data.answers ?? {};
   const template = stillTemplate(id, text.text, answers);
   const unchanged = unchangedTemplate(id, text.text, answers);
-  if (template && !asIs) throw new Error(`policies/${id}.md is still the catalog template: adapt it to how the organization operates, or confirm it is true of how the organization operates as it stands (--as-is)`);
+  if (template && !asIs) throw new Error(`policies/${id}.md is still the catalog template: adapt it to how the organization operates, or confirm it is true of how the organization operates as it stands (--as-is on the command line, the confirmation in the app)`);
   const body = text.text.replace(DRAFTING, '');
   const bodyVersion = sha256(body);
   const last = rec.data.versions.at(-1);

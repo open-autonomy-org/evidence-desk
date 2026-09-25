@@ -22,7 +22,7 @@ const EVERY: Record<string, string> = {
 
 export function policyReading(ws: Workspace, id: string, text: string): PolicyReading {
   const answers = ws.scope?.data.answers ?? {};
-  const known = templateLines(id, answers);
+  const known = templateLines(id, text, answers);
   const lines = text.split('\n').map((l) => ({ text: l, mark: !l.trim() ? 'blank' as const : known.has(l.trim()) ? 'template' as const : 'yours' as const }));
   const needed = neededControls(ws);
   const commitments = ws.controls.filter((c) => needed.has(c.data.id) && c.data.applicable)

@@ -481,6 +481,7 @@ function policyDetail(p) {
   const ownerForm = h('form', { class: 'row', onsubmit: async (e) => { e.preventDefault(); await post('/api/policy/owner', { id: p.id, owner: ownerForm.owner.value, version: p.version }, 'Owner saved.'); } },
     h('div', { style: 'flex:1' }, personSelect('owner', p.owner)), h('button', { class: 'secondary', type: 'submit' }, 'Save owner'));
   const approver = personSelect('approver', '', 'Choose who approves');
+  const asIs = h('input', { type: 'checkbox' });
   const last = p.versions.at(-1);
   return h('div', {},
     h('a', { class: 'back', href: '#policies' }, '← All policies'),
@@ -494,11 +495,13 @@ function policyDetail(p) {
         h('button', { class: 'primary', onclick: () => post('/api/policy/text', { id: p.id, text: ta.value, version: shownVersion }, 'Policy text saved.') }, 'Save text'))),
     h('div', { class: 'card' },
       h('label', { style: 'margin-top:0' }, 'Approve this text', h('small', {}, 'Save any edits first. Approval freezes the saved text as the next version.')),
+      p.reading?.template ? h('label', { class: 'check' }, asIs, ` It is still the catalog template, and I have read it: it is true of how ${S.organization || 'the organization'} operates`) : null,
       h('div', { class: 'row', style: 'margin-top:0' }, h('div', { style: 'flex:1' }, approver),
         h('button', { class: 'primary', onclick: () => {
           if (ta.value !== p.text) return notice('Save the text before approving it.', false);
           if (!approver.value) return notice('Choose who approves.', false);
-          post('/api/policy/approve', { id: p.id, by: approver.value, textVersion: shownVersion, version: p.version }, 'Approved.');
+          if (p.reading?.template && !asIs.checked) return notice(`This is still the catalog template: change it to how ${S.organization || 'the organization'} operates, or confirm it is true as it stands.`, false);
+          post('/api/policy/approve', { id: p.id, by: approver.value, textVersion: shownVersion, version: p.version, ...(p.reading?.template ? { asIs: true } : {}) }, 'Approved.');
         } }, 'Approve'))),
     p.versions.length ? h('div', {}, h('h2', {}, 'Approved versions'),
       h('table', {}, h('tr', {}, h('th', {}, 'Version'), h('th', {}, 'Approved by'), h('th', {}, 'When'), h('th', {}, 'Text')),
