@@ -10,6 +10,7 @@ import { formTemplates, library, policyTemplates, questions } from './catalog.ts
 import { libraryNeeded, neededControls } from './targets.ts';
 import { loadWorkspace, MANIFEST, REGISTERS, type Control, type Evidence, type Policy, type RegisterName, type Scope } from './workspace.ts';
 import { clockDate, now } from './clock.ts';
+import { track } from './git.ts';
 
 const pretty = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
 function valid(schemaName: string, data: unknown, what: string): void {
@@ -323,7 +324,9 @@ export function addEvidence(root: string, input: {
       writeVersioned(root, rel, readFileSync(join(root, f)), null);
       return { path: rel, ...fileHash(root, rel)! };
     }
-    if (!isOutside) { const h = fileHash(root, f); if (!h) throw new Error(`${f} is not a file`); return { path: f, ...h }; }
+    // A file already in the workspace is recorded where it is, and joins this change's commit with the record, so the
+    // record never names a file the workspace's history does not hold.
+    if (!isOutside) { const h = fileHash(root, f); if (!h) throw new Error(`${f} is not a file`); track(root, f, h.sha256); return { path: f, ...h }; }
     if (!existsSync(outside)) throw new Error(`${f} does not exist`);
     const rel = `evidence/files/${id}/${basename(outside)}`;
     inside(root, rel);
