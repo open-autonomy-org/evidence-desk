@@ -405,13 +405,14 @@ function lintDescription(ws: Workspace, e: Engagement, text: string, assertionTe
     : (noneClaim && incRows.length) || (noSerious && serious.length) ? { rule: 'incidents', status: 'contradiction', detail: `the description says no ${noSerious ? 'high or critical ' : ''}incident is recorded; the incidents population (${inc!.data.id}) holds ${(noSerious ? serious : incRows).map((r) => `${r.id} (${r.severity})`).join(', ')}` }
     : { rule: 'incidents', status: 'pass', detail: `consistent with ${inc ? inc.data.id : 'no incidents population'}` });
   const c = e.period ? periodPopulation(ws, e, 'changes to') : null;
-  // What reached production without an approved change: unapproved merges, and Cloudflare deployments no approved GitHub
-  // deployment accounts for.
+  // A claim that every change is reviewed, against the changes population (a merge without an independent review) and
+  // the Cloudflare deployments no approved GitHub deployment accounts for.
   const worker = ws.evidence.filter((x) => x.data.files.some((f) => f.path.includes('/cloudflare-worker-deployments-') && f.path.endsWith('.csv')) && x.data.period && e.period && x.data.period.start <= e.period.start && x.data.period.end >= e.period.end).sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
   const workerCsv = worker?.data.files.find((f) => f.path.endsWith('.csv'));
   const offBook = workerCsv ? parseCsv(readFileSync(join(ws.root, workerCsv.path), 'utf8'), workerCsv.path).rows.filter((r) => r.matched !== 'yes').map((r) => r.deployment.slice(0, 8)) : [];
   const unapproved = [...(c?.rows ?? []).filter((r) => r.independent_approval !== 'yes').map((r) => r.number ? `#${r.number}` : r.commit.slice(0, 12)), ...offBook];
-  const reviewClaim = /\b(only|always|every change|all changes)\b(?:[^.\n]|\.(?=\S))*\breview/i.exec(prose);
+  // A claim about changes, not about releases: "every change is reviewed", "changes are only merged after review".
+  const reviewClaim = /\b(?:every|each|all)\s+(?:code\s+)?changes?\b(?:[^.\n]|\.(?=\S))*\breview|\bchanges?\b(?:[^.\n]|\.(?=\S))*\b(?:only|always)\b(?:[^.\n]|\.(?=\S))*\breview/i.exec(prose);
   out.push(!reviewClaim || !c ? { rule: 'changes reviewed', status: 'not applicable', detail: reviewClaim ? 'no changes population for the period' : 'the description makes no claim that every change is reviewed' }
     : unapproved.every((x) => prose.includes(x)) ? { rule: 'changes reviewed', status: 'pass', detail: `"${reviewClaim[0]}"; ${unapproved.length ? `the description names ${unapproved.join(', ')}` : 'every change in the population was independently approved'} (${c.id})` }
     : { rule: 'changes reviewed', status: 'contradiction', detail: `"${reviewClaim[0]}", but ${unapproved.filter((x) => !prose.includes(x)).join(', ')} in ${c.id} had no independent approval and the description does not name them` });

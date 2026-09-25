@@ -202,11 +202,23 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   }
   // A change that reached the branch without an independent approval is an emergency change unless shown otherwise, and
   // an emergency change needs its break-glass record: each one the latest break-glass population does not name (by pull
-  // request number or commit) is an exception of its own. Where the package holds the production deployments population,
-  // the branch is a release candidate: a change reaches production only in a deployment, whose approval that population
-  // and the change-releases view judge, so a merge without review is the review lapse the changes population already
-  // lists, not an emergency change.
-  const releaseGated = evidence.some((x) => x.data.files.some((f) => f.path.includes('/github-deployments-') && f.path.endsWith('.csv')));
+  // request number or commit) is an exception of its own. Where the package shows the branch is only a release candidate,
+  // a merge without review is the review lapse the changes population already lists, not an emergency change: what
+  // reaches production is then judged at the deployment (its approval, in the deployments population and the
+  // change-releases view). The package shows it with, for the whole period: the deployments of the same repository to
+  // the production environment the project declares, each started from the release tag its production workflow declares
+  // (so a push to the branch deploys nothing), and the Worker deployments population with every production deployment
+  // matched to a GitHub deployment, so nothing reached production another way.
+  const covers = (x: (typeof evidence)[number]) => !!x.data.period && x.data.period.start <= period.start && x.data.period.end >= period.end;
+  const prod = (latestSnapOf(root) as { rules?: { production_deploy?: { environment?: string | null; tag_trigger?: string | null } | null } } | null)?.rules?.production_deploy;
+  const prodEnv = prod?.tag_trigger ? prod.environment ?? null : null;
+  const rowsOf = (x: (typeof evidence)[number]) => x.data.files.filter((f) => f.path.endsWith('.csv')).flatMap((f) => parseCsv(readFileSync(join(root, f.path), 'utf8'), f.path).rows);
+  const changeRepos = [...new Set(evidence.filter((x) => x.data.controls.includes('CHG-01')).map((x) => /^Population: \d+ changes to (\S+?)'s /.exec(x.data.title)?.[1]).filter(Boolean))];
+  const workerPop = evidence.filter((x) => covers(x) && x.data.files.some((f) => f.path.includes('/cloudflare-worker-deployments-') && f.path.endsWith('.csv')));
+  const releaseGated = !!prodEnv && changeRepos.length > 0
+    && changeRepos.every((repo) => evidence.some((x) => covers(x) && new RegExp(`^Population: \\d+ deployments of ${repo!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} to ${prodEnv.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, `).test(x.data.title)
+      && rowsOf(x).every((r) => r.trigger_as_declared === 'yes')))
+    && workerPop.length > 0 && workerPop.every((x) => rowsOf(x).every((r) => r.matched === 'yes'));
   const glass = ws.evidence.filter((x) => x.data.source?.name === 'break-glass seam').sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
   const glassText = glass ? glass.data.files.map((f) => existsSync(join(root, f.path)) ? readFileSync(join(root, f.path), 'utf8') : '').join('\n') : '';
   for (const ev of evidence.filter((x) => !releaseGated && x.data.controls.includes('CHG-01'))) for (const f of ev.data.files.filter((f) => f.path.endsWith('.csv') && f.path.includes('/populations/'))) {
