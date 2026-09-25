@@ -6,7 +6,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 
 import { basename, join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { check, schema } from './schema.ts';
-import { questionnaireText } from './xlsx.ts';
+import { isIdColumn, questionColumn, questionnaireText } from './xlsx.ts';
 import { parseCsv, writeCsv } from './csv.ts';
 import { fileHash, readVersioned, writeVersioned } from './files.ts';
 import { categories, categoryAnswer, frameworkDescriptions } from './catalog.ts';
@@ -191,11 +191,10 @@ const stale = (root: string, sources: Source[]) => sources.some((s) => fileHash(
 // Imports a questionnaire (CSV with a question column, and optionally an id column) and drafts every answer.
 export function importQuestionnaireText(root: string, text: string, file: string, name: string): { id: string; fromLibrary: number; drafted: number; unanswered: number } {
   const table = parseCsv(text, file);
-  // The question column: one named just "Question(s)" first, else one naming a question that is not its id
-  // ("Question text", but not "Question ID", which identifies it).
-  const qcol = table.columns.find((c) => /^\s*questions?\s*$/i.test(c)) ?? table.columns.find((c) => /\bquestions?\b/i.test(c) && !/\b(id|number|ref)\b/i.test(c));
-  if (!qcol) throw new Error(`${file} needs a column whose name contains "question"`);
-  const idcol = table.columns.find((c) => /^(id|number|#|ref|question (id|number|ref))$/i.test(c.trim()));
+  // The question and its id by their headings (isQuestionColumn, isIdColumn: the sheet picker's own test).
+  const qcol = questionColumn(table.columns);
+  if (!qcol) throw new Error(`${file} needs a question column: a heading such as "Question" or "Question text" (not only "Question ID")`);
+  const idcol = table.columns.find(isIdColumn);
   const ws = loadWorkspace(root);
   const corpus = passages(ws);
   const { lib } = readLibrary(root);
