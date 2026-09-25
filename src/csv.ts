@@ -34,6 +34,13 @@ export function parseCsv(text: string, file: string): Table {
 }
 
 const cell = (v: string): string => /[",\r\n]/.test(v) || /^\s|\s$/.test(v) ? `"${v.replaceAll('"', '""')}"` : v;
-export function writeCsv(t: Table): string {
-  return [t.columns, ...t.rows.map((r) => t.columns.map((c) => r[c] ?? ''))].map((r) => r.map(cell).join(',')).join('\n') + '\n';
+// A file for a spreadsheet (one sent to someone who opens it in one) keeps every cell text: a spreadsheet reads a cell
+// that begins = + - @, a tab or a carriage return as a formula, so such a cell is written after an apostrophe. Records
+// the workspace keeps are written exactly.
+const text = (v: string): string => /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+// A table the workspace wrote, made safe to open in a spreadsheet the same way.
+export const spreadsheetCsv = (csv: string, file: string): string => writeCsv(parseCsv(csv, file), { spreadsheet: true });
+export function writeCsv(t: Table, opts: { spreadsheet?: boolean } = {}): string {
+  const out = opts.spreadsheet ? (v: string) => cell(text(v)) : cell;
+  return [t.columns, ...t.rows.map((r) => t.columns.map((c) => r[c] ?? ''))].map((r) => r.map(out).join(',')).join('\n') + '\n';
 }

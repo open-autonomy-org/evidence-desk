@@ -2,8 +2,8 @@
 // only what trust.json lists. Questionnaires are answered from workspace facts: each drafted answer quotes and cites
 // the records it came from, a person reviews it, and reviewed answers are kept for reuse until a fact they cite changes.
 // Drafting needs no AI service; a customer's own coding agent can refine drafts by editing the files.
-import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, lstatSync, realpathSync, renameSync, rmSync, statSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { check, schema } from './schema.ts';
 import { isIdColumn, questionColumn, questionnaireText } from './xlsx.ts';
@@ -141,14 +141,53 @@ export function buildTrustCenter(root: string, out: string): { published: string
 ${contact ? `<section><h2>Security contact</h2><p>${link(contact) ? `<a href="${esc(link(contact)!)}">${esc(contact)}</a>` : esc(contact)}</p></section>` : ''}
 <p class="muted">Updated ${now().slice(0, 10)}.</p></body></html>
 `;
-  mkdirSync(out, { recursive: true });
-  writeFileSync(join(out, 'index.html'), html);
-  if (badges.length) {
-    mkdirSync(join(out, 'badges'), { recursive: true });
-    for (const b of badges) writeFileSync(join(out, 'badges', `${b.id}.svg`), badgeSvg(b));
-    writeFileSync(join(out, 'badges.json'), pretty({ schema: 'evidence-desk.badges/1', organization: org, as_of: now().slice(0, 10), badges: badges.map((b) => ({ ...b, svg: `badges/${b.id}.svg` })) }));
-    published.push(`${badges.length} badges`);
+  // The site is written into the folder named, which may be anywhere but the workspace itself (compared by the folders
+  // themselves, so a link or another letter case does not make the workspace look like somewhere else). Only its own
+  // files are written, never through a link, and a badge the last build published that this one does not is removed:
+  // a withdrawn claim must not stay at its public address. Everything is checked before anything is written.
+  const full = resolve(out);
+  const home = statSync(root);
+  let near = full;
+  while (!existsSync(near)) near = dirname(near);
+  for (let at = realpathSync(near); ; at = dirname(at)) {
+    const st = statSync(at);
+    if (st.dev === home.dev && st.ino === home.ino) throw new Error(`build the trust center outside the workspace, not in ${out}`);
+    if (dirname(at) === at) break;
   }
+  const own = (rel: string, kind: 'file' | 'dir') => {
+    const at = join(full, rel);
+    const st = lstatSync(at, { throwIfNoEntry: false });
+    if (st && (kind === 'file' ? !st.isFile() : !st.isDirectory())) throw new Error(`${at} is not a plain ${kind === 'file' ? 'file' : 'folder'}; the trust center writes only its own files`);
+    return { at, exists: !!st };
+  };
+  for (const b of badges) if (!/^[A-Za-z0-9._-]+$/.test(b.id) || b.id.startsWith('.')) throw new Error(`badge ${JSON.stringify(b.id)} is not a name a file can take`);
+  const index = own('index.html', 'file'), list = own('badges.json', 'file'), folder = own('badges', 'dir');
+  let before: { svg?: unknown }[] = [];
+  // The last build's list is the only authority to remove anything, and only if it is this program's own.
+  if (list.exists) {
+    let doc: { schema?: unknown; badges?: unknown } | null = null;
+    try { doc = JSON.parse(readFileSync(list.at, 'utf8')); } catch { doc = null; }
+    if (!doc || doc.schema !== 'evidence-desk.badges/1' || !Array.isArray(doc.badges)) throw new Error(`${list.at} is not a badge list Evidence Desk wrote, so it is left as it is; build into a folder of its own`);
+    before = doc.badges as { svg?: unknown }[];
+  }
+  const svgs = new Set(badges.map((b) => `badges/${b.id}.svg`));
+  const stale = before.map((b) => String(b.svg ?? '')).filter((f) => /^badges\/[A-Za-z0-9._-]+\.svg$/.test(f) && !svgs.has(f));
+  for (const f of [...svgs, ...stale]) own(f, 'file');
+  // Each file is replaced, not written into: a file linked elsewhere under its name keeps its own content.
+  const put = (at: string, text: string) => { const tmp = `${at}.${randomBytes(6).toString('hex')}.tmp`; writeFileSync(tmp, text, { flag: 'wx' }); renameSync(tmp, at); };
+  mkdirSync(full, { recursive: true });
+  put(index.at, html);
+  if (badges.length) {
+    if (!folder.exists) mkdirSync(folder.at);
+    for (const b of badges) put(join(full, 'badges', `${b.id}.svg`), badgeSvg(b));
+  }
+  let removed = 0;
+  for (const f of stale) if (existsSync(join(full, f))) { rmSync(join(full, f)); removed++; }
+  if (badges.length) {
+    put(list.at, pretty({ schema: 'evidence-desk.badges/1', organization: org, as_of: now().slice(0, 10), badges: badges.map((b) => ({ ...b, svg: `badges/${b.id}.svg` })) }));
+    published.push(`${badges.length} badges`);
+  } else if (list.exists) rmSync(list.at);
+  if (removed) published.push(`${removed} withdrawn badge${removed === 1 ? '' : 's'} removed`);
   return { published, badges };
 }
 
@@ -231,7 +270,7 @@ export function questionnaireCsv(root: string, id: string): string {
   return writeCsv({ columns: ['id', 'question', 'answer', 'status'], rows: doc.questions.map((q) => {
     const current = q.status === 'reviewed' && !stale(root, q.sources);
     return { id: q.id, question: q.question, answer: current ? q.answer : '', status: current ? 'reviewed' : q.status === 'reviewed' ? 'needs-review' : q.status };
-  }) });
+  }) }, { spreadsheet: true });
 }
 
 // A person writes or approves an answer. Reviewing it records who and when, and keeps it in the library for reuse.

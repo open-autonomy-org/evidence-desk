@@ -7,7 +7,7 @@ import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, wr
 import { dirname, join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { check, schema } from './schema.ts';
-import { parseCsv, writeCsv } from './csv.ts';
+import { parseCsv, spreadsheetCsv, writeCsv } from './csv.ts';
 import { fileHash, inside, readVersioned, sha256, writeVersioned } from './files.ts';
 import { categories, categoryAnswer, criteria } from './catalog.ts';
 import { computeGaps } from './gaps.ts';
@@ -790,8 +790,11 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   const derived = [...views].sort(([a], [b]) => a.localeCompare(b)).map(([p, text]) => {
     const dest = join(out, p);
     mkdirSync(dirname(dest), { recursive: true });
-    writeFileSync(dest, text);
-    return { path: p, sha256: sha256(Buffer.from(text)), bytes: Buffer.byteLength(text) };
+    // The review tables are for a spreadsheet: text from third parties (a pull request's title) opens as text there.
+    // Evidence files are copied exactly.
+    const body = p.endsWith('.csv') ? spreadsheetCsv(text, p) : text;
+    writeFileSync(dest, body);
+    return { path: p, sha256: sha256(Buffer.from(body)), bytes: Buffer.byteLength(body) };
   });
   // The workspace's commit and where it is published: the hosted repository's history dates every record independently
   // of this package, so the firm can check that a file here is the file committed there, and when.

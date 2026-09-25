@@ -224,7 +224,8 @@ client's engagements, request counts, exceptions and readiness separately.
 
 `evidence-desk trust build` writes a static `index.html` from the workspace, publishing only what `trust.json` lists:
 the categories in scope, the organization's audits and certifications, titles and approval dates of named policies, high-criticality vendors as subprocessors, and documents offered on request through the
-security contact. The organization hosts the folder wherever it likes.
+security contact. The organization hosts the folder wherever it likes; it is built outside the workspace, only its own
+files are written (never through a link), and a rebuild removes any badge the last build published that this one does not.
 
 **Audited or certified only with the document.** The page says the organization was audited or certified only where
 `certifications/` holds the document that says so: an independent auditor's report (SOC 2, SOC 3) or a certifying
@@ -256,7 +257,7 @@ library; a reviewed answer whose cited files are unchanged is reused as reviewed
 `needs-review`. Otherwise the answer is drafted by quoting the applicable controls, the reasons for excluded ones, and
 approved policy text that match the question, each cited with its file and SHA-256; a question with no matching fact is
 left `unanswered`. A draft carries a marker and cannot be marked reviewed until a person replaces it with their answer.
-Only reviewed, current answers are exported. Drafting uses no AI service; a customer's own coding agent may refine
+Only reviewed, current answers are exported. The export is made for a spreadsheet: a cell that begins with `=`, `+`, `-`, `@`, a tab or a carriage return is written after an apostrophe (the audit package's `review/` tables are written the same way; evidence files are copied exactly), so it opens as text, never as a formula. Drafting uses no AI service; a customer's own coding agent may refine
 drafts in the files.
 
 ## Targets
