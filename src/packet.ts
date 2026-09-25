@@ -202,10 +202,32 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
   }
   // A change that reached the branch without an independent approval is an emergency change unless shown otherwise, and
   // an emergency change needs its break-glass record: each one the latest break-glass population does not name (by pull
-  // request number or commit) is an exception of its own.
+  // request number or commit) is an exception of its own. Where the package shows the branch is only a release candidate,
+  // a merge without review is the review lapse the changes population already lists, not an emergency change: what
+  // reaches production is then judged at the deployment (its approval, in the deployments population and the
+  // change-releases view). The package shows it with, for the whole period: the deployments of the same repository to
+  // the production environment the project declares, each started from the release tag its production workflow declares
+  // (so a push to the branch deploys nothing) and independently approved, and the Worker deployments population with every production deployment
+  // matched to a GitHub deployment, so nothing reached production another way.
+  const covers = (x: (typeof evidence)[number]) => !!x.data.period && x.data.period.start <= period.start && x.data.period.end >= period.end;
+  const prod = (latestSnapOf(root) as { rules?: { production_deploy?: { environment?: string | null; tag_trigger?: string | null } | null } } | null)?.rules?.production_deploy;
+  const prodEnv = prod?.tag_trigger ? prod.environment ?? null : null;
+  const rowsOf = (x: (typeof evidence)[number]) => x.data.files.filter((f) => f.path.endsWith('.csv')).flatMap((f) => parseCsv(readFileSync(join(root, f.path), 'utf8'), f.path).rows);
+  // Every changes population must name its repository: one that cannot be read keeps the emergency check for all.
+  const changePops = evidence.filter((x) => x.data.controls.includes('CHG-01') && x.data.files.some((f) => f.path.includes('/github-changes-')));
+  const changeRepos = [...new Set(changePops.map((x) => /^Population: \d+ changes to (\S+?)'s /.exec(x.data.title)?.[1]))];
+  const workerPop = evidence.filter((x) => covers(x) && x.data.files.some((f) => f.path.includes('/cloudflare-worker-deployments-') && f.path.endsWith('.csv')));
+  const prodPops = prodEnv && changeRepos.every(Boolean) ? changeRepos.map((repo) => evidence.filter((x) => covers(x) && new RegExp(`^Population: \\d+ deployments of ${repo!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} to ${prodEnv.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, `).test(x.data.title))) : [];
+  // A Worker deployment counts as matched only to one of those production deployments, not to another environment's.
+  const prodIds = new Set(prodPops.flat().flatMap(rowsOf).map((r) => r.id));
+  // Each production deployment started from the declared tag and approved by someone other than who started it: a tag
+  // an automation cuts and deploys unapproved does not make the branch a release candidate.
+  const releaseGated = !!prodEnv && changeRepos.length > 0 && changeRepos.every(Boolean)
+    && prodPops.every((pops) => pops.length > 0 && pops.every((x) => rowsOf(x).every((r) => r.trigger_as_declared === 'yes' && r.independent_approval === 'yes')))
+    && workerPop.length > 0 && workerPop.every((x) => rowsOf(x).every((r) => r.matched === 'yes' && prodIds.has(r.github_deployment)));
   const glass = ws.evidence.filter((x) => x.data.source?.name === 'break-glass seam').sort((a, b) => a.data.collected_at.localeCompare(b.data.collected_at)).at(-1);
   const glassText = glass ? glass.data.files.map((f) => existsSync(join(root, f.path)) ? readFileSync(join(root, f.path), 'utf8') : '').join('\n') : '';
-  for (const ev of evidence.filter((x) => x.data.controls.includes('CHG-01'))) for (const f of ev.data.files.filter((f) => f.path.endsWith('.csv') && f.path.includes('/populations/'))) {
+  for (const ev of evidence.filter((x) => !releaseGated && x.data.controls.includes('CHG-01'))) for (const f of ev.data.files.filter((f) => f.path.endsWith('.csv') && f.path.includes('/populations/'))) {
     const t = parseCsv(readFileSync(join(root, f.path), 'utf8'), f.path);
     if (!t.columns.includes('independent_approval') || !t.columns.includes('merged_at')) continue;
     for (const r of t.rows.filter((r) => r.independent_approval !== 'yes')) {
