@@ -414,7 +414,7 @@ function lintDescription(ws: Workspace, e: Engagement, text: string, assertionTe
   // A claim that changes are reviewed ("every change is reviewed", "pull requests are always reviewed", "all code is
   // reviewed before it lands"), not a claim about releases ("changes reach production only after the owner reviews the
   // release"): a mention of releases, production or deploying before the review makes it one about the release.
-  const reviewClaim = [...prose.matchAll(/\bonly\s+(?:[\w-]+\s+)?reviewed\s+(?:code\s+)?(?:changes?|pull requests?|PRs?|merges?|code)\b()|\b(?:(?:every|each|all)\s+(?:code\s+)?(?:changes?|pull requests?|PRs?|merges?|code)\b|(?:changes?|pull requests?|PRs?|merges?|code)\b(?=(?:[^.\n]|\.(?=\S))*\b(?:only|always)\b))((?:[^.\n]|\.(?=\S))*?)\breview/gi)]
+  const reviewClaim = [...prose.matchAll(/\bonly\s+(?:[\w-]+\s+)?(?:\w+-)?reviewed\s+(?:code\s+)?(?:changes?|pull requests?|PRs?|merges?|code)\b()|\b(?:(?:every|each|all)\s+(?:code\s+)?(?:changes?|pull requests?|PRs?|merges?|code)\b|(?:changes?|pull requests?|PRs?|merges?|code)\b(?=(?:[^.\n]|\.(?=\S))*\b(?:only|always)\b))((?:[^.\n]|\.(?=\S))*?)\breview/gi)]
     .find((m) => !/\b(release|production|deploy)/i.test(m[1] ?? m[2] ?? ''));
   out.push(!reviewClaim || !c ? { rule: 'changes reviewed', status: 'not applicable', detail: reviewClaim ? 'no changes population for the period' : 'the description makes no claim that every change is reviewed' }
     : unapproved.every((x) => prose.includes(x)) ? { rule: 'changes reviewed', status: 'pass', detail: `"${reviewClaim[0]}"; ${unapproved.length ? `the description names ${unapproved.join(', ')}` : 'every change in the population was independently approved'} (${c.id})` }
