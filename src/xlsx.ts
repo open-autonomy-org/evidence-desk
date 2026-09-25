@@ -91,16 +91,21 @@ export function xlsxToCsv(buf: Buffer, file: string): string {
     const rows = rowsOf(sheet, shared);
     // The header: a cell that is just "Question(s)", or a heading asking a question in a row of several headings. A
     // title ("Vendor Security Questionnaire", CSA's "…Initiative Questionnaire" beside its version stamp) names a
-    // questionnaire, not a question, and is passed over; so is a sheet with nothing under its question column.
-    // A header's question cell reads as a heading: short, and asking nothing itself. A question that mentions questions
-    // ("Who answers customer questions?") is a row of data, never a header.
-    const heading = (x: string) => x.trim().length > 0 && x.trim().length <= 60 && !x.includes('?');
-    const qAt = (r: string[]) => { const bare = r.findIndex((x) => /^\s*questions?\s*$/i.test(x)); return bare >= 0 ? bare : r.findIndex((x) => heading(x) && isQuestionColumn(x)); };
-    const isHeader = (r: string[]) => r.some((x) => /^\s*questions?\s*$/i.test(x)) || (r.filter((x) => x.trim()).length >= 2 && qAt(r) >= 0);
-    // Every header row is tried in order, each with the questions up to the next header row, so a heading row with
-    // nothing under it gives way to a later one on the sheet.
-    const heads = rows.map((r, i) => (isHeader(r) ? i : -1)).filter((i) => i >= 0);
-    const at = heads.find((i, k) => rows.slice(i + 1, heads[k + 1] ?? rows.length).some((b) => (b[qAt(rows[i])] ?? '').trim())) ?? -1;
+    // questionnaire, not a question, and is passed over.
+    const isHeader = (r: string[]) => r.some((x) => /^\s*questions?\s*$/i.test(x)) || (r.filter((x) => x.trim()).length >= 2 && r.some(isQuestionColumn));
+    const qOf = (r: string[]) => r.indexOf(questionColumn(r)!);
+    let at = rows.findIndex(isHeader);
+    // A heading row with nothing under it gives way to the header below it: when the first cell filled under its question
+    // column is itself a column's name ("Question", "Question ID"), that row is the header. A question is never a
+    // column's name, so a question never becomes the header.
+    for (;;) {
+      if (at < 0) break;
+      const q = qOf(rows[at]);
+      const next = rows.findIndex((r, i) => i > at && (r[q] ?? '').trim());
+      if (next < 0) { at = -1; break; }
+      const cell = rows[next][q];
+      if (isHeader(rows[next]) && (/^\s*questions?\s*$/i.test(cell) || isIdColumn(cell))) at = next; else break;
+    }
     if (at < 0) continue;
     const body = rows.slice(at);
     const width = Math.max(...body.map((r) => r.length));
