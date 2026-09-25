@@ -9,7 +9,7 @@ import { check, schema } from './schema.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { loadWorkspace } from './workspace.ts';
 import { now } from './clock.ts';
-import { frameworkDescriptions, type Outcome } from './catalog.ts';
+import { frameworkDescriptions, frameworkOf, kindFits, namedFramework, type Outcome } from './catalog.ts';
 
 export type Certification = { schema: string; id: string; framework: string; kind: 'audit report' | 'certificate' | 'self-attestation'; issuer: string; issued_on: string;
   period?: { start: string; end: string }; valid_until?: string; target?: string; file: string; sha256: string; recorded_by: string; recorded_at: string };
@@ -22,21 +22,28 @@ export function recordCertification(root: string, input: { framework: string; ki
   // position; an uploaded document cannot stand in for it (docs/decisions/0002-frameworks-are-targets.md).
   // A framework that becomes a self-attestation has no auditor and no certifying body: its only document is the one attest
   // renders, and no other kind may be recorded for it.
-  if (input.target && frameworkDescriptions.find((f) => f.id === input.target)?.outcome === 'self-attestation' && !(input.rendered && input.kind === 'self-attestation'))
-    throw new Error(`${input.target} has no audit or certificate; its self-attestation is signed with: evidence-desk frameworks <dir> attest ${input.target} --by <person>`);
+  // The name the document gives cannot contradict its target (the badge says the name), and a record made without
+  // --target is held to the framework its name names, so naming one cannot pass its gate.
+  const named = namedFramework(input.framework);
+  if (input.target && named && named !== input.target) throw new Error(`"${input.framework}" names ${named}, not ${input.target}: record it for the framework it names`);
+  const target = frameworkOf(input);
+  if (target && frameworkDescriptions.find((f) => f.id === target)?.outcome === 'self-attestation' && !(input.rendered && input.kind === 'self-attestation'))
+    throw new Error(`${target} has no audit or certificate; its self-attestation is signed with: evidence-desk frameworks <dir> attest ${target} --by <person>`);
   if (!(loadWorkspace(root).registers.people?.data.rows ?? []).some((r) => r.id === input.by)) throw new Error(`${input.by || '(none)'} is not in registers/people.csv`);
   if (!existsSync(input.file)) throw new Error(`${input.file} does not exist`);
   if (input.kind === 'certificate' && !input.valid_until) throw new Error('a certificate needs --valid-until, the date it expires');
   const bytes = readFileSync(input.file);
+  if (!bytes.length) throw new Error(`${input.file} is empty`);
   const sha256 = createHash('sha256').update(bytes).digest('hex');
   const id = `${input.framework.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${input.issued_on}`;
   const ext = (/\.[a-z0-9]+$/i.exec(input.file)?.[0] ?? '.pdf').toLowerCase();
   const file = `${DIR}/${id}${ext}`;
-  writeVersioned(root, file, bytes, readVersioned(root, file)?.version ?? null);
   const record: Certification = { schema: 'evidence-desk.certification/1', id, framework: input.framework, kind: input.kind, issuer: input.issuer, issued_on: input.issued_on,
-    ...(input.period ? { period: input.period } : {}), ...(input.valid_until ? { valid_until: input.valid_until } : {}), ...(input.target ? { target: input.target } : {}), file, sha256, recorded_by: input.by, recorded_at: now() };
+    ...(input.period ? { period: input.period } : {}), ...(input.valid_until ? { valid_until: input.valid_until } : {}), ...(target ? { target } : {}), file, sha256, recorded_by: input.by, recorded_at: now() };
+  // The record is checked before anything is written, so a refused one leaves no document behind and replaces none.
   const errs = check(schema('certification'), record);
   if (errs.length) throw new Error(`the certification record is invalid: ${errs.join('; ')}`);
+  writeVersioned(root, file, bytes, readVersioned(root, file)?.version ?? null);
   const rel = `${DIR}/${id}.json`;
   writeVersioned(root, rel, JSON.stringify(record, null, 2) + '\n', readVersioned(root, rel)?.version ?? null);
   return record;
@@ -44,12 +51,13 @@ export function recordCertification(root: string, input: { framework: string; ki
 
 // Every record whose document is still the file it was recorded with; a document dated after today, a certificate past its
 // date, or a self-attestation more than a year old is not current.
-export function certifications(root: string, today = now().slice(0, 10)): (Certification & { current: boolean; intact: boolean })[] {
+export function certifications(root: string, today = now().slice(0, 10)): (Certification & { current: boolean; intact: boolean; fits: boolean })[] {
   const dir = join(root, DIR);
   if (!existsSync(dir)) return [];
   return readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')) as Certification).map((c) => {
     const intact = existsSync(join(root, c.file)) && createHash('sha256').update(readFileSync(join(root, c.file))).digest('hex') === c.sha256;
-    return { ...c, intact, current: intact && c.issued_on <= today && (!c.valid_until || c.valid_until >= today) && (c.kind !== 'self-attestation' || plusYear(c.issued_on) >= today) };
+    // A kind the framework cannot have (a certificate for a framework only self-attested) stands for nothing.
+    return { ...c, intact, fits: kindFits(c), current: intact && kindFits(c) && c.issued_on <= today && (!c.valid_until || c.valid_until >= today) && (c.kind !== 'self-attestation' || plusYear(c.issued_on) >= today) };
   }).sort((a, b) => b.issued_on.localeCompare(a.issued_on));
 }
 
@@ -75,8 +83,8 @@ const plusYear = (day: string) => `${Number(day.slice(0, 4)) + 1}${day.slice(4)}
 // Short enough for any badge row: a label of 40 characters and a message of 60.
 const fit = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n - 1)}…`);
 
-// A readiness entry is one target: its id, what it can become, and a name pattern for records made before `target` existed.
-export function badgesOf(held: Certification[], readiness: { id: string; outcome: Outcome; framework: string; matches: RegExp; ready: number; of: number; unit: string }[], asOf: string): Badge[] {
+// A readiness entry is one target: its id and what it can become.
+export function badgesOf(held: Certification[], readiness: { id: string; outcome: Outcome; framework: string; ready: number; of: number; unit: string }[], asOf: string): Badge[] {
   const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const badge = (id: string, label: string, message: string, tone: Tone, until: string, basis: string): Badge => ({ id: slug(id), label: fit(label, 40), message: fit(message, 60), tone, until, color: COLOR[tone], basis });
   const out: Badge[] = held.map((c) => c.kind === 'certificate' ? badge(`${c.framework}-${c.kind}`, c.framework, `certified until ${c.valid_until}`, 'positive', c.valid_until!, c.file)
@@ -84,10 +92,10 @@ export function badgesOf(held: Certification[], readiness: { id: string; outcome
     : badge(`${c.framework}-${c.kind}`, c.framework, `self-attested ${c.issued_on}`, 'info', plusYear(c.issued_on), c.file));
   for (const r of readiness) {
     // A document for the target replaces its readiness: an auditor's or certifying body's always, the organization's own
-    // self-attestation when that is what the framework becomes. A record without a target is matched by its name.
+    // self-attestation when that is what the framework becomes. A record without a target is matched by its name (frameworkOf).
     // For a framework that becomes a self-attestation, only its attest-signed self-attestation (by exact target) does.
     const replaces = (c: Certification) => r.outcome === 'self-attestation' ? c.kind === 'self-attestation' && c.target === r.id
-      : (c.target ? c.target === r.id : r.matches.test(c.framework)) && c.kind !== 'self-attestation';
+      : frameworkOf(c) === r.id && c.kind !== 'self-attestation';
     if (held.some(replaces)) continue;
     out.push(badge(`${r.framework}-readiness`, r.framework, `readiness ${r.ready}/${r.of} ${r.unit}`, 'neutral', plusDays(asOf, 30), 'readiness'));
   }

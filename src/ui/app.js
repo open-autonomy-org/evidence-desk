@@ -90,7 +90,7 @@ function render() {
   const edits = page === rendered ? fieldsOf(view).filter(({ key, el }) => current(el) !== initial(el) && !key.startsWith(`${savedBox}|`)).map(({ key, el }) => ({ key, from: initial(el), value: current(el) })) : [];
   savedBox = null;
   rendered = page;
-  view.replaceChildren(({ overview, scope, controls, policies, registers, evidence, people: peopleView, obligations, access, incidents, oa: openAutonomy, checks: checksView, audit: auditView, trust: trustView })[tab]?.() ?? overview());
+  view.replaceChildren(({ overview, scope, controls, policies, registers, evidence, people: peopleView, obligations, access, incidents, oa: openAutonomy, checks: checksView, audit: auditView, trust: trustView, frameworks: frameworksView })[tab]?.() ?? overview());
   if (edits.length) { const now = new Map(fieldsOf(view).map((f) => [f.key, f.el])); for (const e of edits) { const el = now.get(e.key); if (el && initial(el) === e.from) apply(el, e.value); } }
 }
 
@@ -99,42 +99,151 @@ function statusPill(c) {
   return pill(c.status.replace('-', ' '), c.status === 'implemented' ? 'ok' : c.status === 'in-progress' ? 'warn' : '');
 }
 
-// The targets (SOC 2 always), each with its own readiness view.
-let framework = 'soc2';
-function frameworkSwitch() {
-  const others = Object.entries(S.frameworkStates ?? {});
-  if (!others.length) return null;
-  return h('div', { class: 'row', style: 'margin:0 0 16px' }, [['soc2', 'SOC 2'], ...others.map(([k, st]) => [k, st.title])].map(([k, t]) => h('button', { class: k === framework ? 'primary' : 'secondary', onclick: () => { framework = k; render(); } }, t)));
+// Frameworks (docs/decisions/0002-frameworks-are-targets.md): the page that owns choosing what the program aims at and,
+// for each framework, how far it is, the steps still open, and what makes it done: an auditor's or certifying body's
+// document recorded here, or the organization's own self-attestation, positioned and signed here.
+const OUTCOME = { 'audit report': 'an audit report', certificate: 'a certificate', 'self-attestation': 'a self-attestation you sign' };
+const docsFor = (f) => S.certifications.filter((c) => c.for === f.id);
+const documentsError = () => S.documentsError ? h('p', { style: 'color:var(--bad)' }, `The documents held and what they claim cannot be worked out, so nothing is claimed: ${S.documentsError}`) : null;
+// The document that stands for a framework today, as the badge says it; null when there is none.
+function docPill(f) {
+  const c = docsFor(f).find((x) => x.current);
+  return c ? pill(c.kind === 'self-attestation' ? `self-attested ${c.issued_on}` : c.kind === 'certificate' ? `certified until ${c.valid_until}` : `audited ${c.issued_on}`, c.kind === 'self-attestation' ? '' : 'ok') : null;
 }
-
-function frameworkOverview(id) {
-  const st = S.frameworkStates[id], s = st.summary;
+function readinessOf(id) {
+  if (id === 'soc2') { const g = S.gaps.summary; return { ready: g.controls_ready, of: g.controls_applicable, unit: 'controls' }; }
+  const st = S.frameworkStates?.[id];
+  return st ? { ready: st.summary.ready, of: st.summary.requirements - st.summary.excluded, unit: 'requirements' } : null;
+}
+function frameworksView() {
+  if (detail) return frameworkPage(S.frameworkCatalog.find((f) => f.id === detail));
+  return h('div', {},
+    h('h1', {}, 'Frameworks'),
+    documentsError(),
+    h('p', { class: 'lead' }, 'Choose what the program aims at. SOC 2 is always a target; every other framework reuses the same controls, policies and evidence, so targeting one adds only what it needs beyond them. A framework becomes done only with its document: an auditor\'s report, a certifying body\'s certificate, or a self-attestation you sign here.'),
+    h('table', {}, h('tr', {}, h('th', {}, 'Framework'), h('th', {}, 'Becomes'), h('th', {}, 'Readiness'), h('th', {}, 'Document'), h('th', {}, '')),
+      S.frameworkCatalog.map((f) => {
+        const targeted = S.frameworks.includes(f.id);
+        const r = targeted ? readinessOf(f.id) : null;
+        return h('tr', {},
+          h('td', {}, targeted ? h('a', { href: `#frameworks/${f.id}` }, f.title) : f.title),
+          h('td', {}, `${OUTCOME[f.outcome]}${f.outcome === 'self-attestation' ? '' : ` from ${f.issuer}`}`),
+          h('td', {}, r ? `${r.ready} / ${r.of} ${r.unit} ready` : h('span', { class: 'muted' }, 'not a target')),
+          h('td', {}, docPill(f) ?? h('span', { class: 'muted' }, 'none yet')),
+          h('td', {}, f.id === 'soc2' ? h('span', { class: 'muted' }, 'always a target')
+            : targeted ? h('button', { class: 'secondary', onclick: () => post('/api/frameworks/drop', { id: f.id }, `${f.title} is no longer a target; its evidence stays.`) }, 'Drop')
+            : h('button', { class: 'primary', onclick: () => post('/api/frameworks/target', { id: f.id }, `${f.title} is now a target.`) }, 'Target')));
+      })));
+}
+function frameworkPage(f) {
+  if (!f) return h('p', {}, 'That framework is not one Evidence Desk maps.');
+  const back = h('a', { class: 'back', href: '#frameworks' }, '← Frameworks');
+  if (!S.frameworks.includes(f.id)) return h('div', {}, back, h('h1', {}, f.title), h('p', {}, `${f.title} is not a target.`), h('button', { class: 'primary', onclick: () => post('/api/frameworks/target', { id: f.id }, `${f.title} is now a target.`) }, 'Target it'));
+  const docs = docsFor(f);
+  const heldCard = h('div', { class: 'card' }, h('h2', { style: 'margin-top:0' }, 'Documents held'),
+    docs.length ? h('table', {}, h('tr', {}, h('th', {}, 'Document'), h('th', {}, 'Issued'), h('th', {}, 'State')),
+      docs.map((c) => h('tr', {}, h('td', {}, h('a', { href: `/files/${c.file}` }, `${c.kind}: ${c.framework}`), ` by ${c.issuer}`), h('td', {}, c.issued_on), h('td', {}, !c.intact ? pill('altered since recorded', 'bad') : !c.fits ? pill('not a document this framework can have', 'bad') : c.current ? pill('current', 'ok') : pill('lapsed or not yet valid')))))
+      : h('p', { class: 'muted' }, 'None yet. Until one is held, the trust center and the badges show readiness.'));
+  if (f.id === 'soc2') return h('div', {}, back, h('h1', {}, 'SOC 2'), h('p', { class: 'lead' }, 'SOC 2\'s criteria and their state are on the Overview; the audit engagement and its package are under Audit. It becomes an audit report from an independent CPA firm.'),
+    h('p', {}, h('a', { href: '#overview' }, 'Readiness by criterion →'), ' · ', h('a', { href: '#audit' }, 'Audit →')), heldCard, recordCard(f));
+  const st = S.frameworkStates[f.id], sm = st.summary;
+  const selfAttest = f.outcome === 'self-attestation';
+  const open = st.requirements.filter((r) => !r.optional && r.status !== 'ready' && r.status !== 'excluded');
+  const unpositioned = st.requirements.filter((r) => !r.optional && !r.position);
   const groups = {};
   for (const r of st.requirements) (groups[r.group] ??= []).push(r);
   const kind = { ready: 'ok', gaps: 'warn', excluded: '', unaddressed: 'bad' };
-  return h('div', {},
-    h('h1', {}, 'Readiness'), frameworkSwitch(),
-    h('p', { class: 'lead' }, `${st.title}, mapped onto the same controls, policies and evidence as SOC 2. Excluding a requirement or mapping another control to it is recorded in frameworks/${id}.json.${id === 'iso27001' ? ' Download the statement of applicability with evidence-desk soa.' : ''}`),
+  const positionForm = (r) => {
+    const form = h('form', { class: 'row', style: 'margin-top:6px', onsubmit: (e) => { e.preventDefault();
+      const pos = form.position.value;
+      post('/api/framework/decide', pos ? { id: f.id, requirement: r.id, position: pos, statement: form.statement.value } : { id: f.id, requirement: r.id, clear: true }, pos ? `Position on ${r.id} saved.` : `Position on ${r.id} cleared.`); } },
+      h('select', { name: 'position' }, h('option', { value: '' }, 'No position'), ['partial', 'not met'].map((v) => h('option', { value: v, selected: r.position === v && !!r.statement }, v === 'partial' ? 'Partly met' : 'Not met'))),
+      h('input', { type: 'text', name: 'statement', value: r.statement ?? '', placeholder: 'What is in place and what is not', style: 'flex:1' }),
+      h('button', { class: 'secondary', type: 'submit' }, 'Save'));
+    return form;
+  };
+  const signBy = personSelect('by', '', 'Who signs');
+  // What stands between a requirement and ready, as acts: each mapped control's own gaps, or that no control addresses it.
+  const byControl = new Map(S.gaps.controls.map((c) => [c.id, c]));
+  const stepsFor = (r) => r.status === 'unaddressed' ? h('p', { class: 'muted' }, 'No control addresses it: map a control of yours to it, exclude it with a reason, or state your position.')
+    : h('div', {}, r.controls.filter((id) => byControl.get(id)?.gaps.length).map((id) => h('div', {}, h('a', { href: `#controls/${id}` }, `${id} ${byControl.get(id).title}`), h('ul', { class: 'gaps' }, byControl.get(id).gaps.map((x) => h('li', {}, x))))));
+  const excludeForm = (r) => {
+    const form = h('form', { class: 'row', style: 'margin-top:6px', onsubmit: (e) => { e.preventDefault(); post('/api/framework/decide', { id: f.id, requirement: r.id, exclude: form.reason.value }, `${r.id} excluded.`); } },
+      h('input', { type: 'text', name: 'reason', placeholder: 'Or exclude it: why it does not apply', style: 'flex:1' }), h('button', { class: 'secondary', type: 'submit' }, 'Exclude'));
+    return form;
+  };
+  // Every requirement still without a position, stated not met in one act: it claims less, never more, and the signed
+  // document lists each one.
+  const bulk = h('form', { class: 'row', onsubmit: (e) => { e.preventDefault();
+    if (!bulk.statement.value.trim()) return notice('Say what is in place for them, or that nothing is yet.', false);
+    (async () => { const res = await post('/api/framework/not-met', { id: f.id, requirements: unpositioned.map((r) => r.id), statement: bulk.statement.value }, null);
+      if (res) notice(`Stated not met on ${res.result.stated.length} requirement${res.result.stated.length === 1 ? '' : 's'}${res.result.stated.length < unpositioned.length ? '; the others had been given a position or excluded meanwhile, and were left as they are' : ''}.`, true); })(); } },
+    h('input', { type: 'text', name: 'statement', placeholder: 'Statement for all of them, for example "Not yet in place."', style: 'flex:1' }),
+    h('button', { class: 'secondary', type: 'submit' }, `State not met on the ${unpositioned.length} without a position`));
+  return h('div', {}, back,
+    h('h1', {}, f.title),
+    h('p', { class: 'lead' }, `Becomes ${OUTCOME[f.outcome]}${selfAttest ? '' : ` from ${f.issuer}`}. Its requirements map onto the same controls as SOC 2; excluding a requirement, mapping another control to it, or stating a position is recorded in frameworks/${f.id}.json.${st.requirements.some((r) => r.id.startsWith('A.')) ? ' Its statement of applicability: evidence-desk soa --framework ' + f.id + '.' : ''}`),
     h('div', { class: 'stats' },
-      h('div', { class: 'stat' }, h('b', {}, `${s.ready} / ${s.requirements - s.excluded}`), h('span', {}, s.optional ? `required requirements ready (${s.optional} optional listed apart)` : 'requirements ready')),
-      h('div', { class: 'stat' }, h('b', {}, s.excluded), h('span', {}, 'excluded, with reasons')),
-      h('div', { class: 'stat' }, h('b', {}, s.unaddressed), h('span', {}, 'not addressed by any control')),
-      h('div', { class: 'stat' }, h('b', {}, s.shared_evidence), h('span', {}, 'evidence records also serving SOC 2'))),
-    Object.entries(groups).map(([g, list]) => [h('h2', {}, `${g}: ${list.filter((r) => !r.optional && r.status === 'ready').length} of ${list.filter((r) => !r.optional && r.status !== 'excluded').length} ready`),
-      h('table', {}, h('tr', {}, h('th', {}, 'Requirement'), h('th', {}, 'Controls'), h('th', {}, 'State')),
-        list.map((r) => h('tr', {}, h('td', {}, h('b', {}, r.id.replace('clause-', 'Clause ')), ' ', r.title, r.optional ? h('span', { class: 'muted' }, ' (optional, not counted)') : null),
-          h('td', {}, r.controls.map((id, i) => [i ? ', ' : '', h('a', { href: `#controls/${id}` }, id)])),
-          h('td', {}, pill(r.status === 'unaddressed' ? 'not addressed' : r.status, kind[r.status]), r.reason ? h('div', { class: 'muted' }, r.reason) : null, r.gaps.length ? h('ul', { class: 'gaps' }, r.gaps.map((x) => h('li', {}, x))) : null))))]));
+      h('div', { class: 'stat' }, h('b', {}, `${sm.ready} / ${sm.requirements - sm.excluded}`), h('span', {}, sm.optional ? `requirements ready (${sm.optional} optional listed apart)` : 'requirements ready')),
+      h('div', { class: 'stat' }, h('b', {}, open.length), h('span', {}, 'steps still open')),
+      h('div', { class: 'stat' }, h('b', {}, sm.excluded), h('span', {}, 'excluded, with reasons')),
+      h('div', { class: 'stat' }, h('b', {}, sm.shared_evidence), h('span', {}, 'evidence records also serving SOC 2'))),
+    selfAttest ? h('div', { class: 'card' }, h('h2', { style: 'margin-top:0' }, 'Sign the self-attestation'),
+      h('p', { class: 'muted' }, 'A requirement is met when it is ready, excluded with a reason, or given a position below (partly met or not met, with what is in place). The signed document discloses every requirement; its badge says self-attested and lasts a year.'),
+      unpositioned.length ? [h('p', {}, pill(`${unpositioned.length} requirement${unpositioned.length === 1 ? '' : 's'} still need a position`, 'warn')), bulk] : h('p', {}, pill('every requirement has a position', 'ok')),
+      h('div', { class: 'row' }, h('div', { style: 'flex:1' }, signBy), h('button', { class: 'primary', disabled: unpositioned.length > 0, onclick: async () => {
+        const r = await post('/api/frameworks/attest', { id: f.id, by: signBy.value }, null);
+        if (r) notice(`Signed: ${r.result.counts.met} met, ${r.result.counts.excluded} excluded, ${r.result.counts.partial} partly met, ${r.result.counts['not met']} not met. Merge it through your own pull request so attribution can check it.`, true); } }, 'Sign'))) : recordCard(f),
+    heldCard,
+    h('h2', {}, `Steps still open: ${open.length}`),
+    open.length ? h('table', {}, h('tr', {}, h('th', {}, 'Requirement'), h('th', {}, 'Why it is not ready'), selfAttest ? h('th', {}, 'Your position') : null),
+      open.map((r) => h('tr', {}, h('td', {}, h('b', {}, r.id.replace('clause-', 'Clause ')), ' ', r.title),
+        h('td', {}, stepsFor(r), excludeForm(r)),
+        selfAttest ? h('td', {}, positionForm(r)) : null)))
+      : h('p', { class: 'muted' }, 'None: every required requirement is ready or excluded.'),
+    h('details', {}, h('summary', {}, `All ${st.requirements.length} requirements`),
+      Object.entries(groups).map(([g, list]) => [h('h3', {}, `${g}: ${list.filter((r) => !r.optional && r.status === 'ready').length} of ${list.filter((r) => !r.optional && r.status !== 'excluded').length} ready`),
+        h('table', {}, h('tr', {}, h('th', {}, 'Requirement'), h('th', {}, 'Controls'), h('th', {}, 'State')),
+          list.map((r) => h('tr', {}, h('td', {}, h('b', {}, r.id.replace('clause-', 'Clause ')), ' ', r.title, r.optional ? h('span', { class: 'muted' }, ' (optional, not counted)') : null),
+            h('td', {}, r.controls.map((id, i) => [i ? ', ' : '', h('a', { href: `#controls/${id}` }, id)])),
+            h('td', {}, pill(r.status === 'unaddressed' ? 'not addressed' : r.status, kind[r.status]), r.position && r.position !== 'met' && r.position !== 'excluded' ? h('div', {}, pill(r.position, 'warn'), ' ', r.statement,
+              r.status === 'ready' ? h('span', { class: 'muted' }, ' It is ready now; the self-attestation says what you stated until you clear it.') : null, ' ',
+              h('button', { class: 'secondary', onclick: () => post('/api/framework/decide', { id: f.id, requirement: r.id, clear: true }, `Position on ${r.id} cleared.`) }, 'Clear')) : null, r.reason ? h('div', { class: 'muted' }, r.reason) : null,
+              st.exclusions?.[r.id] ? h('button', { class: 'secondary', onclick: () => post('/api/framework/decide', { id: f.id, requirement: r.id, include: true }, `${r.id} included again.`) }, 'Include again') : null))))])));
+}
+// Recording the document an auditor or certifying body issued: the only ground for saying audited or certified.
+function recordCard(f) {
+  const form = h('form', { class: 'card', onsubmit: async (e) => {
+    e.preventDefault();
+    const file = form.file.files[0]; if (!file) return notice('Choose the document.', false);
+    const r = await post('/api/certifications/add', { framework: form.framework.value, kind: f.outcome, issuer: form.issuer.value, issued_on: form.issued_on.value,
+      period_start: form.period_start?.value ?? '', period_end: form.period_end?.value ?? '', valid_until: form.valid_until?.value ?? '', target: f.id, by: form.by.value,
+      filename: file.name, data: await fileToBase64(file) }, null);
+    if (r) notice(`Recorded ${r.result.id}. The trust center and the badges now claim it while it is current.`, true);
+  } },
+    h('h2', { style: 'margin-top:0' }, f.outcome === 'certificate' ? 'Record the certificate' : 'Record the audit report'),
+    h('p', { class: 'muted' }, `Upload the document ${f.issuer} issued. It is kept with its hash; the page claims only what an intact, current document says.`),
+    h('div', { class: 'grid2' },
+      h('div', {}, h('label', {}, 'Framework, as the document names it'), h('input', { type: 'text', name: 'framework', required: true, value: f.id === 'soc2' ? 'SOC 2 Type 2' : f.title })),
+      h('div', {}, h('label', {}, 'Issued by'), h('input', { type: 'text', name: 'issuer', required: true })),
+      h('div', {}, h('label', {}, 'Issued on'), h('input', { type: 'date', name: 'issued_on', required: true })),
+      f.outcome === 'certificate' ? h('div', {}, h('label', {}, 'Valid until'), h('input', { type: 'date', name: 'valid_until', required: true }))
+        : h('div', {}, h('label', {}, 'Period covered'), h('div', { class: 'row' }, h('input', { type: 'date', name: 'period_start' }), h('input', { type: 'date', name: 'period_end' })))),
+    h('label', {}, 'The document'), h('input', { type: 'file', name: 'file', required: true }),
+    h('label', {}, 'Recorded by'), personSelect('by', '', 'Choose a person'),
+    h('div', { class: 'row' }, h('button', { class: 'primary', type: 'submit' }, 'Record')));
+  return form;
 }
 
 function overview() {
-  if (framework !== 'soc2' && S.frameworkStates?.[framework]) return frameworkOverview(framework);
   const g = S.gaps, s = g.summary;
   const byCat = {};
   for (const c of g.criteria) (byCat[c.category] ??= []).push(c);
   return h('div', {},
-    h('h1', {}, 'Readiness'), frameworkSwitch(),
-    h('p', { class: 'lead' }, `As of ${g.as_of}. Everything here is read from the workspace folder ${S.root}.`),
+    h('h1', {}, 'Readiness'),
+    h('p', { class: 'lead' }, `As of ${g.as_of}. Everything here is read from the workspace folder ${S.root}. Below: SOC 2 by criterion. Every target's readiness and its steps are under Frameworks.`),
+    S.frameworks.length > 1 ? h('div', { class: 'card' }, h('h2', { style: 'margin-top:0' }, 'Targets'), h('ul', {}, S.frameworks.map((id) => { const f = S.frameworkCatalog.find((x) => x.id === id); const r = readinessOf(id);
+      return h('li', {}, h('a', { href: `#frameworks/${id}` }, f?.title ?? id), ' ', f ? docPill(f) : null, r ? ` ${r.ready} / ${r.of} ${r.unit} ready` : ''); }))) : null,
     h('div', { class: 'stats' },
       h('div', { class: 'stat' }, h('b', {}, `${s.controls_ready} / ${s.controls_applicable}`), h('span', {}, 'controls ready')),
       h('div', { class: 'stat' }, h('b', {}, `${s.criteria_ready} / ${s.criteria_in_scope}`), h('span', {}, 'criteria in scope ready')),
@@ -351,7 +460,7 @@ function evidence() {
     h('select', { name: 'controls', multiple: true, size: 8 }, applicable.map((c) => h('option', { value: c.id, selected: c.id === preset }, `${c.id} ${c.title}`))),
     h('div', { class: 'grid2' },
       h('div', {}, h('label', {}, 'Recorded by'), personSelect('by', '', 'Choose a person')),
-      h('div', {}, h('label', {}, 'File'), h('input', { type: 'file', name: 'file' }))),
+      h('div', {}, h('label', {}, 'File'), h('input', { type: 'file', name: 'file', required: true }))),
     h('div', { class: 'grid2' },
       h('div', {}, h('label', {}, 'Covers the period from', h('small', {}, 'Optional')), h('input', { type: 'date', name: 'start' })),
       h('div', {}, h('label', {}, 'to'), h('input', { type: 'date', name: 'end' }))),
@@ -555,6 +664,22 @@ function openAutonomy() {
     h('label', {}, 'Recorded by'), personSelect('by', '', 'Choose a person'),
     h('div', { class: 'row' }, h('button', { class: 'primary', type: 'submit' }, 'Read')));
   if (!o) return h('div', {}, h('h1', {}, 'Open Autonomy'), form);
+  // What the project's agents did, from the platform: sessions, metered calls, the pause history and roadmap revisions,
+  // as evidence for the AI controls while an AI framework is a target.
+  const collect = h('form', { class: 'card', onsubmit: async (e) => {
+    e.preventDefault();
+    const r = await post('/api/open-autonomy/collect', { account: collect.account.value, start: collect.start.value, end: collect.end.value, by: collect.by.value }, null);
+    const what = { sessions: 'agent sessions', calls: 'metered calls', oversight: 'operating-state records', 'roadmap-revisions': 'roadmap revisions' };
+    if (r) notice(`Read ${Object.entries(r.result.counts).map(([k, n]) => `${n} ${what[k] ?? k}`).join(', ')}; ${r.result.evidence.length} evidence record${r.result.evidence.length === 1 ? '' : 's'} added for the controls your targets need.`, true);
+  } },
+    h('h2', { style: 'margin-top:0' }, 'Collect the agents\' activity'),
+    h('p', { class: 'muted' }, 'Reads the project\'s sessions, metered calls, pause history and roadmap revisions for a period from the platform, on the project\'s own key, as evidence for the AI family\'s records, limits, oversight and change controls.'),
+    S.openAutonomyKey ? null : h('p', {}, pill('Start Evidence Desk with OPEN_AUTONOMY_BASE_URL and OPEN_AUTONOMY_KEY in its environment to collect', 'warn')),
+    h('div', { class: 'grid2' },
+      h('div', {}, h('label', {}, 'Project'), h('input', { type: 'text', name: 'account', value: o.snapshot.account })),
+      h('div', {}, h('label', {}, 'Period'), h('div', { class: 'row' }, h('input', { type: 'date', name: 'start' }), h('input', { type: 'date', name: 'end' })))),
+    h('label', {}, 'Recorded by'), personSelect('by', '', 'Choose a person'),
+    h('div', { class: 'row' }, h('button', { class: 'primary', type: 'submit', disabled: !S.openAutonomyKey }, 'Collect')));
   const s = o.snapshot;
   const lastCheck = (a) => o.checks.filter((c) => c.vendor === a.vendor && c.account === a.account).sort((x, y) => x.checked_at.localeCompare(y.checked_at)).at(-1);
   return h('div', {},
@@ -578,7 +703,7 @@ function openAutonomy() {
     h('div', { class: 'card' },
       h('div', {}, 'Changes land through reviewed pull requests: ', s.rules.pr_landing ? pill('yes', 'ok') : pill('no', 'bad')),
       s.rules.production_deploy ? h('div', {}, `Production deploys from ${s.rules.production_deploy.workflow}, triggered by ${s.rules.production_deploy.tag_trigger ?? 'no tag'} through the ${s.rules.production_deploy.environment} environment; egress limited to ${s.rules.production_deploy.egress.join(', ') || 'nothing declared'}.`) : h('div', {}, pill('no production deploy workflow found', 'warn'))),
-    form);
+    collect, form);
 }
 
 function checksView() {
@@ -692,10 +817,11 @@ function trustView() {
     h('p', { class: 'lead' }, 'What you tell customers, drawn only from the workspace: a trust center you host yourself, and answers to their security questionnaires.'),
     h('div', { class: 'card' },
       h('h2', { style: 'margin-top:0' }, 'Trust center'),
-      t ? h('div', {}, h('p', {}, t.headline), h('p', { class: 'muted' }, 'Publishes: ', [t.publish.categories && 'categories in scope', t.publish.report && 'audit report availability', (t.publish.policies ?? []).length && `${t.publish.policies.length} policy titles`,
+      t ? h('div', {}, h('p', {}, t.headline), h('p', { class: 'muted' }, 'Publishes: ', [t.publish.categories && 'categories in scope', t.publish.report && 'audits, certifications and readiness', (t.publish.policies ?? []).length && `${t.publish.policies.length} policy titles`,
         t.publish.subprocessors && 'subprocessors', (t.publish.documents ?? []).length && `${t.publish.documents.length} documents on request`].filter(Boolean).join(', ') || 'only the headline and security contact', '. Change what is published in trust.json.'))
         : h('p', { class: 'muted' }, 'Create trust.json in the workspace to choose what the trust center publishes; nothing is published otherwise.'),
       h('div', { class: 'row' }, h('div', { style: 'flex:1' }, out), h('button', { class: 'primary', disabled: !t, onclick: async () => { const r = await post('/api/trust/build', { out: out.value }, null); if (r) notice(`Built index.html publishing ${r.result.published.join(', ') || 'the headline and contact'}. Host the folder anywhere.`, true); } }, 'Build the site'))),
+    badgesCard(),
     h('div', { class: 'card' },
       h('h2', { style: 'margin-top:0' }, 'Security questionnaires'),
       h('p', { class: 'muted' }, 'Upload a CSV or Excel (.xlsx) file with a question column. Each answer is drafted by quoting the workspace records it cites; a person reviews it, and reviewed answers are reused until a fact they cite changes.'),
@@ -707,6 +833,33 @@ function trustView() {
       } }, 'Import and draft')),
       S.questionnaires.length ? h('table', { style: 'margin-top:12px' }, h('tr', {}, h('th', {}, 'Questionnaire'), h('th', {}, 'Imported'), h('th', {}, 'Reviewed')),
         S.questionnaires.map((q) => h('tr', { class: 'clickable', onclick: () => go('trust', q.id) }, h('td', {}, q.name), h('td', {}, q.imported_at.slice(0, 10)), h('td', {}, `${q.questions.filter((x) => x.status === 'reviewed').length} of ${q.questions.length}`)))) : null));
+}
+
+// What the organization says about audits and certifications, as badges: a document held (green for an auditor's or
+// certifying body's, blue for a self-attestation) or readiness (grey), each with the day it stops standing. The trust
+// center writes them; publishing sends them to the Open Autonomy project as its "Compliance" row and README badge row.
+let published = null;
+function badgesCard() {
+  const r = S.report;
+  const tone = { positive: 'ok', info: '', neutral: '' };
+  return h('div', { class: 'card' },
+    h('h2', { style: 'margin-top:0' }, 'Badges'),
+    documentsError(),
+    h('p', { class: 'muted' }, 'What the trust center and a published statement say for each target: the document held, or readiness. A badge stands until its date and then lapses, so a claim cannot outlive its document.'),
+    r ? h('table', {}, h('tr', {}, h('th', {}, 'Framework'), h('th', {}, 'Says'), h('th', {}, 'Until')),
+      r.badges.map((b) => h('tr', {}, h('td', {}, b.label), h('td', {}, pill(b.message, tone[b.tone])), h('td', {}, b.until)))) : h('p', { class: 'muted' }, 'Nothing to show yet.'),
+    r && r.status.length ? h('p', { class: 'muted' }, r.status.join(' ')) : null,
+    h('h3', {}, 'On the Open Autonomy project'),
+    S.openAutonomyKey
+      ? h('div', {}, h('p', { class: 'muted' }, 'Publishing sends these badges, and the section\'s text, to the project as the owner\'s "Compliance" statement: a row on its dashboard and a badge row its README can show. Publish again when anything changes, and at least monthly while readiness is shown.'),
+          h('div', { class: 'row' }, h('button', { class: 'primary', disabled: !S.trust?.publish?.report, onclick: async () => {
+            const res = await post('/api/trust/publish', {}, null);
+            if (res) { published = res.result; render(); notice(res.result.unchanged ? 'Published: nothing changed since the last time.' : `Published revision ${res.result.revision?.revision}.`, true); } } }, 'Publish to Open Autonomy')),
+          published?.page ? h('div', {}, h('p', {}, 'It shows on ', h('a', { href: published.page, target: '_blank', rel: 'noopener' }, 'the project\'s dashboard'), ' under "Stated by the owner".',
+              published.readme ? ' To show the badge row in the project\'s README, add this line; each badge leaves it when its date passes:' : ' Its README cannot show the badge row: its badge image did not answer signed out (a README\'s images are fetched signed out), usually because the project\'s dashboard: word keeps statements from the public.'),
+            published.readme ? h('pre', { style: 'white-space:pre-wrap;word-break:break-all' }, published.readme) : null) : null,
+          S.trust?.publish?.report ? null : h('p', { class: 'muted' }, 'trust.json does not publish the audits and certifications section, so there is nothing to publish.'))
+      : h('p', { class: 'muted' }, 'To publish to the Open Autonomy project, start Evidence Desk with OPEN_AUTONOMY_BASE_URL and OPEN_AUTONOMY_KEY (the project\'s steer key, kept with the workspace, never in the project) in its environment.'));
 }
 
 function questionnaireView(q) {

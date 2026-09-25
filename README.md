@@ -24,7 +24,9 @@ bun src/cli.ts serve ~/acme-soc2                    # then open http://127.0.0.1
 In the app, answer the scoping questions and adopt the control set, then work through the Overview: assign owners,
 adapt and approve policies, fill the registers and record evidence. People complete their onboarding quizzes,
 acknowledgments and attestations on the People page; Obligations shows what is owed by whom and when; access reviews
-and incidents each have their own page. Everything the app does is also a command:
+and incidents each have their own page. Frameworks chooses what the program aims at beside SOC 2 and shows each
+target's readiness and the steps still open; there you record an auditor's report or certificate when it arrives, or
+state positions and sign a self-attestation. Everything the app does is also a command:
 
 ```bash
 bun src/cli.ts scope ~/acme-soc2 --set services="Hosted webhook inbox" availability=true ...
@@ -85,12 +87,28 @@ bun src/cli.ts questionnaire ~/acme-soc2 import bigco.xlsx --name "BigCo vendor 
 bun src/cli.ts trust ~/acme-soc2 build --out ~/acme-trust
 ```
 
+The trust center's badges claim audited or certified only while the document is held, intact and in date; otherwise
+they show readiness. With `OPEN_AUTONOMY_BASE_URL` and the project's steer key in `OPEN_AUTONOMY_KEY`,
+`trust <dir> publish` (or Publish on the Trust page) sends them to an Open Autonomy project as its "Compliance"
+statement, and prints the line that shows the badge row in the project's README; each badge leaves it on its own date.
+
 The same program targets other frameworks beside SOC 2, reusing its controls and evidence; `frameworks <dir>
 available` lists them and `drop` stops targeting one (its evidence stays). ISO 27001:
 
 ```bash
 bun src/cli.ts frameworks ~/acme-soc2 target iso27001
 bun src/cli.ts soa ~/acme-soc2 --out soa.md
+bun src/cli.ts certifications ~/acme-soc2 add --framework "ISO/IEC 27001:2022" --kind certificate --target iso27001 \
+  --issuer "Example Cert Ltd" --issued-on 2026-09-01 --valid-until 2029-08-31 --file cert.pdf --by maya
+```
+
+A framework that becomes a self-attestation (NIST AI RMF, NIST CSF) is signed instead, once every requirement is
+met, excluded with a reason or given a stated position:
+
+```bash
+bun src/cli.ts frameworks ~/acme-soc2 target nist-ai-rmf
+bun src/cli.ts framework ~/acme-soc2 nist-ai-rmf position "GOVERN 1.1" --partial --statement "..."
+bun src/cli.ts frameworks ~/acme-soc2 attest nist-ai-rmf --by maya
 ```
 
 Add `--json` to any command for machine-readable output. `bun src/cli.ts --help` lists every command.

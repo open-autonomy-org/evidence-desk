@@ -13,7 +13,13 @@ import { COLLECTORS, checkTitle, configureCollector, readSettings, runChecks } f
 import { actOnRequest, draft, exportPackage, importReturn, listRequests, readEngagement } from './audit.ts';
 import { questionnaireText } from './xlsx.ts';
 import { buildTrustCenter, importQuestionnaireText, questionnaireCsv, reviewAnswer } from './trust.ts';
-import { frameworkState } from './frameworks.ts';
+import { attest, decide, dropFramework, frameworkState, stateNotMet, targetFramework } from './frameworks.ts';
+import { certifications, recordCertification, type Certification } from './certifications.ts';
+import { publishStatement, reportOf } from './trust.ts';
+import { collectOpenAutonomyActivity } from './oa-platform.ts';
+import { frameworkDescriptions, frameworkOf } from './catalog.ts';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { neededControls, targetsOf } from './targets.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { schema } from './schema.ts';
@@ -46,6 +52,15 @@ function state(root: string) {
     // Each target other than SOC 2, as its view shows it; and the controls the targets need (docs/decisions/0002).
     frameworkStates: Object.fromEntries(targetsOf(ws).filter((f) => f !== 'soc2').map((f) => [f, frameworkState(ws, f)])),
     needed: [...neededControls(ws)],
+    // Every framework Evidence Desk maps and what it can become; the documents held; what the trust center and a
+    // published statement would say (the badges); and whether this server may publish to or read from Open Autonomy,
+    // which needs the project's key in its own environment (never in the page).
+    frameworkCatalog: frameworkDescriptions,
+    // Each document with the framework it is for (frameworkOf, the rule the badges use). A record that cannot be read is
+    // reported, not allowed to take the rest of the app down; the badges then say nothing until it is fixed.
+    ...(() => { try { return { certifications: certifications(root).map((c) => ({ ...c, for: frameworkOf(c) ?? null })), report: reportOf(root), documentsError: null }; }
+      catch (e) { return { certifications: [], report: null, documentsError: (e as Error).message }; } })(),
+    openAutonomyKey: Boolean(process.env.OPEN_AUTONOMY_BASE_URL && process.env.OPEN_AUTONOMY_KEY),
     trust: (() => { const t = readVersioned(root, 'trust.json'); return t ? JSON.parse(t.text) : null; })(),
     questionnaires: (existsSync(join(root, 'questionnaires')) ? readdirSync(join(root, 'questionnaires')).filter((f) => f.endsWith('.json')).sort() : []).map((f) => {
       const r = readVersioned(root, `questionnaires/${f}`)!; return { ...JSON.parse(r.text), version: r.version }; }),
@@ -146,6 +161,44 @@ export function serve(root: string, port: number): void {
         case '/api/audit/draft': draft(root, s('engagement'), s('kind') as 'description', s('to') || undefined); break;
         case '/api/audit/export': return send(res, 200, { result: exportPackage(root, s('engagement'), s('out')), state: state(root) });
         case '/api/audit/import-return': return send(res, 200, { result: importReturn(root, s('engagement'), s('dir')), state: state(root) });
+        case '/api/frameworks/target': { const r = targetFramework(root, s('id')); return send(res, 200, { result: r, state: state(root) }); }
+        case '/api/frameworks/drop': { const r = dropFramework(root, s('id')); return send(res, 200, { result: r, state: state(root) }); }
+        case '/api/framework/decide': {
+          const known = loadWorkspace(root).controls.map((c) => c.data.id);
+          const input = b.exclude !== undefined ? { exclude: s('exclude') } : b.include ? { include: true } : b.clear ? { clearPosition: true }
+            : b.position ? { position: { position: s('position') as 'partial' | 'not met', statement: s('statement') } } : null;
+          if (!input) throw new Error('say what to decide: exclude, include, a position or clear');
+          decide(root, s('id'), s('requirement'), input, known); break;
+        }
+        case '/api/framework/not-met': {
+          const reqs = Array.isArray(b.requirements) ? b.requirements.map(String) : [];
+          return send(res, 200, { result: { stated: stateNotMet(root, s('id'), reqs, s('statement')) }, state: state(root) });
+        }
+        case '/api/frameworks/attest': return send(res, 200, { result: attest(root, s('id'), s('by')), state: state(root) });
+        case '/api/certifications/add': {
+          // The uploaded document goes through the same door as the CLI's: recorded with its hash, the gate for a
+          // self-attestation framework included.
+          // Every document recorded here is for a framework on the page it was uploaded from.
+          if (!s('target')) throw new Error('say which framework the document is for (target)');
+          const dir = mkdtempSync(join(tmpdir(), 'upload-'));
+          try {
+            // Only the extension is kept: the record names the stored copy itself.
+            const file = join(dir, `document${(/\.[A-Za-z0-9]{1,8}$/.exec(s('filename'))?.[0] ?? '.pdf').toLowerCase()}`);
+            writeFileSync(file, Buffer.from(s('data'), 'base64'));
+            const period = s('period_start') && s('period_end') ? { start: s('period_start'), end: s('period_end') } : undefined;
+            const c = recordCertification(root, { framework: s('framework'), kind: s('kind') as Certification['kind'], issuer: s('issuer'), issued_on: s('issued_on'), ...(period ? { period } : {}),
+              ...(s('valid_until') ? { valid_until: s('valid_until') } : {}), ...(s('target') ? { target: s('target') } : {}), file, by: s('by') });
+            return send(res, 200, { result: c, state: state(root) });
+          } finally { rmSync(dir, { recursive: true, force: true }); }
+        }
+        case '/api/trust/publish': {
+          const baseUrl = process.env.OPEN_AUTONOMY_BASE_URL, key = process.env.OPEN_AUTONOMY_KEY;
+          if (!baseUrl || !key) throw new Error('publishing needs OPEN_AUTONOMY_BASE_URL and OPEN_AUTONOMY_KEY in the environment Evidence Desk was started in');
+          const r = await publishStatement(root, { baseUrl, key });
+          if (r.status !== 200) throw new Error(`the platform refused the statement (${r.status}): ${JSON.stringify((r.body as { error?: unknown }).error ?? r.body)}`);
+          return send(res, 200, { result: { ...r.body, page: r.page, readme: r.readme, readmeClosed: r.readmeClosed }, state: state(root) });
+        }
+        case '/api/open-autonomy/collect': return send(res, 200, { result: await collectOpenAutonomyActivity(root, { account: s('account'), start: s('start'), end: s('end'), by: s('by') }), state: state(root) });
         case '/api/trust/build': return send(res, 200, { result: buildTrustCenter(root, s('out')), state: state(root) });
         case '/api/questionnaire/import': return send(res, 200, { result: importQuestionnaireText(root, questionnaireText(Buffer.from(s('data'), 'base64'), s('filename')), s('filename'), s('name')), state: state(root) });
         case '/api/questionnaire/answer': reviewAnswer(root, s('id'), s('version'), s('question'), { answer: s('answer'), by: s('by') }); break;

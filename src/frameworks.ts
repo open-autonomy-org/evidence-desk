@@ -86,12 +86,27 @@ export function decide(root: string, id: string, requirement: string, input: { e
   }
   // A stated position on a requirement not met: partial or not met, with what is and is not in place.
   if (input.position) {
+    if (input.position.position !== 'partial' && input.position.position !== 'not met') throw new Error('a stated position is partial or not met; met and excluded come from the records');
     if (!input.position.statement.trim()) throw new Error('a position needs its statement: what is in place and what is not');
     data.positions = { ...(data.positions ?? {}), [requirement]: { position: input.position.position, statement: input.position.statement.trim(), stated_at: clockDate().toISOString().slice(0, 10) } };
     const { [requirement]: _was, ...others } = data.exclusions ?? {}; data.exclusions = others;
   }
   if (input.clearPosition) { const { [requirement]: _gone, ...rest } = data.positions ?? {}; data.positions = rest; }
   writeVersioned(root, `frameworks/${id}.json`, JSON.stringify(data, null, 2) + '\n', version);
+}
+
+// Not met, stated in one write on each of the given requirements that has neither a stated position nor an exclusion in
+// the file as it is now: a word stated meanwhile, from the command line or another page, is never overwritten.
+export function stateNotMet(root: string, id: string, requirements: string[], statement: string): string[] {
+  const fw = framework(id);
+  if (!statement.trim()) throw new Error('a position needs its statement: what is in place and what is not');
+  for (const r of requirements) if (!fw.requirements.some((x) => x.id === r)) throw new Error(`${r} is not a requirement of ${fw.title}`);
+  const { data, version } = readSettings(root, id);
+  const stated = requirements.filter((r) => !data.positions?.[r] && !data.exclusions?.[r]);
+  const stated_at = clockDate().toISOString().slice(0, 10);
+  data.positions = { ...(data.positions ?? {}), ...Object.fromEntries(stated.map((r) => [r, { position: 'not met' as const, statement: statement.trim(), stated_at }])) };
+  writeVersioned(root, `frameworks/${id}.json`, JSON.stringify(data, null, 2) + '\n', version);
+  return stated;
 }
 
 // `position`: the organization's position on the requirement, what a self-attestation discloses: met (ready), excluded (with
@@ -131,7 +146,7 @@ export function frameworkState(ws: Workspace, id: string, asOf = clockDate()) {
   const shared = new Set(requirements.flatMap((r) => r.evidence).filter((e) => socEvidence.has(e)));
   // Readiness counts what the framework requires; an optional requirement is listed with its status but not counted.
   const counted = requirements.filter((r) => !r.optional);
-  return { framework: id, title: fw.title, requirements, summary: {
+  return { framework: id, title: fw.title, requirements, exclusions: settings.exclusions ?? {}, summary: {
     requirements: counted.length, ready: counted.filter((r) => r.status === 'ready').length, excluded: counted.filter((r) => r.status === 'excluded').length,
     unaddressed: counted.filter((r) => r.status === 'unaddressed').length, optional: requirements.length - counted.length, shared_evidence: shared.size } };
 }

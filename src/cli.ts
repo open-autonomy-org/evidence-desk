@@ -594,9 +594,11 @@ async function main(argv: string[]): Promise<number> {
         const baseUrl = process.env.OPEN_AUTONOMY_BASE_URL, key = process.env.OPEN_AUTONOMY_KEY;
         if (!baseUrl || !key) throw new Error('trust publish needs OPEN_AUTONOMY_BASE_URL (the platform, ending in /v1) and OPEN_AUTONOMY_KEY (the project\'s steer key) in the environment');
         const r = await publishStatement(dir, { baseUrl, key });
+        const CLOSED = 'Its README cannot show the badge row: its badge image did not answer signed out (a README\'s images are fetched signed out), usually because the project\'s dashboard: word keeps statements from the public.';
         const rev = r.body.revision as { revision?: number; changes?: string[] } | undefined;
         const err = typeof r.body.error === 'string' ? r.body.error : (r.body.error as { code?: string } | undefined)?.code;
-        out(json, r.body, () => r.status === 200 ? (r.body.unchanged ? 'Published statement unchanged; no new revision.' : `Published the Compliance statement, revision ${rev?.revision}: ${rev?.changes?.join(', ')}.${r.badges.map((b) => `\n  ${b.label}: ${b.message} (until ${b.until})`).join('')}`)
+        const where = r.page ? `\nOn the project: ${r.page}\n${r.readme ? `In its README: ${r.readme}` : CLOSED}` : '';
+        out(json, { ...r.body, page: r.page, readme: r.readme, readmeClosed: r.readmeClosed }, () => r.status === 200 ? (r.body.unchanged ? `Published statement unchanged; no new revision.${where}` : `Published the Compliance statement, revision ${rev?.revision}: ${rev?.changes?.join(', ')}.${r.badges.map((b) => `\n  ${b.label}: ${b.message} (until ${b.until})`).join('')}${where}`)
           : `The platform refused the statement (${r.status}): ${err ?? 'unknown'}${r.body.field ? ` at ${r.body.field}` : ''}.`);
         return r.status === 200 ? 0 : 1;
       }
