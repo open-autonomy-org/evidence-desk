@@ -293,10 +293,10 @@ project, the import's declarations also evidence the inventory, oversight, chang
 AI-07, AI-10) while they are needed.
 
 `evidence-desk collect <dir> open-autonomy --account <owner/project> --period <start>..<end> --by <person>` reads
-what the project's agents did in the period from the Open Autonomy platform, on the project's own key
+what the project's agents did in the period from the Open Autonomy platform, on the project's own key or its org's
 (`OPEN_AUTONOMY_BASE_URL`, `OPEN_AUTONOMY_KEY`; any other key is refused, since it would read the public's view with
 panels closed and money withheld), and records four populations with the platform's answers kept whole as provenance:
-the agent sessions that ran in the period, including those begun up to a day before it (AI-05); every metered call
+the agent sessions that started in the period, or up to a day before it and were still running when it began (AI-05); every metered call
 (AI-05, AI-10); every request and report of the agent's operating state, with the project's request, its org's and
 the report in force when the period began (AI-03); and every revision of the roadmap with its changes (AI-07). It reads
 every page back past the period's start and refuses a list the platform cannot page, since a population read from one

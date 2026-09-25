@@ -1,7 +1,7 @@
 // What an Open Autonomy project's agents did in a period, read from the platform that meters and publishes them: every
 // session, every metered call, every request and report of the operating state (who paused the agent, why, and what it
 // answered), and every revision of the roadmap. Each is a population of the period, collected through the platform's own
-// read doors on the project's own key (so a private project reads too, and no figure is withheld), with the platform's
+// read doors on the project's own key or its org's (so a private project reads too, and no figure is withheld), with the platform's
 // answers kept whole as provenance. They evidence the AI family's records, limits, oversight and change controls while
 // an AI framework needs them. All four lists are read before anything is written, so a failure records nothing.
 import { writeVersioned } from './files.ts';
@@ -55,11 +55,13 @@ export async function collectOpenAutonomyActivity(root: string, input: { account
   const from = `${input.start}T00:00:00.000Z`, to = `${input.end}T23:59:59.999Z`;
   const inPeriod = (t: string) => t >= from && t <= to;
 
-  // Who is reading: only the project's own key reads every panel and every figure. Any other key reads the public's view,
-  // with panels closed and money withheld, and its populations could not be shown complete.
+  // Who is reading: the project's own key, or its org's (ADR 0010: an org's key reads its projects as their own does), reads
+  // every panel and every figure. Any other key reads the public's view, with panels closed and money withheld, and its
+  // populations could not be shown complete.
   const identity: Answer[] = [];
   const me = await get(base, key, '/keys', identity);
-  if (String(me.account ?? '').toLowerCase() !== input.account.toLowerCase()) throw new Error(`OPEN_AUTONOMY_KEY is a key of ${String(me.account ?? 'no account')}, not of ${input.account}: collect with the project's own key`);
+  const reader = String(me.account ?? '').toLowerCase();
+  if (reader !== input.account.toLowerCase() && reader !== `@${input.account.split('/')[0].toLowerCase()}`) throw new Error(`OPEN_AUTONOMY_KEY is a key of ${String(me.account ?? 'no account')}, which reads ${input.account} only as the public does: collect with the project's own key or its org's`);
 
   // Sessions that ran in the period: started in it, or started up to a day before it and not ended before it began. A
   // run that began more than a day before the period is not read.
@@ -103,7 +105,7 @@ export async function collectOpenAutonomyActivity(root: string, input: { account
     writeVersioned(root, `${stem}.csv`, writeCsv({ columns, rows: rows.map((row) => Object.fromEntries(columns.map((k) => [k, cell(row[k])]))) }), null);
     evidence.push(addEvidence(root, {
       title: `Population: ${rows.length} ${title} of ${input.account}, ${input.start} to ${input.end}`, controls: use, files: [`${stem}.csv`, `${stem}.raw.json`], recorded_by: input.by,
-      period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'open autonomy', query: `GET ${path}, ${pagesRead} page(s), newest first, back past the period's start, on the project's own key` },
+      period: { start: input.start, end: input.end }, source: { kind: 'collector', name: 'open autonomy', query: `GET ${path}, ${pagesRead} page(s), newest first, back past the period's start, on the key of ${String(me.account)}` },
       notes: `${notes} The platform's answers, every page whole, are in ${stem}.raw.json.`,
     }));
   };

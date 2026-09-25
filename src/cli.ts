@@ -62,7 +62,7 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                                           compare a declared vendor account's administrators with the roster
   collect <dir> open-autonomy --account <owner/project> --period <start>..<end> --by <person>
                                           the project's sessions, metered calls, pause history and roadmap revisions from
-                                          the platform (OPEN_AUTONOMY_BASE_URL, OPEN_AUTONOMY_KEY: the project's own key)
+                                          the platform (OPEN_AUTONOMY_BASE_URL, OPEN_AUTONOMY_KEY: the project's key or its org's)
   collect <dir> github-changes --repo <owner/name> --period <start>..<end> --by <person>
   collect <dir> github-deployments --repo <owner/name> --environment <name> --period <start>..<end> --by <person>
   collect <dir> github-rule-changes --repo <owner/name> --period <start>..<end> --by <person>
