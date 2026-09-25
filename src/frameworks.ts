@@ -76,6 +76,8 @@ export function decide(root: string, id: string, requirement: string, input: { e
   if (input.exclude !== undefined) {
     if (!input.exclude.trim()) throw new Error('an exclusion needs its reason');
     data.exclusions = { ...(data.exclusions ?? {}), [requirement]: input.exclude.trim() };
+    // An exclusion and a stated position cannot both stand: the newer word replaces the older.
+    const { [requirement]: _was, ...others } = data.positions ?? {}; data.positions = others;
   }
   if (input.include) { const { [requirement]: _gone, ...rest } = data.exclusions ?? {}; data.exclusions = rest; }
   if (input.controls) {
@@ -86,6 +88,7 @@ export function decide(root: string, id: string, requirement: string, input: { e
   if (input.position) {
     if (!input.position.statement.trim()) throw new Error('a position needs its statement: what is in place and what is not');
     data.positions = { ...(data.positions ?? {}), [requirement]: { position: input.position.position, statement: input.position.statement.trim(), stated_at: clockDate().toISOString().slice(0, 10) } };
+    const { [requirement]: _was, ...others } = data.exclusions ?? {}; data.exclusions = others;
   }
   if (input.clearPosition) { const { [requirement]: _gone, ...rest } = data.positions ?? {}; data.positions = rest; }
   writeVersioned(root, `frameworks/${id}.json`, JSON.stringify(data, null, 2) + '\n', version);
@@ -102,10 +105,11 @@ export function frameworkState(ws: Workspace, id: string, asOf = clockDate()) {
   const byControl = new Map(soc2.controls.map((c) => [c.id, c]));
   const controls = new Map(ws.controls.map((c) => [c.data.id, c.data]));
   // The organization's stated position governs downward: a requirement it says is only partly met, or not met, is shown
-  // so even when its mapped controls are ready. Otherwise ready is met and excluded is excluded.
+  // so even when its mapped controls are ready or excluded. Otherwise ready is met and excluded is excluded.
   const stated = (r: RequirementState): RequirementState => {
     const p = settings.positions?.[r.id];
-    if (p && r.status !== 'excluded') return { ...r, position: p.position, statement: p.statement, ...(p.stated_at ? { stated_at: p.stated_at } : {}) };
+    // A stated position governs over what is derived, including an exclusion that follows from excluded controls.
+    if (p) return { ...r, position: p.position, statement: p.statement, ...(p.stated_at ? { stated_at: p.stated_at } : {}) };
     if (r.status === 'ready') return { ...r, position: 'met' };
     if (r.status === 'excluded') return { ...r, position: 'excluded' };
     return r;
@@ -168,7 +172,7 @@ export function attest(root: string, id: string, by: string): { certification: s
   const groups = [...new Set(shown.map((r) => r.group))];
   const text = [`# ${fw.title}: self-attestation of ${org}`, '',
     `${person.name || by} (${by}) attests for ${org} on ${day} that the position stated below for each requirement of ${fw.title} (${fw.version}) is true. This is the organization's own statement, made from its compliance records; it is not an audit or a certification.`, '',
-    `Summary: ${counts.met} met, ${counts.excluded} excluded, ${counts.partial} partly met, ${counts['not met']} not met${st.summary.optional ? `; optional requirements are listed where a position is stated` : ''}. Source: ${fw.source.name}${fw.source.url ? `, ${fw.source.url}` : ''}.`, '',
+    `Summary: ${counts.met} met, ${counts.excluded} excluded, ${counts.partial} partly met, ${counts['not met']} not met${st.summary.optional ? `; optional requirements are listed too, and not counted` : ''}. Source: ${fw.source.name}${fw.source.url ? `, ${fw.source.url}` : ''}.`, '',
     ...groups.flatMap((g) => [`## ${g}`, '', '| Requirement | Position | Basis |', '|---|---|---|',
       ...shown.filter((r) => r.group === g).map((r) => `| ${r.id} ${cell(r.title)}${r.optional ? ' (optional)' : ''} | ${r.position ?? 'none'} | ${cell(basis(r))} |`), '']),
     `Signed: ${person.name || by} (${by}), ${day}.`, ''].join('\n');

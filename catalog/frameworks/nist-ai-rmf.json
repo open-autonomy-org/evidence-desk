@@ -269,10 +269,7 @@
    "id": "MAP 3.4",
    "group": "Map",
    "title": "Operator proficiency processes defined",
-   "controls": [
-    "HR-02",
-    "AI-03"
-   ]
+   "controls": []
   },
   {
    "id": "MAP 3.5",
@@ -439,9 +436,7 @@
    "id": "MEASURE 2.13",
    "group": "Measure",
    "title": "Effectiveness of test metrics evaluated",
-   "controls": [
-    "AI-06"
-   ]
+   "controls": []
   },
   {
    "id": "MEASURE 3.1",
