@@ -81,7 +81,10 @@ export function computeGaps(ws: Workspace, asOf = clockDate()): Gaps {
   }
   const latestIds = new Set([...latestResponse.values()].map((x) => `response:${x.id}`));
   const acts = signedActs(ws.root).filter((a) => a.kind !== 'response' || latestIds.has(a.key));
-  if (acts.length && !record) program.push('Open Autonomy: signed acts (onboarding, access review sign-offs, policy approvals, incident closures, risk decisions, vendor reviews, attestations) have not been checked against the people\'s GitHub accounts (collect attribution)');
+  // Only a workspace that signs on GitHub is checked: one with the project's roster imported or an attribution record. A
+  // workspace kept on this machine alone has no account to check its acts against.
+  if (!oa && !record) { /* nothing to check against */ }
+  else if (acts.length && !record) program.push('Open Autonomy: signed acts (onboarding, access review sign-offs, policy approvals, incident closures, risk decisions, vendor reviews, attestations) have not been checked against the people\'s GitHub accounts (collect attribution)');
   else for (const a of acts) {
     const parsed = readAct(a.file, readVersioned(ws.root, a.file)?.text);
     const value = actDigest(parsed === UNREADABLE ? null : a.extract(parsed));
