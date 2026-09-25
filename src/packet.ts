@@ -4,9 +4,10 @@
 // evidence; it is an index over the evidence, hashed in the manifest like everything else.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseCsv, writeCsv } from './csv.ts';
+import { inside as within } from './files.ts';
 import type { Workspace } from './workspace.ts';
 import { categories, categoryAnswer, criteria } from './catalog.ts';
 import type { AuditRequest, Engagement } from './audit.ts';
@@ -36,8 +37,10 @@ export function accessChanges(root: string, ws: Workspace, period: { start: stri
     let before: Map<string, string> | null = null;
     for (const r of runs) {
       const snap = r.data.collectors.find((c) => c.id === system)?.snapshot;
-      if (!snap || !existsSync(join(root, snap))) continue;
-      const d = (JSON.parse(readFileSync(join(root, snap), 'utf8')) as { data?: { members?: { login?: string; email?: string; role?: string; roles?: string[] }[] } }).data;
+      let file: string;
+      try { file = within(root, snap ?? ''); } catch { continue; }
+      if (!snap || !existsSync(file) || !lstatSync(file).isFile()) continue;
+      const d = (JSON.parse(readFileSync(file, 'utf8')) as { data?: { members?: { login?: string; email?: string; role?: string; roles?: string[] }[] } }).data;
       if (!d?.members) continue;
       const now = new Map(d.members.map((m) => [String(m.login ?? m.email), String(m.role ?? (m.roles ?? []).join(' + '))]));
       const at = r.data.started_at;

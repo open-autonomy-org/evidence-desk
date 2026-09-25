@@ -6,6 +6,7 @@ import { appendFileSync, cpSync, existsSync, lstatSync, mkdtempSync, readdirSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseCsv } from './csv.ts';
+import { inside } from './files.ts';
 import { collectChanges, collectDeployments } from './github.ts';
 import { collectCloudflareChanges, collectCloudflareTokens, collectWorkerDeployments } from './cloudflare.ts';
 
@@ -25,7 +26,9 @@ const newest = (dir: string, stem: string, not?: string) => existsSync(dir) ? re
 export async function recollect(pkg: string, input: { repo?: string; environment?: string; account?: string; script?: string }): Promise<Recollection[]> {
   const ws = join(pkg, 'workspace');
   const audits = readdirSync(join(ws, 'audits'));
-  const e = JSON.parse(readFileSync(join(ws, 'audits', audits[0], 'engagement.json'), 'utf8')) as { period?: { start: string; end: string } };
+  // Read from the package only as regular files inside it: a link is not followed.
+  const own = (rel: string) => { const f = inside(ws, rel); if (!lstatSync(f).isFile()) throw new Error(`${rel} is not a regular file in the package`); return f; };
+  const e = JSON.parse(readFileSync(own(`audits/${audits[0]}/engagement.json`), 'utf8')) as { period?: { start: string; end: string } };
   if (!e.period) throw new Error('recollect needs a Type 2 engagement with a period');
   const { start, end } = e.period;
   // Its real path: on macOS the temporary directory is reached through a symbolic link.
@@ -58,7 +61,7 @@ export async function recollect(pkg: string, input: { repo?: string; environment
       const recollectedFile = newest(pop(tmp), p.stem, packagedFile);
       if (!packagedFile || !recollectedFile) continue;
       const read = (f: string) => parseCsv(readFileSync(f, 'utf8'), f).rows;
-      const a = new Map(read(join(pop(ws), packagedFile)).map((r) => [p.key(r), r]));
+      const a = new Map(read(own(`evidence/files/populations/${packagedFile}`)).map((r) => [p.key(r), r]));
       const b = new Map(read(join(pop(tmp), recollectedFile)).map((r) => [p.key(r), r]));
       out.push({ population: p.stem, packaged_file: `evidence/files/populations/${packagedFile}`, packaged: a.size, recollected: b.size,
         only_packaged: [...a.keys()].filter((k) => !b.has(k)), only_recollected: [...b.keys()].filter((k) => !a.has(k)),

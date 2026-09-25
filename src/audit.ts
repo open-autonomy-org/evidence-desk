@@ -601,7 +601,11 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   if (existsSync(out) && readdirSync(out).length) throw new Error(`${out} is not empty`);
   const ws = loadWorkspace(root);
   const reqs = listRequests(root, id);
-  const paths = new Set<string>([`${base(id)}/engagement.json`, ...reqs.map((r) => r.path)]);
+  // Only a regular file inside the workspace joins the package, and it is checked as it joins: a record naming a path
+  // outside the workspace, or a link, is a problem and nothing of it is read.
+  const paths = new (class extends Set<string> {
+    add(p: string) { if (this.has(p)) return this; try { if (lstatSync(inside(root, p)).isFile()) return super.add(p); problems.push(`${p} is not a regular file in the workspace`); } catch (e) { problems.push(`${p}: ${(e as Error).message}`); } return this; }
+  })([`${base(id)}/engagement.json`, ...reqs.map((r) => r.path)]);
   const draftDir = join(root, base(id), 'drafts');
   const problems: string[] = [];
   // Drafts go to the firm only once management has finished them, and every source a draft cites travels with it.
@@ -845,7 +849,9 @@ export function importReturn(root: string, id: string, dir: string): { updated: 
   const out = { updated: [] as string[], added: [] as string[], conflicts: [] as string[] };
   const reqDir = join(dir, 'workspace', base(id), 'requests');
   for (const f of existsSync(reqDir) ? readdirSync(reqDir).filter((x) => x.endsWith('.json')) : []) {
-    const theirs = JSON.parse(readFileSync(join(reqDir, f), 'utf8')) as AuditRequest;
+    const file = packaged(join(dir, 'workspace'), `${base(id)}/requests/${f}`);
+    if (typeof file !== 'string') { out.conflicts.push(`${f} in the package: ${file.problem}`); continue; }
+    const theirs = JSON.parse(readFileSync(file, 'utf8')) as AuditRequest;
     const errs = check(schema('audit-request'), theirs);
     if (errs.length) { out.conflicts.push(`${f} in the package is invalid: ${errs.join('; ')}`); continue; }
     const rel = `${base(id)}/requests/${theirs.id}.json`;
