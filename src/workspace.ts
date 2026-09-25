@@ -73,10 +73,11 @@ export function readJson<T>(root: string, rel: string, schemaName: string, probl
   try { data = JSON.parse(r.text); } catch (e) { problems.push({ severity: 'error', file: rel, message: `not valid JSON: ${(e as Error).message}` }); return null; }
   // A record the code cannot read (not an object; a field missing, or an object, list or text that is something else)
   // is reported and left out, so the rest of the workspace still loads; so is one with a yes/no written otherwise,
-  // which would read as yes ("false" is a text, and true). One whose values are merely wrong (a format, a choice, a
-  // number written otherwise) stays, reported, so no view loses it.
+  // which would read as yes ("false" is a text, and true), except a scoping answer, which counts only when it is true.
+  // One whose values are merely wrong (a format, a choice, a number written otherwise) stays, reported, so no view
+  // loses it.
   const wrong = check(schema(schemaName), data);
-  const unreadable = typeof data !== 'object' || data === null || Array.isArray(data) || wrong.some((m) => /: must be (object|array|string|boolean)( or \w+)*, found \w+$|: is required$/.test(m));
+  const unreadable = typeof data !== 'object' || data === null || Array.isArray(data) || wrong.some((m) => /: must be (object|array|string)( or \w+)*, found \w+$|: is required$/.test(m) || (/: must be boolean, found \w+$/.test(m) && !m.startsWith('answers.')));
   for (const m of wrong) problems.push({ severity: 'error', file: rel, message: unreadable ? `${m} (left out until fixed)` : m });
   if (unreadable) return null;
   return { path: rel, version: r.version, data: data as T };
