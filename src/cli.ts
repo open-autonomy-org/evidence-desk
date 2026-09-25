@@ -10,7 +10,7 @@ import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
 import { questions } from './catalog.ts';
 import { serve } from './server.ts';
 import { serveFirm } from './firm-server.ts';
-import { decide, dropFramework, frameworkState, statementOfApplicability, targetFramework } from './frameworks.ts';
+import { attest, decide, dropFramework, frameworkState, statementOfApplicability, targetFramework } from './frameworks.ts';
 import { neededControls, targetsOf } from './targets.ts';
 import { collectOpenAutonomyActivity } from './oa-platform.ts';
 import { frameworkDescriptions } from './catalog.ts';
@@ -120,8 +120,11 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                                           saying it was audited or certified
   frameworks <dir> [available | target <framework> | drop <framework>]
                                           the frameworks the program targets (SOC 2 always); what each can become
+  frameworks <dir> attest <framework> --by <person>   sign a self-attestation (for a framework that becomes one)
   framework <dir> iso27001                each requirement: ready, with gaps, excluded, or not addressed
   framework <dir> iso27001 exclude <requirement> --reason <text> | include <requirement> | map <requirement> --controls <id>,...
+  framework <dir> <framework> position <requirement> (--partial | --not-met) --statement <text> | --clear
+                                          the organization's position on a requirement not met, which an attestation discloses
   soa <dir> --out <file.csv|file.md>      the ISO 27001 statement of applicability
   gaps <dir> [--as-of YYYY-MM-DD]         what stands between the workspace and readiness
   validate <dir>                          check every file against its schema and references
@@ -140,7 +143,7 @@ function parse(argv: string[]): Args {
     const vals = flags.get(key) ?? [];
     if (['set', 'add', 'update'].includes(key)) {
       while (argv[i + 1] !== undefined && !argv[i + 1].startsWith('--')) vals.push(argv[++i]);
-    } else if (!['json', 'approve', 'include', 'help', 'sign-off', 'enable', 'disable', 'serve', 'stale'].includes(key)) {
+    } else if (!['json', 'approve', 'include', 'help', 'sign-off', 'enable', 'disable', 'serve', 'stale', 'partial', 'not-met', 'clear'].includes(key)) {
       if (i + 1 >= argv.length) throw new Error(`--${key} needs a value`);
       vals.push(argv[++i]);
     }
@@ -649,7 +652,12 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
     case 'frameworks': {
-      if (rest[0] && !['available', 'target', 'drop'].includes(rest[0])) throw new Error('frameworks takes: available | target <framework> | drop <framework>');
+      if (rest[0] === 'attest') {
+        const r = attest(dir, rest[1] ?? '', one(a, 'by') ?? '');
+        out(json, r, () => `Recorded ${r.certification} (${r.file}): ${r.counts.met} met, ${r.counts.excluded} excluded, ${r.counts.partial} partly met, ${r.counts['not met']} not met. Merge it through your own pull request so attribution can check it.`);
+        return 0;
+      }
+      if (rest[0] && !['available', 'target', 'drop'].includes(rest[0])) throw new Error('frameworks takes: available | target <framework> | drop <framework> | attest <framework> --by <person>');
       const changed = rest[0] === 'target' ? targetFramework(dir, rest[1] ?? '') : rest[0] === 'drop' ? dropFramework(dir, rest[1] ?? '') : null;
       if (changed && !json && (changed.created.length || changed.policies.length || changed.forms.length))
         console.log(`Created for the targets: ${[...changed.created.map((x) => `control ${x}`), ...changed.policies.map((x) => `policy ${x}`), ...changed.forms.map((x) => `form ${x}`)].join(', ')}.`);
@@ -678,7 +686,12 @@ async function main(argv: string[]): Promise<number> {
         if (act === 'exclude') decide(dir, id, req ?? '', { exclude: one(a, 'reason') ?? '' }, known);
         else if (act === 'include') decide(dir, id, req ?? '', { include: true }, known);
         else if (act === 'map') decide(dir, id, req ?? '', { controls: (one(a, 'controls') ?? '').split(',').map((x) => x.trim()).filter(Boolean) }, known);
-        else throw new Error('framework actions are exclude, include and map');
+        else if (act === 'position') {
+          if (a.flags.has('clear')) decide(dir, id, req ?? '', { clearPosition: true }, known);
+          else if (a.flags.has('partial') === a.flags.has('not-met')) throw new Error('position takes --partial or --not-met with --statement <text>, or --clear');
+          else decide(dir, id, req ?? '', { position: { position: a.flags.has('partial') ? 'partial' : 'not met', statement: one(a, 'statement') ?? '' } }, known);
+        }
+        else throw new Error('framework actions are exclude, include, map and position');
       }
       const ws = loadWorkspace(dir);
       if (!targetsOf(ws).includes(id)) throw new Error(`${id} is not a target; run: evidence-desk frameworks ${dirArg} target ${id}`);

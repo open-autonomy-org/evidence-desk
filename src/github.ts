@@ -11,6 +11,7 @@ import { loadWorkspace } from './workspace.ts';
 import type { Snapshot } from './open-autonomy.ts';
 import { clockDate, now } from './clock.ts';
 import { neededControls } from './targets.ts';
+import { certifications } from './certifications.ts';
 
 const API = 'https://api.github.com';
 
@@ -269,7 +270,7 @@ export async function checkCompleteness(root: string, input: { account: string; 
 // content must come from a pull request merged into that branch and opened by the person's GitHub account on the Open
 // Autonomy roster, and the working file must hold the act as merged. Residual: a collaborator who pushes to a person's
 // open pull request branch is not told apart from them.
-export type Act = { key: string; kind: 'response' | 'access-review' | 'policy-approval' | 'incident-closure' | 'risk-decision' | 'vendor-review'; file: string; person: string; label: string; extract: (record: any) => unknown; personAt?: (record: any) => string };
+export type Act = { key: string; kind: 'response' | 'access-review' | 'policy-approval' | 'incident-closure' | 'risk-decision' | 'vendor-review' | 'attestation'; file: string; person: string; label: string; extract: (record: any) => unknown; personAt?: (record: any) => string };
 // A file as an act reads it: JSON records parsed, CSV registers as their rows; unreadable is null.
 export const UNREADABLE = Symbol('unreadable');
 export const readAct = (file: string, text: string | null | undefined): unknown => {
@@ -297,6 +298,10 @@ export function signedActs(root: string): Act[] {
     extract: (rows) => { const x = rowOf(rows, r.id); return x && x.treatment && x.treatment !== 'undecided' ? { risk: r.id, treatment: x.treatment } : null; }, personAt: (rows) => rowOf(rows, r.id)?.owner ?? '' });
   for (const v of ws.registers.vendors?.data.rows ?? []) if (v.last_review) acts.push({ key: `vendor-review:${v.id}`, kind: 'vendor-review', file: 'registers/vendors.csv', person: v.owner ?? '', label: `review of vendor ${v.id} on ${v.last_review}`,
     extract: (rows) => { const x = rowOf(rows, v.id); return x?.last_review ? { vendor: v.id, last_review: x.last_review } : null; }, personAt: (rows) => rowOf(rows, v.id)?.owner ?? '' });
+  // A self-attestation Evidence Desk rendered (it names its target): the act of the person it records as signing, bound to
+  // the document by its hash.
+  for (const c of certifications(root)) if (c.kind === 'self-attestation' && c.target) acts.push({ key: `attestation:${c.id}`, kind: 'attestation', file: `certifications/${c.id}.json`, person: c.recorded_by,
+    label: `${c.framework} self-attestation of ${c.issued_on}`, extract: (x) => x?.sha256 ? { target: x.target, issued_on: x.issued_on, sha256: x.sha256 } : null });
   return acts;
 }
 export type AttributionStatus = 'verified' | 'names no one' | 'no GitHub account on the roster' | 'not on the default branch' | 'changed since merged'

@@ -7,6 +7,10 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- NIST AI RMF 1.0 can be targeted, and a self-attestation can be signed: each requirement carries a position (met,
+  excluded, or a stated partial or not met), `frameworks <dir> attest <id> --by <person>` renders the attestation from
+  the records once every requirement has one and records it with its hash, and `collect attribution` checks it as a
+  signed act. Its badge is blue, says self-attested, and replaces the framework's readiness badge for a year.
 - `collect <dir> open-autonomy` reads an Open Autonomy project's sessions, metered calls, pause history and roadmap
   revisions for a period from the platform, on the project's key, as populations evidencing the AI family's records,
   limits, oversight and change controls; the pause history carries the word in force when the period began. It

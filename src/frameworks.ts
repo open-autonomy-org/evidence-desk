@@ -10,9 +10,15 @@ import { frameworkCatalogs, type FrameworkCatalog, type FrameworkRequirement } f
 import { inSoc2Scope } from './targets.ts';
 import { adopt, unanswered } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
+import { targetsOf } from './targets.ts';
+import { recordCertification } from './certifications.ts';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 export type Requirement = FrameworkRequirement;
-export type Settings = { schema: string; framework: string; exclusions?: Record<string, string>; mappings?: Record<string, string[]> };
+export type Position = { position: 'partial' | 'not met'; statement: string };
+export type Settings = { schema: string; framework: string; exclusions?: Record<string, string>; mappings?: Record<string, string[]>; positions?: Record<string, Position> };
 // The frameworks mapped onto the control set by a catalog; SOC 2 keeps its own model and is always a target.
 export const FRAMEWORKS = [...frameworkCatalogs.keys()];
 
@@ -63,7 +69,7 @@ export function dropFramework(root: string, id: string): ReturnType<typeof setTa
   return setTargets(root, (t) => t.filter((x) => x !== id));
 }
 
-export function decide(root: string, id: string, requirement: string, input: { exclude?: string; include?: boolean; controls?: string[] }, known: string[]): void {
+export function decide(root: string, id: string, requirement: string, input: { exclude?: string; include?: boolean; controls?: string[]; position?: Position; clearPosition?: boolean }, known: string[]): void {
   const fw = framework(id);
   if (!fw.requirements.some((r) => r.id === requirement)) throw new Error(`${requirement} is not a requirement of ${fw.title}`);
   const { data, version } = readSettings(root, id);
@@ -76,10 +82,18 @@ export function decide(root: string, id: string, requirement: string, input: { e
     for (const c of input.controls) if (!known.includes(c)) throw new Error(`control ${c} is not in this workspace`);
     data.mappings = { ...(data.mappings ?? {}), [requirement]: [...new Set([...(data.mappings?.[requirement] ?? []), ...input.controls])] };
   }
+  // A stated position on a requirement not met: partial or not met, with what is and is not in place.
+  if (input.position) {
+    if (!input.position.statement.trim()) throw new Error('a position needs its statement: what is in place and what is not');
+    data.positions = { ...(data.positions ?? {}), [requirement]: { position: input.position.position, statement: input.position.statement.trim() } };
+  }
+  if (input.clearPosition) { const { [requirement]: _gone, ...rest } = data.positions ?? {}; data.positions = rest; }
   writeVersioned(root, `frameworks/${id}.json`, JSON.stringify(data, null, 2) + '\n', version);
 }
 
-export type RequirementState = { id: string; group: string; title: string; controls: string[]; optional?: boolean; status: 'ready' | 'gaps' | 'excluded' | 'unaddressed'; reason?: string; gaps: string[]; evidence: string[]; implementation: 'implemented' | 'partial' | 'not implemented' | 'not applicable' };
+// `position`: the organization's position on the requirement, what a self-attestation discloses: met (ready), excluded (with
+// its reason), or a stated partial or not met; absent while none is stated for a requirement that is not ready.
+export type RequirementState = { id: string; group: string; title: string; controls: string[]; optional?: boolean; position?: 'met' | 'excluded' | 'partial' | 'not met'; statement?: string; status: 'ready' | 'gaps' | 'excluded' | 'unaddressed'; reason?: string; gaps: string[]; evidence: string[]; implementation: 'implemented' | 'partial' | 'not implemented' | 'not applicable' };
 
 export function frameworkState(ws: Workspace, id: string, asOf = clockDate()) {
   const fw = framework(id);
@@ -87,7 +101,13 @@ export function frameworkState(ws: Workspace, id: string, asOf = clockDate()) {
   const soc2 = computeGaps(ws, asOf);
   const byControl = new Map(soc2.controls.map((c) => [c.id, c]));
   const controls = new Map(ws.controls.map((c) => [c.data.id, c.data]));
-  const requirements: RequirementState[] = fw.requirements.map((r) => {
+  const stated = (r: RequirementState): RequirementState => {
+    if (r.status === 'ready') return { ...r, position: 'met' };
+    if (r.status === 'excluded') return { ...r, position: 'excluded' };
+    const p = settings.positions?.[r.id];
+    return p ? { ...r, position: p.position, statement: p.statement } : r;
+  };
+  const requirements: RequirementState[] = fw.requirements.map((r): RequirementState => {
     const mapped = [...new Set([...r.controls, ...(settings.mappings?.[r.id] ?? [])])].filter((c) => controls.has(c));
     const applicable = mapped.filter((c) => controls.get(c)!.applicable);
     const evidence = [...new Set(ws.evidence.filter((e) => e.data.controls.some((c) => applicable.includes(c))).map((e) => e.data.id))];
@@ -98,7 +118,7 @@ export function frameworkState(ws: Workspace, id: string, asOf = clockDate()) {
     const gaps = applicable.filter((c) => (byControl.get(c)?.gaps.length ?? 1) > 0).map((c) => `${c} is not ready`);
     const done = applicable.filter((c) => controls.get(c)!.status === 'implemented').length;
     return { ...base, status: gaps.length ? 'gaps' as const : 'ready' as const, gaps, implementation: done === applicable.length ? 'implemented' as const : done ? 'partial' as const : 'not implemented' as const };
-  });
+  }).map(stated);
   // Evidence that also serves SOC 2: SOC 2's own count, over the controls in its scope.
   const socEvidence = new Set(ws.evidence.filter((e) => e.data.controls.some((c) => { const x = controls.get(c); return x ? inSoc2Scope(ws, x) : false; })).map((e) => e.data.id));
   const shared = new Set(requirements.flatMap((r) => r.evidence).filter((e) => socEvidence.has(e)));
@@ -117,4 +137,39 @@ export function statementOfApplicability(ws: Workspace): { columns: string[]; ro
     control: r.id, title: r.title, included: r.status === 'excluded' ? 'no' : 'yes',
     justification: r.status === 'excluded' ? r.reason ?? '' : r.status === 'unaddressed' ? 'Included by default; no control addresses it yet' : `Addressed by ${r.controls.join(', ')}`,
     implementation: r.implementation, addressed_by: r.controls.join(';'), evidence: r.evidence.join(';') })) };
+}
+
+// A self-attestation (docs/decisions/0002-frameworks-are-targets.md): the organization's own signed statement against a
+// framework whose outcome is a self-attestation. It is refused while any required requirement has no position; a person
+// on the roster signs; the document is rendered from the program's own records (every requirement, its position and
+// statement, the controls and evidence behind a met one) and recorded in certifications/ with its hash and its target.
+// It says only what is true: every requirement not met is disclosed in it.
+export function attest(root: string, id: string, by: string): { certification: string; file: string; counts: Record<string, number> } {
+  const fw = framework(id);
+  if (fw.outcome !== 'self-attestation') throw new Error(`${fw.title} becomes ${fw.outcome === 'audit report' ? 'an audit report' : 'a certificate'} from ${fw.issuer}, not a self-attestation: record that document with certifications add`);
+  const ws = loadWorkspace(root);
+  if (!targetsOf(ws).includes(id)) throw new Error(`${id} is not a target; run: evidence-desk frameworks <dir> target ${id}`);
+  const person = (ws.registers.people?.data.rows ?? []).find((r) => r.id === by);
+  if (!person) throw new Error(`${by || '(none)'} is not in registers/people.csv`);
+  const st = frameworkState(ws, id);
+  const open = st.requirements.filter((r) => !r.optional && !r.position);
+  if (open.length) throw new Error(`${open.length} requirement(s) have no position; make each ready, exclude it with a reason, or state its position (framework <dir> ${id} position <requirement> --partial|--not-met --statement <text>): ${open.map((r) => r.id).join(', ')}`);
+  const org = ws.manifest?.data.organization ?? '';
+  const day = clockDate().toISOString().slice(0, 10);
+  const shown = st.requirements.filter((r) => r.position);
+  const counts: Record<string, number> = { met: 0, excluded: 0, partial: 0, 'not met': 0 };
+  for (const r of shown) if (!r.optional) counts[r.position!]++;
+  const cell = (s: string) => s.replace(/\|/g, '\\|').replace(/\n/g, ' ');
+  const basis = (r: RequirementState) => r.position === 'met' ? `Controls ${r.controls.join(', ')}; evidence ${r.evidence.join(', ') || 'none recorded'}` : r.position === 'excluded' ? r.reason ?? '' : r.statement ?? '';
+  const groups = [...new Set(shown.map((r) => r.group))];
+  const text = [`# ${fw.title}: self-attestation of ${org}`, '',
+    `${person.name || by} (${by}) attests for ${org} on ${day} that the position stated below for each requirement of ${fw.title} (${fw.version}) is true. This is the organization's own statement, made from its compliance records; it is not an audit or a certification.`, '',
+    `Summary: ${counts.met} met, ${counts.excluded} excluded, ${counts.partial} partly met, ${counts['not met']} not met${st.summary.optional ? `; optional requirements are listed where a position is stated` : ''}. Source: ${fw.source.name}${fw.source.url ? `, ${fw.source.url}` : ''}.`, '',
+    ...groups.flatMap((g) => [`## ${g}`, '', '| Requirement | Position | Basis |', '|---|---|---|',
+      ...shown.filter((r) => r.group === g).map((r) => `| ${r.id} ${cell(r.title)}${r.optional ? ' (optional)' : ''} | ${r.position} | ${cell(basis(r))} |`), '']),
+    `Signed: ${person.name || by} (${by}), ${day}.`, ''].join('\n');
+  const tmp = join(mkdtempSync(join(tmpdir(), 'attest-')), `${id}-attestation.md`);
+  writeFileSync(tmp, text);
+  const c = recordCertification(root, { framework: fw.title, kind: 'self-attestation', issuer: org || 'the organization', issued_on: day, target: id, file: tmp, by });
+  return { certification: c.id, file: c.file, counts };
 }
