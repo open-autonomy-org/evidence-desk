@@ -61,8 +61,12 @@ export function computeGaps(ws: Workspace, asOf = clockDate()): Gaps {
     // passed response per form, each access review sign-off, each policy's latest approval, each incident's closing. A
     // signer who is not on the roster has no account to check, which is itself the finding.
     const attributed = readVersioned(ws.root, 'sources/github/attribution.json');
-    const record = attributed ? JSON.parse(attributed.text) as { roster_commit: string; rows: { key: string; value_sha256: string; status: string; author: string; person: string }[] } : null;
-    if (record && record.roster_commit !== snap.commit) program.push(`Open Autonomy: signed acts were checked against the roster at ${record.roster_commit.slice(0, 12)}, not ${snap.commit.slice(0, 12)} (collect attribution)`);
+    const record = attributed ? JSON.parse(attributed.text) as { roster_commit: string; roster_source?: { read_from?: string; repo?: string; commit?: string }; rows: { key: string; value_sha256: string; status: string; author: string; person: string }[] } : null;
+    // A check that read the roster from the project's repository is compared with nothing here (its commit is the
+    // project's, recorded); one that read the workspace's copy says so, and is compared with the copy now held.
+    const fromProject = record?.roster_source?.read_from === 'the project repository';
+    if (record && !fromProject) program.push('Open Autonomy: signed acts were checked against the workspace\'s copy of the roster, which anyone who writes to the workspace can change (collect attribution --roster <the project\'s repository>)');
+    if (record && !fromProject && record.roster_commit !== snap.commit) program.push(`Open Autonomy: signed acts were checked against the roster at ${record.roster_commit.slice(0, 12)}, not ${snap.commit.slice(0, 12)} (collect attribution)`);
     const latestResponse = new Map<string, { id: string; at: string }>();
     for (const r of ws.responses) if (r.data.passed) {
       const k = `${r.data.person} ${r.data.form}`;

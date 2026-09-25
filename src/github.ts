@@ -312,8 +312,8 @@ export function signedActs(root: string): Act[] {
 }
 export type AttributionStatus = 'verified' | 'opened, not approved' | 'names no one' | 'no GitHub account on the roster' | 'not on the default branch' | 'changed since merged'
   | 'not on GitHub' | 'no merged pull request' | 'recorded by someone else' | 'history unreadable';
-// \`via\` says how a verified act was signed: \`approved\` (the person approved the pull request at its merged head; \`signed_at\`
-// is when) or \`opened\` (the person opened it). A record's own date is when the act was prepared, which can be earlier.
+// \`via\` is \`approved\` for a verified act: the person approved the pull request at its merged head, \`signed_at\` being when.
+// A record's own date is when the act was prepared, which can be earlier.
 export type Attribution = { key: string; kind: Act['kind']; file: string; person: string; label: string; value_sha256: string; commit: string; committed_at: string; pull: string; author: string; expected: string; via: '' | 'approved'; signed_at: string; status: AttributionStatus };
 export const actDigest = (v: unknown) => createHash('sha256').update(JSON.stringify(v ?? null)).digest('hex');
 const writeCsvFile = (root: string, rel: string, rows: Attribution[]) => writeVersioned(root, rel, writeCsv({ columns: ['key', 'kind', 'file', 'person', 'label', 'value_sha256', 'commit', 'committed_at', 'pull', 'author', 'expected', 'via', 'signed_at', 'status'], rows }), null);
@@ -329,6 +329,7 @@ async function rosterFrom(repo: string): Promise<{ team: Snapshot['team']; sourc
   const file = await get(`/repos/${repo}/contents/${path}?ref=${commit}`) as { content?: string; encoding?: string };
   if (file.encoding !== 'base64' || !file.content) throw new Error(`${repo} has no readable ${path} at ${commit.slice(0, 12)}`);
   const config = Bun.YAML.parse(Buffer.from(file.content, 'base64').toString('utf8')) as { team?: { members?: { id?: unknown; name?: unknown; github?: { login?: unknown } }[] } };
+  if (config.team?.members !== undefined && !Array.isArray(config.team.members)) throw new Error(`${repo}'s ${path} has a team whose members are not a list`);
   const team = (config.team?.members ?? []).map((m) => ({ id: String(m.id ?? ''), name: String(m.name ?? ''), ...(m.github?.login ? { github: String(m.github.login) } : {}), scopes: [] as string[] })).filter((m) => m.id);
   return { team, source: { repo, commit, path } };
 }
@@ -339,7 +340,8 @@ export async function collectAttribution(root: string, input: { repo: string; by
   if (!latest && !input.roster) throw new Error('import the Open Autonomy project first (evidence-desk open-autonomy import), or name its repository with --roster: its roster holds each person\'s GitHub account');
   const workspaceSnap = latest ? JSON.parse(latest.text) as Snapshot : null;
   const fromProject = input.roster ? await rosterFrom(input.roster) : null;
-  const snap = { ...(workspaceSnap ?? {}), team: fromProject?.team ?? workspaceSnap!.team, commit: workspaceSnap?.commit ?? fromProject!.source.commit } as Snapshot;
+  // The commit recorded is the one the team was read at: the project's, where it was read from there.
+  const snap = { ...(workspaceSnap ?? {}), team: fromProject?.team ?? workspaceSnap!.team, commit: fromProject?.source.commit ?? workspaceSnap!.commit } as Snapshot;
   const rosterSource = fromProject ? { ...fromProject.source, read_from: 'the project repository' } : { read_from: 'the workspace copy (sources/open-autonomy/latest.json), which any writer of the workspace can change' };
   const git = (...args: string[]) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   try { git('rev-parse', '--show-toplevel'); } catch { throw new Error('the workspace is not a Git repository; acts are recorded through pull requests to it'); }

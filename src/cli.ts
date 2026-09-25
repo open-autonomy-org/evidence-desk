@@ -763,7 +763,7 @@ async function command(a: Args, cmd: string, dir: string, dirArg: string, rest: 
     case 'frameworks': {
       if (rest[0] === 'attest') {
         const r = attest(dir, rest[1] ?? '', one(a, 'by') ?? '');
-        out(json, r, () => `Recorded ${r.certification} (${r.file}): ${r.counts.met} met, ${r.counts.excluded} excluded, ${r.counts.partial} partly met, ${r.counts['not met']} not met. Merge it through your own pull request so attribution can check it.`);
+        out(json, r, () => `Recorded ${r.certification} (${r.file}): ${r.counts.met} met, ${r.counts.excluded} excluded, ${r.counts.partial} partly met, ${r.counts['not met']} not met. It is signed through ${'${'}r.certification ? 'a pull request the signer approves, opened by someone else' : ''}; attribution checks that approval.`);
         return 0;
       }
       if (rest[0] && !['available', 'target', 'drop'].includes(rest[0])) throw new Error('frameworks takes: available | target <framework> | drop <framework> | attest <framework> --by <person>');
