@@ -6,7 +6,7 @@
 import { execFileSync } from 'node:child_process';
 import { check, schema } from './schema.ts';
 import { readVersioned, writeVersioned } from './files.ts';
-import { addEvidence, saveRegisterRow, setScope } from './actions.ts';
+import { addEvidence, evidencing, saveRegisterRow, setScope } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
 import { now } from './clock.ts';
 import { neededControls } from './targets.ts';
@@ -218,6 +218,7 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
 // The roster's history as a population: every commit that changed `team` in the period, with who made it and which
 // people or scopes it added or removed. Complete by construction: git log lists every commit touching the file.
 export function collectRosterHistory(root: string, input: { repo: string; start: string; end: string; by: string }): { evidence: string; rows: number } {
+  const controls = evidencing(root, 'roster-history', ['AC-02', 'HR-03', 'HR-04']);
   // The branch's own line (first parents), each change dated by when it reached the branch (the committer date of the
   // commit on that line, a merge commit for a merged pull request), filtered by date here: git's --since stops walking
   // at the first older commit, so a history whose dates are not monotonic would silently lose changes.
@@ -246,9 +247,8 @@ export function collectRosterHistory(root: string, input: { repo: string; start:
   }
   const rel = `evidence/files/populations/roster-history-${input.start}-${input.end}-${Date.now()}.csv`;
   writeVersioned(root, rel, ['commit,committed_at,author,subject,changes', ...rows.map((r) => [r.commit, r.committed_at, r.author, r.subject, r.changes].map((v) => /[",\n]/.test(v) ? `"${v.replaceAll('"', '""')}"` : v).join(','))].join('\n') + '\n', null);
-  const applicable = neededControls(loadWorkspace(root));
   const evidence = addEvidence(root, {
-    title: `Population: ${rows.length} changes to who holds authority, ${input.start} to ${input.end}`, controls: ['AC-02', 'HR-03', 'HR-04'].filter((x) => applicable.has(x)), files: [rel], recorded_by: input.by,
+    title: `Population: ${rows.length} changes to who holds authority, ${input.start} to ${input.end}`, controls: controls, files: [rel], recorded_by: input.by,
     period: { start: input.start, end: input.end }, source: { kind: 'open-autonomy', name: 'team roster', query: `git log --first-parent -- .open-autonomy/config.yaml, keeping commits that reached the branch ${input.start}..${input.end} (UTC committer date), comparing team at each commit and its first parent` },
     notes: 'Complete by construction: every commit on the branch\'s first-parent line that changed the roster file and reached the branch in the period is listed.',
   });
