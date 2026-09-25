@@ -89,15 +89,18 @@ function rowsOf(sheet: string, shared: string[]): string[][] {
   let budget = CELLS;
   for (const row of elements(sheet, 'row')) {
     const cells: string[] = [];
+    // A cell with no reference follows the one before it, whether or not that one was placed.
+    let next = 0;
     for (const c of elements(row.body ?? '', 'c')) {
       const ref = /\br="([A-Z]+\d+)"/.exec(c.attrs)?.[1];
       const type = /\bt="([^"]+)"/.exec(c.attrs)?.[1];
       const body = c.body ?? '';
       const v = elements(body, 'v').next().value?.body;
       const value = type === 's' ? shared[Number(v)] ?? '' : type === 'inlineStr' ? textOf(body) : v !== undefined ? decode(v) : '';
-      const i = ref ? column(ref) : cells.length;
+      const i = ref ? column(ref) : next;
+      next = i + 1;
       // An empty cell placed by reference (formatting, often far to the right) takes no room: only a value is placed.
-      if (ref && !value) continue;
+      if (!value) continue;
       budget -= Math.max(1, i + 1 - cells.length);
       if (budget < 0) throw new Error(`the sheet spreads over more than ${CELLS.toLocaleString('en')} cells, far more than a questionnaire`);
       while (cells.length < i) cells.push('');
