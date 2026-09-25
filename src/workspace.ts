@@ -71,11 +71,13 @@ export function readJson<T>(root: string, rel: string, schemaName: string, probl
   if (!r) return null;
   let data: unknown;
   try { data = JSON.parse(r.text); } catch (e) { problems.push({ severity: 'error', file: rel, message: `not valid JSON: ${(e as Error).message}` }); return null; }
-  // A record whose shape is wrong is reported and left out, so the rest of the workspace still loads; code past this
-  // point relies on each record's schema.
+  // A record the code cannot read (not an object; a field missing, or an object, list or text that is something else)
+  // is reported and left out, so the rest of the workspace still loads. One whose values are merely wrong (a format, a
+  // choice, a yes/no or a number written otherwise) stays, reported, so no view loses it.
   const wrong = check(schema(schemaName), data);
-  for (const m of wrong) problems.push({ severity: 'error', file: rel, message: `${m} (left out until fixed)` });
-  if (wrong.length) return null;
+  const unreadable = typeof data !== 'object' || data === null || Array.isArray(data) || wrong.some((m) => /: must be (object|array|string), found \w+$|: is required$/.test(m));
+  for (const m of wrong) problems.push({ severity: 'error', file: rel, message: unreadable ? `${m} (left out until fixed)` : m });
+  if (unreadable) return null;
   return { path: rel, version: r.version, data: data as T };
 }
 

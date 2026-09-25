@@ -19,7 +19,7 @@ import { actDigest, readAct, signedActs, UNREADABLE } from './github.ts';
 import { loadWorkspace } from './workspace.ts';
 import { policyReading } from './signing.ts';
 import { unchangedTemplate } from './actions.ts';
-import { memberOf, type Snapshot } from './open-autonomy.ts';
+import { memberOf, readSnapshot } from './open-autonomy.ts';
 
 export const SIGNING_WORKFLOW = '.github/workflows/evidence-desk-signatures.yml';
 const tryGit = (cwd: string, ...args: string[]): string | null => { try { return git(cwd, ...args); } catch { return null; } };
@@ -37,8 +37,8 @@ function actsOf(root: string): Map<string, ActState> {
 
 // The GitHub account the Open Autonomy roster gives a person: the account whose approval is their signature.
 function loginOf(root: string, person: string): string {
-  const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
-  const login = latest ? memberOf((JSON.parse(latest.text) as Snapshot).team, person, (loadWorkspace(root).registers.people?.data.rows ?? []).map((r) => r.id))?.github : undefined;
+  const latest = readSnapshot(root);
+  const login = latest ? memberOf(latest.team, person, (loadWorkspace(root).registers.people?.data.rows ?? []).map((r) => r.id))?.github : undefined;
   if (!login) throw new Error(`${person} has no GitHub account on the imported Open Autonomy roster: a signature on GitHub is that account's approval`);
   if (!/^[A-Za-z0-9-]+$/.test(login)) throw new Error(`${login} is not a GitHub login`);
   return login;

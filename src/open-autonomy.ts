@@ -35,6 +35,17 @@ export type Snapshot = {
   vendors: string[];
 };
 
+// The project as last imported, when there is one: a file that does not read as a snapshot stops the act that needs it
+// with a plain reason, rather than a type error somewhere past it.
+export function readSnapshot(root: string): Snapshot | null {
+  const r = readVersioned(root, 'sources/open-autonomy/latest.json');
+  if (!r) return null;
+  let snap: unknown;
+  try { snap = JSON.parse(r.text); } catch { snap = undefined; }
+  if (snap === undefined || check(schema('open-autonomy'), snap).length) throw new Error('sources/open-autonomy/latest.json is not an Open Autonomy snapshot this version can read: import the project again (evidence-desk open-autonomy import)');
+  return snap as Snapshot;
+}
+
 const DOORS = ['commit', 'code-host-gate', 'platform-key'];
 const git = (repo: string, ...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 const show = (repo: string, commit: string, path: string): string | null => { try { return git(repo, 'show', `${commit}:${path}`); } catch { return null; } };

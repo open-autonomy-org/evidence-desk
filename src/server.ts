@@ -57,7 +57,8 @@ function state(root: string) {
     gaps: computeGaps(ws),
     frameworks: targetsOf(ws),
     // Each target other than SOC 2, as its view shows it; and the controls the targets need (docs/decisions/0002).
-    frameworkStates: Object.fromEntries(targetsOf(ws).filter((f) => f !== 'soc2').map((f) => [f, frameworkState(ws, f)])),
+    // A framework whose settings cannot be read has no state here; validate reports its file.
+    frameworkStates: Object.fromEntries(targetsOf(ws).filter((f) => f !== 'soc2').flatMap((f) => { try { return [[f, frameworkState(ws, f)]]; } catch { return []; } })),
     needed: [...neededControls(ws)],
     // Every framework Evidence Desk maps and what it can become; the documents held; what the trust center and a
     // published statement would say (the badges); and whether this server may publish to or read from Open Autonomy,
@@ -73,9 +74,10 @@ function state(root: string) {
       const r = readJson<Record<string, unknown>>(root, `questionnaires/${f}`, 'questionnaire', []); return r && { ...r.data, version: r.version }; }).filter((q) => q !== null),
     audits: (() => {
       const dir = join(root, 'audits');
-      return (existsSync(dir) ? readdirSync(dir) : []).filter((d) => existsSync(join(dir, d, 'engagement.json'))).map((d) => ({
+      // An engagement that cannot be read is left off the page; validate reports its file.
+      return (existsSync(dir) ? readdirSync(dir) : []).filter((d) => existsSync(join(dir, d, 'engagement.json'))).flatMap((d) => { try { return [{
         engagement: readEngagement(root, d).data, requests: listRequests(root, d).map((r) => ({ ...r.data, version: r.version })),
-        drafts: existsSync(join(dir, d, 'drafts')) ? readdirSync(join(dir, d, 'drafts')).map((f) => `audits/${d}/drafts/${f}`) : [] }));
+        drafts: existsSync(join(dir, d, 'drafts')) ? readdirSync(join(dir, d, 'drafts')).map((f) => `audits/${d}/drafts/${f}`) : [] }]; } catch { return []; } });
     })(),
     automation: (() => {
       let settings: ReturnType<typeof readSettings>['settings'] = [];

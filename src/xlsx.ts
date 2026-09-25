@@ -93,9 +93,11 @@ function rowsOf(sheet: string, shared: string[]): string[][] {
       const ref = /\br="([A-Z]+\d+)"/.exec(c.attrs)?.[1];
       const type = /\bt="([^"]+)"/.exec(c.attrs)?.[1];
       const body = c.body ?? '';
-      const v = /<v>([\s\S]*?)<\/v>/.exec(body)?.[1];
+      const v = elements(body, 'v').next().value?.body;
       const value = type === 's' ? shared[Number(v)] ?? '' : type === 'inlineStr' ? textOf(body) : v !== undefined ? decode(v) : '';
       const i = ref ? column(ref) : cells.length;
+      // An empty cell placed by reference (formatting, often far to the right) takes no room: only a value is placed.
+      if (ref && !value) continue;
       budget -= Math.max(1, i + 1 - cells.length);
       if (budget < 0) throw new Error(`the sheet spreads over more than ${CELLS.toLocaleString('en')} cells, far more than a questionnaire`);
       while (cells.length < i) cells.push('');
