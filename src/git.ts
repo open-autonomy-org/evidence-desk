@@ -91,24 +91,27 @@ function authorOf(root: string, person: string | undefined): string | undefined 
 
 // Commits the files the workspace wrote, with a message saying what changed. Returns the commit, or null when nothing
 // was written or the bytes written were already the committed ones.
-// Each file must still hold the bytes Evidence Desk wrote: one edited outside it since is not committed under its name.
+// Each file must still hold the bytes Evidence Desk wrote: one edited outside it since is left to whoever edited it, not
+// committed under Evidence Desk's name, and the commit says so.
 // A commit that fails (a file changed since, a hook refuses it, signing fails) keeps its files noted, so the app's next
 // change takes them; a command that fails says so, and its files wait for git.
 export function commitTouched(root: string, message: string, person?: string): string | null {
   const written = takeTouched(root);
   const repo = repoOf(root);
   if (!written.length || !repo) return null;
-  const paths = written.map(([r]) => `${repo.prefix}${r}`);
+  const moved = written.filter(([r, sha]) => sha !== null && (!existsSync(join(root, r)) || createHash('sha256').update(readFileSync(join(root, r))).digest('hex') !== sha)).map(([r]) => r);
+  const kept = written.filter(([r]) => !moved.includes(r));
+  if (moved.length) message += `\n\nNot committed: ${moved.join(', ')} changed on disk after Evidence Desk wrote ${moved.length === 1 ? 'it' : 'them'}.`;
+  if (!kept.length) return null;
+  const paths = kept.map(([r]) => `${repo.prefix}${r}`);
   try {
-    const moved = written.filter(([r, sha]) => sha !== null && (!existsSync(join(root, r)) || createHash('sha256').update(readFileSync(join(root, r))).digest('hex') !== sha)).map(([r]) => r);
-    if (moved.length) throw new Error(`${moved.join(', ')} changed on disk after Evidence Desk wrote ${moved.length === 1 ? 'it' : 'them'}; commit or discard that edit, then commit Evidence Desk's change with git`);
     literal(repo.top, 'add', '--', ...paths);
     if (!literal(repo.top, 'diff', '--cached', '--name-only', '--', ...paths)) return null;
     commit(repo.top, ['-m', message, '--', ...paths], authorOf(root, person));
   } catch (e) {
     const key = resolve(root);
     if (!process_.has(key)) process_.set(key, new Map());
-    for (const [r, sha] of written) process_.get(key)!.set(r, sha);
+    for (const [r, sha] of kept) process_.get(key)!.set(r, sha);
     throw new Error(`the change was written but not committed: ${(e as Error).message.split('\n').find((l) => l.trim()) ?? 'git refused it'}`);
   }
   return git(repo.top, 'rev-parse', 'HEAD');

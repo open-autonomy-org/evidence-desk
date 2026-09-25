@@ -164,11 +164,12 @@ const pairs = (vals: string[]): Record<string, string> => Object.fromEntries(val
   return [v.slice(0, i), v.slice(i + 1)];
 }));
 
-// A change prepared for someone's signature is not yet recorded, so what the command would say about it is not said.
-let preparing = false;
+// A change prepared for someone's signature is not yet recorded, so what the command would say about it is held back and
+// said only if the change turns out to sign nothing.
+let held: string[] | null = null;
 function out(json: boolean, data: unknown, text: () => string): void {
-  if (preparing) return;
-  console.log(json ? JSON.stringify(data, null, 2) : text());
+  const line = json ? JSON.stringify(data, null, 2) : text();
+  if (held) held.push(line); else console.log(line);
 }
 
 async function main(argv: string[]): Promise<number> {
@@ -187,11 +188,12 @@ async function main(argv: string[]): Promise<number> {
   // Commands that read or answer a received audit package or a firm's file are not a workspace whose history is kept.
   if (!['firm'].includes(cmd) && !(cmd === 'audit' && ['verify', 'recollect', 'package-serve'].includes(dirArg))) keepHistory(dir);
   if (signable) {
-    const signed = await prepareSignature(dir, message, person, async (at: string) => { preparing = true; try { return await command(a, cmd, at, dirArg, rest, json); } finally { preparing = false; } });
+    const said: string[] = [];
+    const signed = await prepareSignature(dir, message, person, async (at: string) => { held = said; try { return await command(a, cmd, at, dirArg, rest, json); } finally { held = null; } });
     if (signed) {
       const p = signed.prepared;
-      if (json) console.log(JSON.stringify({ prepared: p, sync_error: signed.syncError }, null, 2));
-      else console.log(p ? `Prepared for ${p.person}'s signature as ${p.branch}; its pull request opens on GitHub in a moment: ${p.url}\n${p.login} signs it by approving that pull request.` : 'It records no signature, so it was committed to the workspace as it is.');
+      if (json) console.log(p ? JSON.stringify({ prepared: p, sync_error: signed.syncError }, null, 2) : said.join('\n'));
+      else console.log(p ? `Prepared for ${p.person}'s signature as ${p.branch}; its pull request opens on GitHub in a moment: ${p.url}\n${p.login} signs it by approving that pull request.` : said.join('\n'));
       if (signed.syncError && !json) console.error(`Not yet on the remote: ${signed.syncError}`);
       return signed.result;
     }
