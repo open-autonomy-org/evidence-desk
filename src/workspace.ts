@@ -2,7 +2,7 @@
 // Nothing here writes. Each load rereads the folder, so edits made by people or other tools are always seen.
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { check, schema } from './schema.ts';
+import { check, schema, shapeErrors } from './schema.ts';
 import { parseCsv, type Table } from './csv.ts';
 import { fileHash, readVersioned } from './files.ts';
 import { criterionCategory, frameworkCatalogs, type FormTemplate } from './catalog.ts';
@@ -70,14 +70,13 @@ export function readJson<T>(root: string, rel: string, schemaName: string, probl
   const r = readVersioned(root, rel);
   if (!r) return null;
   let data: unknown;
-  try { data = JSON.parse(r.text); } catch (e) { problems.push({ severity: 'error', file: rel, message: `not valid JSON: ${(e as Error).message}` }); return null; }
-  // A record the code cannot read (not an object; a field missing, or an object, list or text that is something else)
-  // is reported and left out, so the rest of the workspace still loads; so is one with a yes/no written otherwise,
-  // which would read as yes ("false" is a text, and true), except a scoping answer, which counts only when it is true.
-  // One whose values are merely wrong (a format, a choice, a number written otherwise) stays, reported, so no view
-  // loses it.
+  try { data = JSON.parse(r.text); } catch (e) { problems.push({ severity: 'error', file: rel, message: `not valid JSON: ${(e as Error).message} (left out until fixed)` }); return null; }
+  // A record the code cannot read (not an object, a field missing, a value of another type than its readers take:
+  // shapeErrors) is reported and left out, so the rest of the workspace still loads. A scoping answer is the exception:
+  // it counts only when it is true, so one written otherwise is safe. A record whose values are of the right kind but
+  // wrong (a format, a text outside its choices) stays, reported, so no view loses it.
   const wrong = check(schema(schemaName), data);
-  const unreadable = typeof data !== 'object' || data === null || Array.isArray(data) || wrong.some((m) => /: must be (object|array|string)( or \w+)*, found \w+$|: is required$/.test(m) || (/: must be boolean, found \w+$/.test(m) && !m.startsWith('answers.')));
+  const unreadable = shapeErrors(schema(schemaName), data).some((e) => !(e.path.startsWith('answers.') && schemaName === 'scope'));
   for (const m of wrong) problems.push({ severity: 'error', file: rel, message: unreadable ? `${m} (left out until fixed)` : m });
   if (unreadable) return null;
   return { path: rel, version: r.version, data: data as T };

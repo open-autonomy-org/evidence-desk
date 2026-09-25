@@ -49,3 +49,28 @@ export function check(s: Schema, v: unknown, path = ''): string[] {
   }
   return out;
 }
+
+// Where a value is not of the kind its readers take: a field missing, a value of another JSON type (a text where a
+// number or yes/no belongs, null where a text belongs), or a choice of another type than its options. A value of the
+// right kind that is merely wrong (a date's format, a text outside its choices, a pattern) is not listed: code reads it
+// safely, and check reports it. Each entry is the value's path and the type it must have.
+export function shapeErrors(s: Schema, v: unknown, path = ''): { path: string; expected: string }[] {
+  const t = typeOf(v);
+  if (s.enum && !s.enum.includes(v)) return s.enum.some((e) => typeOf(e) === t || (typeOf(e) === 'integer' && t === 'number')) ? [] : [{ path, expected: [...new Set(s.enum.map(typeOf))].join(' or ') }];
+  if (s.const !== undefined) return typeOf(s.const) === t ? [] : [{ path, expected: typeOf(s.const) }];
+  if (s.type) {
+    const types = [s.type].flat();
+    if (!types.some((x) => t === x || (x === 'number' && t === 'integer'))) return [{ path, expected: types.join(' or ') }];
+  }
+  const out: { path: string; expected: string }[] = [];
+  if (Array.isArray(v) && s.items) v.forEach((item, i) => out.push(...shapeErrors(s.items!, item, `${path}[${i}]`)));
+  if (t === 'object') {
+    const o = v as Record<string, unknown>;
+    for (const k of s.required ?? []) if (!(k in o)) out.push({ path: path ? `${path}.${k}` : k, expected: 'present' });
+    for (const [k, val] of Object.entries(o)) {
+      const sub = s.properties?.[k] ?? (typeof s.additionalProperties === 'object' ? s.additionalProperties : undefined);
+      if (sub) out.push(...shapeErrors(sub, val, path ? `${path}.${k}` : k));
+    }
+  }
+  return out;
+}
