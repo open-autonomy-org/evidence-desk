@@ -70,7 +70,8 @@ Open Autonomy roster approved that pull request at the head commit that was merg
 that approval), or opened it themselves (the earlier door, kept for a person who records an act in a pull request of
 their own). Each row says which (`via`). An approval binds the exact commit, so it lacks the earlier door's residual,
 where a collaborator pushing to the person's branch is not told apart from them. An approval counts only where the approved head
-commit is in the history, as a merge commit keeps it; a squash-merged pull request's approval does not.
+commit can be read in the workspace's clone and holds the act as merged: a merge commit keeps it, and a squash-merged
+pull request's approval counts only if its branch was fetched.
 
 A record's own date (an approval's `approved_at`, a response's `submitted_at`) is when the act was prepared; the
 signature's time is the approval's, which attribution records (`signed_at`). A residual the workflow does not remove: a
