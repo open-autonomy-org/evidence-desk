@@ -440,7 +440,9 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
   // An issue closes as completed when what it named is met, and as not planned when it is still owed but now falls outside
   // the window: a person with obligations not yet done, or an earlier-form issue whose obligation is not done.
   const stillOwed = all_.filter((o) => o.state !== 'done');
-  const later = new Set([...stillOwed.map((o) => marker(o.who)), ...stillOwed.map((o) => `<!-- evidence-desk:obligation ${createHash('sha256').update(`${o.kind}|${o.what}|${o.who}`).digest('hex').slice(0, 16)} -->`)]);
+  const legacy = (k: string) => `<!-- evidence-desk:obligation ${createHash('sha256').update(k).digest('hex').slice(0, 16)} -->`;
+  const later = new Set([...stillOwed.map((o) => marker(o.who)), ...stillOwed.map((o) => legacy(`${o.kind}|${o.what}|${o.who}`)),
+    ...(stillOwed.some((o) => !o.who) ? [legacy('unowned||')] : [])]);
   // Close first, so an error on a later write never leaves an issue open for someone who owes nothing.
   for (const i of open) {
     const m = MARK.exec(i.body ?? '')![0];
