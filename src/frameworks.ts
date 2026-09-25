@@ -12,12 +12,12 @@ import { adopt, unanswered } from './actions.ts';
 import { loadWorkspace } from './workspace.ts';
 import { targetsOf } from './targets.ts';
 import { recordCertification } from './certifications.ts';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 export type Requirement = FrameworkRequirement;
-export type Position = { position: 'partial' | 'not met'; statement: string };
+export type Position = { position: 'partial' | 'not met'; statement: string; stated_at?: string };
 export type Settings = { schema: string; framework: string; exclusions?: Record<string, string>; mappings?: Record<string, string[]>; positions?: Record<string, Position> };
 // The frameworks mapped onto the control set by a catalog; SOC 2 keeps its own model and is always a target.
 export const FRAMEWORKS = [...frameworkCatalogs.keys()];
@@ -85,7 +85,7 @@ export function decide(root: string, id: string, requirement: string, input: { e
   // A stated position on a requirement not met: partial or not met, with what is and is not in place.
   if (input.position) {
     if (!input.position.statement.trim()) throw new Error('a position needs its statement: what is in place and what is not');
-    data.positions = { ...(data.positions ?? {}), [requirement]: { position: input.position.position, statement: input.position.statement.trim() } };
+    data.positions = { ...(data.positions ?? {}), [requirement]: { position: input.position.position, statement: input.position.statement.trim(), stated_at: clockDate().toISOString().slice(0, 10) } };
   }
   if (input.clearPosition) { const { [requirement]: _gone, ...rest } = data.positions ?? {}; data.positions = rest; }
   writeVersioned(root, `frameworks/${id}.json`, JSON.stringify(data, null, 2) + '\n', version);
@@ -93,7 +93,7 @@ export function decide(root: string, id: string, requirement: string, input: { e
 
 // `position`: the organization's position on the requirement, what a self-attestation discloses: met (ready), excluded (with
 // its reason), or a stated partial or not met; absent while none is stated for a requirement that is not ready.
-export type RequirementState = { id: string; group: string; title: string; controls: string[]; optional?: boolean; position?: 'met' | 'excluded' | 'partial' | 'not met'; statement?: string; status: 'ready' | 'gaps' | 'excluded' | 'unaddressed'; reason?: string; gaps: string[]; evidence: string[]; implementation: 'implemented' | 'partial' | 'not implemented' | 'not applicable' };
+export type RequirementState = { id: string; group: string; title: string; controls: string[]; optional?: boolean; position?: 'met' | 'excluded' | 'partial' | 'not met'; statement?: string; stated_at?: string; status: 'ready' | 'gaps' | 'excluded' | 'unaddressed'; reason?: string; gaps: string[]; evidence: string[]; implementation: 'implemented' | 'partial' | 'not implemented' | 'not applicable' };
 
 export function frameworkState(ws: Workspace, id: string, asOf = clockDate()) {
   const fw = framework(id);
@@ -101,11 +101,14 @@ export function frameworkState(ws: Workspace, id: string, asOf = clockDate()) {
   const soc2 = computeGaps(ws, asOf);
   const byControl = new Map(soc2.controls.map((c) => [c.id, c]));
   const controls = new Map(ws.controls.map((c) => [c.data.id, c.data]));
+  // The organization's stated position governs downward: a requirement it says is only partly met, or not met, is shown
+  // so even when its mapped controls are ready. Otherwise ready is met and excluded is excluded.
   const stated = (r: RequirementState): RequirementState => {
+    const p = settings.positions?.[r.id];
+    if (p && r.status !== 'excluded') return { ...r, position: p.position, statement: p.statement, ...(p.stated_at ? { stated_at: p.stated_at } : {}) };
     if (r.status === 'ready') return { ...r, position: 'met' };
     if (r.status === 'excluded') return { ...r, position: 'excluded' };
-    const p = settings.positions?.[r.id];
-    return p ? { ...r, position: p.position, statement: p.statement } : r;
+    return r;
   };
   const requirements: RequirementState[] = fw.requirements.map((r): RequirementState => {
     const mapped = [...new Set([...r.controls, ...(settings.mappings?.[r.id] ?? [])])].filter((c) => controls.has(c));
@@ -113,7 +116,7 @@ export function frameworkState(ws: Workspace, id: string, asOf = clockDate()) {
     const evidence = [...new Set(ws.evidence.filter((e) => e.data.controls.some((c) => applicable.includes(c))).map((e) => e.data.id))];
     const base = { id: r.id, group: r.group, title: r.title, controls: applicable, evidence, ...(r.optional ? { optional: true } : {}) };
     if (settings.exclusions?.[r.id]) return { ...base, status: 'excluded' as const, reason: settings.exclusions[r.id], gaps: [], implementation: 'not applicable' as const };
-    if (!applicable.length && mapped.length) return { ...base, status: 'excluded' as const, reason: mapped.map((c) => `${c}: ${controls.get(c)!.exclusion_reason}`).join(' '), gaps: [], implementation: 'not applicable' as const };
+    if (!applicable.length && mapped.length) return { ...base, status: 'excluded' as const, reason: mapped.map((c) => `${c}: ${controls.get(c)!.exclusion_reason ?? 'excluded without a reason'}`).join(' '), gaps: [], implementation: 'not applicable' as const };
     if (!applicable.length) return { ...base, status: 'unaddressed' as const, gaps: ['no control addresses this requirement: map a control to it, or exclude it with a reason'], implementation: 'not implemented' as const };
     const gaps = applicable.filter((c) => (byControl.get(c)?.gaps.length ?? 1) > 0).map((c) => `${c} is not ready`);
     const done = applicable.filter((c) => controls.get(c)!.status === 'implemented').length;
@@ -156,20 +159,24 @@ export function attest(root: string, id: string, by: string): { certification: s
   if (open.length) throw new Error(`${open.length} requirement(s) have no position; make each ready, exclude it with a reason, or state its position (framework <dir> ${id} position <requirement> --partial|--not-met --statement <text>): ${open.map((r) => r.id).join(', ')}`);
   const org = ws.manifest?.data.organization ?? '';
   const day = clockDate().toISOString().slice(0, 10);
-  const shown = st.requirements.filter((r) => r.position);
+  // Every requirement is shown; an optional one without a position says so.
+  const shown = st.requirements;
   const counts: Record<string, number> = { met: 0, excluded: 0, partial: 0, 'not met': 0 };
-  for (const r of shown) if (!r.optional) counts[r.position!]++;
-  const cell = (s: string) => s.replace(/\|/g, '\\|').replace(/\n/g, ' ');
-  const basis = (r: RequirementState) => r.position === 'met' ? `Controls ${r.controls.join(', ')}; evidence ${r.evidence.join(', ') || 'none recorded'}` : r.position === 'excluded' ? r.reason ?? '' : r.statement ?? '';
+  for (const r of shown) if (!r.optional && r.position) counts[r.position]++;
+  const cell = (s: string) => s.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/[\r\n]+/g, ' ');
+  const basis = (r: RequirementState) => !r.position ? 'No position stated (optional)' : r.stated_at && (r.position === 'partial' || r.position === 'not met') ? `${r.statement ?? ''} (stated ${r.stated_at})` : r.position === 'met' ? `Controls ${r.controls.join(', ')}; evidence ${r.evidence.join(', ') || 'none recorded'}` : r.position === 'excluded' ? r.reason ?? '' : r.statement ?? '';
   const groups = [...new Set(shown.map((r) => r.group))];
   const text = [`# ${fw.title}: self-attestation of ${org}`, '',
     `${person.name || by} (${by}) attests for ${org} on ${day} that the position stated below for each requirement of ${fw.title} (${fw.version}) is true. This is the organization's own statement, made from its compliance records; it is not an audit or a certification.`, '',
     `Summary: ${counts.met} met, ${counts.excluded} excluded, ${counts.partial} partly met, ${counts['not met']} not met${st.summary.optional ? `; optional requirements are listed where a position is stated` : ''}. Source: ${fw.source.name}${fw.source.url ? `, ${fw.source.url}` : ''}.`, '',
     ...groups.flatMap((g) => [`## ${g}`, '', '| Requirement | Position | Basis |', '|---|---|---|',
-      ...shown.filter((r) => r.group === g).map((r) => `| ${r.id} ${cell(r.title)}${r.optional ? ' (optional)' : ''} | ${r.position} | ${cell(basis(r))} |`), '']),
+      ...shown.filter((r) => r.group === g).map((r) => `| ${r.id} ${cell(r.title)}${r.optional ? ' (optional)' : ''} | ${r.position ?? 'none'} | ${cell(basis(r))} |`), '']),
     `Signed: ${person.name || by} (${by}), ${day}.`, ''].join('\n');
-  const tmp = join(mkdtempSync(join(tmpdir(), 'attest-')), `${id}-attestation.md`);
+  const dir = mkdtempSync(join(tmpdir(), 'attest-'));
+  const tmp = join(dir, `${id}-attestation.md`);
   writeFileSync(tmp, text);
-  const c = recordCertification(root, { framework: fw.title, kind: 'self-attestation', issuer: org || 'the organization', issued_on: day, target: id, file: tmp, by });
-  return { certification: c.id, file: c.file, counts };
+  try {
+    const c = recordCertification(root, { framework: fw.title, kind: 'self-attestation', issuer: org || 'the organization', issued_on: day, target: id, file: tmp, by, rendered: true });
+    return { certification: c.id, file: c.file, counts };
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 }

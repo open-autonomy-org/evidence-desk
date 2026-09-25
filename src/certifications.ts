@@ -16,8 +16,12 @@ export type Certification = { schema: string; id: string; framework: string; kin
 
 const DIR = 'certifications';
 
-export function recordCertification(root: string, input: { framework: string; kind: Certification['kind']; issuer: string; issued_on: string; period?: { start: string; end: string }; valid_until?: string; target?: string; file: string; by: string }): Certification {
+export function recordCertification(root: string, input: { framework: string; kind: Certification['kind']; issuer: string; issued_on: string; period?: { start: string; end: string }; valid_until?: string; target?: string; file: string; by: string; rendered?: boolean }): Certification {
   if (input.target && !frameworkDescriptions.some((f) => f.id === input.target)) throw new Error(`${input.target} is not a framework Evidence Desk maps; available: ${frameworkDescriptions.map((f) => f.id).join(', ')}`);
+  // A self-attestation for a framework that becomes one is made by attest, which refuses while a requirement has no
+  // position; an uploaded document cannot stand in for it (docs/decisions/0002-frameworks-are-targets.md).
+  if (input.kind === 'self-attestation' && input.target && frameworkDescriptions.find((f) => f.id === input.target)?.outcome === 'self-attestation' && !input.rendered)
+    throw new Error(`a self-attestation for ${input.target} is signed with: evidence-desk frameworks <dir> attest ${input.target} --by <person>`);
   if (!(loadWorkspace(root).registers.people?.data.rows ?? []).some((r) => r.id === input.by)) throw new Error(`${input.by || '(none)'} is not in registers/people.csv`);
   if (!existsSync(input.file)) throw new Error(`${input.file} does not exist`);
   if (input.kind === 'certificate' && !input.valid_until) throw new Error('a certificate needs --valid-until, the date it expires');

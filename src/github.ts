@@ -12,6 +12,7 @@ import type { Snapshot } from './open-autonomy.ts';
 import { clockDate, now } from './clock.ts';
 import { neededControls } from './targets.ts';
 import { certifications } from './certifications.ts';
+import { frameworkDescriptions } from './catalog.ts';
 
 const API = 'https://api.github.com';
 
@@ -300,8 +301,8 @@ export function signedActs(root: string): Act[] {
     extract: (rows) => { const x = rowOf(rows, v.id); return x?.last_review ? { vendor: v.id, last_review: x.last_review } : null; }, personAt: (rows) => rowOf(rows, v.id)?.owner ?? '' });
   // A self-attestation Evidence Desk rendered (it names its target): the act of the person it records as signing, bound to
   // the document by its hash.
-  for (const c of certifications(root)) if (c.kind === 'self-attestation' && c.target) acts.push({ key: `attestation:${c.id}`, kind: 'attestation', file: `certifications/${c.id}.json`, person: c.recorded_by,
-    label: `${c.framework} self-attestation of ${c.issued_on}`, extract: (x) => x?.sha256 ? { target: x.target, issued_on: x.issued_on, sha256: x.sha256 } : null });
+  for (const c of certifications(root)) if (c.kind === 'self-attestation' && c.target && frameworkDescriptions.find((f) => f.id === c.target)?.outcome === 'self-attestation') acts.push({ key: `attestation:${c.id}`, kind: 'attestation', file: `certifications/${c.id}.json`, person: c.recorded_by,
+    label: `${c.framework} self-attestation of ${c.issued_on}`, extract: (x) => x?.sha256 ? { target: x.target, issued_on: x.issued_on, recorded_by: x.recorded_by, sha256: x.sha256 } : null });
   return acts;
 }
 export type AttributionStatus = 'verified' | 'names no one' | 'no GitHub account on the roster' | 'not on the default branch' | 'changed since merged'
@@ -369,7 +370,7 @@ export async function collectAttribution(root: string, input: { repo: string; by
   }
   const rel = 'sources/github/attribution.json';
   const record = { schema: 'evidence-desk.attribution/1', repo: input.repo, branch, workspace_path: prefix, checked_at: now(), roster_commit: snap.commit,
-    hashing: 'value_sha256 is the SHA-256 of JSON.stringify of the act as extracted from its file: a form response is the whole parsed file; an access review {status, signed_off_at, accounts}; a policy approval its version entry; an incident closure {status, review, closed_at, closed_by}; a risk decision {risk, treatment}; a vendor review {vendor, last_review}',
+    hashing: 'value_sha256 is the SHA-256 of JSON.stringify of the act as extracted from its file: a form response is the whole parsed file; an access review {status, signed_off_at, accounts}; a policy approval its version entry; an incident closure {status, review, closed_at, closed_by}; a risk decision {risk, treatment}; a vendor review {vendor, last_review}; an attestation {target, issued_on, recorded_by, sha256}',
     rows };
   writeVersioned(root, rel, JSON.stringify(record, null, 2) + '\n', readVersioned(root, rel)?.version ?? null);
   // The check's rows are kept as a file for the audit, not recorded as evidence of the acts' controls: evidence dates

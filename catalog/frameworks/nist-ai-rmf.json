@@ -9,7 +9,7 @@
   "name": "NIST AI 100-1, Artificial Intelligence Risk Management Framework (AI RMF 1.0)",
   "url": "https://doi.org/10.6028/NIST.AI.100-1"
  },
- "note": "The AI RMF Core's 72 subcategories, with short titles written by this project, mapped onto the control library. NIST's text is in the public domain; read the full subcategory text and the Playbook's suggested actions at the source. There is no certification: an organization self-assesses against it and signs its own attestation.",
+ "note": "The AI RMF Core's 72 subcategories, with short titles written by this project, mapped onto the control library. NIST's text is in the public domain; read the full subcategory text and the Playbook's suggested actions at the source. There is no certification: an organization self-assesses against it and signs its own attestation. A subcategory no control in the library genuinely covers maps to none, so the organization states its position on it (or maps a control of its own).",
  "requirements": [
   {
    "id": "GOVERN 1.1",
@@ -84,9 +84,7 @@
    "id": "GOVERN 2.2",
    "group": "Govern",
    "title": "AI risk management training",
-   "controls": [
-    "HR-02"
-   ]
+   "controls": []
   },
   {
    "id": "GOVERN 2.3",
@@ -100,9 +98,7 @@
    "id": "GOVERN 3.1",
    "group": "Govern",
    "title": "AI risk decisions informed by a diverse team",
-   "controls": [
-    "AI-04"
-   ]
+   "controls": []
   },
   {
    "id": "GOVERN 3.2",
@@ -185,9 +181,7 @@
    "id": "MAP 1.2",
    "group": "Map",
    "title": "Context set by interdisciplinary actors",
-   "controls": [
-    "AI-04"
-   ]
+   "controls": []
   },
   {
    "id": "MAP 1.3",
@@ -359,9 +353,7 @@
    "id": "MEASURE 2.2",
    "group": "Measure",
    "title": "Evaluations with people meet human-subject requirements",
-   "controls": [
-    "AI-06"
-   ]
+   "controls": []
   },
   {
    "id": "MEASURE 2.3",
@@ -435,18 +427,13 @@
    "id": "MEASURE 2.11",
    "group": "Measure",
    "title": "Fairness and bias evaluated",
-   "controls": [
-    "AI-04",
-    "AI-06"
-   ]
+   "controls": []
   },
   {
    "id": "MEASURE 2.12",
    "group": "Measure",
    "title": "Environmental impact assessed",
-   "controls": [
-    "AI-04"
-   ]
+   "controls": []
   },
   {
    "id": "MEASURE 2.13",
@@ -501,9 +488,7 @@
    "id": "MEASURE 4.3",
    "group": "Measure",
    "title": "Performance changes tracked",
-   "controls": [
-    "MON-01"
-   ]
+   "controls": []
   },
   {
    "id": "MANAGE 1.1",
@@ -544,9 +529,7 @@
    "id": "MANAGE 2.1",
    "group": "Manage",
    "title": "Resources and non-AI alternatives considered",
-   "controls": [
-    "AI-04"
-   ]
+   "controls": []
   },
   {
    "id": "MANAGE 2.2",
@@ -604,9 +587,7 @@
    "id": "MANAGE 4.2",
    "group": "Manage",
    "title": "Continual improvement built into updates",
-   "controls": [
-    "MON-01"
-   ]
+   "controls": []
   },
   {
    "id": "MANAGE 4.3",
