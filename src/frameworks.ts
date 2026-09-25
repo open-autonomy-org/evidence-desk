@@ -127,11 +127,11 @@ export function decide(root: string, id: string, requirement: string, input: { e
       // Shown as excluded without an exclusion of its own when every control mapped to it is not applicable.
       const mapped = [...new Set([...req.controls, ...(data.mappings?.[requirement] ?? [])])].map((c) => ws.controls.find((x) => x.data.id === c)?.data).filter((c) => c !== undefined);
       return mapped.length && mapped.every((c) => !c.applicable)
-        ? `${requirement} is excluded because its controls do not apply (${mapped.map((c) => c.id).join(', ')}); include those controls to include it. Nothing changed.`
+        ? `${requirement} is excluded because its controls do not apply (${mapped.map((c) => c.id).join(', ')}); to include it, include one of those controls or change the scoping answer that excludes them. Nothing changed.`
         : `${requirement} is not excluded; nothing changed.`;
     }
     if (input.clearPosition) return `${requirement} had no stated position; nothing changed.`;
-    if (input.controls) return `${input.controls.join(', ')} already map${input.controls.length === 1 ? 's' : ''} to ${requirement}; nothing changed.`;
+    if (input.controls) { const named = [...new Set(input.controls)]; return `${named.join(', ')} already map${named.length === 1 ? 's' : ''} to ${requirement}; nothing changed.`; }
     return `${requirement} already says that; nothing changed.`;
   }
   writeVersioned(root, `frameworks/${id}.json`, JSON.stringify(data, null, 2) + '\n', version);
@@ -147,6 +147,7 @@ export function stateNotMet(root: string, id: string, requirements: string[], st
   for (const r of requirements) if (!fw.requirements.some((x) => x.id === r)) throw new Error(`${r} is not a requirement of ${fw.title}`);
   const { data, version } = readSettings(root, id);
   const stated = requirements.filter((r) => !data.positions?.[r] && !data.exclusions?.[r]);
+  if (!stated.length) return stated;
   const stated_at = clockDate().toISOString().slice(0, 10);
   data.positions = { ...(data.positions ?? {}), ...Object.fromEntries(stated.map((r) => [r, { position: 'not met' as const, statement: statement.trim(), stated_at }])) };
   writeVersioned(root, `frameworks/${id}.json`, JSON.stringify(data, null, 2) + '\n', version);
