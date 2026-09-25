@@ -88,7 +88,9 @@ export async function prepareSignature<T>(root: string, message: string, person:
     const acts = changed.map(([key, v]) => ({ key, label: v.label, kind: v.kind, file: v.file }));
     // The packet is the head commit's message: the workflow opens the pull request with it, and the history keeps it
     // beside the change it describes.
-    const title = acts.length === 1 ? `Sign: ${acts[0].label}` : `Sign: ${acts.length} acts`;
+    const KIND: Record<string, string> = { 'policy-approval': 'policy approvals', 'risk-decision': 'risk treatments', 'vendor-review': 'vendor reviews', response: 'form responses', 'access-review': 'access review sign-offs', 'incident-closure': 'incident closures', attestation: 'self-attestations' };
+    const kinds = [...new Set(acts.map((x) => x.kind))];
+    const title = acts.length === 1 ? `Sign: ${acts[0].label}` : `Sign: ${kinds.length === 1 ? `${acts.length} ${KIND[kinds[0]] ?? 'acts'}` : `${acts.length} acts`}`;
     if (!commitTouched(at, unskippable(`${title}\n\n${packet(root, at, signer, acts, prefix)}`))) return { result, prepared: null, syncError };
     const head = `sign/${login}/${acts[0].key.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)}-${git(wt, 'rev-parse', '--short=7', 'HEAD')}`;
     try { git(wt, 'push', '-q', 'origin', `HEAD:refs/heads/${head}`); }

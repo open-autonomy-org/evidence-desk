@@ -199,7 +199,9 @@ export function stillTemplate(id: string, text: string, answers: Record<string, 
 // A text that is still the catalog template is approved only when its approver confirms it is true of how the
 // organization operates (`asIs`); the catalog's drafting comment is then removed in the same act, and the approval's
 // evidence says the template was approved as is. Every check runs before anything is written.
-export function approvePolicy(root: string, id: string, approvedBy: string, textVersion: string, recordVersion: string, asIs = false): number {
+// Everything an approval checks, before anything is written: the texts as read, the approver, placeholders, the template
+// gate. Returns what the approval would write.
+function approvalPlan(root: string, id: string, approvedBy: string, textVersion: string, recordVersion: string, asIs: boolean) {
   const rel = `policies/${id}.json`;
   const rec = readRecord<Policy>(root, rel);
   if (rec.version !== recordVersion) throw new Error(`${rel} changed on disk since it was read; reload it and approve again`);
@@ -210,7 +212,7 @@ export function approvePolicy(root: string, id: string, approvedBy: string, text
   const people = loadWorkspace(root).registers.people?.data.rows.map((r) => r.id) ?? [];
   if (!people.includes(approvedBy)) throw new Error(`approver ${approvedBy} is not in registers/people.csv`);
   const left = placeholders(text.text);
-  if (left.length) throw new Error(`fill in ${left.map((p) => `{{${p}}}`).join(', ')} before approving`);
+  if (left.length) throw new Error(`fill in ${left.map((p) => `{{${p}}}`).join(', ')} in policies/${id}.md before approving`);
   const answers = loadWorkspace(root).scope?.data.answers ?? {};
   const template = stillTemplate(id, text.text, answers);
   const unchanged = unchangedTemplate(id, text.text, answers);
@@ -218,20 +220,42 @@ export function approvePolicy(root: string, id: string, approvedBy: string, text
   const body = text.text.replace(DRAFTING, '');
   const bodyVersion = sha256(body);
   const last = rec.data.versions.at(-1);
-  if (last && last.sha256 === bodyVersion) throw new Error(`version ${last.version} already approved this exact text`);
+  if (last && last.sha256 === bodyVersion) throw new Error(`version ${last.version} of ${id} already approved this exact text`);
   const version = (last?.version ?? 0) + 1;
   const archived = `policies/archive/${id}.v${version}.md`;
+  if (readVersioned(root, archived)) throw new Error(`${archived} already exists; it would be overwritten by this approval`);
   const next = { ...rec.data, versions: [...rec.data.versions, { version, approved_by: approvedBy, approved_at: now(), sha256: bodyVersion, archived }] };
   valid('policy', next, rel);
-  if (body !== text.text) writeVersioned(root, `policies/${id}.md`, body, text.version);
-  writeVersioned(root, archived, body, null);
-  writeVersioned(root, rel, pretty(next), rec.version);
+  return { id, rel, rec, text, body, version, archived, next, template, unchanged, approvedBy };
+}
+
+function writeApproval(root: string, p: ReturnType<typeof approvalPlan>): void {
+  if (p.body !== p.text.text) writeVersioned(root, `policies/${p.id}.md`, p.body, p.text.version);
+  writeVersioned(root, p.archived, p.body, null);
+  writeVersioned(root, p.rel, pretty(p.next), p.rec.version);
   // The approval is GOV-04's evidence, as a passed form response is its form's.
   if (neededControls(loadWorkspace(root)).has('GOV-04')) addEvidence(root, {
-    title: `Policy ${id} version ${version} approved by ${approvedBy}${unchanged ? ', the catalog template confirmed as is' : template ? ', adapted from the catalog template' : ''}`, controls: ['GOV-04'], files: [archived], recorded_by: approvedBy,
-    source: { kind: 'evidence-desk', name: 'policy-approval' }, collected_at: next.versions.at(-1)!.approved_at,
+    title: `Policy ${p.id} version ${p.version} approved by ${p.approvedBy}${p.unchanged ? ', the catalog template confirmed as is' : p.template ? ', adapted from the catalog template' : ''}`, controls: ['GOV-04'], files: [p.archived], recorded_by: p.approvedBy,
+    source: { kind: 'evidence-desk', name: 'policy-approval' }, collected_at: p.next.versions.at(-1)!.approved_at,
   });
-  return version;
+}
+
+export function approvePolicy(root: string, id: string, approvedBy: string, textVersion: string, recordVersion: string, asIs = false): number {
+  const p = approvalPlan(root, id, approvedBy, textVersion, recordVersion, asIs);
+  writeApproval(root, p);
+  return p.version;
+}
+
+// Several policies approved in one change, as one signature: every one is checked before any is written.
+export function approvePolicies(root: string, ids: string[], approvedBy: string, asIs = false): { id: string; version: number }[] {
+  if (new Set(ids).size !== ids.length) throw new Error('a policy is named twice');
+  const plans = ids.map((id) => {
+    const text = readVersioned(root, `policies/${id}.md`), rec = readVersioned(root, `policies/${id}.json`);
+    if (!text || !rec) throw new Error(`policy ${id} does not exist`);
+    return approvalPlan(root, id, approvedBy, text.version, rec.version, asIs);
+  });
+  for (const p of plans) writeApproval(root, p);
+  return plans.map((p) => ({ id: p.id, version: p.version }));
 }
 
 export function saveRegisterRow(root: string, name: RegisterName, row: Record<string, string>, version: string, replaceId?: string): void {
