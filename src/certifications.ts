@@ -25,7 +25,8 @@ export function recordCertification(root: string, input: { framework: string; ki
   // The name the document gives cannot contradict its target (the badge says the name), and a record made without
   // --target is held to the framework its name names, so naming one cannot pass its gate.
   const named = namedFramework(input.framework);
-  if (input.target && named && named !== input.target) throw new Error(`"${input.framework}" names ${named}, not ${input.target}: record it for the framework it names`);
+  const titleOf = (id: string) => frameworkDescriptions.find((f) => f.id === id)?.title ?? id;
+  if (input.target && named && named !== input.target) throw new Error(`"${input.framework}" names ${titleOf(named)}, not ${titleOf(input.target)}: give the document's name for ${titleOf(input.target)}, or record it for the framework it names`);
   const target = frameworkOf(input);
   if (target && frameworkDescriptions.find((f) => f.id === target)?.outcome === 'self-attestation' && !(input.rendered && input.kind === 'self-attestation'))
     throw new Error(`${target} has no audit or certificate; its self-attestation is signed with: evidence-desk frameworks <dir> attest ${target} --by <person>`);

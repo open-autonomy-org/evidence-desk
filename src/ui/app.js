@@ -190,7 +190,7 @@ function frameworkPage(f) {
       h('div', { class: 'stat' }, h('b', {}, sm.shared_evidence), h('span', {}, 'evidence records also serving SOC 2'))),
     selfAttest ? h('div', { class: 'card' }, h('h2', { style: 'margin-top:0' }, 'Sign the self-attestation'),
       h('p', { class: 'muted' }, 'A requirement is met when it is ready, excluded with a reason, or given a position below (partly met or not met, with what is in place). The signed document discloses every requirement; its badge says self-attested and lasts a year.'),
-      unpositioned.length ? [h('p', {}, pill(`${unpositioned.length} requirement${unpositioned.length === 1 ? '' : 's'} still need a position`, 'warn')), bulk] : h('p', {}, pill('every requirement has a position', 'ok')),
+      unpositioned.length ? [h('p', {}, pill(`${unpositioned.length} ${unpositioned.length === 1 ? 'requirement still needs' : 'requirements still need'} a position`, 'warn')), bulk] : h('p', {}, pill('every requirement has a position', 'ok')),
       h('div', { class: 'row' }, h('div', { style: 'flex:1' }, signBy), h('button', { class: 'primary', disabled: unpositioned.length > 0, onclick: async () => {
         const r = await post('/api/frameworks/attest', { id: f.id, by: signBy.value }, null);
         if (r) notice(`Signed: ${r.result.counts.met} met, ${r.result.counts.excluded} excluded, ${r.result.counts.partial} partly met, ${r.result.counts['not met']} not met. Merge it through your own pull request so attribution can check it.`, true); } }, 'Sign'))) : recordCard(f),
@@ -855,8 +855,8 @@ function badgesCard() {
           h('div', { class: 'row' }, h('button', { class: 'primary', disabled: !S.trust?.publish?.report, onclick: async () => {
             const res = await post('/api/trust/publish', {}, null);
             if (res) { published = res.result; render(); notice(res.result.unchanged ? 'Published: nothing changed since the last time.' : `Published revision ${res.result.revision?.revision}.`, true); } } }, 'Publish to Open Autonomy')),
-          published?.page ? h('div', {}, h('p', {}, 'It shows on ', h('a', { href: published.page, target: '_blank', rel: 'noopener' }, 'the project\'s dashboard'), ' under "Stated by the owner".',
-              published.readme ? ' To show the badge row in the project\'s README, add this line; each badge leaves it when its date passes:' : ' Its README cannot show the badge row: its badge image did not answer signed out (a README\'s images are fetched signed out), usually because the project\'s dashboard: word keeps statements from the public.'),
+          published?.page ? h('div', {}, h('p', {}, 'It shows on ', h('a', { href: published.page, target: '_blank', rel: 'noopener' }, 'the project\'s dashboard'), published.readme ? ' under "Stated by the owner".' : ' under "Stated by the owner", to those the project lets see it.',
+              published.readme ? ' To show the badge row in the project\'s README, add this line; each badge leaves it when its date passes:' : ' Its README cannot show the badge row: its badge image did not answer signed out (a README\'s images are fetched signed out), usually because the project\'s .open-autonomy/config.yaml keeps statements from the public (dashboard: visibility private, or statements: team).'),
             published.readme ? h('pre', { style: 'white-space:pre-wrap;word-break:break-all' }, published.readme) : null) : null,
           S.trust?.publish?.report ? null : h('p', { class: 'muted' }, 'trust.json does not publish the audits and certifications section, so there is nothing to publish.'))
       : h('p', { class: 'muted' }, 'To publish to the Open Autonomy project, start Evidence Desk with OPEN_AUTONOMY_BASE_URL and OPEN_AUTONOMY_KEY (the project\'s steer key, kept with the workspace, never in the project) in its environment.'));
