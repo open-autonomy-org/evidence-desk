@@ -2,7 +2,7 @@
 // GitHub organization and the Cloudflare account, from the daily snapshots of their member lists (the vendors' own
 // answers), each with the exact time and actor the Cloudflare audit log records where it has one, and joined to the
 // person the people register names, so onboarding and offboarding timing can be tested against it.
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseCsv, writeCsv } from './csv.ts';
 import { writeVersioned } from './files.ts';
@@ -14,7 +14,7 @@ export function collectAccessChanges(root: string, input: { start: string; end: 
   const controls = evidencing(root, 'access-changes', ['AC-02', 'HR-03', 'HR-04']);
   const ws = loadWorkspace(root);
   const people = ws.registers.people?.data.rows ?? [];
-  const latest = existsSync(join(root, 'sources/open-autonomy/latest.json')) ? JSON.parse(readFileSync(join(root, 'sources/open-autonomy/latest.json'), 'utf8')) as { team?: { id: string; github?: string }[] } : {};
+  const latest = { team: ws.openAutonomy?.data.team };
   const services = new Set((ws.registers.systems?.data.rows ?? []).filter((x) => /service account/i.test(x.kind ?? '')).map((x) => (x.name ?? '').toLowerCase()));
   const agents = new Set((ws.registers.systems?.data.rows ?? []).filter((x) => /agent/i.test(x.kind ?? '')).map((x) => (x.name ?? '').toLowerCase()));
   const personOf = (account: string) => { const l = account.toLowerCase();

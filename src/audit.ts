@@ -11,7 +11,6 @@ import { parseCsv, writeCsv } from './csv.ts';
 import { fileHash, inside, readVersioned, sha256, writeVersioned } from './files.ts';
 import { categories, categoryAnswer, criteria } from './catalog.ts';
 import { computeGaps } from './gaps.ts';
-import type { Snapshot } from './open-autonomy.ts';
 import { loadWorkspace, type Workspace } from './workspace.ts';
 import { accessChanges, buildViews } from './packet.ts';
 import { now } from './clock.ts';
@@ -162,9 +161,8 @@ function periodPopulation(ws: Workspace, e: Engagement, kind: 'changes to' | 'de
 const tally = (xs: string[]) => [...xs.reduce((m, x) => m.set(x, (m.get(x) ?? 0) + 1), new Map<string, number>())].map(([k, n]) => `${k || '(unknown)'} ${n}`).join(', ');
 
 function openAutonomySection(ws: Workspace, e: Engagement): string {
-  const latest = readVersioned(ws.root, 'sources/open-autonomy/latest.json');
-  if (!latest) return '';
-  const snap = JSON.parse(latest.text) as Snapshot;
+  if (!ws.openAutonomy) return '';
+  const snap = ws.openAutonomy.data;
   const holders = (scope: string) => snap.team.filter((m) => m.scopes.includes(scope)).map((m) => m.name).join(', ') || '[no one holds it]';
   const prod = snap.rules.production_deploy;
   return `

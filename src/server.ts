@@ -5,9 +5,9 @@ import { readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { addEvidenceUpload, adopt, approvePolicy, savePolicyText, saveRegisterRow, setPolicyOwner, setScope, updateControl } from './actions.ts';
 import { categories, criteria, questions } from './catalog.ts';
-import { ConflictError, inside, readVersioned, writeVersioned } from './files.ts';
+import { ConflictError, inside, writeVersioned } from './files.ts';
 import { computeGaps } from './gaps.ts';
-import { importOpenAutonomy, seamFindings, type Snapshot } from './open-autonomy.ts';
+import { importOpenAutonomy, seamFindings } from './open-autonomy.ts';
 import { existsSync, readdirSync } from 'node:fs';
 import { COLLECTORS, checkTitle, configureCollector, readSettings, runChecks } from './automation.ts';
 import { actOnRequest, draft, exportPackage, importReturn, listRequests, readEngagement } from './audit.ts';
@@ -26,7 +26,7 @@ import { tmpdir } from 'node:os';
 import { neededControls, targetsOf } from './targets.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { schema } from './schema.ts';
-import { loadWorkspace, REGISTERS, type RegisterName } from './workspace.ts';
+import { loadWorkspace, readJson, REGISTERS, type RegisterName } from './workspace.ts';
 
 const UI = join(import.meta.dirname, 'ui');
 const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
@@ -68,9 +68,9 @@ function state(root: string) {
     ...(() => { try { return { certifications: certifications(root).map((c) => ({ ...c, for: frameworkOf(c) ?? null })), report: reportOf(root), documentsError: null }; }
       catch (e) { return { certifications: [], report: null, documentsError: (e as Error).message }; } })(),
     openAutonomyKey: Boolean(process.env.OPEN_AUTONOMY_BASE_URL && process.env.OPEN_AUTONOMY_KEY),
-    trust: (() => { const t = readVersioned(root, 'trust.json'); return t ? JSON.parse(t.text) : null; })(),
+    trust: readJson<Record<string, unknown>>(root, 'trust.json', 'trust', [])?.data ?? null, // this one and the questionnaires are validated with the workspace
     questionnaires: (existsSync(join(root, 'questionnaires')) ? readdirSync(join(root, 'questionnaires')).filter((f) => f.endsWith('.json')).sort() : []).map((f) => {
-      const r = readVersioned(root, `questionnaires/${f}`)!; return { ...JSON.parse(r.text), version: r.version }; }),
+      const r = readJson<Record<string, unknown>>(root, `questionnaires/${f}`, 'questionnaire', []); return r && { ...r.data, version: r.version }; }).filter((q) => q !== null),
     audits: (() => {
       const dir = join(root, 'audits');
       return (existsSync(dir) ? readdirSync(dir) : []).filter((d) => existsSync(join(dir, d, 'engagement.json'))).map((d) => ({
@@ -85,11 +85,10 @@ function state(root: string) {
         settings: settings.find((x) => x.id === c.id) ?? null, credentialsPresent: c.credentials.every((k) => !!process.env[k]) })), runs, titles: Object.fromEntries(COLLECTORS.flatMap((c) => c.checks.map((k) => [k.id, checkTitle(k.id)]))) };
     })(),
     openAutonomy: (() => {
-      const latest = readVersioned(root, 'sources/open-autonomy/latest.json');
-      if (!latest) return null;
-      const snap = JSON.parse(latest.text) as Snapshot;
+      if (!ws.openAutonomy) return null;
+      const snap = ws.openAutonomy.data;
       const dir = join(root, 'sources/open-autonomy/completeness');
-      const checks = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readVersioned(root, `sources/open-autonomy/completeness/${f}`)!.text)) : [];
+      const checks = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => readJson(root, `sources/open-autonomy/completeness/${f}`, 'completeness', [])?.data).filter((c) => c !== undefined) : [];
       return { snapshot: snap, findings: seamFindings(snap), checks };
     })(),
   };
