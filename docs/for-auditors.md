@@ -120,15 +120,21 @@ query that produced it (evidence a person added by hand says so).
   protected tag), or a platform key no agent holds. A chat message is never the record of an act.
 - **A person's own acts** (a policy's latest approval, acknowledgments, quizzes and attestations, access review sign-off,
   incident closing, a risk's treatment, a vendor's review, a self-attestation) must reach the organization's private
-  workspace repository through a pull request that person signed: approved at the exact commit merged (Evidence Desk
-  prepares such a pull request for them, from a branch `sign/<their GitHub login>/…`), or opened themselves. The
-  attribution check reports every act that was not (pushed without a pull request, signed by no one it names, changed
-  since merged) as a finding in the gap view. It traces each act to the commit on the default branch that brought it to
-  its present content, and to the merged pull request GitHub associates with that commit, and reads that pull request's
-  reviews and author against the person's GitHub account on the roster; each row says which (`via`) and, for an
-  approval, when it was given (`signed_at`; the record's own date is when the act was prepared). An approval binds
-  the commit it was given on; where an act rests on the person having opened the pull request, a collaborator who
-  pushes to its branch is not told apart from them.
+  workspace repository through a pull request that person approved at the exact commit merged (Evidence Desk
+  prepares such a pull request for them, from a branch `sign/<their GitHub login>/…`). Opening the pull request is
+  not a signature: anyone who can push to its branch can change it afterwards, so an act the person only opened is
+  reported as "opened, not approved". The attribution check reports every act that was not signed (pushed without a
+  pull request, opened but not approved, signed by no one it names, changed since merged) as a finding in the gap
+  view. It traces each act to the commit on the default branch that brought it to its present content, and to the
+  merged pull request GitHub associates with that commit, and reads that pull request's reviews against the person's
+  GitHub account on the roster; `signed_at` is when the approval was given (the record's own date is when the act was
+  prepared). The roster is read from the Open Autonomy project's repository when the check is given `--roster`
+  (`roster_source` in `sources/github/attribution.json` names the repository and commit); otherwise from the
+  workspace's copy, which anyone who can write to the workspace can change, and the record and the gap view say so.
+  Reading it from the project's repository is only as strong as that repository's own protections: where the same
+  people can change both, it adds nothing. An approval shows
+  which GitHub account approved; whether a person or an agent holding that account's login gave it is outside what
+  the record can show.
 - **Completeness of people in scope**: each declared vendor account's administrators, read from the vendor (GitHub and
   Cloudflare) or from an export whose production is recorded, compared with the roster.
 - **Raw responses** sit beside each GitHub population (`*.raw.json`) with the account whose token read them and, for

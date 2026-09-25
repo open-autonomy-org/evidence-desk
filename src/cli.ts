@@ -84,9 +84,10 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                                           the acts an Open Autonomy project records under records/, from git
   collect <dir> nonhuman-access --repo <owner/name> --org <org> [--environment <name>] --by <person>
                                           deploy keys, secrets, app installations and agents with access (needs GITHUB_TOKEN)
-  collect <dir> attribution --repo <owner/name of the workspace's repository> --by <person>
+  collect <dir> attribution --repo <owner/name of the workspace's repository> [--roster <owner/name of the Open Autonomy project>] --by <person>
                                           whether each signed act reached the default branch through a pull request its
-                                          person approved at the merged commit, or opened themselves
+                                          person approved at the merged commit; --roster reads who is whom from the
+                                          project's repository instead of the workspace's copy
   collectors <dir> [<id> [--enable|--disable] [--set key=value ...]]
                                           show or configure the collectors (github)
   run <dir> --by <person> [--collector <id>]  collect from each enabled collector and run its checks; exits 3 if a check fails
@@ -500,9 +501,9 @@ async function command(a: Args, cmd: string, dir: string, dirArg: string, rest: 
         return 0;
       }
       if (rest[0] === 'attribution') {
-        const r = await collectAttribution(dir, { repo: one(a, 'repo') ?? '', by: one(a, 'by') ?? '' });
+        const r = await collectAttribution(dir, { repo: one(a, 'repo') ?? '', by: one(a, 'by') ?? '', ...(one(a, 'roster') ? { roster: one(a, 'roster') } : {}) });
         const bad = r.rows.filter((x) => x.status !== 'verified');
-        out(json, r, () => [`${r.rows.length - bad.length} of ${r.rows.length} signed acts recorded by the person's own GitHub account (${r.record}, ${r.file}).`, ...bad.map((x) => `  ${x.person || '(no one)'}: ${x.label}: ${x.status}${x.author ? ` (${x.author})` : ''}`)].join('\n'));
+        out(json, r, () => [`${r.rows.length - bad.length} of ${r.rows.length} signed acts approved by the person's own GitHub account at the commit merged (${r.record}, ${r.file}).`, ...bad.map((x) => `  ${x.person || '(no one)'}: ${x.label}: ${x.status}${x.author ? ` (${x.author})` : ''}`)].join('\n'));
         return 0;
       }
       if (rest[0] === 'nonhuman-access') {
@@ -762,7 +763,7 @@ async function command(a: Args, cmd: string, dir: string, dirArg: string, rest: 
     case 'frameworks': {
       if (rest[0] === 'attest') {
         const r = attest(dir, rest[1] ?? '', one(a, 'by') ?? '');
-        out(json, r, () => `Recorded ${r.certification} (${r.file}): ${r.counts.met} met, ${r.counts.excluded} excluded, ${r.counts.partial} partly met, ${r.counts['not met']} not met. Merge it through your own pull request so attribution can check it.`);
+        out(json, r, () => `Recorded ${r.certification} (${r.file}): ${r.counts.met} met, ${r.counts.excluded} excluded, ${r.counts.partial} partly met, ${r.counts['not met']} not met. Sign it by approving a pull request that someone else opens with it; attribution checks that approval.`);
         return 0;
       }
       if (rest[0] && !['available', 'target', 'drop'].includes(rest[0])) throw new Error('frameworks takes: available | target <framework> | drop <framework> | attest <framework> --by <person>');

@@ -203,7 +203,7 @@ function frameworkPage(f) {
       unpositioned.length ? [h('p', {}, pill(`${unpositioned.length} ${unpositioned.length === 1 ? 'requirement still needs' : 'requirements still need'} a position`, 'warn')), bulk] : h('p', {}, pill('every required requirement has a position', 'ok')),
       h('div', { class: 'row' }, h('div', { style: 'flex:1' }, signBy), h('button', { class: 'primary', disabled: unpositioned.length > 0, onclick: async () => {
         const r = await post('/api/frameworks/attest', { id: f.id, by: signBy.value }, null);
-        if (r) notice(`${r.prepared ? 'Prepared for signature' : 'Signed'}: ${r.result.counts.met} met, ${r.result.counts.excluded} excluded, ${r.result.counts.partial} partly met, ${r.result.counts['not met']} not met. ${r.prepared ? `It is signed by approving its pull request on GitHub as ${r.prepared.login}.` : 'Merge it through your own pull request so attribution can check it.'}`, true); } }, 'Sign'))) : recordCard(f),
+        if (r) notice(`${r.prepared ? 'Prepared for signature' : 'Signed'}: ${r.result.counts.met} met, ${r.result.counts.excluded} excluded, ${r.result.counts.partial} partly met, ${r.result.counts['not met']} not met. ${r.prepared ? `It is signed by approving its pull request on GitHub as ${r.prepared.login}.` : 'Sign it by approving a pull request that someone else opens with it; attribution checks that approval.'}`, true); } }, 'Sign'))) : recordCard(f),
     heldCard,
     h('h2', {}, `Steps still open: ${open.length}`),
     open.length ? h('table', {}, h('tr', {}, h('th', {}, 'Requirement'), h('th', {}, 'Why it is not ready'), selfAttest ? h('th', {}, 'Your position') : null),

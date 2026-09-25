@@ -149,12 +149,13 @@ themselves. A register row's decision names the row's owner as the row
 stood when the decision was made, so reassigning the row later does not move the decision. `collect attribution`
 finds, on the default branch's first-parent line (`git log --first-parent origin/<default>`), the commit that brought
 each act to its present content, and requires GitHub to associate it with a pull request merged into the default branch that the person's GitHub
-account on the roster approved at the head commit merged (their latest verdict on it), or opened; each row's `via` says
-which (`approved` or `opened`). The working file must hold the act as merged. A shallow clone is refused. A
+account on the roster approved at the head commit merged (their latest verdict on it); a pull request the person only
+opened is "opened, not approved", because anyone who can push to its branch can change it afterwards. With `--roster
+<owner/name>` the roster is read from the Open Autonomy project's repository at its default branch
+(`roster_source` records which commit); without it, from the workspace's copy, and the record says that copy can be
+changed by anyone who writes to the workspace. The working file must hold the act as merged. A shallow clone is refused. A
 roster member's act that fails this (for responses, their latest passed one per form), or changed after the check, is a
-finding in the gap view, as is a check made against an earlier roster. A collaborator who pushes a commit to a person's
-open pull request branch is not told apart from them where the act rests on the person having opened it; an approval
-binds the exact commit. A signer
+finding in the gap view, as is a check made against an earlier roster. An approval binds the exact commit. A signer
 who is not on the roster is a finding. The rows are written under `evidence/files/populations/` for the audit and are
 not recorded as evidence of any control: evidence dates decide when a periodic control is next due.
 
@@ -335,8 +336,8 @@ or a position the organization states in `frameworks/<id>.json` under `positions
 renders the attestation from the records (every requirement, its position, and the controls and evidence behind a met
 one, the reason behind an exclusion, the statement behind the rest) and records it in `certifications/` as a
 `self-attestation` with its `target` and hash. The badge says self-attested; the document discloses everything not met.
-An attestation is a signed act: merge it through your own pull request, and `collect attribution` checks it like a
-policy approval. It lapses a year after it is signed.
+An attestation is a signed act: it is signed by approving a pull request someone else opens with it (the signing
+workflow's bot, where the workspace signs on GitHub), and `collect attribution` checks it like a policy approval. It lapses a year after it is signed.
 
 ## Readiness
 

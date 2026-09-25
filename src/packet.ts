@@ -258,8 +258,10 @@ export function buildViews(root: string, ws: Workspace, e: Engagement, reqs: { d
       add({ key: `self-review:${a.data.id}:${acct.account}`, source: `access review ${a.data.id} (${a.data.system})`, controls: 'AC-03', item: acct.account, detail: `the reviewer ${a.data.reviewer} decided on their own access (${acct.decision})`, occurred: day(a.data.signed_off_at ?? ''), detected: day(a.data.signed_off_at ?? ''), resolved: '', file: `reviews/access/${a.data.id}.json` });
   // Signed acts not recorded by their own person.
   if (packaged.has('sources/github/attribution.json')) {
-    const a = JSON.parse(readFileSync(join(root, 'sources/github/attribution.json'), 'utf8')) as { checked_at: string; rows: { key: string; person: string; label: string; status: string; author: string; at?: string; committed_at?: string }[] };
-    for (const r of a.rows.filter((r) => r.status !== 'verified')) add({ key: `attribution:${r.key}`, occurred: day(r.committed_at || r.at || ''), source: 'attribution check', controls: '', item: `${r.person || '(no one)'}: ${r.label}`, detail: `${r.status}${r.author ? ` (${r.author})` : ''}`, detected: day(a.checked_at), resolved: '', file: 'sources/github/attribution.json' });
+    const a = JSON.parse(readFileSync(join(root, 'sources/github/attribution.json'), 'utf8')) as { checked_at: string; rows: { key: string; person: string; label: string; status: string; via?: string; author: string; at?: string; committed_at?: string }[] };
+    // Only an approval of the commit merged signs; a row an earlier check marked verified because its person opened the
+    // pull request is an exception like any unsigned act.
+    for (const r of a.rows.filter((r) => r.status !== 'verified' || r.via !== 'approved')) add({ key: `attribution:${r.key}`, occurred: day(r.committed_at || r.at || ''), source: 'attribution check', controls: '', item: `${r.person || '(no one)'}: ${r.label}`, detail: `${r.status === 'verified' ? 'signed only by opening its pull request' : r.status}${r.author ? ` (${r.author})` : ''}`, detected: day(a.checked_at), resolved: '', file: 'sources/github/attribution.json' });
   }
   // Administrators outside the roster, as the period's completeness checks of each account found them: one exception per
   // account and administrator, resolved on the first later check of that account that no longer finds them.
