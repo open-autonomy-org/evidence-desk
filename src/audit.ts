@@ -601,13 +601,13 @@ export function exportPackage(root: string, id: string, out: string): { files: n
   if (existsSync(out) && readdirSync(out).length) throw new Error(`${out} is not empty`);
   const ws = loadWorkspace(root);
   const reqs = listRequests(root, id);
+  const problems: string[] = [];
   // Only a regular file inside the workspace joins the package, and it is checked as it joins: a record naming a path
   // outside the workspace, or a link, is a problem and nothing of it is read.
   const paths = new (class extends Set<string> {
     add(p: string) { if (this.has(p)) return this; try { if (lstatSync(inside(root, p)).isFile()) return super.add(p); problems.push(`${p} is not a regular file in the workspace`); } catch (e) { problems.push(`${p}: ${(e as Error).message}`); } return this; }
   })([`${base(id)}/engagement.json`, ...reqs.map((r) => r.path)]);
   const draftDir = join(root, base(id), 'drafts');
-  const problems: string[] = [];
   // Drafts go to the firm only once management has finished them, and every source a draft cites travels with it.
   // A cited path must stay inside the workspace; a folder the draft cites that is empty or absent backs a "none".
   if (existsSync(draftDir)) for (const f of readdirSync(draftDir, { withFileTypes: true }).filter((x) => x.isFile()).map((x) => x.name)) {
