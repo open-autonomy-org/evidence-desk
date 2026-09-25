@@ -1,5 +1,9 @@
 #!/bin/sh
 # Runs Evidence Desk with its own Bun configuration and no environment file: a bunfig.toml or .env in the folder it is
-# run from (a workspace someone else wrote) is never loaded, so it cannot run code or set variables for it.
-ED=$(cd "$(dirname "$(realpath "$0")")/.." && pwd)
+# run from (a workspace someone else wrote) is never loaded, so it cannot run code or set variables for it. It refuses
+# to run rather than guess where Evidence Desk is.
+set -eu
+self=$(realpath "$0" 2>/dev/null) || { echo "evidence-desk: realpath is required to find Evidence Desk's own files" >&2; exit 1; }
+ED=$(cd "$(dirname "$self")/.." && pwd)
+[ -f "$ED/bunfig.toml" ] && [ -f "$ED/src/cli.ts" ] || { echo "evidence-desk: $ED is not an Evidence Desk checkout" >&2; exit 1; }
 exec bun --config="$ED/bunfig.toml" --no-env-file "$ED/src/cli.ts" "$@"
