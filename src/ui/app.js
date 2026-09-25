@@ -104,7 +104,7 @@ function statusPill(c) {
 // document recorded here, or the organization's own self-attestation, positioned and signed here.
 const OUTCOME = { 'audit report': 'an audit report', certificate: 'a certificate', 'self-attestation': 'a self-attestation you sign' };
 const docsFor = (f) => S.certifications.filter((c) => c.for === f.id);
-const documentsError = () => S.documentsError ? h('p', { style: 'color:var(--bad)' }, `The documents held cannot be read, so nothing is claimed from them: ${S.documentsError}`) : null;
+const documentsError = () => S.documentsError ? h('p', { style: 'color:var(--bad)' }, `The documents held and what they claim cannot be worked out, so nothing is claimed: ${S.documentsError}`) : null;
 // The document that stands for a framework today, as the badge says it; null when there is none.
 function docPill(f) {
   const c = docsFor(f).find((x) => x.current);
@@ -142,7 +142,7 @@ function frameworkPage(f) {
   const docs = docsFor(f);
   const heldCard = h('div', { class: 'card' }, h('h2', { style: 'margin-top:0' }, 'Documents held'),
     docs.length ? h('table', {}, h('tr', {}, h('th', {}, 'Document'), h('th', {}, 'Issued'), h('th', {}, 'State')),
-      docs.map((c) => h('tr', {}, h('td', {}, h('a', { href: `/files/${c.file}` }, `${c.kind}: ${c.framework}`), ` by ${c.issuer}`), h('td', {}, c.issued_on), h('td', {}, !c.intact ? pill('altered since recorded', 'bad') : c.current ? pill('current', 'ok') : pill('lapsed or not yet valid')))))
+      docs.map((c) => h('tr', {}, h('td', {}, h('a', { href: `/files/${c.file}` }, `${c.kind}: ${c.framework}`), ` by ${c.issuer}`), h('td', {}, c.issued_on), h('td', {}, !c.intact ? pill('altered since recorded', 'bad') : !c.fits ? pill('not a document this framework can have', 'bad') : c.current ? pill('current', 'ok') : pill('lapsed or not yet valid')))))
       : h('p', { class: 'muted' }, 'None yet. Until one is held, the trust center and the badges show readiness.'));
   if (f.id === 'soc2') return h('div', {}, back, h('h1', {}, 'SOC 2'), h('p', { class: 'lead' }, 'SOC 2\'s criteria and their state are on the Overview; the audit engagement and its package are under Audit. It becomes an audit report from an independent CPA firm.'),
     h('p', {}, h('a', { href: '#overview' }, 'Readiness by criterion →'), ' · ', h('a', { href: '#audit' }, 'Audit →')), heldCard, recordCard(f));
@@ -856,7 +856,7 @@ function badgesCard() {
             const res = await post('/api/trust/publish', {}, null);
             if (res) { published = res.result; render(); notice(res.result.unchanged ? 'Published: nothing changed since the last time.' : `Published revision ${res.result.revision?.revision}.`, true); } } }, 'Publish to Open Autonomy')),
           published?.page ? h('div', {}, h('p', {}, 'It shows on ', h('a', { href: published.page, target: '_blank', rel: 'noopener' }, 'the project\'s dashboard'), ' under "Stated by the owner".',
-              published.readme ? ' To show the badge row in the project\'s README, add this line; each badge leaves it when its date passes:' : ' Its README cannot show the badge row: the project\'s dashboard: word keeps statements from the public, and a README\'s images are fetched signed out.'),
+              published.readme ? ' To show the badge row in the project\'s README, add this line; each badge leaves it when its date passes:' : ' Its README cannot show the badge row: its badge image did not answer signed out (a README\'s images are fetched signed out), usually because the project\'s dashboard: word keeps statements from the public.'),
             published.readme ? h('pre', { style: 'white-space:pre-wrap;word-break:break-all' }, published.readme) : null) : null,
           S.trust?.publish?.report ? null : h('p', { class: 'muted' }, 'trust.json does not publish the audits and certifications section, so there is nothing to publish.'))
       : h('p', { class: 'muted' }, 'To publish to the Open Autonomy project, start Evidence Desk with OPEN_AUTONOMY_BASE_URL and OPEN_AUTONOMY_KEY (the project\'s steer key, kept with the workspace, never in the project) in its environment.'));

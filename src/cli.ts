@@ -594,7 +594,7 @@ async function main(argv: string[]): Promise<number> {
         const baseUrl = process.env.OPEN_AUTONOMY_BASE_URL, key = process.env.OPEN_AUTONOMY_KEY;
         if (!baseUrl || !key) throw new Error('trust publish needs OPEN_AUTONOMY_BASE_URL (the platform, ending in /v1) and OPEN_AUTONOMY_KEY (the project\'s steer key) in the environment');
         const r = await publishStatement(dir, { baseUrl, key });
-        const CLOSED = 'Its README cannot show the badge row: the project\'s dashboard: word keeps statements from the public, and a README\'s images are fetched signed out.';
+        const CLOSED = 'Its README cannot show the badge row: its badge image did not answer signed out (a README\'s images are fetched signed out), usually because the project\'s dashboard: word keeps statements from the public.';
         const rev = r.body.revision as { revision?: number; changes?: string[] } | undefined;
         const err = typeof r.body.error === 'string' ? r.body.error : (r.body.error as { code?: string } | undefined)?.code;
         const where = r.page ? `\nOn the project: ${r.page}\n${r.readme ? `In its README: ${r.readme}` : CLOSED}` : '';

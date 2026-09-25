@@ -57,11 +57,21 @@ export const frameworkDescriptions: FrameworkDescription[] = [SOC2, ...[...frame
 // names (SOC 2, an ISO standard by number, or another by its title without the version). The recording gate, the badges
 // and the app all read documents through this one rule.
 const nameKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+// The names a document may give a framework beyond its catalog title: the publishers' full names.
+const ALSO_NAMED: Record<string, string[]> = { 'nist-ai-rmf': ['AI Risk Management Framework'], 'nist-csf2': ['Cybersecurity Framework'], aiuc1: ['AIUC'] };
+export function namedFramework(name: string): string | undefined {
+  return frameworkDescriptions.find((f) => f.id === 'soc2' ? /soc ?2/i.test(name)
+    : /^iso\d+$/.test(f.id) ? new RegExp(`ISO.*${f.id.slice(3)}`, 'i').test(name)
+    : [f.id, f.title.replace(/[\s:v-]*\d+(\.\d+)*$/i, ''), ...(ALSO_NAMED[f.id] ?? [])].some((n) => nameKey(name).includes(nameKey(n))))?.id;
+}
 export function frameworkOf(c: { target?: string; framework: string }): string | undefined {
-  if (c.target) return c.target;
-  return frameworkDescriptions.find((f) => f.id === 'soc2' ? /soc ?2/i.test(c.framework)
-    : /^iso\d+$/.test(f.id) ? new RegExp(`ISO.*${f.id.slice(3)}`, 'i').test(c.framework)
-    : [f.id, f.title.replace(/[\s:v-]*\d+(\.\d+)*$/i, '')].some((n) => nameKey(c.framework).includes(nameKey(n))))?.id;
+  return c.target || namedFramework(c.framework);
+}
+// Whether a document of this kind can stand for the framework it is for: a framework that becomes a self-attestation has
+// no auditor and no certifying body, so only its self-attestation can.
+export function kindFits(c: { target?: string; framework: string; kind: string }): boolean {
+  const id = frameworkOf(c);
+  return !id || frameworkDescriptions.find((f) => f.id === id)?.outcome !== 'self-attestation' || c.kind === 'self-attestation';
 }
 
 // How often a control's evidence is due, by its frequency: the one table gaps and obligations both read, so a frequency

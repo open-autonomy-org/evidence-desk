@@ -9,7 +9,7 @@ import { check, schema } from './schema.ts';
 import { readVersioned, writeVersioned } from './files.ts';
 import { loadWorkspace } from './workspace.ts';
 import { now } from './clock.ts';
-import { frameworkDescriptions, frameworkOf, type Outcome } from './catalog.ts';
+import { frameworkDescriptions, frameworkOf, kindFits, namedFramework, type Outcome } from './catalog.ts';
 
 export type Certification = { schema: string; id: string; framework: string; kind: 'audit report' | 'certificate' | 'self-attestation'; issuer: string; issued_on: string;
   period?: { start: string; end: string }; valid_until?: string; target?: string; file: string; sha256: string; recorded_by: string; recorded_at: string };
@@ -22,7 +22,10 @@ export function recordCertification(root: string, input: { framework: string; ki
   // position; an uploaded document cannot stand in for it (docs/decisions/0002-frameworks-are-targets.md).
   // A framework that becomes a self-attestation has no auditor and no certifying body: its only document is the one attest
   // renders, and no other kind may be recorded for it.
-  // A record made without --target is held to the framework its name names, so naming one cannot pass its gate.
+  // The name the document gives cannot contradict its target (the badge says the name), and a record made without
+  // --target is held to the framework its name names, so naming one cannot pass its gate.
+  const named = namedFramework(input.framework);
+  if (input.target && named && named !== input.target) throw new Error(`"${input.framework}" names ${named}, not ${input.target}: record it for the framework it names`);
   const target = frameworkOf(input);
   if (target && frameworkDescriptions.find((f) => f.id === target)?.outcome === 'self-attestation' && !(input.rendered && input.kind === 'self-attestation'))
     throw new Error(`${target} has no audit or certificate; its self-attestation is signed with: evidence-desk frameworks <dir> attest ${target} --by <person>`);
@@ -48,12 +51,13 @@ export function recordCertification(root: string, input: { framework: string; ki
 
 // Every record whose document is still the file it was recorded with; a document dated after today, a certificate past its
 // date, or a self-attestation more than a year old is not current.
-export function certifications(root: string, today = now().slice(0, 10)): (Certification & { current: boolean; intact: boolean })[] {
+export function certifications(root: string, today = now().slice(0, 10)): (Certification & { current: boolean; intact: boolean; fits: boolean })[] {
   const dir = join(root, DIR);
   if (!existsSync(dir)) return [];
   return readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')) as Certification).map((c) => {
     const intact = existsSync(join(root, c.file)) && createHash('sha256').update(readFileSync(join(root, c.file))).digest('hex') === c.sha256;
-    return { ...c, intact, current: intact && c.issued_on <= today && (!c.valid_until || c.valid_until >= today) && (c.kind !== 'self-attestation' || plusYear(c.issued_on) >= today) };
+    // A kind the framework cannot have (a certificate for a framework only self-attested) stands for nothing.
+    return { ...c, intact, fits: kindFits(c), current: intact && kindFits(c) && c.issued_on <= today && (!c.valid_until || c.valid_until >= today) && (c.kind !== 'self-attestation' || plusYear(c.issued_on) >= today) };
   }).sort((a, b) => b.issued_on.localeCompare(a.issued_on));
 }
 
