@@ -70,7 +70,8 @@ function rowsOf(sheet: string, shared: string[]): string[][] {
 // that names the question's id, number or reference identifies it rather than asking it.
 const words = (h: string) => h.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_\d]+/g, ' ');
 const namesQuestion = (h: string) => /\bquestions?\b/i.test(words(h));
-const namesId = (h: string) => /#/.test(h) || /\b(id|no|nr|num|number|ref|reference)\b/i.test(words(h));
+// "No" is a number only on its own: a "(Yes/No)" heading asks a question.
+const namesId = (h: string) => /#/.test(h) || /\b(id|no|nr|num|number|ref|reference)\b/i.test(words(h).replace(/\byes\s*\/\s*no\b/gi, ''));
 export const isQuestionColumn = (h: string) => namesQuestion(h) && !namesId(h);
 export const isIdColumn = (h: string) => /^\s*(id|number|#|ref)\s*$/i.test(h) || (namesQuestion(h) && namesId(h));
 // "Question(s)" alone first, else the first heading asking a question.
@@ -90,11 +91,22 @@ export function xlsxToCsv(buf: Buffer, file: string): string {
     const rows = rowsOf(sheet, shared);
     // The header: a cell that is just "Question(s)", or a heading asking a question in a row of several headings. A
     // title ("Vendor Security Questionnaire", CSA's "…Initiative Questionnaire" beside its version stamp) names a
-    // questionnaire, not a question, and is passed over; so is a sheet with nothing under its question column.
-    const at = rows.findIndex((r) => r.some((x) => /^\s*questions?\s*$/i.test(x)) || (r.filter((x) => x.trim()).length >= 2 && r.some(isQuestionColumn)));
+    // questionnaire, not a question, and is passed over.
+    const isHeader = (r: string[]) => r.some((x) => /^\s*questions?\s*$/i.test(x)) || (r.filter((x) => x.trim()).length >= 2 && r.some(isQuestionColumn));
+    const qOf = (r: string[]) => r.indexOf(questionColumn(r)!);
+    let at = rows.findIndex(isHeader);
+    // A heading row with nothing under it gives way to the header below it: when the first cell filled under its question
+    // column is itself a column's name ("Question", "Question ID"), that row is the header. A question is never a
+    // column's name, so a question never becomes the header.
+    for (;;) {
+      if (at < 0) break;
+      const q = qOf(rows[at]);
+      const next = rows.findIndex((r, i) => i > at && (r[q] ?? '').trim());
+      if (next < 0) { at = -1; break; }
+      const cell = rows[next][q];
+      if (isHeader(rows[next]) && (/^\s*questions?\s*$/i.test(cell) || isIdColumn(cell))) at = next; else break;
+    }
     if (at < 0) continue;
-    const q = rows[at].indexOf(questionColumn(rows[at])!);
-    if (!rows.slice(at + 1).some((r) => (r[q] ?? '').trim())) continue;
     const body = rows.slice(at);
     const width = Math.max(...body.map((r) => r.length));
     const seen = new Map<string, number>();
