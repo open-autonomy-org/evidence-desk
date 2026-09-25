@@ -235,21 +235,30 @@ export function approvePolicy(root: string, id: string, approvedBy: string, text
 }
 
 export function saveRegisterRow(root: string, name: RegisterName, row: Record<string, string>, version: string, replaceId?: string): void {
+  saveRegisterRows(root, name, [replaceId === undefined ? { add: row } : { update: replaceId, set: row }], version);
+}
+
+// Several rows in one change: each addition or update is applied in turn to the register as the earlier ones left it,
+// every row checked, and the file written once, so a mistake anywhere leaves the register as it was.
+export type RegisterChange = { add: Record<string, string> } | { update: string; set: Record<string, string> };
+export function saveRegisterRows(root: string, name: RegisterName, changes: RegisterChange[], version: string): void {
   if (!REGISTERS.includes(name)) throw new Error(`${name} is not a register`);
   const ws = loadWorkspace(root);
   const reg = ws.registers[name];
   if (!reg) throw new Error(`registers/${name}.csv could not be read`);
   if (reg.version !== version) throw new Error(`registers/${name}.csv changed on disk since it was read; reload it and apply the change again`);
-  const clean = Object.fromEntries(Object.entries(row).map(([k, v]) => [k, String(v ?? '').trim()]));
-  const errs = check(schema(`register-${name}`), clean);
-  if (errs.length) throw new Error(`the row is invalid: ${errs.join('; ')}`);
   const rows = [...reg.data.rows];
-  const at = replaceId === undefined ? -1 : rows.findIndex((r) => r.id === replaceId);
-  if (replaceId !== undefined && at < 0) throw new Error(`${replaceId} is not in registers/${name}.csv`);
-  if (rows.some((r, i) => r.id === clean.id && i !== at)) throw new Error(`${clean.id} is already in registers/${name}.csv`);
   const columns = [...reg.data.columns];
-  for (const k of Object.keys(clean)) if (!columns.includes(k)) columns.push(k);
-  if (at >= 0) rows[at] = { ...rows[at], ...clean }; else rows.push(clean);
+  for (const c of changes) {
+    const at = 'update' in c ? rows.findIndex((r) => r.id === c.update) : -1;
+    if ('update' in c && at < 0) throw new Error(`${c.update} is not in registers/${name}.csv`);
+    const clean = Object.fromEntries(Object.entries({ ...(at >= 0 ? rows[at] : {}), ...('add' in c ? c.add : c.set) }).map(([k, v]) => [k, String(v ?? '').trim()]));
+    const errs = check(schema(`register-${name}`), clean);
+    if (errs.length) throw new Error(`${'update' in c ? `${c.update}: ` : ''}the row is invalid: ${errs.join('; ')}`);
+    if (rows.some((r, i) => r.id === clean.id && i !== at)) throw new Error(`${clean.id} is already in registers/${name}.csv`);
+    for (const k of Object.keys(clean)) if (!columns.includes(k)) columns.push(k);
+    if (at >= 0) rows[at] = clean; else rows.push(clean);
+  }
   writeVersioned(root, `registers/${name}.csv`, writeCsv({ columns, rows }), version);
 }
 
