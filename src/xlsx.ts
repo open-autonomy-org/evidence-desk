@@ -64,6 +64,18 @@ function rowsOf(sheet: string, shared: string[]): string[][] {
 
 // The questions: the first worksheet, in workbook order, with a row naming a question column; that row is the header.
 // Questionnaires often open with an instructions sheet or title rows, which are passed over.
+// A questionnaire's columns by their headings, the one test the sheet picker and the importer share. A heading is read
+// as words (camelCase, underscores and digits split: "QuestionText", "question_text", "Question1"), and it names a
+// question when "question(s)" is one of them: a title naming the questionnaire ("…Questionnaire") does not. A heading
+// that names the question's id, number or reference identifies it rather than asking it.
+const words = (h: string) => h.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_\d]+/g, ' ');
+const namesQuestion = (h: string) => /\bquestions?\b/i.test(words(h));
+const namesId = (h: string) => /#/.test(h) || /\b(id|no|nr|num|number|ref|reference)\b/i.test(words(h));
+export const isQuestionColumn = (h: string) => namesQuestion(h) && !namesId(h);
+export const isIdColumn = (h: string) => /^\s*(id|number|#|ref)\s*$/i.test(h) || (namesQuestion(h) && namesId(h));
+// "Question(s)" alone first, else the first heading asking a question.
+export const questionColumn = (headings: string[]) => headings.find((c) => /^\s*questions?\s*$/i.test(c)) ?? headings.find(isQuestionColumn);
+
 export function xlsxToCsv(buf: Buffer, file: string): string {
   const zip = unzip(buf);
   const part = (name: string) => zip.read(name)?.toString('utf8');
@@ -76,10 +88,13 @@ export function xlsxToCsv(buf: Buffer, file: string): string {
     const sheet = part(path);
     if (!sheet) continue;
     const rows = rowsOf(sheet, shared);
-    // A header names a question column: a cell that is just "Question(s)", or one mentioning a question in a row of
-    // several headings. A title row ("Vendor Security Questionnaire") is a single cell and is passed over.
-    const at = rows.findIndex((r) => r.some((x) => /^\s*questions?\s*$/i.test(x)) || (r.filter((x) => x.trim()).length >= 2 && r.some((x) => /question/i.test(x))));
+    // The header: a cell that is just "Question(s)", or a heading asking a question in a row of several headings. A
+    // title ("Vendor Security Questionnaire", CSA's "…Initiative Questionnaire" beside its version stamp) names a
+    // questionnaire, not a question, and is passed over; so is a sheet with nothing under its question column.
+    const at = rows.findIndex((r) => r.some((x) => /^\s*questions?\s*$/i.test(x)) || (r.filter((x) => x.trim()).length >= 2 && r.some(isQuestionColumn)));
     if (at < 0) continue;
+    const q = rows[at].indexOf(questionColumn(rows[at])!);
+    if (!rows.slice(at + 1).some((r) => (r[q] ?? '').trim())) continue;
     const body = rows.slice(at);
     const width = Math.max(...body.map((r) => r.length));
     const seen = new Map<string, number>();
@@ -90,7 +105,7 @@ export function xlsxToCsv(buf: Buffer, file: string): string {
     });
     return writeCsv({ columns, rows: body.slice(1).map((r) => Object.fromEntries(columns.map((c, i) => [c, r[i] ?? '']))) });
   }
-  throw new Error(`${file} has no worksheet with a column whose name contains "question"`);
+  throw new Error(`${file} has no worksheet with a question column: a heading such as "Question" or "Question text" (not only "Question ID") with questions under it`);
 }
 
 // A questionnaire file as CSV text: an .xlsx workbook's question sheet, or the file itself as UTF-8.

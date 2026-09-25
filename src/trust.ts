@@ -6,7 +6,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 
 import { basename, join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { check, schema } from './schema.ts';
-import { questionnaireText } from './xlsx.ts';
+import { isIdColumn, questionColumn, questionnaireText } from './xlsx.ts';
 import { parseCsv, writeCsv } from './csv.ts';
 import { fileHash, readVersioned, writeVersioned } from './files.ts';
 import { categories, categoryAnswer, frameworkDescriptions } from './catalog.ts';
@@ -191,13 +191,16 @@ const stale = (root: string, sources: Source[]) => sources.some((s) => fileHash(
 // Imports a questionnaire (CSV with a question column, and optionally an id column) and drafts every answer.
 export function importQuestionnaireText(root: string, text: string, file: string, name: string): { id: string; fromLibrary: number; drafted: number; unanswered: number } {
   const table = parseCsv(text, file);
-  const qcol = table.columns.find((c) => /question/i.test(c));
-  if (!qcol) throw new Error(`${file} needs a column whose name contains "question"`);
-  const idcol = table.columns.find((c) => /^(id|number|#|ref)$/i.test(c.trim()));
+  // The question and its id by their headings (isQuestionColumn, isIdColumn: the sheet picker's own test).
+  const qcol = questionColumn(table.columns);
+  if (!qcol) throw new Error(`${file} needs a question column: a heading such as "Question" or "Question text" (not only "Question ID")`);
+  const idcol = table.columns.find(isIdColumn);
   const ws = loadWorkspace(root);
   const corpus = passages(ws);
   const { lib } = readLibrary(root);
-  const questions: Question[] = table.rows.filter((r) => r[qcol]?.trim()).map((r, i) => {
+  const asked = table.rows.filter((r) => r[qcol]?.trim());
+  if (!asked.length) throw new Error(`${file} has no questions under its "${qcol}" column`);
+  const questions: Question[] = asked.map((r, i) => {
     const text = r[qcol].trim();
     const q = tokens(text);
     const bestLib = lib.map((a) => ({ a, s: score(q, a.question) })).sort((x, y) => y.s - x.s)[0];

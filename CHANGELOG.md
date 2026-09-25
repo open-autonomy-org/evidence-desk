@@ -7,6 +7,7 @@ Outstanding release, adoption or verification outcomes stay in [ROADMAP.md](ROAD
 
 ## Unreleased
 
+- A questionnaire whose workbook opens with a title naming the questionnaire (CSA's AI-CAIQ, whose introduction sheet reads "…Initiative Questionnaire") imports its questions: a header row names a question as a word, the column named "Question" is preferred to "Question ID", which becomes each question's id, and a file with no questions is refused instead of imported empty.
 - The app has a Frameworks page: target and drop frameworks; see each target's readiness with the steps still open
   (each mapped control's own gaps); exclude a requirement with a reason or include it again; record an auditor's report
   or certificate as it arrives; and, for a self-attestation, state positions (one at a time, or not met on all those
