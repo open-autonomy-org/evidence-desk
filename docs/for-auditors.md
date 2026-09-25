@@ -81,7 +81,10 @@ approver wrote code it ships is an exception (`review/change-releases.csv`,
 `release_approver_wrote_it`). `review/description-lint.csv` fails when the assertion does not name an exception open at
 the period's end, or any incident, by what identifies it, or does not say when a system created inside the period began operating.
 
-`review/workspace.bundle` is the workspace's Git history up to that commit; `audit verify` checks that it holds it.
+The package carries no copy of the workspace's Git history: it would hold every file the package leaves out. The
+manifest names the commit and where it is published, and `review/workspace-history.txt` lists who committed what; the
+firm checks a file against the published repository where it can read it. `audit verify` opens only regular files inside
+the package, so a manifest naming a path outside it, or a link, is reported rather than followed.
 `audit recollect <package> --repo <owner/name> --environment <name> --account <id> --script <worker>` reads the
 change, deployment, Worker deployment, Cloudflare configuration and token populations again with the firm's own
 read-only `GITHUB_TOKEN` and `CLOUDFLARE_API_TOKEN`, and lists every row only the package has, every row it lacks,
