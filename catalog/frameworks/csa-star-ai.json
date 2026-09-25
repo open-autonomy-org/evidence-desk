@@ -9,14 +9,13 @@
   "name": "CSA AI Controls Matrix (AICM)",
   "url": "https://cloudsecurityalliance.org/artifacts/ai-controls-matrix-v1-1"
  },
- "note": "The AI Controls Matrix's 247 control identifiers, with short titles written by this project, mapped onto the control library through CSA's own mappings of the matrix to AIUC-1, ISO/IEC 42001, ISO/IEC 27001 and NIST AI RMF. CSA's text is not included: its licence permits only personal, non-commercial use without modification or redistribution, so read the matrix at the source. There is no certification at Level 1: an organization self-assesses and signs its own attestation. Filing the AI-CAIQ with CSA's STAR Registry is the organization's own act, taking the same positions. A control no mapping resolves to the library maps to none, so the organization states its position on it (or maps a control of its own).",
+ "note": "The AI Controls Matrix's 247 control identifiers, with short titles written by this project, mapped onto the control library through CSA's own mappings of the matrix to AIUC-1, ISO/IEC 42001, ISO/IEC 27001 and NIST AI RMF, control-level references first and management-system clauses only where none exist. CSA's text is not included: its licence permits only personal, non-commercial use without modification or redistribution, so read the matrix at the source. There is no certification at Level 1: an organization self-assesses and signs its own attestation. Filing the AI-CAIQ with CSA's STAR Registry is the organization's own act, taking the same positions. A control no mapping resolves to the library maps to none, so the organization states its position on it (or maps a control of its own).",
  "requirements": [
   {
    "id": "A&A-01",
    "group": "A&A. Audit & Assurance",
    "title": "Audit policy kept current and reviewed yearly",
    "controls": [
-    "GOV-03",
     "GOV-04",
     "RISK-01",
     "RISK-02",
@@ -48,7 +47,6 @@
     "MON-01",
     "MON-02",
     "MON-04",
-    "OPS-03",
     "AI-04",
     "AI-06"
    ]
@@ -59,7 +57,6 @@
    "title": "Audit checks every applicable legal and contractual duty",
    "controls": [
     "GOV-07",
-    "MON-04",
     "AI-01",
     "AI-04",
     "AI-06"
@@ -75,7 +72,6 @@
     "MON-01",
     "MON-04",
     "HR-06",
-    "OPS-03",
     "AI-01",
     "AI-03",
     "AI-04"
@@ -86,7 +82,6 @@
    "group": "A&A. Audit & Assurance",
    "title": "Audit findings tracked to remediation and reported",
    "controls": [
-    "GOV-03",
     "RISK-01",
     "RISK-02",
     "MON-01",
@@ -207,8 +202,6 @@
    "title": "Applications deployed securely in a standard, automated way",
    "controls": [
     "GOV-07",
-    "RISK-01",
-    "RISK-02",
     "AC-01",
     "AC-04",
     "AC-05",
@@ -260,8 +253,6 @@
    "group": "AIS. Application & Interface Security",
    "title": "APIs secured and their protections reviewed yearly",
    "controls": [
-    "RISK-01",
-    "RISK-02",
     "MON-02",
     "AC-02",
     "AC-05",
@@ -354,7 +345,6 @@
     "OPS-01",
     "OPS-04",
     "CHG-03",
-    "AI-01",
     "AI-02",
     "AI-05",
     "AI-07",
@@ -412,13 +402,11 @@
    "group": "BCR. Business Continuity & Resilience",
    "title": "Disruption impact and risk analysed to set continuity criteria",
    "controls": [
-    "GOV-03",
     "GOV-04",
     "RISK-01",
     "RISK-02",
     "MON-01",
     "AI-01",
-    "AI-02",
     "AI-04",
     "AI-06",
     "AI-11"
@@ -564,10 +552,8 @@
    "group": "CCC. Change Control & Configuration",
    "title": "Change management policy kept current and reviewed yearly",
    "controls": [
-    "GOV-03",
     "GOV-04",
     "RISK-01",
-    "MON-01",
     "OPS-01",
     "CHG-01",
     "CHG-02",
@@ -601,9 +587,7 @@
    "group": "CCC. Change Control & Configuration",
    "title": "Risk of changes to assets managed by a set procedure",
    "controls": [
-    "GOV-03",
     "GOV-07",
-    "MON-01",
     "VND-03",
     "AI-03",
     "AI-04",
@@ -617,7 +601,6 @@
    "title": "Only authorized changes made to organizational assets",
    "controls": [
     "GOV-07",
-    "MON-01",
     "AC-02",
     "AC-06",
     "AC-08",
@@ -627,7 +610,6 @@
     "CHG-04",
     "VND-03",
     "AI-03",
-    "AI-07",
     "AI-10"
    ]
   },
@@ -637,7 +619,6 @@
    "title": "Changes to customer environments limited to agreed requests",
    "controls": [
     "GOV-07",
-    "MON-01",
     "VND-02",
     "VND-03",
     "AI-01",
@@ -651,14 +632,11 @@
    "group": "CCC. Change Control & Configuration",
    "title": "Configuration baselines set and reviewed yearly",
    "controls": [
-    "GOV-03",
-    "MON-01",
     "OPS-04",
     "CHG-01",
     "CHG-03",
     "CHG-04",
-    "AI-02",
-    "AI-07"
+    "AI-02"
    ]
   },
   {
@@ -666,16 +644,12 @@
    "group": "CCC. Change Control & Configuration",
    "title": "Drift from configuration baselines detected and alerted",
    "controls": [
-    "GOV-06",
-    "GOV-07",
-    "MON-01",
     "OPS-01",
     "OPS-04",
     "CHG-01",
     "CHG-03",
     "CHG-04",
-    "AI-05",
-    "AI-09"
+    "AI-05"
    ]
   },
   {
@@ -683,14 +657,10 @@
    "group": "CCC. Change Control & Configuration",
    "title": "Emergency and exception changes handled by a set procedure",
    "controls": [
-    "GOV-03",
     "RISK-01",
-    "MON-01",
-    "OPS-03",
     "OPS-07",
     "AI-04",
     "AI-05",
-    "AI-07",
     "AI-12"
    ]
   },
@@ -699,13 +669,10 @@
    "group": "CCC. Change Control & Configuration",
    "title": "Faulty changes rolled back to a known good state",
    "controls": [
-    "GOV-03",
     "RISK-02",
     "MON-01",
     "MON-04",
-    "OPS-03",
     "OPS-07",
-    "AI-07",
     "AI-12"
    ]
   },
@@ -796,8 +763,6 @@
    "title": "Encryption and key risks assessed, treated and monitored",
    "controls": [
     "GOV-04",
-    "RISK-01",
-    "RISK-02",
     "AC-05",
     "AC-09",
     "AI-04"
@@ -951,8 +916,6 @@
    "group": "CEK. Cryptography & Key Management",
    "title": "Key recovery weighed against the risk of exposing keys",
    "controls": [
-    "RISK-01",
-    "RISK-02",
     "AC-01",
     "AC-04",
     "AC-05",
@@ -1003,11 +966,8 @@
    "controls": [
     "GOV-03",
     "GOV-04",
-    "GOV-06",
-    "GOV-07",
     "MON-01",
     "MON-04",
-    "HR-02",
     "AC-06",
     "AC-07",
     "AC-09",
@@ -1023,11 +983,8 @@
    "controls": [
     "GOV-03",
     "GOV-04",
-    "GOV-06",
-    "GOV-07",
     "RISK-01",
     "MON-01",
-    "HR-02",
     "AC-06",
     "AI-01",
     "AI-04"
@@ -1040,11 +997,8 @@
    "controls": [
     "GOV-03",
     "GOV-04",
-    "GOV-06",
-    "GOV-07",
     "MON-01",
     "MON-04",
-    "HR-02",
     "AC-07",
     "AC-09",
     "AC-10",
@@ -1058,13 +1012,10 @@
    "title": "Physical and logical assets classified by business risk",
    "controls": [
     "GOV-04",
-    "RISK-01",
-    "RISK-02",
     "OPS-07",
     "CONF-01",
     "AI-01",
     "AI-02",
-    "AI-04",
     "AI-08",
     "AI-10"
    ]
@@ -1113,10 +1064,8 @@
    "title": "Only authorized staff enter secure areas, with records kept",
    "controls": [
     "GOV-04",
-    "MON-01",
     "AC-06",
-    "AI-01",
-    "AI-07"
+    "AI-01"
    ]
   },
   {
@@ -1125,10 +1074,8 @@
    "title": "Datacenter perimeter and entry points under surveillance",
    "controls": [
     "GOV-04",
-    "MON-01",
     "AC-06",
-    "AI-01",
-    "AI-07"
+    "AI-01"
    ]
   },
   {
@@ -1151,14 +1098,11 @@
    "title": "Power and network cabling protected from tampering",
    "controls": [
     "GOV-04",
-    "RISK-01",
-    "RISK-02",
     "MON-01",
     "MON-04",
     "AC-06",
     "AI-01",
     "AI-02",
-    "AI-04",
     "AI-10"
    ]
   },
@@ -1182,15 +1126,9 @@
    "title": "Utility services secured, monitored and tested",
    "controls": [
     "GOV-04",
-    "RISK-01",
-    "RISK-02",
-    "MON-01",
     "OPS-07",
     "AI-01",
     "AI-02",
-    "AI-04",
-    "AI-05",
-    "AI-07",
     "AI-10"
    ]
   },
@@ -1228,10 +1166,6 @@
     "GOV-03",
     "GOV-04",
     "GOV-05",
-    "GOV-06",
-    "GOV-07",
-    "MON-01",
-    "HR-02",
     "AC-10",
     "VND-02",
     "CONF-01",
@@ -1288,8 +1222,6 @@
    "group": "DSP. Data Security & Privacy",
    "title": "Data flows documented and reviewed yearly",
    "controls": [
-    "GOV-04",
-    "AI-01",
     "AI-02",
     "AI-08"
    ]
@@ -1442,12 +1374,10 @@
     "GOV-04",
     "GOV-05",
     "GOV-07",
-    "MON-01",
     "AC-02",
     "AC-07",
     "AC-09",
     "AC-10",
-    "OPS-03",
     "VND-01",
     "VND-02",
     "VND-03",
@@ -1456,7 +1386,6 @@
     "AI-01",
     "AI-02",
     "AI-04",
-    "AI-05",
     "AI-08",
     "AI-11"
    ]
@@ -1623,7 +1552,6 @@
    "title": "Privacy-enhancing techniques applied to training data",
    "controls": [
     "GOV-04",
-    "RISK-01",
     "AC-01",
     "AC-02",
     "AC-05",
@@ -1645,8 +1573,6 @@
    "group": "DSP. Data Security & Privacy",
    "title": "Training data validated, versioned and change-controlled",
    "controls": [
-    "GOV-03",
-    "GOV-04",
     "CHG-02",
     "VND-02",
     "CONF-01",
@@ -1708,7 +1634,6 @@
    "group": "GRC. Governance, Risk & Compliance",
    "title": "Policies reviewed yearly or after major change",
    "controls": [
-    "GOV-04",
     "RISK-02",
     "MON-01",
     "MON-04",
@@ -1873,11 +1798,7 @@
     "GOV-03",
     "GOV-04",
     "GOV-05",
-    "GOV-06",
-    "GOV-07",
-    "MON-01",
     "HR-01",
-    "HR-02",
     "HR-06",
     "AC-10",
     "VND-02",
@@ -1893,10 +1814,6 @@
     "GOV-03",
     "GOV-04",
     "GOV-05",
-    "GOV-06",
-    "GOV-07",
-    "MON-01",
-    "HR-02",
     "AC-10",
     "AI-01",
     "AI-02",
@@ -1910,10 +1827,6 @@
    "controls": [
     "GOV-03",
     "GOV-04",
-    "GOV-06",
-    "GOV-07",
-    "MON-01",
-    "HR-02",
     "AC-10",
     "AI-01"
    ]
@@ -1925,10 +1838,6 @@
    "controls": [
     "GOV-03",
     "GOV-04",
-    "GOV-06",
-    "GOV-07",
-    "MON-01",
-    "HR-02",
     "AC-10",
     "AI-01"
    ]
@@ -2007,15 +1916,12 @@
    "group": "HRS. Human Resources",
    "title": "All staff receive recurring security awareness training",
    "controls": [
-    "GOV-01",
     "GOV-04",
-    "GOV-05",
     "MON-01",
     "MON-04",
     "HR-02",
     "HR-06",
-    "AI-01",
-    "AI-03"
+    "AI-01"
    ]
   },
   {
@@ -2023,7 +1929,6 @@
    "group": "HRS. Human Resources",
    "title": "Staff handling sensitive data trained for it",
    "controls": [
-    "GOV-01",
     "GOV-04",
     "GOV-05",
     "HR-02",
@@ -2038,10 +1943,8 @@
    "group": "HRS. Human Resources",
    "title": "Staff know their compliance responsibilities",
    "controls": [
-    "GOV-01",
     "GOV-03",
     "GOV-04",
-    "GOV-05",
     "HR-02",
     "HR-05",
     "HR-06",
@@ -2055,8 +1958,6 @@
    "group": "HRS. Human Resources",
    "title": "Staff receive AI training suited to their role",
    "controls": [
-    "GOV-01",
-    "GOV-05",
     "HR-02",
     "HR-06",
     "AI-03"
@@ -2067,10 +1968,7 @@
    "group": "HRS. Human Resources",
    "title": "Rules for staff use of AI tools set and shared",
    "controls": [
-    "GOV-01",
-    "GOV-05",
     "RISK-01",
-    "HR-02",
     "HR-06",
     "VND-02",
     "AI-01",
@@ -2220,9 +2118,6 @@
    "title": "Customers take part in approving high-risk privileged access",
    "controls": [
     "GOV-04",
-    "RISK-01",
-    "RISK-02",
-    "MON-01",
     "AC-02",
     "VND-01",
     "VND-02",
@@ -2315,13 +2210,11 @@
    "group": "IAM. Identity & Access Management",
    "title": "Agents given only the tools their task needs",
    "controls": [
-    "GOV-03",
     "AC-02",
     "AC-03",
     "AC-04",
     "AC-10",
     "AC-11",
-    "AI-01",
     "AI-05",
     "AI-10"
    ]
@@ -2366,12 +2259,10 @@
    "title": "Infrastructure security policy kept current and reviewed yearly",
    "controls": [
     "GOV-04",
-    "MON-01",
     "OPS-04",
     "CHG-02",
     "CHG-05",
-    "AI-01",
-    "AI-05"
+    "AI-01"
    ]
   },
   {
@@ -2424,18 +2315,15 @@
    "group": "I&S. Infrastructure Security",
    "title": "Tenants segmented from one another",
    "controls": [
-    "MON-01",
     "AC-01",
     "AC-02",
     "AC-03",
     "AC-05",
     "AC-08",
     "AC-09",
-    "OPS-03",
     "CHG-02",
     "CHG-05",
-    "CONF-01",
-    "AI-05"
+    "CONF-01"
    ]
   },
   {
@@ -2454,7 +2342,6 @@
    "group": "I&S. Infrastructure Security",
    "title": "High-risk environments identified and documented",
    "controls": [
-    "RISK-01",
     "RISK-02",
     "AC-01",
     "AC-05",
@@ -2463,7 +2350,6 @@
     "CHG-05",
     "CONF-01",
     "AI-02",
-    "AI-04",
     "AI-07"
    ]
   },
@@ -2571,7 +2457,6 @@
     "AC-03",
     "AC-04",
     "OPS-01",
-    "AI-01",
     "AI-05"
    ]
   },
@@ -2580,8 +2465,6 @@
    "group": "LOG. Logging & Monitoring",
    "title": "Cryptographic operations monitored and reported internally",
    "controls": [
-    "MON-01",
-    "MON-04",
     "AC-05",
     "AC-09"
    ]
@@ -2591,8 +2474,6 @@
    "group": "LOG. Logging & Monitoring",
    "title": "Key lifecycle events logged for audit",
    "controls": [
-    "MON-01",
-    "MON-04",
     "AC-05",
     "AC-09"
    ]
@@ -2609,8 +2490,6 @@
    "title": "Monitoring failures reported immediately",
    "controls": [
     "GOV-07",
-    "MON-01",
-    "MON-04",
     "OPS-03",
     "AI-09",
     "AI-12"
@@ -2796,7 +2675,6 @@
    "group": "MDS. Model Security",
    "title": "Model performance monitored for drift and sudden change",
    "controls": [
-    "GOV-03",
     "OPS-01",
     "AI-03",
     "AI-04",
@@ -2810,8 +2688,6 @@
    "group": "MDS. Model Security",
    "title": "Model and serving failures assessed and mitigated",
    "controls": [
-    "RISK-01",
-    "RISK-02",
     "MON-01",
     "MON-02",
     "OPS-03",
@@ -2831,8 +2707,6 @@
    "group": "MDS. Model Security",
    "title": "Risk of open models assessed and monitored",
    "controls": [
-    "RISK-01",
-    "RISK-02",
     "OPS-01",
     "VND-02",
     "VND-03",
@@ -2857,12 +2731,8 @@
    "group": "SEF. Incident Management & Forensics",
    "title": "Incident, e-discovery and forensics policy kept current",
    "controls": [
-    "GOV-03",
     "GOV-04",
-    "GOV-06",
-    "GOV-07",
     "MON-01",
-    "HR-02",
     "OPS-01",
     "OPS-02",
     "OPS-03",
@@ -2879,13 +2749,9 @@
    "group": "SEF. Incident Management & Forensics",
    "title": "Timely incident handling set by policy",
    "controls": [
-    "GOV-03",
     "GOV-04",
-    "GOV-06",
-    "GOV-07",
     "MON-01",
     "MON-02",
-    "HR-02",
     "OPS-02",
     "OPS-03",
     "PRIV-06",
@@ -2930,7 +2796,6 @@
    "group": "SEF. Incident Management & Forensics",
    "title": "Incident metrics tracked and reported",
    "controls": [
-    "GOV-03",
     "MON-02",
     "OPS-01",
     "OPS-02",
@@ -3042,13 +2907,10 @@
    "title": "Shared responsibility model set by policy",
    "controls": [
     "GOV-01",
-    "GOV-03",
     "GOV-04",
-    "GOV-06",
     "GOV-07",
     "RISK-01",
     "MON-01",
-    "HR-02",
     "HR-06",
     "AC-08",
     "VND-01",
@@ -3085,9 +2947,7 @@
    "title": "Customers told who is responsible for what",
    "controls": [
     "GOV-04",
-    "GOV-06",
     "GOV-07",
-    "MON-01",
     "AC-08",
     "CHG-05",
     "VND-02",
@@ -3113,7 +2973,6 @@
    "group": "STA. Supply Chain & Accountability",
    "title": "Shared responsibility documents reviewed and validated",
    "controls": [
-    "GOV-03",
     "GOV-04",
     "GOV-07",
     "MON-01",
@@ -3283,11 +3142,7 @@
    "group": "TVM. Threat & Vulnerability Management",
    "title": "Vulnerability management policy kept current and reviewed yearly",
    "controls": [
-    "GOV-04",
-    "GOV-06",
-    "GOV-07",
     "RISK-01",
-    "RISK-02",
     "MON-01",
     "OPS-07",
     "VND-02",
@@ -3295,7 +3150,6 @@
     "AI-04",
     "AI-05",
     "AI-06",
-    "AI-09",
     "AI-12"
    ]
   },
@@ -3304,15 +3158,10 @@
    "group": "TVM. Threat & Vulnerability Management",
    "title": "Malware and malicious instruction defences set by policy",
    "controls": [
-    "GOV-04",
-    "RISK-01",
-    "RISK-02",
     "MON-01",
     "AC-10",
     "AI-01",
-    "AI-04",
     "AI-05",
-    "AI-07",
     "AI-11"
    ]
   },
@@ -3321,15 +3170,10 @@
    "group": "TVM. Threat & Vulnerability Management",
    "title": "Managed assets scanned for vulnerabilities monthly",
    "controls": [
-    "RISK-01",
-    "RISK-02",
-    "MON-01",
     "MON-03",
     "OPS-03",
-    "AI-04",
     "AI-05",
-    "AI-06",
-    "AI-07"
+    "AI-06"
    ]
   },
   {
@@ -3367,8 +3211,6 @@
    "group": "TVM. Threat & Vulnerability Management",
    "title": "Third-party and open-source libraries kept patched",
    "controls": [
-    "RISK-01",
-    "RISK-02",
     "MON-03",
     "AC-11",
     "OPS-04",
@@ -3456,7 +3298,6 @@
    "group": "TVM. Threat & Vulnerability Management",
    "title": "Vulnerability metrics tracked and reported",
    "controls": [
-    "MON-01",
     "MON-02",
     "MON-03",
     "OPS-01",
