@@ -292,14 +292,16 @@ framework is targeted, with the `ai-governance` policy, and never appears in SOC
 project, the import's declarations also evidence the inventory, oversight, change and limits controls (AI-02, AI-03,
 AI-07, AI-10) while they are needed.
 
-`evidence-desk collect <dir> open-autonomy --account <owner/project> --start <date> --end <date> --by <person>` reads
-what the project's agents did in the period from the Open Autonomy platform, on a key of the project
-(`OPEN_AUTONOMY_BASE_URL`, `OPEN_AUTONOMY_KEY`), and records four populations with the platform's answers as provenance:
-the agent sessions that started in the period (AI-05), every metered call (AI-05, AI-10), every request and report of
-the agent's operating state with the request and report in force when the period began (AI-03), and every revision of
-the roadmap (AI-07). It reads every page back past the period's start, and refuses a list the platform cannot page,
-since a population read from one page could be incomplete. It records nothing while no targeted framework needs the AI
-family.
+`evidence-desk collect <dir> open-autonomy --account <owner/project> --period <start>..<end> --by <person>` reads
+what the project's agents did in the period from the Open Autonomy platform, on the project's own key
+(`OPEN_AUTONOMY_BASE_URL`, `OPEN_AUTONOMY_KEY`; any other key is refused, since it would read the public's view with
+panels closed and money withheld), and records four populations with the platform's answers kept whole as provenance:
+the agent sessions that ran in the period, including those begun up to a day before it (AI-05); every metered call
+(AI-05, AI-10); every request and report of the agent's operating state, with the project's request, its org's and
+the report in force when the period began (AI-03); and every revision of the roadmap with its changes (AI-07). It reads
+every page back past the period's start and refuses a list the platform cannot page, since a population read from one
+page could be incomplete. It reads all four before writing anything, so a failure records nothing, and it records
+nothing while no targeted framework needs the AI family.
 
 ## Readiness
 

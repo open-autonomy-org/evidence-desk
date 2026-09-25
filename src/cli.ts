@@ -56,13 +56,13 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   incident <dir> <id> --by <person> --note <text> [--status open|contained|resolved|closed]
                      [--impact <text>] [--notification <text>] [--review <text>]
   incidents <dir>                         list incidents
-  collect <dir> open-autonomy --account <owner/project> --start <date> --end <date> --by <person>
-                                          the project's sessions, metered calls, pause history and roadmap revisions from
-                                          the platform (OPEN_AUTONOMY_BASE_URL, OPEN_AUTONOMY_KEY: a key of the project)
   open-autonomy <dir> import --repo <checkout> [--commit <sha>] --by <person>
                                           read an Open Autonomy project's roster, agents, seams and rules at a commit
   open-autonomy <dir> completeness --account <id> --by <person> [--file <export> --generated-by <how>]
                                           compare a declared vendor account's administrators with the roster
+  collect <dir> open-autonomy --account <owner/project> --period <start>..<end> --by <person>
+                                          the project's sessions, metered calls, pause history and roadmap revisions from
+                                          the platform (OPEN_AUTONOMY_BASE_URL, OPEN_AUTONOMY_KEY: the project's own key)
   collect <dir> github-changes --repo <owner/name> --period <start>..<end> --by <person>
   collect <dir> github-deployments --repo <owner/name> --environment <name> --period <start>..<end> --by <person>
   collect <dir> github-rule-changes --repo <owner/name> --period <start>..<end> --by <person>
@@ -401,7 +401,8 @@ async function main(argv: string[]): Promise<number> {
     }
     case 'collect': {
       if (rest[0] === 'open-autonomy') {
-        const r = await collectOpenAutonomyActivity(dir, { account: one(a, 'account') ?? '', start: one(a, 'start') ?? '', end: one(a, 'end') ?? '', by: one(a, 'by') ?? '' });
+        const [start, end] = (one(a, 'period') ?? '').split('..');
+        const r = await collectOpenAutonomyActivity(dir, { account: one(a, 'account') ?? '', start: start ?? '', end: end ?? '', by: one(a, 'by') ?? '' });
         out(json, r, () => `Collected from Open Autonomy: ${Object.entries(r.counts).map(([k, n]) => `${n} ${k}`).join(', ')}; recorded ${r.evidence.join(', ')}.`);
         return 0;
       }
