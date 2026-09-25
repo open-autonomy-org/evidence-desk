@@ -124,6 +124,8 @@ was read.
   by this project. The AICPA's criterion text and points of focus are not included.
 - [catalog/frameworks/iso27001.json](catalog/frameworks/iso27001.json): ISO/IEC 27001:2022 clause and Annex A identifiers
   mapped onto the controls.
+- [catalog/frameworks/csa-star-ai.json](catalog/frameworks/csa-star-ai.json): CSA AI Controls Matrix (AICM v1.1.1)
+  control identifiers for STAR for AI Level 1, mapped onto the controls. CSA's control text is not included.
 - [catalog/controls.json](catalog/controls.json): 59 controls in this project's own words, mapped to criteria, with
   frequency, policies, the evidence an auditor expects, and when each applies.
 - [catalog/forms/](catalog/forms): a security awareness quiz, policy and code-of-conduct acknowledgments, a
