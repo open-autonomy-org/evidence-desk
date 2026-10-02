@@ -49,10 +49,11 @@ async function rh2<T>(path: string): Promise<{ body: T }> {
 }
 
 /** Starts a run of a routine through the model door and lets its stream go: the run goes on in Runhuman (the person may
- * take days), and its session is what `collect rh2-tasks` follows. */
-async function startRun(model: string, sponsor: string, content: string): Promise<string> {
+ * take days), and its session is what `collect rh2-tasks` follows. The obligation's key is the conversation's thread, so
+ * a retry reaches the same run and two people's runs of one obligation never share one. */
+async function startRun(model: string, sponsor: string, content: string, thread: string): Promise<string> {
   const { base, token, org } = workspace();
-  const res = await fetch(`${base}/v1/messages`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'x-rh2-organization': org, 'x-runhuman-sponsor': sponsor, 'content-type': 'application/json' }, body: JSON.stringify({ model, max_tokens: 1024, stream: true, messages: [{ role: 'user', content }] }) });
+  const res = await fetch(`${base}/v1/messages`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'x-rh2-organization': org, 'x-runhuman-sponsor': sponsor, 'thread-id': thread, 'content-type': 'application/json' }, body: JSON.stringify({ model, max_tokens: 1024, stream: true, messages: [{ role: 'user', content }] }) });
   const session = res.headers.get('x-runhuman-session');
   if (!res.ok || !session) { const text = await res.text().catch(() => ''); throw new Error(`Runhuman answered ${res.status}${session ? '' : ' and named no session'}: ${text.slice(0, 300)}`); }
   await res.body?.cancel();
@@ -155,7 +156,7 @@ export async function fileRuns(root: string, input: { within: number; asOf?: Dat
     if (isOwner(snap, o.who, ids) && !release) { report.held.push(`${o.who}: ${o.what}`); continue; }
     const seam = SEAM_OF[o.kind]!, routine = routineOf(seam)!;
     const { vars, sha } = packet(root, o, person.principalId);
-    const session = await startRun(routine, person.principalId, `${o.what}\n\n\`\`\`runhuman-vars\n${JSON.stringify(vars)}\n\`\`\``).catch((e: Error) => { throw new Error(`filing ${o.what} for ${o.who}: ${e.message}`); });
+    const session = await startRun(routine, person.principalId, `${o.what}\n\n\`\`\`runhuman-vars\n${JSON.stringify(vars)}\n\`\`\``, `evidence-desk:${key}`).catch((e: Error) => { throw new Error(`filing ${o.what} for ${o.who}: ${e.message}`); });
     const run: Rh2Run = { key, seam, routine, kind: o.kind, what: o.what, who: o.who, subject: member.volter, principal: person.principalId, ...(o.form ? { form: o.form } : {}), ...(o.policy ? { policy: o.policy } : {}), packet_sha256: sha, session, filed_at: now() };
     runs.runs.push(run);
     report.filed.push(`${o.who}: ${o.what}`);
@@ -187,25 +188,28 @@ export async function collectRh2Tasks(root: string, input: { by: string }): Prom
     const observed = (await rh2<{ state: { roomId: string | null } }>(`/v1/sessions/${encodeURIComponent(run.session)}/events?after=0`)).body;
     const roomId = observed.state.roomId;
     if (!roomId) { report.waiting++; continue; }
-    type Task = { taskId: string; fields?: Record<string, unknown>; answer?: { principalId: string; value: unknown } | null };
+    // A Task's answer is its response: who gave it and the value (RH2's Task record).
+    type Task = { taskId: string; fields?: Record<string, unknown>; response?: { principalId: string; answer?: { value?: unknown } | null } | null };
     const tasks = (await rh2<{ data: { tasks: Task[] } }>(`/api/v3/rooms/${encodeURIComponent(roomId)}/tasks`)).body.data.tasks;
-    const task = tasks.find((t) => t.answer && (run.policy ? t.fields?.policy === run.policy : t.fields?.form === run.form));
-    if (!task?.answer) { report.waiting++; continue; }
-    const answerer = proven(all, task.answer.principalId);
+    const task = tasks.find((t) => t.response?.answer && (run.policy ? t.fields?.policy === run.policy : t.fields?.form === run.form));
+    const response = task?.response;
+    if (!task || !response?.answer) { report.waiting++; continue; }
+    const value = response.answer.value;
+    const answerer = proven(all, response.principalId);
     const file = `sources/rh2/answers/${run.session}.json`;
     writeVersioned(root, file, JSON.stringify({ schema: 'evidence-desk.rh2-answer/1', read_at: now(), read_by: input.by, run, room: roomId, task, answered_by: answerer ?? null }, null, 2) + '\n', readVersioned(root, file)?.version ?? null);
-    const done = (status: NonNullable<Rh2Run['collected']>['status']) => { run.collected = { at: now(), task: task.taskId, answered_by: task.answer!.principalId, status, file }; };
+    const done = (status: NonNullable<Rh2Run['collected']>['status']) => { run.collected = { at: now(), task: task.taskId, answered_by: response.principalId, status, file }; };
     if (!answerer?.identities?.some((i) => i.subject === run.subject)) { done('not-the-member'); report.refused.push(`${run.who}: ${run.what}: answered by someone other than ${run.who}`); continue; }
     if (run.policy) {
       const p = loadWorkspace(root).policies.find((x) => x.data.id === run.policy);
       const rec = readVersioned(root, `policies/${run.policy}.json`);
       if (!p?.text || !rec || task.fields?.sha256 !== run.packet_sha256 || sha256(p.text.body.replace(DRAFTING, '')) !== run.packet_sha256) { done('packet-changed'); report.refused.push(`${run.who}: ${run.what}: the policy changed since it was shown`); continue; }
-      if (task.answer.value !== true) { done('declined'); report.refused.push(`${run.who}: ${run.what}: declined`); continue; }
+      if (value !== true) { done('declined'); report.refused.push(`${run.who}: ${run.what}: declined`); continue; }
       approvePolicy(root, run.policy, run.who, p.text.version, rec.version, true);
     } else {
       const f = loadWorkspace(root).forms.find((x) => x.data.id === run.form);
       if (!f || f.version !== run.packet_sha256) { done('packet-changed'); report.refused.push(`${run.who}: ${run.what}: the form changed since it was shown`); continue; }
-      submitResponse(root, { form: f.data.id, person: run.who, answers: Object.fromEntries(Object.entries((task.answer.value ?? {}) as Record<string, unknown>).map(([k, v]) => [k, String(v)])), formVersion: f.version, identity: `runhuman ${task.answer.principalId} (Volter ${run.subject}), task ${task.taskId}` });
+      submitResponse(root, { form: f.data.id, person: run.who, answers: Object.fromEntries(Object.entries((value ?? {}) as Record<string, unknown>).map(([k, v]) => [k, String(v)])), formVersion: f.version, identity: `runhuman ${response.principalId} (Volter ${run.subject}), task ${task.taskId}` });
     }
     done('recorded');
     report.recorded.push(`${run.who}: ${run.what}`);

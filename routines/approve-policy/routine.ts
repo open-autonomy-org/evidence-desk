@@ -25,6 +25,7 @@ export default routine({
         title: `Approve: ${String(run.vars.title)}`,
       },
       fields: { policy: run.vars.policy, sha256: run.vars.sha256 },
+      form: { policy: { required: true, type: "string" }, sha256: { required: true, type: "string" } },
       key: "approval",
       returns: { required: true, type: "boolean" },
       who: { principal: String(run.vars.person) },

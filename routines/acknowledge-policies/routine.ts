@@ -15,7 +15,8 @@ export default routine({
     questions: { items: { fields: { id: { required: true, type: "string" }, options: { items: { type: "string" }, type: "array" }, prompt: { required: true, type: "string" }, type: { required: true, type: "string" } }, type: "object" }, required: true, type: "array" },
     policies: { items: { fields: { id: { required: true, type: "string" }, sha256: { required: true, type: "string" }, version: { required: true, type: "integer" } }, type: "object" }, type: "array" },
   },
-  returns: { required: true, type: "object" },
+  // Each question's answer, in the form's order (a form's questions are its own, so the run returns them as a list).
+  returns: { items: { fields: { answer: { required: true, type: "string" }, id: { required: true, type: "string" } }, type: "object" }, required: true, type: "array" },
   title: "Complete a form",
 }, [
   async function open(run) {
@@ -34,6 +35,7 @@ export default routine({
         title: String(run.vars.title),
       },
       fields: { form: run.vars.form, policies: policies as never },
+      form: { form: { required: true, type: "string" }, policies: { items: { fields: { id: { required: true, type: "string" }, sha256: { required: true, type: "string" }, version: { required: true, type: "integer" } }, type: "object" }, type: "array" } },
       key: "form",
       returns: { fields, required: true, type: "object" },
       who: { principal: String(run.vars.person) },
@@ -41,6 +43,7 @@ export default routine({
   },
   async function answer(run) {
     const state = await run.until(run.state.task as Parameters<typeof run.until>[0], "answered");
-    return run.close(state.answer as Record<string, string>);
+    const answers = state.answer as Record<string, string>;
+    return run.close((run.vars.questions as Question[]).map((q) => ({ answer: String(answers[q.id] ?? ""), id: q.id })));
   },
 ]);
