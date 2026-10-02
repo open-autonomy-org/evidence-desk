@@ -55,7 +55,7 @@ async function rh2<T>(path: string): Promise<{ body: T }> {
  * a retry reaches the same run and two people's runs of one obligation never share one. */
 async function startRun(model: string, sponsor: string | undefined, content: string, thread: string): Promise<string> {
   const { base, token, org } = workspace();
-  const res = await fetch(`${base}/v1/messages`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'x-rh2-organization': org, ...(sponsor ? { 'x-runhuman-sponsor': sponsor } : {}), 'thread-id': thread, 'content-type': 'application/json' }, body: JSON.stringify({ model, max_tokens: 1024, stream: true, messages: [{ role: 'user', content }] }) });
+  const res = await fetch(`${base}/v1/messages`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'x-rh2-organization': org, ...(sponsor ? { 'x-runhuman-sponsor': sponsor } : {}), 'x-runhuman-filed': '1', 'thread-id': thread, 'content-type': 'application/json' }, body: JSON.stringify({ model, max_tokens: 1024, stream: true, messages: [{ role: 'user', content }] }) });
   const session = res.headers.get('x-runhuman-session');
   if (!res.ok || !session) { const text = await res.text().catch(() => ''); throw new Error(`Runhuman answered ${res.status}${session ? '' : ' and named no session'}: ${text.slice(0, 300)}`); }
   await res.body?.cancel();

@@ -29,6 +29,8 @@ export default routine({
       name: `Approve: ${String(run.vars.title)}`.slice(0, 120),
       roles: [role("operator"), { actions: ["room.read", "surfaces.view"], conversationKeys: ["work"], key: "member", name: "Member" }, role("companion")],
     });
+    // Linked through the bridge's own door (RFC 0017 §9): it carries the Conversation to their direct messages, seated in it.
+    if (reach) await run.link(run.state.room as RunRoom, { key: "work", label: "Direct messages", role: "member", url: reach });
   },
   async function ask(run) {
     const room = run.state.room as RunRoom;
