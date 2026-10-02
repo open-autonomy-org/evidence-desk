@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/open-autonomy-org/evidence-desk/schemas/register-people.schema.json",
   "title": "People register (registers/people.csv)",
-  "description": "One row of the CSV register. Columns: id, name, email, role, start_date, end_date, notes. Unknown columns are kept.",
+  "description": "One row of the CSV register. Columns: id, name, email, role, start_date, end_date, notes, slack. Unknown columns are kept.",
   "x-columns": [
     "id",
     "name",
@@ -10,7 +10,8 @@
     "role",
     "start_date",
     "end_date",
-    "notes"
+    "notes",
+    "slack"
   ],
   "type": "object",
   "required": [
@@ -42,6 +43,11 @@
     },
     "notes": {
       "type": "string"
+    },
+    "slack": {
+      "type": "string",
+      "description": "Where the person is reached in Slack: their profile link in the workspace (https://<workspace>.slack.com/team/U\u2026). A run of an act they owe opens its Conversation linked to their direct messages there (RFC 0017 \u00a79).",
+      "pattern": "^(https://[a-z0-9-]+\\.slack\\.com/team/U[A-Z0-9]+)?$"
     }
   }
 }

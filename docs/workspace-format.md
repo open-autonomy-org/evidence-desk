@@ -17,7 +17,7 @@ allowed everywhere and kept when Evidence Desk writes a file, so other tools can
 | `policies/<id>.md` | a policy's current text | Markdown |
 | `policies/<id>.json` | a policy's owner and approved versions | `policy` |
 | `policies/archive/<id>.v<n>.md` | the exact text approved as version n | Markdown |
-| `registers/people.csv` | people: `id,name,email,role,start_date,end_date,notes` | `register-people` (per row) |
+| `registers/people.csv` | people: `id,name,email,role,start_date,end_date,notes,slack` (`slack`: their Slack profile link, where a run of an act they owe reaches them) | `register-people` (per row) |
 | `registers/systems.csv` | systems: `id,name,kind,owner,description,data,in_scope` | `register-systems` |
 | `registers/vendors.csv` | vendors: `id,name,service,data_access,criticality,assurance,last_review,owner` | `register-vendors` |
 | `registers/risks.csv` | risks: `id,title,description,likelihood,impact,treatment,controls,owner,status,review_due` | `register-risks` |
@@ -30,6 +30,8 @@ allowed everywhere and kept when Evidence Desk writes a file, so other tools can
 | `sources/open-autonomy/completeness/<id>.json` | one vendor account's administrators compared with the roster | `completeness` |
 | `sources/open-autonomy/seam-records/<seam>.json` | the latest collection of one commit seam's records, with its findings | none |
 | `sources/github/attribution.json` | the latest check of who recorded each signed act | none |
+| `sources/rh2/runs.json` | each act filed as a run of its seam's routine in the linked Runhuman workspace, and its collection | none |
+| `sources/rh2/answers/<session>.json` | a run's Task and its answerer as Runhuman returned them, kept whole | none |
 | `collectors.json` | which collectors are enabled and their parameters (never credentials) | `collectors` |
 | `checks/runs/<id>.json` | one run of the enabled collectors and every check result | `check-run` |
 | `evidence/files/collected/<collector>/<run>.json` | what a collector read in a run, with the requests it made | JSON |

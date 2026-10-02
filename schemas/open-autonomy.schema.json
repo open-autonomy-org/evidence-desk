@@ -76,6 +76,10 @@
             "items": {
               "type": "string"
             }
+          },
+          "volter": {
+            "type": "string",
+            "description": "The subject of the member's Volter identity, recorded from their own sign-in"
           }
         }
       }
@@ -281,6 +285,10 @@
           },
           "record": {
             "type": "string"
+          },
+          "routine": {
+            "type": "string",
+            "description": "The routine the seam's act runs through in the linked Runhuman workspace"
           }
         }
       }

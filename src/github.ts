@@ -466,7 +466,9 @@ export async function syncReminders(root: string, input: { repo: string; asOf?: 
   // What is overdue, and what falls due within the window the workspace's workflow names (--within): a review due next
   // year is not owed today.
   const horizon = new Date((input.asOf ?? clockDate()).getTime() + input.within * 864e5).toISOString().slice(0, 10);
-  const all_ = computeObligations(ws, input.asOf);
+  // An obligation whose act runs through a routine is filed as a run (file-runs), never reminded of here.
+  const { hasRoutine } = await import('./rh2.ts');
+  const all_ = computeObligations(ws, input.asOf).filter((o) => !hasRoutine(latest, o));
   const owed = all_.filter((o) => o.state === 'overdue' || (o.state === 'due' && o.due <= horizon));
   const MARK = /<!-- evidence-desk:(?:obligation|owed) [0-9a-f]{16} -->/;
   const marker = (who: string) => `<!-- evidence-desk:owed ${createHash('sha256').update(who ? `person|${who}` : 'unowned').digest('hex').slice(0, 16)} -->`;

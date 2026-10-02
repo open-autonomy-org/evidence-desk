@@ -168,7 +168,7 @@ export const placeholders = (text: string): string[] => [...new Set([...text.mat
 
 // A policy text that is still Evidence Desk's catalog template: it carries the catalog's drafting comment, or it is the
 // template word for word. The one test the approval gate and the To sign page share.
-const DRAFTING = /^<!--\s*Template adapted from[\s\S]*?-->\n\n?/m;
+export const DRAFTING = /^<!--\s*Template adapted from[\s\S]*?-->\n\n?/m;
 const norm = (t: string) => t.replace(DRAFTING, '').replace(/\s+/g, ' ').trim();
 // The catalog template as the scope's answers fill it in now. Every catalog template carries the drafting comment, which
 // only an edit or an as-is confirmation removes; comparing with the filled-in template is the backstop for a copy adopted
