@@ -1,11 +1,12 @@
 // The calendar of what is owed and when, derived from the workspace: periodic controls, each person's onboarding,
-// annual and offboarding obligations, vendor reviews, risk reviews, vulnerability deadlines and open incidents.
+// annual and offboarding obligations, policy approvals, vendor reviews, risk reviews, vulnerability deadlines and open
+// incidents. A person's form names its `form`, a policy approval its `policy`: what `file-runs` files them as.
 import type { Workspace } from './workspace.ts';
 import { clockDate } from './clock.ts';
 import { neededControls } from './targets.ts';
 import { INTERVAL_DAYS } from './catalog.ts';
 
-export type Obligation = { kind: 'control' | 'person' | 'vendor' | 'risk' | 'vulnerability' | 'incident'; what: string; controls: string[]; who: string; subject?: string; due: string; state: 'done' | 'due' | 'overdue'; done_on?: string };
+export type Obligation = { kind: 'control' | 'person' | 'policy' | 'vendor' | 'risk' | 'vulnerability' | 'incident'; what: string; controls: string[]; who: string; subject?: string; form?: string; policy?: string; due: string; state: 'done' | 'due' | 'overdue'; done_on?: string };
 
 const DAY = 864e5;
 const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
@@ -42,10 +43,10 @@ export function computeObligations(ws: Workspace, asOf = clockDate()): Obligatio
         const last = mine[0];
         let due: number;
         if (last === undefined) due = start + form.due_within_days * DAY;
-        else if (form.recurrence === 'onboarding') { out.push({ kind: 'person', what: form.title, controls, who: p.id, due: iso(last), state: 'done', done_on: iso(last) }); continue; }
+        else if (form.recurrence === 'onboarding') { out.push({ kind: 'person', what: form.title, controls, who: p.id, form: form.id, due: iso(last), state: 'done', done_on: iso(last) }); continue; }
         else due = last + 366 * DAY;
         const done = last !== undefined && due >= today;
-        out.push({ kind: 'person', what: form.title, controls, who: p.id, due: iso(due), state: done ? 'done' : state(due), ...(last !== undefined ? { done_on: iso(last) } : {}) });
+        out.push({ kind: 'person', what: form.title, controls, who: p.id, form: form.id, due: iso(due), state: done ? 'done' : state(due), ...(last !== undefined ? { done_on: iso(last) } : {}) });
       }
       if (applicable.has('HR-01')) {
         const ev = ws.evidence.find((e) => e.data.subject === p.id && e.data.controls.includes('HR-01'));
@@ -58,6 +59,15 @@ export function computeObligations(ws: Workspace, asOf = clockDate()): Obligatio
       // Owed by whoever owns offboarding, never by the person leaving, whose access is what gets removed.
       out.push({ kind: 'person', what: `Offboarding ${p.id}: remove access to every in-scope system`, controls: ['HR-04'], who: applicable.get('HR-04')!.owner, subject: p.id, due: iso(due), state: ev ? 'done' : state(due), ...(ev ? { done_on: ev.data.collected_at.slice(0, 10) } : {}) });
     }
+  }
+
+  // A policy is owed its owner's approval when it has none, its text changed since, or the last is a year old.
+  for (const p of ws.policies) {
+    if (!p.data.owner || !p.text) continue;
+    const last = p.data.versions.at(-1);
+    const due = !last || p.text.version !== last.sha256 ? today : dateOf(last.approved_at.slice(0, 10)) + 366 * DAY;
+    const done = !!last && p.text.version === last.sha256 && due >= today;
+    out.push({ kind: 'policy', what: `Approve ${p.data.title}`, controls: [], who: p.data.owner, policy: p.data.id, due: iso(due), state: done ? 'done' : state(due), ...(last ? { done_on: last.approved_at.slice(0, 10) } : {}) });
   }
 
   for (const v of ws.registers.vendors?.data.rows ?? []) {

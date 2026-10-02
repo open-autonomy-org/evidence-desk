@@ -30,6 +30,8 @@ allowed everywhere and kept when Evidence Desk writes a file, so other tools can
 | `sources/open-autonomy/completeness/<id>.json` | one vendor account's administrators compared with the roster | `completeness` |
 | `sources/open-autonomy/seam-records/<seam>.json` | the latest collection of one commit seam's records, with its findings | none |
 | `sources/github/attribution.json` | the latest check of who recorded each signed act | none |
+| `sources/rh2/runs.json` | each act filed as a run of its seam's routine in the linked Runhuman workspace, and its collection | none |
+| `sources/rh2/answers/<session>.json` | a run's Task and its answerer as Runhuman returned them, kept whole | none |
 | `collectors.json` | which collectors are enabled and their parameters (never credentials) | `collectors` |
 | `checks/runs/<id>.json` | one run of the enabled collectors and every check result | `check-run` |
 | `evidence/files/collected/<collector>/<run>.json` | what a collector read in a run, with the requests it made | JSON |
