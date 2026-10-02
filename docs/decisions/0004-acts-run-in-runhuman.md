@@ -30,6 +30,13 @@ whole as provenance". Its proof rows 10, 12 and 16.
    Every answer read is written whole under `sources/rh2/answers/`.
 4. **`remind`** leaves an obligation whose seam names a routine to its run. A member with no Volter identity on the
    roster is reported by `file-runs` as unlinked.
+5. **Reached where they are** (RFC 0017 §9). A member whose people row carries a `slack` profile link is reached in
+   Slack: the run is given it as `reach`, the routine opens its Conversation linked to their direct messages through the
+   channel bridge, and Runhuman's companion relays the line they type there as their answer, that line its consent. A
+   member Runhuman does not know yet (no person with their Volter subject) is filed for all the same, asked whoever
+   answers in their direct messages; the act is recorded once their Volter sign-in is consolidated with the Slack person
+   they wrote as. The answer file keeps the consent: its message, who relayed it, and Slack's proof (workspace, user,
+   channel, message timestamp), which the recorded response names. A policy is approved by answering `approve`.
 
 ## Consequences
 

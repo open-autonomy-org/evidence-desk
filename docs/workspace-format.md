@@ -17,7 +17,7 @@ allowed everywhere and kept when Evidence Desk writes a file, so other tools can
 | `policies/<id>.md` | a policy's current text | Markdown |
 | `policies/<id>.json` | a policy's owner and approved versions | `policy` |
 | `policies/archive/<id>.v<n>.md` | the exact text approved as version n | Markdown |
-| `registers/people.csv` | people: `id,name,email,role,start_date,end_date,notes` | `register-people` (per row) |
+| `registers/people.csv` | people: `id,name,email,role,start_date,end_date,notes,slack` (`slack`: their Slack profile link, where a run of an act they owe reaches them) | `register-people` (per row) |
 | `registers/systems.csv` | systems: `id,name,kind,owner,description,data,in_scope` | `register-systems` |
 | `registers/vendors.csv` | vendors: `id,name,service,data_access,criticality,assurance,last_review,owner` | `register-vendors` |
 | `registers/risks.csv` | risks: `id,title,description,likelihood,impact,treatment,controls,owner,status,review_due` | `register-risks` |

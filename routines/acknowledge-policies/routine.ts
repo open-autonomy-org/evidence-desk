@@ -2,13 +2,20 @@
 // conduct …; runhuman-2 ADR 0038 §12): Evidence Desk files a run with the form's questions and, for an acknowledgment,
 // the version and hash of every policy in force; the person answers each question in one Task. Evidence Desk grades the
 // answers when it collects them, as it grades any response.
-import { routine } from "@runhuman/routine";
+//
+// Reached in Slack (`reach`, their profile link; RFC 0017 §9), the run's Conversation is linked to their direct messages and
+// Runhuman's companion relays what they type there, their own line its consent; a person Runhuman does not know yet (no
+// `person`) is asked whoever answers there.
+import { RUNHUMAN_COMPANION, TASK_ROLES, routine, type RunRoom, type RunTask } from "@runhuman/routine";
+
+const role = (key: string) => TASK_ROLES.find((each) => each.key === key)!;
 
 type Question = { id: string; prompt: string; type: string; options?: string[] };
 
 export default routine({
   form: {
-    person: { required: true, type: "string" },
+    person: { type: "string" },
+    reach: { type: "url" },
     form: { required: true, type: "string" },
     title: { required: true, type: "string" },
     intro: { type: "string" },
@@ -20,7 +27,12 @@ export default routine({
   title: "Complete a form",
 }, [
   async function open(run) {
-    run.state.room = await run.room();
+    const reach = run.vars.reach === undefined ? undefined : String(run.vars.reach);
+    run.state.room = await run.room({
+      conversations: [{ authority: "collaboration", key: "work", name: String(run.vars.title).slice(0, 80), ...(reach ? { backing: { link: { label: "Direct messages", url: reach } } } : {}) }],
+      name: String(run.vars.title).slice(0, 120),
+      roles: [role("operator"), { actions: ["room.read", "surfaces.view"], conversationKeys: ["work"], key: "member", name: "Member" }, role("companion")],
+    });
   },
   async function ask(run) {
     const room = run.state.room as Parameters<typeof run.ask>[0];
@@ -38,7 +50,14 @@ export default routine({
       form: { form: { required: true, type: "string" }, policies: { items: { fields: { id: { required: true, type: "string" }, sha256: { required: true, type: "string" }, version: { required: true, type: "integer" } }, type: "object" }, type: "array" } },
       key: "form",
       returns: { fields, required: true, type: "object" },
-      who: { principal: String(run.vars.person) },
+      ...(run.vars.person === undefined ? {} : { who: { principal: String(run.vars.person) } }),
+    });
+  },
+  async function companion(run) {
+    if (run.vars.reach === undefined) return;
+    await run.agent(run.state.room as RunRoom, {
+      answers: "all", follows: run.state.task as RunTask, harness: RUNHUMAN_COMPANION.run.harness, instructions: RUNHUMAN_COMPANION.instructions!,
+      key: "companion", model: RUNHUMAN_COMPANION.run.model, name: RUNHUMAN_COMPANION.name!, role: "companion",
     });
   },
   async function answer(run) {
