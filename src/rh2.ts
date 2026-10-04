@@ -215,6 +215,10 @@ export async function collectRh2Tasks(root: string, input: { by: string }): Prom
     const file = `sources/rh2/answers/${run.session}.json`;
     writeVersioned(root, file, JSON.stringify({ schema: 'evidence-desk.rh2-answer/1', read_at: now(), read_by: input.by, run, room: roomId, task, answered_by: answerer ?? null, consent }, null, 2) + '\n', readVersioned(root, file)?.version ?? null);
     const done = (status: NonNullable<Rh2Run['collected']>['status']) => { run.collected = { at: now(), task: task.taskId, answered_by: response.principalId, status, file }; };
+    // Someone reached in Slack who has not yet linked their Volter sign-in (no identity, not consolidated) waits for that
+    // link (ADR 0004 §5): their answer is recorded once it is made, never refused before it could be.
+    const raw = all.find((x) => x.principalId === response.principalId);
+    if (run.reach && raw && !raw.consolidatedInto && !raw.identities?.length) { report.waiting++; continue; }
     if (!answerer?.identities?.some((i) => i.subject === run.subject)) { done('not-the-member'); report.refused.push(`${run.who}: ${run.what}: answered by someone other than ${run.who}`); continue; }
     if (run.policy) {
       const p = loadWorkspace(root).policies.find((x) => x.data.id === run.policy);
