@@ -166,7 +166,9 @@ export async function fileRuns(root: string, input: { within: number; asOf?: Dat
   const ownerRuns: Rh2Run[] = [];
   for (const o of owed) {
     const key = keyOf(o);
-    const known = runs.runs.find((r) => r.key === key);
+    // A policy's run asks about one text: a text changed since (even the same day) is a new act, filed again.
+    const text = o.policy ? packet(root, o, undefined, undefined).sha : undefined;
+    const known = runs.runs.find((r) => r.key === key && (text === undefined || r.packet_sha256 === text));
     if (known) { report.kept++; if (isOwner(snap, o.who, ids)) ownerRuns.push(known); continue; }
     const member = memberOf(snap.team, o.who, ids);
     const person = member?.volter ? all.find((p) => !p.consolidatedInto && p.identities?.some((i) => i.subject === member.volter)) : undefined;
@@ -177,7 +179,7 @@ export async function fileRuns(root: string, input: { within: number; asOf?: Dat
     if (isOwner(snap, o.who, ids) && !release) { report.held.push(`${o.who}: ${o.what}`); continue; }
     const seam = SEAM_OF[o.kind]!, routine = routineOf(seam)!;
     const { vars, sha } = packet(root, o, person?.principalId, reach);
-    const session = await startRun(routine, person?.principalId, `${o.what}\n\n\`\`\`runhuman-vars\n${JSON.stringify(vars)}\n\`\`\``, `evidence-desk:${key}${(runs.dropped ?? []).some((d) => d.key === key) ? `:${(runs.dropped ?? []).filter((d) => d.key === key).length}` : ''}`).catch((e: Error) => { throw new Error(`filing ${o.what} for ${o.who}: ${e.message}`); });
+    const session = await startRun(routine, person?.principalId, `${o.what}\n\n\`\`\`runhuman-vars\n${JSON.stringify(vars)}\n\`\`\``, `evidence-desk:${key}${(runs.dropped ?? []).some((d) => d.key === key) ? `:${(runs.dropped ?? []).filter((d) => d.key === key).length}` : ''}${text && runs.runs.some((r) => r.key === key) ? `:${text.slice(0, 12)}` : ''}`).catch((e: Error) => { throw new Error(`filing ${o.what} for ${o.who}: ${e.message}`); });
     const run: Rh2Run = { key, seam, routine, kind: o.kind, what: o.what, who: o.who, subject: member.volter, ...(person ? { principal: person.principalId } : {}), ...(reach ? { reach } : {}), ...(o.form ? { form: o.form } : {}), ...(o.policy ? { policy: o.policy } : {}), packet_sha256: sha, session, filed_at: now() };
     runs.runs.push(run);
     report.filed.push(`${o.who}: ${o.what}`);
