@@ -32,7 +32,7 @@ export type Rh2Run = {
   collected?: { at: string; task: string; answered_by: string; status: 'recorded' | 'not-the-member' | 'packet-changed' | 'declined'; file: string };
 };
 type Runs = { schema: 'evidence-desk.rh2-runs/1'; runs: Rh2Run[] };
-type Person = { principalId: string; displayName: string; identities?: { issuer: string; subject: string }[]; consolidatedInto?: string | null };
+type Person = { principalId: string; displayName: string; identities?: { issuer: string; subject: string }[]; consolidatedInto?: string | null; consolidatedIdentities?: { issuer: string; subject: string }[] };
 
 function workspace(): { base: string; token: string; org: string } {
   const base = (process.env.RH2_BASE_URL ?? '').replace(/\/$/, '');
@@ -85,7 +85,10 @@ async function people(): Promise<Person[]> {
 /** The person a principal is: themselves, or for someone a bridge observed, whom they proved to be. */
 const proven = (all: Person[], principal: string): Person | undefined => {
   const p = all.find((x) => x.principalId === principal);
-  return p?.consolidatedInto ? all.find((x) => x.principalId === p.consolidatedInto) : p;
+  if (!p?.consolidatedInto) return p;
+  // Whom they proved to be may be no member of the organization (they signed in for the first time to confirm): their
+  // record names that person's identities.
+  return all.find((x) => x.principalId === p.consolidatedInto) ?? { principalId: p.consolidatedInto, displayName: p.displayName, identities: p.consolidatedIdentities ?? [] };
 };
 
 /** An obligation's packet: what its routine is given, and the hash of what the person is shown. */
