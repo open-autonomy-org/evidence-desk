@@ -212,7 +212,9 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
     if (!existing) { saveRegisterRow(root, name, row, reg.version); report.added.push(`${name} ${row.id}`); return; }
     // A row this import wrote from the roster follows the roster; a row a person wrote is theirs.
     if (existing.notes?.startsWith('From the team roster at ')) {
-      if (Object.entries(row).some(([k, v]) => k !== 'notes' && existing[k] !== v)) { saveRegisterRow(root, name, row, reg.version, row.id); report.added.push(`${name} ${row.id} (refreshed from the roster)`); }
+      // Its notes name the commit it was read at, which every import changes; what follows that is the roster's.
+      const roster = (notes?: string) => (notes ?? '').replace(/^From the team roster at [0-9a-f]+/, '');
+      if (Object.entries(row).some(([k, v]) => k === 'notes' ? roster(existing[k]) !== roster(v) : existing[k] !== v)) { saveRegisterRow(root, name, row, reg.version, row.id); report.added.push(`${name} ${row.id} (refreshed from the roster)`); }
       return;
     }
     for (const [k, v] of Object.entries(row)) if (k === 'name' && v && existing[k] && existing[k] !== v) report.conflicts.push(`${name} ${row.id}: ${k} is "${existing[k]}" in the register and "${v}" in the project`);
