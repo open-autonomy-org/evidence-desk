@@ -31,7 +31,9 @@ export type Rh2Run = {
   form?: string; policy?: string; packet_sha256: string; session: string; filed_at: string;
   collected?: { at: string; task: string; answered_by: string; status: 'recorded' | 'not-the-member' | 'packet-changed' | 'declined'; file: string };
 };
-type Runs = { schema: 'evidence-desk.rh2-runs/1'; runs: Rh2Run[] };
+/** `dropped`: runs that left the record unasked (never started in Runhuman, or withdrawn there), kept so a run filed again
+ * under the same obligation starts a new one rather than reaching the one that was dropped. */
+type Runs = { schema: 'evidence-desk.rh2-runs/1'; runs: Rh2Run[]; dropped?: Array<{ key: string; session: string; why: string }> };
 type Person = { principalId: string; displayName: string; identities?: { issuer: string; subject: string }[]; consolidatedInto?: string | null; consolidatedIdentities?: { issuer: string; subject: string }[] };
 
 function workspace(): { base: string; token: string; org: string } {
@@ -175,7 +177,7 @@ export async function fileRuns(root: string, input: { within: number; asOf?: Dat
     if (isOwner(snap, o.who, ids) && !release) { report.held.push(`${o.who}: ${o.what}`); continue; }
     const seam = SEAM_OF[o.kind]!, routine = routineOf(seam)!;
     const { vars, sha } = packet(root, o, person?.principalId, reach);
-    const session = await startRun(routine, person?.principalId, `${o.what}\n\n\`\`\`runhuman-vars\n${JSON.stringify(vars)}\n\`\`\``, `evidence-desk:${key}`).catch((e: Error) => { throw new Error(`filing ${o.what} for ${o.who}: ${e.message}`); });
+    const session = await startRun(routine, person?.principalId, `${o.what}\n\n\`\`\`runhuman-vars\n${JSON.stringify(vars)}\n\`\`\``, `evidence-desk:${key}${(runs.dropped ?? []).some((d) => d.key === key) ? `:${(runs.dropped ?? []).filter((d) => d.key === key).length}` : ''}`).catch((e: Error) => { throw new Error(`filing ${o.what} for ${o.who}: ${e.message}`); });
     const run: Rh2Run = { key, seam, routine, kind: o.kind, what: o.what, who: o.who, subject: member.volter, ...(person ? { principal: person.principalId } : {}), ...(reach ? { reach } : {}), ...(o.form ? { form: o.form } : {}), ...(o.policy ? { policy: o.policy } : {}), packet_sha256: sha, session, filed_at: now() };
     runs.runs.push(run);
     report.filed.push(`${o.who}: ${o.what}`);
@@ -209,11 +211,12 @@ export async function collectRh2Tasks(root: string, input: { by: string }): Prom
   const open = runs.runs.filter((r) => !r.collected);
   if (!open.length) return report;
   const all = await people();
+  const drop = (run: Rh2Run, why: string) => { runs.runs.splice(runs.runs.indexOf(run), 1); (runs.dropped ??= []).push({ key: run.key, session: run.session, why }); report.lost.push(`${run.who}: ${run.what}`); };
   for (const run of open) {
     // A run Runhuman never started (its launch failed after the model door named its session) has no conversation: it is
     // not filed, so it leaves the record and the next file-runs files it again. Any other failure stops the collection.
     const read = await rh2Read(`/v1/sessions/${encodeURIComponent(run.session)}/events?after=0`);
-    if (read.status === 404) { runs.runs.splice(runs.runs.indexOf(run), 1); report.lost.push(`${run.who}: ${run.what}`); continue; }
+    if (read.status === 404) { drop(run, 'never started'); continue; }
     const observed = read.body as { state: { roomId: string | null } };
     const roomId = observed.state.roomId;
     if (!roomId) { report.waiting++; continue; }
@@ -224,7 +227,7 @@ export async function collectRh2Tasks(root: string, input: { by: string }): Prom
     const response = task?.response;
     // A run whose Tasks were all withdrawn unanswered (its filer or an admin cancelled it in Runhuman) asks no one any
     // more: it leaves the record, and the next file-runs files it again.
-    if (!task && tasks.length > 0 && tasks.every((t) => t.status === 'cancelled')) { runs.runs.splice(runs.runs.indexOf(run), 1); report.lost.push(`${run.who}: ${run.what}`); continue; }
+    if (!task && tasks.length > 0 && tasks.every((t) => t.status === 'cancelled')) { drop(run, 'withdrawn'); continue; }
     if (!task || !response?.answer) { report.waiting++; continue; }
     const value = response.answer.value;
     const answerer = proven(all, response.principalId);
