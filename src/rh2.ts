@@ -50,6 +50,16 @@ async function rh2<T>(path: string): Promise<{ body: T }> {
   return { body: JSON.parse(text) as T };
 }
 
+/** A read that tells a missing record (404) from a failure, which it throws. */
+async function rh2Read(path: string): Promise<{ status: number; body: unknown }> {
+  const { base, token, org } = workspace();
+  const res = await fetch(`${base}${path}`, { headers: { authorization: `Bearer ${token}`, 'x-rh2-organization': org, accept: 'application/json' } });
+  const text = await res.text();
+  if (res.status === 404) return { status: 404, body: null };
+  if (!res.ok) throw new Error(`GET ${path} answered ${res.status}: ${text.slice(0, 300)}`);
+  return { status: res.status, body: JSON.parse(text) };
+}
+
 /** Starts a run of a routine through the model door and lets its stream go: the run goes on in Runhuman (the person may
  * take days), and its session is what `collect rh2-tasks` follows. The obligation's key is the conversation's thread, so
  * a retry reaches the same run and two people's runs of one obligation never share one. */
@@ -185,19 +195,23 @@ const slackOf = (provenance: unknown): string => {
   return p?.source === 'slack' ? `, consent in Slack ${p.team}/${p.user} message ${p.channel}/${p.ts}` : '';
 };
 
-export type CollectReport = { recorded: string[]; refused: string[]; waiting: number };
+export type CollectReport = { recorded: string[]; refused: string[]; waiting: number; lost: string[] };
 
 /** Each filed run's Task, read back: the act recorded when its answerer is the roster member's and its packet the one filed. */
 export async function collectRh2Tasks(root: string, input: { by: string }): Promise<CollectReport> {
   const ws = loadWorkspace(root);
   if (!(ws.registers.people?.data.rows ?? []).some((r) => r.id === input.by)) throw new Error(`${input.by || '(none)'} is not in registers/people.csv`);
   const { runs, version } = readRuns(root);
-  const report: CollectReport = { recorded: [], refused: [], waiting: 0 };
+  const report: CollectReport = { recorded: [], refused: [], waiting: 0, lost: [] };
   const open = runs.runs.filter((r) => !r.collected);
   if (!open.length) return report;
   const all = await people();
   for (const run of open) {
-    const observed = (await rh2<{ state: { roomId: string | null } }>(`/v1/sessions/${encodeURIComponent(run.session)}/events?after=0`)).body;
+    // A run Runhuman never started (its launch failed after the model door named its session) has no conversation: it is
+    // not filed, so it leaves the record and the next file-runs files it again. Any other failure stops the collection.
+    const read = await rh2Read(`/v1/sessions/${encodeURIComponent(run.session)}/events?after=0`);
+    if (read.status === 404) { runs.runs.splice(runs.runs.indexOf(run), 1); report.lost.push(`${run.who}: ${run.what}`); continue; }
+    const observed = read.body as { state: { roomId: string | null } };
     const roomId = observed.state.roomId;
     if (!roomId) { report.waiting++; continue; }
     // A Task's answer is its response: who gave it and the value (RH2's Task record).

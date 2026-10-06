@@ -520,7 +520,7 @@ async function command(a: Args, cmd: string, dir: string, dirArg: string, rest: 
       }
       if (rest[0] === 'rh2-tasks') {
         const r = await collectRh2Tasks(dir, { by: one(a, 'by') ?? '' });
-        out(json, r, () => [`From Runhuman: ${r.recorded.length} recorded, ${r.refused.length} refused, ${r.waiting} still waiting on their person.`, ...r.recorded.map((t) => `  recorded: ${t}`), ...r.refused.map((t) => `  refused: ${t}`)].join('\n'));
+        out(json, r, () => [`From Runhuman: ${r.recorded.length} recorded, ${r.refused.length} refused, ${r.waiting} still waiting on their person.`, ...r.recorded.map((t) => `  recorded: ${t}`), ...r.refused.map((t) => `  refused: ${t}`), ...r.lost.map((t) => `  never started in Runhuman (file-runs files it again): ${t}`)].join('\n'));
         return 0;
       }
       if (rest[0] === 'attribution') {
