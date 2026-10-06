@@ -218,10 +218,13 @@ export async function collectRh2Tasks(root: string, input: { by: string }): Prom
     const roomId = observed.state.roomId;
     if (!roomId) { report.waiting++; continue; }
     // A Task's answer is its response: who gave it and the value (RH2's Task record).
-    type Task = { taskId: string; fields?: Record<string, unknown>; response?: { principalId: string; answer?: { value?: unknown } | null } | null };
+    type Task = { taskId: string; status?: string; fields?: Record<string, unknown>; response?: { principalId: string; answer?: { value?: unknown } | null } | null };
     const tasks = (await rh2<{ data: { tasks: Task[] } }>(`/api/v3/rooms/${encodeURIComponent(roomId)}/tasks`)).body.data.tasks;
     const task = tasks.find((t) => t.response?.answer && (run.policy ? t.fields?.policy === run.policy : t.fields?.form === run.form));
     const response = task?.response;
+    // A run whose Tasks were all withdrawn unanswered (its filer or an admin cancelled it in Runhuman) asks no one any
+    // more: it leaves the record, and the next file-runs files it again.
+    if (!task && tasks.length > 0 && tasks.every((t) => t.status === 'cancelled')) { runs.runs.splice(runs.runs.indexOf(run), 1); report.lost.push(`${run.who}: ${run.what}`); continue; }
     if (!task || !response?.answer) { report.waiting++; continue; }
     const value = response.answer.value;
     const answerer = proven(all, response.principalId);
