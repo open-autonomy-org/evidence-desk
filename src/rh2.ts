@@ -235,8 +235,8 @@ export async function collectRh2Tasks(root: string, input: { by: string }): Prom
     const value = response.answer.value;
     const answerer = proven(all, response.principalId);
     // An answer relayed from the person's own line elsewhere (a Slack DM) names that line and the channel's proof of it.
-    const ledger = await rh2<{ data: { history: Array<{ kind: string; payload: { target?: Record<string, unknown> } | null }> } }>(`/api/v3/tasks/${encodeURIComponent(task.taskId)}/ledger`).catch(() => undefined);
-    const responded = ledger?.body.data.history.filter((h) => h.kind === 'tasks.respond').at(-1)?.payload?.target ?? null;
+    const ledger = await rh2<{ data: { history: Array<{ kind: string; payload: { target?: Record<string, unknown> } | null }> } }>(`/api/v3/tasks/${encodeURIComponent(task.taskId)}/ledger`);
+    const responded = ledger.body.data.history.filter((h) => h.kind === 'tasks.respond').at(-1)?.payload?.target ?? null;
     const consent = responded?.consentMessageId ? { message: responded.consentMessageId, relayed_by: responded.relayedBy ?? null, provenance: responded.consentProvenance ?? null } : null;
     const file = `sources/rh2/answers/${run.session}.json`;
     writeVersioned(root, file, JSON.stringify({ schema: 'evidence-desk.rh2-answer/1', read_at: now(), read_by: input.by, run, room: roomId, task, answered_by: answerer ?? null, consent }, null, 2) + '\n', readVersioned(root, file)?.version ?? null);
