@@ -220,9 +220,15 @@ export async function collectRh2Tasks(root: string, input: { by: string }): Prom
     // not filed, so it leaves the record and the next file-runs files it again. Any other failure stops the collection.
     const read = await rh2Read(`/v1/sessions/${encodeURIComponent(run.session)}/events?after=0`);
     if (read.status === 404) { drop(run, 'never started'); continue; }
-    const observed = read.body as { state: { roomId: string | null } };
+    const observed = read.body as { events?: Array<{ type: string }>; state: { roomId: string | null } };
     const roomId = observed.state.roomId;
-    if (!roomId) { report.waiting++; continue; }
+    if (!roomId) {
+      // A machine can fail before its routine opens a Room. The door keeps that terminal event; this act is no longer
+      // waiting on its person. Keep the failed session in the trail and let file-runs ask again with a new session.
+      if (observed.events?.some((event) => event.type === 'end')) drop(run, 'ended before opening a Room');
+      else report.waiting++;
+      continue;
+    }
     // A Task's answer is its response: who gave it and the value (RH2's Task record).
     type Task = { taskId: string; status?: string; fields?: Record<string, unknown>; response?: { principalId: string; answer?: { value?: unknown } | null } | null };
     const tasks = (await rh2<{ data: { tasks: Task[] } }>(`/api/v3/rooms/${encodeURIComponent(roomId)}/tasks`)).body.data.tasks;
