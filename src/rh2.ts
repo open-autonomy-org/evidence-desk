@@ -27,7 +27,7 @@ const OWNER_ACTS = '<!-- evidence-desk:owner-acts -->';
 export type Rh2Run = {
   // principal: the member's Runhuman person, when Runhuman knows them; reach: where they are reached instead (their Slack
   // DM link, from the people register), the run asking whoever answers there.
-  key: string; seam: string; routine: string; kind: Obligation['kind']; what: string; who: string; subject: string; principal?: string; reach?: string;
+  key: string; seam: string; routine: string; /** The version the model door ran (`routine:<org>/<name>@sha256:…`). */ routine_version?: string; kind: Obligation['kind']; what: string; who: string; subject: string; principal?: string; reach?: string;
   form?: string; policy?: string; packet_sha256: string; session: string; filed_at: string;
   collected?: { at: string; task: string; answered_by: string; status: 'recorded' | 'not-the-member' | 'packet-changed' | 'declined'; file: string };
 };
@@ -65,13 +65,14 @@ async function rh2Read(path: string): Promise<{ status: number; body: unknown }>
 /** Starts a run of a routine through the model door and lets its stream go: the run goes on in Runhuman (the person may
  * take days), and its session is what `collect rh2-tasks` follows. The obligation's key is the conversation's thread, so
  * a retry reaches the same run and two people's runs of one obligation never share one. */
-async function startRun(model: string, sponsor: string | undefined, content: string, thread: string): Promise<string> {
+async function startRun(model: string, sponsor: string | undefined, content: string, thread: string): Promise<{ session: string; version: string | undefined }> {
   const { base, token, org } = workspace();
   const res = await fetch(`${base}/v1/messages`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'x-rh2-organization': org, ...(sponsor ? { 'x-runhuman-sponsor': sponsor } : {}), 'x-runhuman-filed': '1', 'thread-id': thread, 'content-type': 'application/json' }, body: JSON.stringify({ model, max_tokens: 1024, stream: true, messages: [{ role: 'user', content }] }) });
   const session = res.headers.get('x-runhuman-session');
   if (!res.ok || !session) { const text = await res.text().catch(() => ''); throw new Error(`Runhuman answered ${res.status}${session ? '' : ' and named no session'}: ${text.slice(0, 300)}`); }
   await res.body?.cancel();
-  return session;
+  // The version the door ran, kept with the act (RFC 0017 row 10: the act with its packet hash and routine version).
+  return { session, version: res.headers.get('x-runhuman-routine') ?? undefined };
 }
 
 function readRuns(root: string): { runs: Runs; version: string | null } {
@@ -179,8 +180,8 @@ export async function fileRuns(root: string, input: { within: number; asOf?: Dat
     if (isOwner(snap, o.who, ids) && !release) { report.held.push(`${o.who}: ${o.what}`); continue; }
     const seam = SEAM_OF[o.kind]!, routine = routineOf(seam)!;
     const { vars, sha } = packet(root, o, person?.principalId, reach);
-    const session = await startRun(routine, person?.principalId, `${o.what}\n\n\`\`\`runhuman-vars\n${JSON.stringify(vars)}\n\`\`\``, `evidence-desk:${key}${(runs.dropped ?? []).some((d) => d.key === key) ? `:${(runs.dropped ?? []).filter((d) => d.key === key).length}` : ''}${text && runs.runs.some((r) => r.key === key) ? `:${text.slice(0, 12)}` : ''}`).catch((e: Error) => { throw new Error(`filing ${o.what} for ${o.who}: ${e.message}`); });
-    const run: Rh2Run = { key, seam, routine, kind: o.kind, what: o.what, who: o.who, subject: member.volter, ...(person ? { principal: person.principalId } : {}), ...(reach ? { reach } : {}), ...(o.form ? { form: o.form } : {}), ...(o.policy ? { policy: o.policy } : {}), packet_sha256: sha, session, filed_at: now() };
+    const { session, version: ran } = await startRun(routine, person?.principalId, `${o.what}\n\n\`\`\`runhuman-vars\n${JSON.stringify(vars)}\n\`\`\``, `evidence-desk:${key}${(runs.dropped ?? []).some((d) => d.key === key) ? `:${(runs.dropped ?? []).filter((d) => d.key === key).length}` : ''}${text && runs.runs.some((r) => r.key === key) ? `:${text.slice(0, 12)}` : ''}`).catch((e: Error) => { throw new Error(`filing ${o.what} for ${o.who}: ${e.message}`); });
+    const run: Rh2Run = { key, seam, routine, ...(ran ? { routine_version: ran } : {}), kind: o.kind, what: o.what, who: o.who, subject: member.volter, ...(person ? { principal: person.principalId } : {}), ...(reach ? { reach } : {}), ...(o.form ? { form: o.form } : {}), ...(o.policy ? { policy: o.policy } : {}), packet_sha256: sha, session, filed_at: now() };
     runs.runs.push(run);
     report.filed.push(`${o.who}: ${o.what}`);
     if (isOwner(snap, o.who, ids)) ownerRuns.push(run);
@@ -250,14 +251,14 @@ export async function collectRh2Tasks(root: string, input: { by: string }): Prom
       const rec = readVersioned(root, `policies/${run.policy}.json`);
       if (!p?.text || !rec || task.fields?.sha256 !== run.packet_sha256 || sha256(p.text.body.replace(DRAFTING, '')) !== run.packet_sha256) { done('packet-changed'); report.refused.push(`${run.who}: ${run.what}: the policy changed since it was shown`); continue; }
       if (value !== 'approve') { done('declined'); report.refused.push(`${run.who}: ${run.what}: declined`); continue; }
-      approvePolicy(root, run.policy, run.who, p.text.version, rec.version, true);
+      approvePolicy(root, run.policy, run.who, p.text.version, rec.version, true, { routine: run.routine_version ?? run.routine, session: run.session, task: task.taskId });
     } else {
       const f = loadWorkspace(root).forms.find((x) => x.data.id === run.form);
       if (!f || f.version !== run.packet_sha256) { done('packet-changed'); report.refused.push(`${run.who}: ${run.what}: the form changed since it was shown`); continue; }
-      submitResponse(root, { form: f.data.id, person: run.who, answers: Object.fromEntries(Object.entries((value ?? {}) as Record<string, unknown>).map(([k, v]) => [k, String(v)])), formVersion: f.version, identity: `runhuman ${response.principalId} (Volter ${run.subject}), task ${task.taskId}${slackOf(consent?.provenance)}` });
+      submitResponse(root, { form: f.data.id, person: run.who, answers: Object.fromEntries(Object.entries((value ?? {}) as Record<string, unknown>).map(([k, v]) => [k, String(v)])), formVersion: f.version, identity: `runhuman ${response.principalId} (Volter ${run.subject}), task ${task.taskId}, ${run.routine_version ?? run.routine}${slackOf(consent?.provenance)}` });
     }
     done('recorded');
-    report.recorded.push(`${run.who}: ${run.what}`);
+    report.recorded.push(`${run.who}: ${run.what} (${run.routine_version ?? run.routine}, packet ${run.packet_sha256.slice(0, 12)})`);
   }
   writeVersioned(root, RUNS, JSON.stringify(runs, null, 2) + '\n', version);
   return report;

@@ -54,6 +54,16 @@
           },
           "archived": {
             "type": "string"
+          },
+          "via": {
+            "type": "object",
+            "description": "An approval given in a Runhuman run: the routine version that asked it, its session and its Task.",
+            "required": ["routine", "session", "task"],
+            "properties": {
+              "routine": { "type": "string", "minLength": 1 },
+              "session": { "type": "string", "minLength": 1 },
+              "task": { "type": "string", "minLength": 1 }
+            }
           }
         }
       }

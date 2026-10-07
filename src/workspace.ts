@@ -14,7 +14,7 @@ export type Control = {
   schema: string; id: string; title: string; description: string; criteria: string[]; frequency: string; policies: string[];
   evidence_expected: string[]; applicable: boolean; exclusion_reason?: string; owner: string; status: string; catalog?: string; notes?: string;
 };
-export type PolicyVersion = { version: number; approved_by: string; approved_at: string; sha256: string; archived: string };
+export type PolicyVersion = { version: number; approved_by: string; approved_at: string; sha256: string; archived: string; /** Given in a Runhuman run: the routine version that asked it, its session and Task. */ via?: { routine: string; session: string; task: string } };
 export type Policy = { schema: string; id: string; title: string; owner: string; versions: PolicyVersion[] };
 export type Evidence = {
   schema: string; id: string; title: string; controls: string[]; source: { kind: string; name?: string; query?: string; commit?: string };
