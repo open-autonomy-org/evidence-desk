@@ -1,5 +1,5 @@
 name: Land a branch
-# Nothing pushes to main: main-protected requires a PR; its required approving-review count is zero (D332).
+# Nothing pushes to main: main-protected requires a PR; its required approving-review count is zero.
 # Pushing opens the PR and arms native auto-merge under the current rules. No bypass actors.
 #   agent/**  the agent's own work        land/**  a maintainer's
 on:

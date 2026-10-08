@@ -11,8 +11,11 @@ The PM runs an hourly scrum over `ROADMAP.md` (notable present/future intentions
 direction, community input, outside contributions and fleet activity, coordinates human commitments and
 required release review, and queues executable work through Hermes's native kanban. The community desk
 runs every quarter hour and answers people; the dispatcher and review lane handle fleet execution.
-A push opens a PR; native review of its exact head comes before GitHub merges it. Reviewers publish
-their GitHub verdict and confirm landing before completing the task. Changed diffs invalidate approval.
+Main requires a PR with `required_approving_review_count: 0` and dismisses stale reviews. Independent
+review still records the exact head and evidence; a changed head needs a new verdict. The landing
+workflow opens PRs and enables auto-merge on `agent/**` and `land/**`, which can merge an eligible PR
+without waiting for that verdict. Use another branch for a candidate awaiting review and open its PR
+normally. Native reviewers publish their GitHub verdict and confirm landing before completing the task.
 
 `kanban.seed.json` is historical input for migration, no longer replayed at startup. A kit upgrade creates
 missing roadmap notes from that seed without changing an existing roadmap or live board. The first scrum

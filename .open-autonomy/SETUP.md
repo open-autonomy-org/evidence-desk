@@ -480,7 +480,7 @@ directory with owner-only permissions. Existing credential files must be regular
 
 | Connection | Setup and credential handoff | Proof before completion |
 |---|---|---|
-| GitHub repository | Verify the owner and repository; the helper generates and registers a repository-scoped SSH push key | The agent's key can push its branch; main requires a PR with zero required approving reviews under D332; release requires human approval |
+| GitHub repository | Verify the owner and repository; the helper generates and registers a repository-scoped SSH push key | The agent's key can push its branch; main requires a PR with zero required approving reviews; release requires human approval |
 | Project GitHub App | The browser agent handles registration and installation; the standalone credential receiver only saves the key; verify access through the running valve | Through the app/valve, read this repository's issues, PR reviews/checks, workflows and release records |
 | Open Autonomy platform | The key tool prepares a repository-control claim; the setup agent lands it through normal Git/PR tools, then reruns setup to provision developer/treasurer credentials into protected host storage | The project account is correct and the actual reporting/model arrangement works |
 | Optional communication provider | Guide the chosen provider's application setup, scopes and installation; use protected page capture for displayed credentials, or secure entry when capture is unavailable | Read the agreed history, deliver to the agreed destination, and recognize the owner's reply |
@@ -706,7 +706,7 @@ For bare deployments using a deploy key, setup also checks on reruns that it rem
 disabled or read-only key requires the setup agent to reconcile the intended access; setup does not
 restore a revoked registration or expand existing permissions automatically.
 
-Before activation, inspect effective main rules. Under D332 (2026-10-08), Evidence Desk's active
+Before activation, inspect effective main rules. Evidence Desk's active
 `main-protected` ruleset (22579502) requires a pull request with
 `required_approving_review_count: 0`. Preserve its other parameters, including stale-review dismissal and
 `require_extra_approval_for_unattributed_changes: true`. Keep its deletion and non-fast-forward
