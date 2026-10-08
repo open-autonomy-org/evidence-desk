@@ -13,7 +13,9 @@ import { neededControls } from './targets.ts';
 
 declare const Bun: { YAML: { parse(text: string): unknown } };
 
-export type Seam = { id: string; scope: string; door: string; record: string };
+// `routine`: the routine the act runs through in the linked Runhuman workspace (Open Autonomy ADR 0019), filed by
+// `file-runs` and collected by `collect rh2-tasks`.
+export type Seam = { id: string; scope: string; door: string; record: string; routine?: string };
 // The roster member a workspace person is: the member with that id, or else the member whose GitHub login is that id (a
 // workspace that named its people by their GitHub logins before it read the roster), unless that member is a person of
 // the workspace in their own right (\`people\`, the register's ids): then the login is someone else's. Every match of
@@ -27,7 +29,8 @@ export type Snapshot = {
   schema: string; repository: string; repository_path?: string; remote_url?: string; remote_branches?: string[];
   // The project's architecture decision records, and whether each answers the soc2 template's checklist.
   decisions?: { file: string; title: string; status: string; checklist: 'complete' | 'incomplete' | 'none' }[]; commit: string; read_at: string; account: string; kit: { skew: string; version: string } | null;
-  team: { id: string; name: string; github?: string; discord?: string; scopes: string[] }[];
+  // `volter`: the subject of the Volter identity the member recorded by signing in (Open Autonomy ADR 0019).
+  team: { id: string; name: string; github?: string; discord?: string; volter?: string; scopes: string[] }[];
   agents: { profile: string; models: { name: string; provider: string; model: string; credential?: string }[]; jobs: { name: string; schedule: string; skills: string[] }[] }[];
   seams: Seam[] | null; vendor_accounts: { id: string; vendor: string; account: string }[];
   rules: { pr_landing: boolean; production_deploy: { workflow: string; tag_trigger: string | null; environment: string | null; egress: string[] } | null; production_workflows?: { workflow: string; tag_trigger: string | null; environment: string | null; egress: string[] }[] };
@@ -72,6 +75,7 @@ export function readProject(repo: string, commitish = 'HEAD'): Snapshot {
   const team = ((config.team?.members ?? []) as any[]).map((m) => ({
     id: String(m.id), name: String(m.name), scopes: (m.scopes ?? []) as string[],
     ...(m.github ? { github: String(m.github.login) } : {}), ...(m.discord ? { discord: String(m.discord.name) } : {}),
+    ...(m.volter?.subject ? { volter: String(m.volter.subject) } : {}),
   }));
   const agents = Object.entries(agent.profiles).map(([profile, p]) => ({
     profile,
@@ -134,7 +138,7 @@ export function seamFindings(s: Snapshot): string[] {
   const out: string[] = [];
   for (const seam of s.seams) {
     if (!DOORS.includes(seam.door)) out.push(`Seam ${seam.id} acts through "${seam.door}", which is not one of the three doors (${DOORS.join(', ')}); its acts are not durably recorded`);
-    if (!scopes.has(seam.scope)) out.push(`Seam ${seam.id} needs scope ${seam.scope}, which no roster member holds`);
+    if (seam.scope !== 'member' && !scopes.has(seam.scope)) out.push(`Seam ${seam.id} needs scope ${seam.scope}, which no roster member holds`);
   }
   if (!s.vendor_accounts.length) out.push('The seams declaration names no vendor accounts, so the roster cannot be checked for completeness');
   return out;
@@ -208,7 +212,9 @@ export function importOpenAutonomy(root: string, repo: string, commitish = 'HEAD
     if (!existing) { saveRegisterRow(root, name, row, reg.version); report.added.push(`${name} ${row.id}`); return; }
     // A row this import wrote from the roster follows the roster; a row a person wrote is theirs.
     if (existing.notes?.startsWith('From the team roster at ')) {
-      if (Object.entries(row).some(([k, v]) => k !== 'notes' && existing[k] !== v)) { saveRegisterRow(root, name, row, reg.version, row.id); report.added.push(`${name} ${row.id} (refreshed from the roster)`); }
+      // Its notes name the commit it was read at, which every import changes; what follows that is the roster's.
+      const roster = (notes?: string) => (notes ?? '').replace(/^From the team roster at [0-9a-f]+/, '');
+      if (Object.entries(row).some(([k, v]) => k === 'notes' ? roster(existing[k]) !== roster(v) : existing[k] !== v)) { saveRegisterRow(root, name, row, reg.version, row.id); report.added.push(`${name} ${row.id} (refreshed from the roster)`); }
       return;
     }
     for (const [k, v] of Object.entries(row)) if (k === 'name' && v && existing[k] && existing[k] !== v) report.conflicts.push(`${name} ${row.id}: ${k} is "${existing[k]}" in the register and "${v}" in the project`);

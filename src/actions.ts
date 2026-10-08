@@ -168,7 +168,7 @@ export const placeholders = (text: string): string[] => [...new Set([...text.mat
 
 // A policy text that is still Evidence Desk's catalog template: it carries the catalog's drafting comment, or it is the
 // template word for word. The one test the approval gate and the To sign page share.
-const DRAFTING = /^<!--\s*Template adapted from[\s\S]*?-->\n\n?/m;
+export const DRAFTING = /^<!--\s*Template adapted from[\s\S]*?-->\n\n?/m;
 const norm = (t: string) => t.replace(DRAFTING, '').replace(/\s+/g, ' ').trim();
 // The catalog template as the scope's answers fill it in now. Every catalog template carries the drafting comment, which
 // only an edit or an as-is confirmation removes; comparing with the filled-in template is the backstop for a copy adopted
@@ -203,7 +203,10 @@ export function stillTemplate(id: string, text: string, answers: Record<string, 
 // evidence says the template was approved as is. Every check runs before anything is written.
 // Everything an approval checks, before anything is written: the texts as read, the approver, placeholders, the template
 // gate. Returns what the approval would write.
-function approvalPlan(root: string, id: string, approvedBy: string, textVersion: string, recordVersion: string, asIs: boolean) {
+/** An approval given in a Runhuman run: the routine version that asked it, its session and its Task. */
+export type ApprovedVia = { routine: string; session: string; task: string };
+
+function approvalPlan(root: string, id: string, approvedBy: string, textVersion: string, recordVersion: string, asIs: boolean, via?: ApprovedVia) {
   const rel = `policies/${id}.json`;
   const rec = readRecord<Policy>(root, rel);
   if (rec.version !== recordVersion) throw new Error(`${rel} changed on disk since it was read; reload it and approve again`);
@@ -226,7 +229,7 @@ function approvalPlan(root: string, id: string, approvedBy: string, textVersion:
   const version = (last?.version ?? 0) + 1;
   const archived = `policies/archive/${id}.v${version}.md`;
   if (readVersioned(root, archived)) throw new Error(`${archived} already exists; it would be overwritten by this approval`);
-  const next = { ...rec.data, versions: [...rec.data.versions, { version, approved_by: approvedBy, approved_at: now(), sha256: bodyVersion, archived }] };
+  const next = { ...rec.data, versions: [...rec.data.versions, { version, approved_by: approvedBy, approved_at: now(), sha256: bodyVersion, archived, ...(via ? { via } : {}) }] };
   valid('policy', next, rel);
   return { id, rel, rec, text, body, version, archived, next, template, unchanged, approvedBy };
 }
@@ -242,8 +245,8 @@ function writeApproval(root: string, p: ReturnType<typeof approvalPlan>): void {
   });
 }
 
-export function approvePolicy(root: string, id: string, approvedBy: string, textVersion: string, recordVersion: string, asIs = false): number {
-  const p = approvalPlan(root, id, approvedBy, textVersion, recordVersion, asIs);
+export function approvePolicy(root: string, id: string, approvedBy: string, textVersion: string, recordVersion: string, asIs = false, via?: ApprovedVia): number {
+  const p = approvalPlan(root, id, approvedBy, textVersion, recordVersion, asIs, via);
   writeApproval(root, p);
   return p.version;
 }

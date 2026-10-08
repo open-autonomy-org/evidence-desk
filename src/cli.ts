@@ -18,6 +18,7 @@ import { writeCsv } from './csv.ts';
 import { buildTrustCenter, exportQuestionnaire, importQuestionnaire, publishStatement, reviewAnswer, staleLibrary } from './trust.ts';
 import { decideAccount, openIncident, signOffAccessReview, startAccessReview, submitResponse, updateIncident } from './operations.ts';
 import { computeObligations } from './obligations.ts';
+import { collectRh2Tasks, fileRuns } from './rh2.ts';
 import { collectAccessChanges } from './access.ts';
 import { certifications, claimOf, recordCertification } from './certifications.ts';
 import { recollect } from './recollect.ts';
@@ -51,6 +52,12 @@ const USAGE = `evidence-desk <command> <workspace> [options]
   obligations <dir> [--person <id>] [--as-of YYYY-MM-DD]   what is owed, by whom and when
   remind <dir> --repo <owner/name> --within <days>
                                           keep one issue per person listing what they owe, overdue or due within the days, in the workspace's repository
+                                          (an obligation whose seam names a routine is left to its run: file-runs)
+  file-runs <dir> --within <days> [--release <owner/name of the Open Autonomy project>]
+                                          file each owed act whose seam names a routine as a run of it in the linked Runhuman
+                                          workspace (RH2_BASE_URL, RH2_SESSION_TOKEN, RH2_ORGANIZATION), sponsored by the person
+                                          who owes it; the owner's are held until --release shows their release requested,
+                                          then listed on its Release pull request (needs GITHUB_TOKEN)
   access-review <dir> start --system <id> --reviewer <person> --period <start>..<end> --listing <file> --generated-by <how>
   access-review <dir> <id> [--decide <account>=keep|remove|modify ...] [--done <account>=<date> ...]
                      [--person <account>=<person> ...] [--privileged <account>] [--sign-off --by <person>]
@@ -84,6 +91,8 @@ const USAGE = `evidence-desk <command> <workspace> [options]
                                           the acts an Open Autonomy project records under records/, from git
   collect <dir> nonhuman-access --repo <owner/name> --org <org> [--environment <name>] --by <person>
                                           deploy keys, secrets, app installations and agents with access (needs GITHUB_TOKEN)
+  collect <dir> rh2-tasks --by <person>    each filed run's answer, recorded as the act (the approval, the response) when the
+                                          person who answered is the roster member's and the packet is the one filed
   collect <dir> attribution --repo <owner/name of the workspace's repository> [--roster <owner/name of the Open Autonomy project>] --by <person>
                                           whether each signed act reached the default branch through a pull request its
                                           person approved at the merged commit; --roster reads who is whom from the
@@ -485,6 +494,15 @@ async function command(a: Args, cmd: string, dir: string, dirArg: string, rest: 
       }
       throw new Error('open-autonomy needs import, completeness or show');
     }
+    case 'file-runs': {
+      const asOf = one(a, 'as-of');
+      const within = Number(one(a, 'within'));
+      if (!Number.isInteger(within) || within < 0) throw new Error('file-runs needs --within <days>: how far ahead an obligation is worth filing');
+      const r = await fileRuns(dir, { within, ...(asOf ? { asOf: new Date(`${asOf}T00:00:00Z`) } : {}), ...(one(a, 'release') ? { release: one(a, 'release') } : {}) });
+      out(json, r, () => [`Runs: ${r.filed.length} filed, ${r.held.length} held for the release, ${r.kept} already filed.${r.release ? ` The owner's are listed on ${r.release}.` : ''}`,
+        ...r.filed.map((t) => `  filed: ${t}`), ...r.held.map((t) => `  held: ${t}`), ...r.unlinked.map((t) => `  no Volter identity on the roster (sign in at the platform's /team/volter): ${t}`)].join('\n'));
+      return 0;
+    }
     case 'remind': {
       const asOf = one(a, 'as-of');
       const within = Number(one(a, 'within'));
@@ -498,6 +516,11 @@ async function command(a: Args, cmd: string, dir: string, dirArg: string, rest: 
         const [start, end] = (one(a, 'period') ?? '').split('..');
         const r = await collectOpenAutonomyActivity(dir, { account: one(a, 'account') ?? '', start: start ?? '', end: end ?? '', by: one(a, 'by') ?? '' });
         out(json, r, () => `Collected from Open Autonomy: ${Object.entries(r.counts).map(([k, n]) => `${n} ${k}`).join(', ')}; recorded ${r.evidence.join(', ')}.`);
+        return 0;
+      }
+      if (rest[0] === 'rh2-tasks') {
+        const r = await collectRh2Tasks(dir, { by: one(a, 'by') ?? '' });
+        out(json, r, () => [`From Runhuman: ${r.recorded.length} recorded, ${r.refused.length} refused, ${r.waiting} still waiting on their person.`, ...r.recorded.map((t) => `  recorded: ${t}`), ...r.refused.map((t) => `  refused: ${t}`), ...r.lost.map((t) => `  not asked in Runhuman (never started, or withdrawn; file-runs files it again): ${t}`)].join('\n'));
         return 0;
       }
       if (rest[0] === 'attribution') {
