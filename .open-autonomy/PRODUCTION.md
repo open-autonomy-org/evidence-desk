@@ -7,11 +7,14 @@ without requiring a hosted service.
 
 ## The shape
 
-- **Landing follows independent agent review.** The developer pushes `agent/<task>`; the landing workflow
-  opens a PR and arms auto-merge. A separate reviewer approves the current PR head after constitution,
-  scope and manual feature verification review. Changed diffs invalidate stale approvals. All code,
-  including workflows, follows this process; there is no CODEOWNERS or human development-review gate.
-  Nothing pushes `main` directly, maintainers included (`main-protected`: PR required, no bypass).
+- **Landing records independent agent review.** The developer pushes `work/<task>`, opens a PR and hands
+  its exact head to a separate reviewer for constitution, scope and manual feature verification review.
+  A changed head needs a new verdict. Main requires a PR with `required_approving_review_count: 0` and
+  dismisses stale reviews. The landing workflow opens PRs and arms auto-merge on `agent/**` and `land/**`;
+  it can merge an eligible PR without waiting for the independent verdict. Keep candidates awaiting
+  review outside those triggers. All code, including workflows, receives independent review; there is
+  no CODEOWNERS or human development-review requirement. Nothing pushes `main` directly, maintainers
+  included (`main-protected`: PR required, no bypass).
 - **Credentials stay outside development.** Agents and development code do not receive production keys;
   the host valve supplies scoped development access. Human approval gates release of the exact candidate,
   when production credentials may be used, rather than each merge to main.
@@ -26,9 +29,11 @@ without requiring a hosted service.
 ## Setting it up, once per project
 
 1. No CODEOWNERS files (including root, `.github/` and `docs/` locations).
-2. Ruleset `main-protected` on `refs/heads/main`: `pull_request` (1 approving agent review, stale approvals
-   dismissed on push, code-owner review disabled), `non_fast_forward`, `deletion`; no bypass actors.
-   Enable repository auto-merge and allow the landing workflow to open PRs.
+2. Evidence Desk's active ruleset `main-protected` (22579502) on `refs/heads/main`: `pull_request` with
+   `required_approving_review_count: 0`, stale-review dismissal and code-owner review disabled;
+   `non_fast_forward` and `deletion`; no bypass actors. Preserve its other parameters, including
+   `require_extra_approval_for_unattributed_changes: true`. Enable repository auto-merge and allow the
+   landing workflow to open PRs. Independent review records its verdict separately from that count.
 3. Ruleset `deploy-tags-admin-only` on `refs/tags/deploy-v*`: `creation`, `update`, `deletion`; bypass:
    OrganizationAdmin, always.
 4. Environment `production`: required reviewer the owner; deployment branches "selected", one tag pattern
