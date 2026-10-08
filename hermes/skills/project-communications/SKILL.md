@@ -126,15 +126,16 @@ record this policy; previous requests to run automated suites are superseded, no
 
 ## Development PR review
 
-The developer pushes and opens a PR before review. The native reviewer independently examines the
-exact head commit, constitutional fit, scope authority and manual verification evidence, then submits
-the GitHub verdict. Main requires an approving review and invalidates stale approvals on changed diffs.
-The landing workflow's GitHub Actions identity opens the PR; the project App submits review, so GitHub
-sees distinct author/reviewer identities. Agents must not approve from their authoring session.
-Native task completion follows observed merge. PM and strategy hand planning PRs into the same native
-review lane; outside contributions are discovered by PM and receive review without special handoffs.
-Human approval for a release remains separate from agent review of a development PR.
+The developer pushes and opens a PR before independent review of the exact head commit, constitutional
+fit, scope authority and manual verification evidence. Main requires a PR with
+`required_approving_review_count: 0` and dismisses stale reviews when the diff changes. The independent
+verdict remains separate from that GitHub requirement; a changed head needs a new verdict.
 
-Source: the owner's 2026-09-10 development conversation required finishing the review-order correction
-and explicitly rejected hiding changes locally until after review: "what about PRs". This policy keeps
-PRs open and reviewable before approval and merge; it does not delegate human release authority.
+The landing workflow opens PRs as GitHub Actions on `agent/**` and `land/**` and enables auto-merge.
+It can merge an eligible PR before an independent verdict, so candidates awaiting review use a branch
+outside those triggers and open their PR normally. When using the native review lane, the project App
+submits the review. Keep author/reviewer identities distinct; agents must not approve from their
+authoring session. Native task completion follows observed merge. PM and strategy hand planning PRs
+into the same native review lane; outside contributions are discovered by PM and receive independent
+review without special handoffs. Human release approval remains separate and is not delegated by a
+development PR verdict.
