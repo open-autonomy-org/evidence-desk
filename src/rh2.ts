@@ -115,6 +115,17 @@ function packet(root: string, o: Obligation, principal: string | undefined, reac
 const keyOf = (o: Obligation) => `${o.kind}|${o.policy ?? o.form ?? ''}|${o.who}|${o.due}`;
 const isOwner = (snap: Snapshot, who: string, ids: string[]) => !!memberOf(snap.team, who, ids)?.scopes.includes('owner');
 
+/** Release markers and prior owner-act notices can occur on any comment page. Refuse an incomplete scan. */
+async function issueComments<T>(gh: <R>(path: string) => Promise<R>, issue: number): Promise<T[]> {
+  const comments: T[] = [];
+  for (let page = 1; ; page++) {
+    const batch = await gh<T[]>(`/issues/${issue}/comments?per_page=100&page=${page}`);
+    comments.push(...batch);
+    if (batch.length < 100) return comments;
+    if (page >= 100) throw new Error(`Release #${issue} has at least 10,000 comments; its notices could not be read completely`);
+  }
+}
+
 /** The project's Release pull request when its release has been requested (PM's package posted on it), else null. */
 async function requestedRelease(repo: string): Promise<{ number: number; url: string } | null> {
   repoName(repo, '--release');
@@ -128,7 +139,7 @@ async function requestedRelease(repo: string): Promise<{ number: number; url: st
   const [owner] = repo.split('/');
   const open = await gh<{ number: number; html_url: string }[]>(`/pulls?state=open&base=prod&head=${owner}:main`);
   if (!open[0]) return null;
-  const comments = await gh<{ body?: string }[]>(`/issues/${open[0].number}/comments?per_page=100`);
+  const comments = await issueComments<{ body?: string }>(gh, open[0].number);
   return comments.some((c) => (c.body ?? '').includes(RELEASE_READY)) ? { number: open[0].number, url: open[0].html_url } : null;
 }
 
@@ -141,7 +152,7 @@ async function postOwnerActs(repo: string, release: number, runs: Rh2Run[]): Pro
     return await res.json() as T;
   };
   const body = [`Compliance acts the owner owes, held for this release. Each waits in Runhuman (${base}/console), signed in with your Volter identity:`, '', ...runs.map((r) => `- ${r.what}`), '', OWNER_ACTS].join('\n');
-  const existing = (await gh<{ id: number; body?: string }[]>(`/issues/${release}/comments?per_page=100`)).find((c) => (c.body ?? '').includes(OWNER_ACTS));
+  const existing = (await issueComments<{ id: number; body?: string }>(gh, release)).find((c) => (c.body ?? '').includes(OWNER_ACTS));
   if (existing) { if (existing.body !== body) await gh(`/issues/comments/${existing.id}`, 'PATCH', { body }); }
   else await gh(`/issues/${release}/comments`, 'POST', { body });
 }
